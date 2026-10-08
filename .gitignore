@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 환경변수 파일 (VITE_* 값은 번들에 공개되므로 비밀값을 넣지 않는다)
+.env
+.env.*
+!.env.example
