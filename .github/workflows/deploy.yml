@@ -88,5 +88,6 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # 이 run의 커밋 이미지(:sha-<SHA>)를 배포한다. 이전 run의 deploy job을 다시 실행하면 롤백된다.
           printf '%s %s\n' "$GITHUB_ACTOR" "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "deploy@$DEPLOY_HOST" "$TARGET_ENV web"
+            "deploy@$DEPLOY_HOST" "$TARGET_ENV web $GITHUB_SHA"
