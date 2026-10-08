@@ -1,5 +1,7 @@
 # main → 운영(prod), dev → 개발 서버(dev)로 배포한다. ci.yml이 통과해야 배포 단계로 넘어간다.
-# 이미지를 GHCR에 올린 뒤, 배포 전용 SSH 키로 EC2의 deploy.sh를 실행한다. 서버에서는 web 컨테이너만 교체된다.
+# build: 이미지를 GHCR에 올린다(packages: write).
+# deploy: 배포 전용 SSH 키로 EC2의 deploy.sh를 실행한다. 서버에서는 web 컨테이너만 교체된다.
+#         GHCR이 private이므로 이 job의 읽기 전용 GITHUB_TOKEN(job 종료 시 만료)을 stdin으로 넘겨 pull에만 쓴다.
 # 서버 쪽 구성(compose, edge nginx, deploy.sh)은 BE 레포 docker/에 있다.
 # 필요한 Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
 name: Deploy
@@ -24,12 +26,14 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
-  deploy:
+  build:
     needs: ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    outputs:
+      env: ${{ steps.target.outputs.env }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,11 +65,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # 서버로 넘어가는 토큰이 쓰기 권한을 갖지 않도록 build와 job을 분리한다.
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
       - name: EC2 배포
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_ENV: ${{ needs.build.outputs.env }}
         run: |
           # 서버·Secrets 준비 전에는 이미지 push까지만 하고 배포는 건너뛴다.
           if [ -z "$DEPLOY_HOST" ]; then
@@ -75,5 +88,5 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
-            "deploy@$DEPLOY_HOST" "${{ steps.target.outputs.env }} web"
+          printf '%s %s\n' "$GITHUB_ACTOR" "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "deploy@$DEPLOY_HOST" "$TARGET_ENV web"
