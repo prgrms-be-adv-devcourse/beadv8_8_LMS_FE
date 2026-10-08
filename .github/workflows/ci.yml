@@ -1,0 +1,36 @@
+# main·dev로 가는 PR마다 린트와 빌드(타입 체크 포함)를 실행한다.
+# deploy.yml도 배포 전에 이 워크플로를 호출해, 병합된 커밋이 통과해야만 배포된다.
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  workflow_call:
+
+# 같은 PR에 새 커밋이 올라오면 이전 실행을 취소한다. 배포에서 호출된 실행은 run_id로 묶여 취소되지 않는다.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Dockerfile의 node:24와 맞춘다.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: 린트
+        run: npm run lint
+
+      - name: 빌드 (tsc -b 포함)
+        run: npm run build
