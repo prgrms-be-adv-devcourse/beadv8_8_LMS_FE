@@ -1,0 +1,71 @@
+import {
+  ADMIN,
+  ALL,
+  INFLUENCER,
+  MEMBER,
+  SIGNED_IN,
+  type Viewer,
+} from '@/shared/auth/role'
+
+export type NavItem = { path: string; label: string; roles: Viewer[] }
+export type NavGroup = { title: string; items: NavItem[] }
+
+/** 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다. */
+export const NAV: NavGroup[] = [
+  {
+    title: '운영',
+    items: [
+      { path: '/admin', label: '대시보드', roles: ADMIN },
+      { path: '/admin/channels', label: '채널 인증 심사', roles: ADMIN },
+      { path: '/admin/promotions', label: '승급 심사', roles: ADMIN },
+      { path: '/admin/lectures', label: '강의 검수', roles: ADMIN },
+      { path: '/admin/disputes', label: '이의 제기', roles: ADMIN },
+      { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
+      { path: '/admin/search', label: '회원·거래 조회', roles: ADMIN },
+      { path: '/admin/logs', label: '처리 이력', roles: ADMIN },
+    ],
+  },
+  {
+    title: '둘러보기',
+    items: [
+      { path: '/', label: '홈', roles: MEMBER },
+      { path: '/lectures', label: '강의', roles: ALL },
+      { path: '/recruits', label: '출연 모집', roles: ALL },
+      { path: '/influencers', label: '인플루언서', roles: SIGNED_IN },
+    ],
+  },
+  {
+    title: '내 활동',
+    items: [
+      { path: '/appearances', label: '내 출연', roles: INFLUENCER },
+      { path: '/library', label: '내 강의', roles: MEMBER },
+      { path: '/cart', label: '장바구니', roles: MEMBER },
+      { path: '/chat', label: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
+      { path: '/alerts', label: '알림', roles: MEMBER },
+      { path: '/wallet', label: '지갑', roles: MEMBER },
+      { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
+    ],
+  },
+  {
+    title: '판매·인증',
+    items: [
+      { path: '/studio', label: '강의 판매', roles: ['VERIFIED_INFLUENCER'] },
+      { path: '/verify', label: '채널 인증', roles: ['USER'] },
+      { path: '/promote', label: '승급 신청', roles: ['INFLUENCER'] },
+    ],
+  },
+  {
+    title: '지원',
+    items: [
+      { path: '/support', label: '고객센터', roles: MEMBER },
+      { path: '/settings', label: '계정 설정', roles: MEMBER },
+    ],
+  },
+]
+
+export function navFor(viewer: Viewer): NavGroup[] {
+  return NAV.map((g) => ({
+    ...g,
+    items: g.items.filter((it) => it.roles.includes(viewer)),
+  })).filter((g) => g.items.length > 0)
+}
