@@ -16,6 +16,8 @@ import { consumeReturnTo } from '@/shared/auth/session'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
+import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
+import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
 import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
@@ -48,6 +50,11 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/search', title: '검색', roles: ['GUEST', ...MEMBER] },
   // 치지직 연동 콜백 뒤 BE가 보내는 경로(BE ApiV1MemberChannelController.RESULT_PATH)
   { path: '/mypage', title: '치지직 연동 결과', roles: MEMBER },
+  {
+    path: '/appearances/requests/:requestId',
+    title: '출연 요청서',
+    roles: INFLUENCER,
+  },
   { path: '/library/orders', title: '주문 내역', roles: MEMBER },
   { path: '/library/orders/:orderId/done', title: '주문 완료', roles: MEMBER },
   { path: '/library/:lectureId/watch', title: '강의 시청', roles: MEMBER },
@@ -94,6 +101,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/mypage': <ChzzkResultPage />,
   '/settings': <SettingsPage />,
   '/profile/edit': <MyProfilePage />,
+  '/appearances': <AppearancesPage />,
+  '/appearances/requests/:requestId': <AppearanceRequestPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {
