@@ -21,7 +21,13 @@ type CheckoutModalProps = {
 export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { data: wallet } = useQuery(walletQuery)
+  // 잔액과 HP 차감 구성을 보여 준 뒤에만 결제할 수 있다. 불러오는 중이거나 실패하면 결제를 막는다.
+  const {
+    data: wallet,
+    error: walletError,
+    refetch: refetchWallet,
+    isRefetching: walletRetrying,
+  } = useQuery(walletQuery)
 
   const order = useMutation({
     mutationFn: () => createOrder(items.map((i) => i.lectureId)),
@@ -38,10 +44,8 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
   })
 
   const total = items.reduce((sum, i) => sum + i.priceHp, 0)
-  const available = wallet?.availableTotalHp
-  const short = available === undefined ? 0 : Math.max(0, total - available)
-  const fromEarn =
-    wallet === undefined ? 0 : Math.min(total, wallet.revenueBalanceHp)
+  const short = wallet ? Math.max(0, total - wallet.availableTotalHp) : 0
+  const fromEarn = wallet ? Math.min(total, wallet.revenueBalanceHp) : 0
 
   return (
     <Modal
@@ -52,7 +56,11 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           <button type="button" className="btn ghost" onClick={onClose}>
             닫기
           </button>
-          {short > 0 ? (
+          {!wallet ? (
+            <button type="button" className="btn primary" disabled>
+              {walletError ? '잔액을 확인하지 못했어요' : '잔액 확인 중…'}
+            </button>
+          ) : short > 0 ? (
             <Link className="btn primary" to="/wallet">
               HP 충전하러 가기
             </Link>
@@ -95,6 +103,24 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           <span>결제할 HP</span>
           <b className="num">{formatNumber(total)} HP</b>
         </div>
+        {!wallet &&
+          (walletError ? (
+            <div className="notice bad" role="alert">
+              보유 HP를 불러오지 못했어요. {walletError.message}
+              <button
+                type="button"
+                className="btn sm"
+                disabled={walletRetrying}
+                onClick={() => refetchWallet()}
+              >
+                다시 시도
+              </button>
+            </div>
+          ) : (
+            <div className="row sub" role="status">
+              <span>보유 HP를 확인하는 중…</span>
+            </div>
+          ))}
         {wallet && (
           <>
             <div className="row sub">
