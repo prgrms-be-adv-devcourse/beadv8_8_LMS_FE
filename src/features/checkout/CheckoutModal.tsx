@@ -1,0 +1,137 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate } from 'react-router'
+import { cartKeys } from '@/entities/cart/api'
+import { createOrder, orderKeys } from '@/entities/order/api'
+import { walletKeys, walletQuery } from '@/entities/wallet/api'
+import { formatNumber } from '@/shared/lib/money'
+import { Modal } from '@/shared/ui/Modal'
+import { toast } from '@/shared/ui/toastStore'
+
+export type CheckoutItem = { lectureId: number; title: string; priceHp: number }
+
+type CheckoutModalProps = {
+  items: CheckoutItem[]
+  onClose: () => void
+}
+
+/**
+ * 주문 확인 (장바구니 주문·바로 구매). 결제할 HP와 보유 HP는 미리보기이고, 실제 차감·보류는 서버가 한다.
+ * HP 결제는 수익 HP를 먼저 다 쓰고 충전 HP를 쓴다(순서 변경 불가).
+ */
+export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const { data: wallet } = useQuery(walletQuery)
+
+  const order = useMutation({
+    mutationFn: () => createOrder(items.map((i) => i.lectureId)),
+    onSuccess: (created) => {
+      navigate(`/library/orders/${created.orderId}/done`)
+    },
+    onError: (error) => toast(error.message),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: cartKeys.all }),
+        queryClient.invalidateQueries({ queryKey: orderKeys.all }),
+        queryClient.invalidateQueries({ queryKey: walletKeys.all }),
+      ]),
+  })
+
+  const total = items.reduce((sum, i) => sum + i.priceHp, 0)
+  const available = wallet?.availableTotalHp
+  const short = available === undefined ? 0 : Math.max(0, total - available)
+  const fromEarn =
+    wallet === undefined ? 0 : Math.min(total, wallet.revenueBalanceHp)
+
+  return (
+    <Modal
+      title="주문 확인"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            닫기
+          </button>
+          {short > 0 ? (
+            <Link className="btn primary" to="/wallet">
+              HP 충전하러 가기
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="btn primary"
+              disabled={order.isPending || items.length === 0}
+              onClick={() => order.mutate()}
+            >
+              {order.isPending ? (
+                <>
+                  <span className="spinner sm" aria-hidden="true" />
+                  결제하는 중…
+                </>
+              ) : (
+                `${formatNumber(total)} HP 결제`
+              )}
+            </button>
+          )}
+        </>
+      }
+    >
+      <div className="rows">
+        {items.map((item) => (
+          <div
+            key={item.lectureId}
+            className="row-item"
+            style={{ padding: '10px 0' }}
+          >
+            <div className="row-main">
+              <span className="row-title">{item.title}</span>
+            </div>
+            <span className="num">{formatNumber(item.priceHp)} HP</span>
+          </div>
+        ))}
+      </div>
+      <div className="breakdown">
+        <div className="row">
+          <span>결제할 HP</span>
+          <b className="num">{formatNumber(total)} HP</b>
+        </div>
+        {wallet && (
+          <>
+            <div className="row sub">
+              <span>
+                <span className="c-earn">수익 HP</span>에서
+              </span>
+              <span className="num">{formatNumber(fromEarn)}</span>
+            </div>
+            <div className="row sub">
+              <span>
+                <span className="c-charge">충전 HP</span>에서
+              </span>
+              <span className="num">
+                {formatNumber(Math.max(0, total - fromEarn - short))}
+              </span>
+            </div>
+            {short > 0 ? (
+              <div className="row short total">
+                <span>부족한 HP</span>
+                <span className="num">{formatNumber(short)} HP</span>
+              </div>
+            ) : (
+              <div className="row sub total">
+                <span>결제 후 남는 HP</span>
+                <span className="num">
+                  {formatNumber(wallet.availableTotalHp - total)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+        <p className="fine">
+          수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일
+          다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로
+          돌려받아요.
+        </p>
+      </div>
+    </Modal>
+  )
+}

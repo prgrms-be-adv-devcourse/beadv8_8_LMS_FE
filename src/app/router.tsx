@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { createBrowserRouter, redirect, type RouteObject } from 'react-router'
 import { AppShell } from '@/app/layouts/AppShell'
 import { NAV } from '@/app/nav'
@@ -15,7 +16,15 @@ import { consumeReturnTo } from '@/shared/auth/session'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
+import { CartPage } from '@/pages/cart/CartPage'
 import { HomePage } from '@/pages/home/HomePage'
+import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
+import { LecturesPage } from '@/pages/lectures/LecturesPage'
+import { LibraryPage } from '@/pages/library/LibraryPage'
+import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
+import { OrdersPage } from '@/pages/orders/OrdersPage'
+import { ReviewWritePage } from '@/pages/review-write/ReviewWritePage'
+import { WatchPage } from '@/pages/watch/WatchPage'
 
 // /api, /swagger-ui, /v3/api-docs로 시작하는 경로는 BE로 가므로 쓰지 않는다(docs/deploy.md).
 
@@ -61,7 +70,18 @@ const PAGES: PageDef[] = [
   ...EXTRA_ROUTES,
 ]
 
-/** 화면을 만들면 path별로 element를 바꿔 끼운다. 그 전까지는 자리표시 화면이다. */
+/** 만든 화면. 여기 없는 경로는 자리표시 화면이다. */
+const PAGE_ELEMENTS: Record<string, ReactNode> = {
+  '/lectures': <LecturesPage />,
+  '/lectures/:lectureId': <LectureDetailPage />,
+  '/cart': <CartPage />,
+  '/library': <LibraryPage />,
+  '/library/orders': <OrdersPage />,
+  '/library/orders/:orderId/done': <OrderDonePage />,
+  '/library/:lectureId/watch': <WatchPage />,
+  '/library/:lectureId/review': <ReviewWritePage />,
+}
+
 function toRoute({ path, title, roles }: PageDef): RouteObject {
   if (path === '/') {
     // 홈은 비회원·관리자를 각자 첫 화면으로 보내야 해서 권한 검사를 HomePage가 한다.
@@ -73,7 +93,7 @@ function toRoute({ path, title, roles }: PageDef): RouteObject {
   }
   return {
     path: path.slice(1),
-    element: <PlaceholderPage />,
+    element: PAGE_ELEMENTS[path] ?? <PlaceholderPage />,
     handle: { title, roles } satisfies RouteHandle,
   }
 }
