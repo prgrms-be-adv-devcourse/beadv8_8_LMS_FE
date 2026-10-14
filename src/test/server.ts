@@ -3,10 +3,23 @@ import { setupServer } from 'msw/node'
 import { handlers } from '@/mocks/handlers'
 
 /**
- * 앱 셸이 화면과 상관없이 부르는 요청의 기본 응답. 테스트마다 server.use(...)로 덮어쓴다.
+ * 화면과 상관없이 나가는 요청의 기본 응답. 테스트마다 server.use(...)로 덮어쓴다.
  * - 채팅 방 목록: 인플루언서·관리자는 내비 안 읽은 수 배지를 위해 항상 부른다
+ * - 강의 목록: 비회원·권한 없는 회원을 첫 화면(/lectures)으로 보낼 때 부른다
  */
+// 내 정보(GET /members/me)는 기본 응답을 두지 않는다. 401을 주면 내 정보 쿼리가 비회원으로 바뀌어,
+// 테스트가 캐시로 정한 로그인 상태가 풀린다.
 const appShellDefaults = [
+  http.get('*/api/v1/lectures', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        content: [],
+        page: { size: 12, number: 0, totalElements: 0, totalPages: 0 },
+      },
+    }),
+  ),
   http.get('*/api/v1/chats', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),
   ),

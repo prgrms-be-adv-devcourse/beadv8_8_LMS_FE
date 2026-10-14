@@ -65,6 +65,8 @@ function mockChat(
   messages: ChatMessage[] = [],
   nextCursor: number | null = null,
 ) {
+  // 읽음 처리(PUT) 전에 CSRF 토큰을 받으러 내 정보를 부르지 않게 한다.
+  document.cookie = 'XSRF-TOKEN=t'
   server.use(
     readHandler,
     http.get('*/api/v1/chats', () => rs(rooms)),

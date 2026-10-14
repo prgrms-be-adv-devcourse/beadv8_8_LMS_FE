@@ -477,10 +477,11 @@ describe('리뷰 반영', () => {
     await userEvent.click(
       screen.getByRole('tab', { name: '게스트로 (받은 요청)' }),
     )
+    // 탭 전환(주소 변경)은 라우터가 낮은 우선순위로 그리므로 전환이 끝나 로딩이 보일 때까지 기다린다.
     // 받은 요청이 오기 전: 보낸 요청이 '응답 필요'로 보이지 않고 로딩한다.
+    expect(await screen.findByText('불러오는 중…')).toBeInTheDocument()
     expect(screen.queryByText('내가 보낸 요청')).toBeNull()
     expect(screen.queryByText('응답 필요')).toBeNull()
-    expect(screen.getByText('불러오는 중…')).toBeInTheDocument()
 
     release()
     expect(await screen.findByText('내가 받은 요청')).toBeInTheDocument()
