@@ -5,7 +5,7 @@ import { navFor } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import { walletQuery } from '@/entities/wallet/api'
 import { ChatConnection } from '@/features/chat/ChatConnection'
-import { useUnreadTotal } from '@/features/chat/chatStore'
+import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { LoginModal } from '@/shared/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, VIEWER_LABEL, type Viewer } from '@/shared/auth/role'
@@ -148,7 +148,7 @@ function MeMenu({ viewer }: { viewer: Viewer }) {
 }
 
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
-  const unreadChats = useUnreadTotal()
+  const unreadChats = useChatUnreadTotal(CHAT_VIEWERS.includes(viewer))
   return (
     <nav
       id={NAV_ID}

@@ -50,6 +50,20 @@ export function leaveChatRoom(
   })
 }
 
+/** 이 순번까지 읽었다고 알린다. 서버는 줄이지 않고 방의 마지막 순번을 넘기지 않는다 */
+export function markChatRoomRead(chatRoomId: number, lastReadSequence: number) {
+  return api<void>(`/chats/${chatRoomId}/read`, {
+    method: 'PUT',
+    body: { lastReadSequence },
+  })
+}
+
+/** 방 목록 정렬: 최근 메시지가 있는 방부터(BE는 방 ID 내림차순). 메시지가 없으면 만든 시각 */
+export function sortRoomsByRecent<T extends ChatRoom>(rooms: T[]): T[] {
+  const at = (r: ChatRoom) => r.lastMessage?.sentAt ?? r.createdAt
+  return [...rooms].sort((a, b) => at(b).localeCompare(at(a)))
+}
+
 /** 1:1 방의 상대 (없으면 undefined) */
 export function partnerOf(room: ChatRoom, myUserId: number | undefined) {
   return room.members.find((m) => m.userId !== myUserId)

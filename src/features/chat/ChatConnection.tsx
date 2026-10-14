@@ -3,16 +3,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { chatKeys } from '@/entities/chat/api'
 import { API_BASE } from '@/shared/api/client'
-import { useChatStore } from './chatStore'
-import {
-  applyChatError,
-  applyIncomingMessage,
-  applyNotification,
-} from './incoming'
+import { failAllSending, useChatStore } from './chatStore'
+import { applyChatError, applyIncomingMessage } from './incoming'
 
+// 새 메시지 알림(/user/queue/chats/notifications)은 받는 사람에게 메시지 큐로도 같은 메시지가 오므로 구독하지 않는다.
+// 안 읽은 수·마지막 메시지는 메시지 큐로 받은 메시지에서 고친다.
 const QUEUE = {
   messages: '/user/queue/chats/messages',
-  notifications: '/user/queue/chats/notifications',
   errors: '/user/queue/chats/errors',
 }
 
@@ -38,9 +35,6 @@ export function ChatConnection({ userId }: { userId: number }) {
         client.subscribe(QUEUE.messages, (frame) =>
           applyIncomingMessage(queryClient, JSON.parse(frame.body)),
         )
-        client.subscribe(QUEUE.notifications, (frame) =>
-          applyNotification(JSON.parse(frame.body)),
-        )
         client.subscribe(QUEUE.errors, (frame) =>
           applyChatError(queryClient, JSON.parse(frame.body)),
         )
@@ -49,17 +43,21 @@ export function ChatConnection({ userId }: { userId: number }) {
         connectedOnce = true
         useChatStore.setState({ status: 'connected' })
       },
-      onWebSocketClose: () => useChatStore.setState({ status: 'disconnected' }),
+      onWebSocketClose: () => {
+        useChatStore.setState({ status: 'disconnected' })
+        failAllSending()
+      },
       onStompError: () => useChatStore.setState({ status: 'disconnected' }),
     })
 
     useChatStore.setState({
       status: 'connecting',
-      publish: (chatRoomId, content) => {
+      myUserId: userId,
+      publish: (chatRoomId, content, clientMessageId) => {
         if (!client.connected) return false
         client.publish({
           destination: `/pub/chats/${chatRoomId}/messages`,
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content, clientMessageId }),
         })
         return true
       },
@@ -71,8 +69,9 @@ export function ChatConnection({ userId }: { userId: number }) {
       useChatStore.setState({
         status: 'idle',
         publish: () => false,
-        unread: {},
         viewingRoomId: null,
+        myUserId: null,
+        pending: {},
       })
     }
   }, [queryClient, userId])
