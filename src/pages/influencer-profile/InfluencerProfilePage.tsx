@@ -6,6 +6,7 @@ import { memberProfileQuery } from '@/entities/member/api'
 import type { MemberProfileDetail } from '@/entities/member/types'
 import { MemberProfileView } from '@/entities/member/ui/MemberProfileView'
 import { RequestFormModal } from '@/features/appearance-request/RequestFormModal'
+import { useStartChat } from '@/features/chat/useChatActions'
 import { meQuery } from '@/shared/auth/me'
 import { INFLUENCER, type Viewer } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
@@ -51,6 +52,7 @@ function ProfileActions({ profile }: { profile: MemberProfileDetail }) {
   const viewer = useViewer()
   const { data: me } = useQuery(meQuery)
   const [requesting, setRequesting] = useState(false)
+  const startChat = useStartChat()
 
   if (viewer === 'USER')
     return (
@@ -69,7 +71,6 @@ function ProfileActions({ profile }: { profile: MemberProfileDetail }) {
         내 프로필 보기
       </Link>
     )
-  // TODO(6번 채팅): 채팅으로 일정 맞추기 버튼
   return (
     <>
       <button
@@ -78,6 +79,14 @@ function ProfileActions({ profile }: { profile: MemberProfileDetail }) {
         onClick={() => setRequesting(true)}
       >
         출연 요청 보내기
+      </button>
+      <button
+        type="button"
+        className="btn block"
+        disabled={startChat.isPending}
+        onClick={() => startChat.mutate(profile.id)}
+      >
+        채팅으로 일정 맞추기
       </button>
       <p className="fine">
         요청을 보내면 출연료만큼 HP가 보류되고, 게스트가 수락하면 출연이

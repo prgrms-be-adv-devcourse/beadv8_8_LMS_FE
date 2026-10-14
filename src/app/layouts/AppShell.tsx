@@ -4,6 +4,8 @@ import { Link, NavLink, useLocation, useNavigation } from 'react-router'
 import { navFor } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import { walletQuery } from '@/entities/wallet/api'
+import { ChatConnection } from '@/features/chat/ChatConnection'
+import { useUnreadTotal } from '@/features/chat/chatStore'
 import { LoginModal } from '@/shared/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, VIEWER_LABEL, type Viewer } from '@/shared/auth/role'
@@ -15,6 +17,9 @@ import { DevRoleStrip } from './DevRoleStrip'
 import styles from './AppShell.module.css'
 
 const NAV_ID = 'main-nav'
+
+/** 채팅을 쓸 수 있는 역할 (BE ChatRoles: 인플루언서 이상 또는 관리자) */
+const CHAT_VIEWERS: Viewer[] = ['INFLUENCER', 'VERIFIED_INFLUENCER', 'ADMIN']
 
 /**
  * 앱 셸: (dev) 역할 전환 스트립 / 상단 바 / 왼쪽 내비 레일 / 작업 영역
@@ -36,8 +41,13 @@ export function AppShell() {
     return () => document.removeEventListener('keydown', onKey)
   }, [navOpen])
 
+  const { data: me } = useQuery(meQuery)
+
   return (
     <div className={styles.root}>
+      {me && CHAT_VIEWERS.includes(me.role) && (
+        <ChatConnection userId={me.id} />
+      )}
       {import.meta.env.DEV && <DevRoleStrip />}
       <TopBar
         viewer={viewer}
@@ -138,6 +148,7 @@ function MeMenu({ viewer }: { viewer: Viewer }) {
 }
 
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
+  const unreadChats = useUnreadTotal()
   return (
     <nav
       id={NAV_ID}
@@ -158,6 +169,14 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
               }
             >
               {item.label}
+              {item.path === '/chat' && unreadChats > 0 && (
+                <span
+                  className={styles.cnt}
+                  aria-label={`안 읽은 메시지 ${unreadChats}개`}
+                >
+                  {unreadChats > 99 ? '99+' : unreadChats}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>

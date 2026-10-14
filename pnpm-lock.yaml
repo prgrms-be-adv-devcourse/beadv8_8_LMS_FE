@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@stomp/stompjs':
+        specifier: ^7.4.0
+        version: 7.4.0
       '@tanstack/react-query':
         specifier: ^5.104.2
         version: 5.104.2(react@19.3.0)
@@ -580,6 +583,9 @@ packages:
 
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
+
+  '@stomp/stompjs@7.4.0':
+    resolution: {integrity: sha512-JSyT230gT3g8v9MPLb/OukN46M+omkUR79ixg6L31em41RaHud6DqBTiooeP7rpcKyzKkpgZ72HDUjFqGKYJvg==}
 
   '@tanstack/query-core@5.104.2':
     resolution: {integrity: sha512-/qbsxJK5c3Ve1aFIULWYNcT2jeRUAiD4HME6Eu2ZdpofHoVgAjpkQhLg5xHuOoBkTPQUJLfP7zOxy0qsBcqROA==}
@@ -1511,6 +1517,8 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.0.1': {}
+
+  '@stomp/stompjs@7.4.0': {}
 
   '@tanstack/query-core@5.104.2': {}
 

@@ -19,6 +19,7 @@ import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
 import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
+import { ChatPage } from '@/pages/chat/ChatPage'
 import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
@@ -102,6 +103,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/settings': <SettingsPage />,
   '/profile/edit': <MyProfilePage />,
   '/appearances': <AppearancesPage />,
+  '/chat': <ChatPage />,
+  '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
 }
 
