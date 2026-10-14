@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { CHZZK_CONNECT_URL, myChannelsQuery } from '@/entities/member/api'
 import {
   AUTO_APPROVE_FOLLOWER_COUNT,
@@ -10,6 +10,7 @@ import type { MyChannel } from '@/entities/member/types'
 import { ChannelCard } from '@/entities/member/ui/ChannelCard'
 import { ChannelStatusPill } from '@/entities/member/ui/ChannelStatusPill'
 import { useRequestApproval } from '@/features/channel/useRequestApproval'
+import { useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -27,6 +28,9 @@ const STEPS = [
 
 export function VerifyPage() {
   const [params] = useSearchParams()
+  const viewer = useViewer()
+  // 승인되면 이 화면에서 바로 인플루언서가 된다. 채널 연동은 유저만 할 수 있다(BE).
+  const verified = viewer === 'INFLUENCER' || viewer === 'VERIFIED_INFLUENCER'
   const {
     data: channels,
     error,
@@ -40,14 +44,29 @@ export function VerifyPage() {
         title="채널 인증"
         lede="치지직 채널을 인증하면 인플루언서가 되어 출연 요청·지원, 채팅, 환전을 쓸 수 있어요."
       />
-      <ConnectResult result={params.get('chzzk')} code={params.get('code')} />
+      {verified ? (
+        <div className="notice" role="status">
+          <span className="pill ok">인증 완료</span>
+          채널 인증을 마쳤어요. 이제 출연 요청·지원, 채팅, 환전을 쓸 수 있어요.
+          <Link className="link" to="/">
+            홈으로
+          </Link>
+          <Link className="link" to="/influencers">
+            인플루언서 둘러보기
+          </Link>
+        </div>
+      ) : (
+        <ConnectResult result={params.get('chzzk')} code={params.get('code')} />
+      )}
       <div className="split">
         <section className="panel">
           <div className="panel-head">
             <h2>내 채널</h2>
-            <a className="btn primary sm" href={CHZZK_CONNECT_URL}>
-              치지직 채널 연동하기
-            </a>
+            {!verified && (
+              <a className="btn primary sm" href={CHZZK_CONNECT_URL}>
+                치지직 채널 연동하기
+              </a>
+            )}
           </div>
           {isPending ? (
             <Loading />

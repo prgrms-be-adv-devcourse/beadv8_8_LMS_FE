@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -95,7 +95,7 @@ describe('인플루언서', () => {
 })
 
 describe('채널 인증', () => {
-  it('승인 요청이 자동 승인되면 인플루언서로 바뀌고 홈으로 간다', async () => {
+  it('승인 요청이 자동 승인되면 그 자리에서 인플루언서로 바뀐다', async () => {
     let role: Me['role'] = 'USER'
     server.use(
       http.get('*/api/v1/members/channels/me', () => rs([channel()])),
@@ -111,13 +111,20 @@ describe('채널 인증', () => {
     await userEvent.click(
       await screen.findByRole('button', { name: '승인 요청' }),
     )
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    // 안내는 2.6초 뒤 사라지므로, 역할을 다시 불러오기 전에 먼저 확인한다.
     expect(
       await screen.findByText('채널이 승인됐어요. 이제 인플루언서예요.'),
     ).toBeInTheDocument()
+    // 역할이 바뀌어도 권한 없음으로 내보내지 않고, 같은 화면에서 완료 안내를 보여 준다.
+    expect(await screen.findByText('인증 완료')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/verify')
+    expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
+    expect(
+      screen.queryByRole('link', { name: '치지직 채널 연동하기' }),
+    ).toBeNull()
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(
-      await within(nav).findByRole('link', { name: '내 출연' }),
+      within(nav).getByRole('link', { name: '내 출연' }),
     ).toBeInTheDocument()
   })
 

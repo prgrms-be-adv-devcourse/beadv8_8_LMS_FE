@@ -70,10 +70,10 @@ const EXTRA_ROUTES: PageDef[] = [
 ]
 
 const PAGES: PageDef[] = [
-  ...NAV.flatMap((g) => g.items).map(({ path, label, roles }) => ({
+  ...NAV.flatMap((g) => g.items).map(({ path, label, roles, routeRoles }) => ({
     path,
     title: label,
-    roles,
+    roles: routeRoles ?? roles,
   })),
   ...EXTRA_ROUTES,
 ]
