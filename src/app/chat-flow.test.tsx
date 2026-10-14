@@ -359,6 +359,37 @@ describe('채팅', () => {
     await waitFor(() => expect(messageCalls).toBe(2))
   })
 
+  it('닫기는 나가지 않고 방 목록으로 돌아가며, 이후 메시지는 안 읽은 수로 쌓인다', async () => {
+    let leaves = 0
+    mockChat([room({ unreadCount: 0 })])
+    server.use(
+      http.delete('*/api/v1/chats/:roomId/members/me', () => {
+        leaves++
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const router = renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+
+    await userEvent.click(screen.getByRole('link', { name: '대화 닫기' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat'))
+    expect(leaves).toBe(0)
+
+    // 닫은 방에 온 메시지는 보고 있는 방이 아니므로 안 읽은 수가 된다.
+    act(() =>
+      client.push('/user/queue/chats/messages', message({ roomSequence: 20 })),
+    )
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(
+      await within(nav).findByLabelText('안 읽은 메시지 1개'),
+    ).toBeInTheDocument()
+    const rooms = screen.getByRole('navigation', { name: '대화 목록' })
+    expect(
+      within(rooms).getByLabelText('안 읽은 메시지 1개'),
+    ).toBeInTheDocument()
+  })
+
   it('나가기를 확인하면 참여 세대와 함께 나가고 대화 목록으로 돌아간다', async () => {
     let query: string | undefined
     mockChat([room()])
@@ -373,7 +404,9 @@ describe('채팅', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
     expect(
-      screen.getByText('나가면 이 대화 기록을 다시 볼 수 없어요.'),
+      screen.getByText(
+        /나가면 이 대화 기록을 다시 볼 수 없고 상대에게 퇴장 안내가 가요/,
+      ),
     ).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '나가기' }))
 

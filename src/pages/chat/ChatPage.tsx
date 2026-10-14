@@ -216,13 +216,6 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
       aria-label={`${partner?.nickname ?? ''} 님과의 대화`}
     >
       <div className={styles.threadHead}>
-        <Link
-          className={styles.backToRooms}
-          to="/chat"
-          aria-label="대화 목록으로"
-        >
-          ←
-        </Link>
         <Avatar name={partner?.nickname ?? '?'} size={32} />
         <div className={styles.who}>
           <b>{partner?.nickname}</b>
@@ -235,7 +228,8 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
         {confirmLeave ? (
           <span className={styles.leaveConfirm}>
             <span className="fine">
-              나가면 이 대화 기록을 다시 볼 수 없어요.
+              나가면 이 대화 기록을 다시 볼 수 없고 상대에게 퇴장 안내가 가요.
+              대화만 닫으려면 ✕를 눌러요.
             </span>
             <button
               type="button"
@@ -268,6 +262,15 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
             나가기
           </button>
         )}
+        {/* 닫기는 화면만 닫는다(퇴장 아님). 참여는 유지되고 이후 메시지는 안 읽은 수로 쌓인다. */}
+        <Link
+          className={styles.close}
+          to="/chat"
+          aria-label="대화 닫기"
+          title="대화 닫기 (나가지 않아요)"
+        >
+          ✕
+        </Link>
       </div>
       <div className={styles.msgs} ref={listRef} aria-live="polite">
         {isPending ? (
