@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -122,5 +123,51 @@ describe('내비 레일', () => {
     const labels = await navLabels()
     expect(labels).toContain('강의 검수')
     expect(labels).not.toContain('지갑')
+  })
+})
+
+describe('모바일 내비 드로어', () => {
+  it('메뉴 버튼으로 열고 닫는다', async () => {
+    renderAt('/lectures', 'USER')
+    const user = userEvent.setup()
+    const button = await screen.findByRole('button', { name: '메뉴 열기' })
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+
+    await user.click(button)
+    expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+
+    await user.click(screen.getByRole('button', { name: '메뉴 닫기' }))
+    expect(screen.getByRole('button', { name: '메뉴 열기' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('메뉴에서 화면을 고르면 닫힌다', async () => {
+    const router = renderAt('/lectures', 'USER')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '메뉴 열기' }))
+
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    await user.click(within(nav).getByRole('link', { name: '지갑' }))
+
+    expect(router.state.location.pathname).toBe('/wallet')
+    expect(
+      await screen.findByRole('button', { name: '메뉴 열기' }),
+    ).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('Esc로 닫힌다', async () => {
+    renderAt('/lectures', 'USER')
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '메뉴 열기' }))
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: '메뉴 열기' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
   })
 })

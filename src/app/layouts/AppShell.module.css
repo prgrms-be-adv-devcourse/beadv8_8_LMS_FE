@@ -182,34 +182,68 @@
   min-width: 0;
 }
 
-/* 좁은 화면: 내비 레일을 상단 가로 스크롤 메뉴로 바꾼다 */
+/* 메뉴 버튼·드로어 배경은 좁은 화면에서만 보인다 */
+.menuBtn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+  place-items: center;
+  flex: none;
+}
+.navScrim {
+  display: none;
+}
+
+/* 좁은 화면: 내비 레일을 왼쪽에서 열리는 드로어로 바꾼다 */
 @media (max-width: 860px) {
+  .menuBtn {
+    display: grid;
+  }
   .shell {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
   }
   .side {
-    flex-direction: row;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    padding: 8px 16px;
-    gap: 4px;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(280px, 84vw);
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.2s ease-out,
+      visibility 0.2s;
   }
-  .navGroup {
-    flex-direction: row;
-    gap: 4px;
+  .sideOpen {
+    transform: none;
+    visibility: visible;
   }
-  .navGroup h4 {
-    display: none;
-  }
-  .navItem {
-    white-space: nowrap;
+  .navScrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(10, 12, 16, 0.5);
   }
   .main {
     padding: 20px 16px 56px;
   }
   .meText {
     display: none;
+  }
+}
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+  .side {
+    transition: none;
   }
 }
