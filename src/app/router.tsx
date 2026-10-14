@@ -12,10 +12,10 @@ import {
   type Viewer,
 } from '@/shared/auth/role'
 import { consumeReturnTo } from '@/shared/auth/session'
-import { HomePage } from '@/pages/HomePage'
-import { NotFoundPage } from '@/pages/NotFoundPage'
-import { PlaceholderPage } from '@/pages/PlaceholderPage'
-import { RouteErrorPage } from '@/pages/RouteErrorPage'
+import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
+import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
+import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
+import { HomePage } from '@/pages/home/HomePage'
 
 // /api, /swagger-ui, /v3/api-docs로 시작하는 경로는 BE로 가므로 쓰지 않는다(docs/deploy.md).
 
