@@ -23,5 +23,7 @@ export default defineConfig(({ command }) => ({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    // 화면 흐름 테스트는 입력·대기(findBy 5초)가 여러 번이라, 느린 CI에서도 끝나도록 넉넉히 둔다(기본 5초).
+    testTimeout: 15_000,
   },
 }))

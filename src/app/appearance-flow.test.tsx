@@ -230,6 +230,10 @@ describe('받은 출연 요청', () => {
     await userEvent.click(
       await screen.findByRole('link', { name: /주말 게임 합방/ }),
     )
+    // 목록 카드에도 같은 이름이 있으므로, 상세 화면 제목이 뜬 뒤에 확인한다.
+    expect(
+      await screen.findByRole('heading', { name: '주말 게임 합방' }),
+    ).toBeInTheDocument()
     expect(await screen.findByText('밤새는곰')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: '수락' }))
     const dialog = await screen.findByRole('dialog', {
