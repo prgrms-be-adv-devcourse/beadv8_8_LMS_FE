@@ -40,7 +40,12 @@ export function applyIncomingMessage(
   const countsAsUnread =
     message.senderUserId !== myUserId && viewingRoomId !== message.chatRoomId
   const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
-  const known = rooms?.some((r) => r.chatRoomId === message.chatRoomId)
+  const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
+  // 나간 것으로 알고 있던 회원이 보낸 메시지면 그 회원이 다시 채팅을 시작(재입장)한 것이다.
+  const senderRejoined =
+    cached?.members.some(
+      (m) => m.userId === message.senderUserId && !m.active,
+    ) === true
   queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (list) =>
     list?.map((room) => {
       if (room.chatRoomId !== message.chatRoomId) return room
@@ -54,8 +59,8 @@ export function applyIncomingMessage(
       }
     }),
   )
-  // 퇴장 안내(SYSTEM)는 참여 상태가 바뀐 것이고, 모르는 방의 메시지는 상대가 새로 시작한 방이다.
-  if (message.messageType === 'SYSTEM' || !known) {
+  // 퇴장 안내(SYSTEM)·재입장은 참여 상태가 바뀐 것이고, 모르는 방의 메시지는 상대가 새로 시작한 방이다.
+  if (message.messageType === 'SYSTEM' || !cached || senderRejoined) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }
 }

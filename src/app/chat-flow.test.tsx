@@ -327,36 +327,77 @@ describe('채팅', () => {
     expect(screen.queryByText('없는 경로')).toBeNull()
   })
 
-  it('상대가 나간 방은 보내기 대신 다시 시작을 보여 주고, 다시 시작하면 이력을 새로 불러온다', async () => {
-    let messageCalls = 0
-    server.use(
-      readHandler,
-      http.get('*/api/v1/chats', () => rs([room({}, false)])),
-      http.get('*/api/v1/chats/5/messages', () => {
-        messageCalls++
-        return rs({
-          messages: [
-            message({
-              messageType: 'SYSTEM',
-              content: '편집하는 고래님이 나갔습니다.',
-            }),
-          ],
-          nextCursor: null,
-        })
-      }),
-      http.post('*/api/v1/chats', () => rs(room(), 200)),
+  it('상대가 나간 방은 다시 시작 버튼 없이 안내만 보이고, 재입장 안내가 오면 바로 대화가 이어진다', async () => {
+    let partnerActive = false
+    let roomCalls = 0
+    mockChat(
+      [room({}, false)],
+      [
+        message({
+          messageType: 'SYSTEM',
+          content: '편집하는 고래님이 나갔습니다.',
+        }),
+      ],
     )
-    document.cookie = 'XSRF-TOKEN=t'
+    server.use(
+      http.get('*/api/v1/chats', () => {
+        roomCalls++
+        return rs([room({}, partnerActive)])
+      }),
+    )
     renderApp('/chat/5', 'INFLUENCER')
 
     expect(
-      await screen.findByText('편집하는 고래님이 나갔습니다.'),
+      await screen.findByText(/상대가 다시 채팅을 시작하면 이어서 대화할 수/),
     ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '채팅 다시 시작' })).toBeNull()
     expect(screen.queryByRole('textbox', { name: '메시지' })).toBeNull()
-    await userEvent.click(
-      screen.getByRole('button', { name: '채팅 다시 시작' }),
+    const client = await connectSocket()
+    const callsBefore = roomCalls
+
+    // 상대가 다시 채팅을 시작하면 BE가 남은 회원에게 재입장 안내(SYSTEM)를 보낸다.
+    partnerActive = true
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({
+          messageType: 'SYSTEM',
+          content: '편집하는 고래님이 다시 들어왔습니다.',
+          roomSequence: 10,
+        }),
+      ),
     )
-    await waitFor(() => expect(messageCalls).toBe(2))
+    expect(
+      await screen.findByText('편집하는 고래님이 다시 들어왔습니다.'),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('textbox', { name: '메시지' }),
+    ).toBeInTheDocument()
+    // 재입장 안내를 받았을 때만 방 상태를 다시 불렀다(주기적으로 확인하지 않는다).
+    expect(roomCalls).toBe(callsBefore + 1)
+  })
+
+  it('나갔던 상대가 다시 들어와 메시지를 보내면 버튼을 누르지 않아도 바로 대화가 이어진다', async () => {
+    let partnerActive = false
+    mockChat([room({}, false)])
+    server.use(http.get('*/api/v1/chats', () => rs([room({}, partnerActive)])))
+    renderApp('/chat/5', 'INFLUENCER')
+    expect(
+      await screen.findByText(/상대가 다시 채팅을 시작하면 이어서 대화할 수/),
+    ).toBeInTheDocument()
+    const client = await connectSocket()
+
+    partnerActive = true
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '다시 왔어요', roomSequence: 9 }),
+      ),
+    )
+    expect(await screen.findByText('다시 왔어요')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('textbox', { name: '메시지' }),
+    ).toBeInTheDocument()
   })
 
   it('닫기는 나가지 않고 방 목록으로 돌아가며, 이후 메시지는 안 읽은 수로 쌓인다', async () => {
