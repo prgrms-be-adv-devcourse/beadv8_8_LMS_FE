@@ -47,12 +47,28 @@ const message = (patch: Partial<ChatMessage> = {}): ChatMessage => {
   }
 }
 
+/** 읽음 처리 요청을 기록한다 */
+const reads: { chatRoomId: string; body: unknown }[] = []
+const readHandler = http.put(
+  '*/api/v1/chats/:chatRoomId/read',
+  async ({ params, request }) => {
+    reads.push({
+      chatRoomId: String(params.chatRoomId),
+      body: await request.json(),
+    })
+    return new HttpResponse(null, { status: 204 })
+  },
+)
+
 function mockChat(
   rooms: ChatRoom[],
   messages: ChatMessage[] = [],
   nextCursor: number | null = null,
 ) {
+  // 읽음 처리(PUT) 전에 CSRF 토큰을 받으러 내 정보를 부르지 않게 한다.
+  document.cookie = 'XSRF-TOKEN=t'
   server.use(
+    readHandler,
     http.get('*/api/v1/chats', () => rs(rooms)),
     http.get('*/api/v1/chats/:roomId/messages', ({ request }) => {
       const cursor = new URL(request.url).searchParams.get('cursor')
@@ -78,6 +94,8 @@ afterEach(() => {
   queryClient.clear()
   closeLoginModal()
   seq = 0
+  reads.length = 0
+  useChatStore.setState({ pending: {} })
 })
 
 describe('채팅', () => {
@@ -118,7 +136,7 @@ describe('채팅', () => {
     expect(target).toEqual({ targetUserId: PARTNER_ID })
   })
 
-  it('보낸 메시지는 STOMP로 나가고 서버가 돌려준 메시지가 대화에 붙는다', async () => {
+  it('보낸 메시지는 보내는 중으로 보이다가 같은 임시 ID의 메시지가 오면 대화에 붙는다', async () => {
     mockChat([room()])
     renderApp('/chat/5', 'INFLUENCER')
     const input = await screen.findByRole('textbox', { name: '메시지' })
@@ -129,54 +147,190 @@ describe('채팅', () => {
     await userEvent.type(input, '안녕하세요')
     await userEvent.click(screen.getByRole('button', { name: '보내기' }))
 
-    expect(client.published).toEqual([
-      {
-        destination: '/pub/chats/5/messages',
-        body: JSON.stringify({ content: '안녕하세요' }),
-      },
-    ])
+    expect(client.published).toHaveLength(1)
+    expect(client.published[0].destination).toBe('/pub/chats/5/messages')
+    const body = JSON.parse(client.published[0].body)
+    expect(body).toEqual({
+      content: '안녕하세요',
+      clientMessageId: expect.any(String),
+    })
     expect(input).toHaveValue('')
+    expect(await screen.findByText('보내는 중…')).toBeInTheDocument()
+
     act(() =>
       client.push(
         '/user/queue/chats/messages',
-        message({ senderUserId: ME_ID, content: '안녕하세요' }),
+        message({
+          senderUserId: ME_ID,
+          content: '안녕하세요',
+          clientMessageId: body.clientMessageId,
+        }),
       ),
     )
-    expect(await screen.findByText('안녕하세요')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('보내는 중…')).toBeNull())
+    expect(screen.getAllByText('안녕하세요')).toHaveLength(1)
   })
 
-  it('다른 방의 새 메시지 알림은 안 읽은 수로 세고, 보고 있는 방은 세지 않는다', async () => {
-    mockChat([room(), room({ chatRoomId: 6 })])
+  it('보내기 오류는 그 메시지를 실패로 표시하고 다시 보낼 수 있다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    await userEvent.type(input, '실패할 메시지')
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    const { clientMessageId } = JSON.parse(client.published[0].body)
+
+    act(() =>
+      client.push('/user/queue/chats/errors', {
+        code: 'INVALID_REQUEST',
+        message: '메시지 내용이 비어 있습니다.',
+        clientMessageId,
+      }),
+    )
+    const thread = screen.getByRole('region', {
+      name: '편집하는 고래 님과의 대화',
+    })
+    expect(await within(thread).findByRole('alert')).toHaveTextContent(
+      '메시지 내용이 비어 있습니다.',
+    )
+    await userEvent.click(
+      within(thread).getByRole('button', { name: '다시 보내기' }),
+    )
+
+    expect(client.published).toHaveLength(2)
+    const retried = JSON.parse(client.published[1].body)
+    expect(retried.content).toBe('실패할 메시지')
+    expect(retried.clientMessageId).not.toBe(clientMessageId)
+    expect(await screen.findByText('보내는 중…')).toBeInTheDocument()
+  })
+
+  it('연결이 끊기면 보내는 중이던 메시지를 실패로 바꾼다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    await userEvent.type(input, '끊기기 직전')
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    act(() => client.disconnect())
+    expect(
+      await screen.findByText(/연결이 끊겨 전송 여부를 확인하지 못했어요/),
+    ).toBeInTheDocument()
+  })
+
+  it('임시 ID 없이 돌아온 내 메시지(이전 BE)도 같은 내용의 보내는 중 표시를 지운다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    await userEvent.type(input, '옛 서버')
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ senderUserId: ME_ID, content: '옛 서버' }),
+      ),
+    )
+    await waitFor(() => expect(screen.queryByText('보내는 중…')).toBeNull())
+  })
+
+  it('방 목록은 마지막 메시지 순으로 정렬하고 서버의 안 읽은 수를 보여 준다', async () => {
+    mockChat([
+      room({
+        chatRoomId: 6,
+        createdAt: '2026-10-14T09:00:00',
+        unreadCount: 0,
+        lastMessage: message({
+          chatRoomId: 6,
+          content: '오래된 대화',
+          sentAt: '2026-10-14T09:10:00',
+        }),
+      }),
+      room({
+        chatRoomId: 7,
+        createdAt: '2026-10-13T09:00:00',
+        unreadCount: 3,
+        lastMessage: message({
+          chatRoomId: 7,
+          content: '방금 온 메시지',
+          sentAt: '2026-10-14T22:00:00',
+        }),
+      }),
+    ])
+    renderApp('/chat', 'INFLUENCER')
+
+    const list = await screen.findByRole('navigation', { name: '대화 목록' })
+    const links = await within(list).findAllByRole('link')
+    expect(links.map((l) => l.textContent)).toEqual([
+      expect.stringContaining('방금 온 메시지'),
+      expect.stringContaining('오래된 대화'),
+    ])
+    expect(
+      within(list).getByLabelText('안 읽은 메시지 3개'),
+    ).toBeInTheDocument()
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).getByLabelText('안 읽은 메시지 3개')).toBeInTheDocument()
+  })
+
+  it('방을 열면 마지막 순번까지 읽음 처리하고, 보는 중 받은 메시지도 읽음 처리한다', async () => {
+    mockChat(
+      [room({ unreadCount: 2 }), room({ chatRoomId: 6, unreadCount: 0 })],
+      [message({ roomSequence: 12 }), message({ roomSequence: 11 })],
+    )
     renderApp('/chat/5', 'INFLUENCER')
     await screen.findByRole('textbox', { name: '메시지' })
-    const client = await connectSocket()
-
-    const notify = (chatRoomId: number) =>
-      act(() =>
-        client.push('/user/queue/chats/notifications', {
-          type: 'NEW_MESSAGE',
-          chatRoomId,
-          messageId: 999,
-          senderUserId: PARTNER_ID,
-          sentAt: '2026-10-14T21:05:00',
-        }),
-      )
-    notify(5)
-    notify(6)
-    notify(6)
-
+    await waitFor(() =>
+      expect(reads).toEqual([
+        { chatRoomId: '5', body: { lastReadSequence: 12 } },
+      ]),
+    )
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).getByLabelText('안 읽은 메시지 2개')).toBeInTheDocument()
-    const rooms = screen.getByRole('navigation', { name: '대화 목록' })
-    expect(
-      within(rooms).getByLabelText('안 읽은 메시지 2개'),
-    ).toBeInTheDocument()
-    expect(useChatStore.getState().unread).toEqual({ 6: 2 })
+    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
+
+    const client = await connectSocket()
+    // 보고 있는 방은 읽음 처리, 다른 방은 안 읽은 수가 오른다
+    act(() =>
+      client.push('/user/queue/chats/messages', message({ roomSequence: 13 })),
+    )
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ chatRoomId: 6, roomSequence: 4 }),
+      ),
+    )
+    await waitFor(() =>
+      expect(reads.at(-1)).toEqual({
+        chatRoomId: '5',
+        body: { lastReadSequence: 13 },
+      }),
+    )
+    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+  })
+
+  it('읽음 처리에 실패해도 안내를 띄우지 않는다', async () => {
+    mockChat(
+      [room({ unreadCount: 1 })],
+      [message({ roomSequence: 3, content: '읽을 메시지' })],
+    )
+    let readCalls = 0
+    server.use(
+      http.put('*/api/v1/chats/:chatRoomId/read', () => {
+        readCalls++
+        return HttpResponse.json(
+          { status: 404, code: 'NOT_FOUND', detail: '없는 경로' },
+          { status: 404 },
+        )
+      }),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    expect(await screen.findByText('읽을 메시지')).toBeInTheDocument()
+    await waitFor(() => expect(readCalls).toBe(1))
+    expect(screen.queryByText('없는 경로')).toBeNull()
   })
 
   it('상대가 나간 방은 보내기 대신 다시 시작을 보여 주고, 다시 시작하면 이력을 새로 불러온다', async () => {
     let messageCalls = 0
     server.use(
+      readHandler,
       http.get('*/api/v1/chats', () => rs([room({}, false)])),
       http.get('*/api/v1/chats/5/messages', () => {
         messageCalls++
@@ -247,6 +401,7 @@ describe('채팅', () => {
   it('보내기 오류(상대 나감)는 안내하고 방 상태를 다시 불러온다', async () => {
     let roomCalls = 0
     server.use(
+      readHandler,
       http.get('*/api/v1/chats', () => {
         roomCalls++
         return rs([room()])
@@ -275,6 +430,7 @@ describe('채팅', () => {
   it('연결이 끊겼다가 다시 연결되면 놓친 메시지를 채우려고 이력을 다시 불러온다', async () => {
     let messageCalls = 0
     server.use(
+      readHandler,
       http.get('*/api/v1/chats', () => rs([room()])),
       http.get('*/api/v1/chats/5/messages', () => {
         messageCalls++

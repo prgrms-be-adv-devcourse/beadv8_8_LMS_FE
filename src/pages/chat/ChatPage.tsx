@@ -11,10 +11,19 @@ import {
   chatMessagesQuery,
   chatRoomsQuery,
   partnerOf,
+  sortRoomsByRecent,
 } from '@/entities/chat/api'
 import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
-import { setViewingRoom, useChatStore } from '@/features/chat/chatStore'
+import {
+  discardPending,
+  retryPending,
+  sendChatMessage,
+  setViewingRoom,
+  useChatStore,
+  type PendingMessage,
+} from '@/features/chat/chatStore'
 import { useLeaveChat, useStartChat } from '@/features/chat/useChatActions'
+import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
 import { useViewer } from '@/shared/auth/session'
 import { formatDate, parseServerDate } from '@/shared/lib/date'
@@ -22,7 +31,6 @@ import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
-import { toast } from '@/shared/ui/toastStore'
 import styles from './ChatPage.module.css'
 
 export function ChatPage() {
@@ -92,15 +100,14 @@ function RoomList({
   myUserId: number
   currentId: number | null
 }) {
-  const unread = useChatStore((s) => s.unread)
-  const sorted = [...rooms].sort((a, b) =>
-    b.createdAt.localeCompare(a.createdAt),
-  )
+  const sorted = sortRoomsByRecent(rooms)
   return (
     <nav className={styles.rooms} aria-label="대화 목록">
       {sorted.map((room) => {
         const partner = partnerOf(room, myUserId)
-        const count = unread[room.chatRoomId] ?? 0
+        // 보고 있는 방은 읽음 처리 중이라 0으로 보인다.
+        const count =
+          room.chatRoomId === currentId ? 0 : (room.unreadCount ?? 0)
         return (
           <Link
             key={room.chatRoomId}
@@ -115,11 +122,7 @@ function RoomList({
             <Avatar name={partner?.nickname ?? '?'} size={36} />
             <span className={styles.rm}>
               <b>{partner?.nickname ?? '알 수 없는 회원'}</b>
-              <span>
-                {partner && !partner.active
-                  ? '상대가 나간 대화'
-                  : `${formatDate(room.createdAt)} 시작`}
-              </span>
+              <span>{roomPreview(room, myUserId, partner?.active)}</span>
             </span>
             {count > 0 && (
               <span
@@ -136,12 +139,26 @@ function RoomList({
   )
 }
 
+/** 방 목록 두 번째 줄: 마지막 메시지(없으면 시작 날짜) */
+function roomPreview(
+  room: ChatRoom,
+  myUserId: number,
+  partnerActive: boolean | undefined,
+) {
+  if (partnerActive === false) return '상대가 나간 대화'
+  const last = room.lastMessage
+  if (!last) return `${formatDate(room.createdAt)} 시작`
+  return last.senderUserId === myUserId && last.messageType === 'TEXT'
+    ? `나: ${last.content}`
+    : last.content
+}
+
 function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const partner = partnerOf(room, myUserId)
   const me = room.members.find((m) => m.userId === myUserId)
   const partnerLeft = partner !== undefined && !partner.active
   const status = useChatStore((s) => s.status)
-  const publish = useChatStore((s) => s.publish)
+  const pending = useChatStore((s) => s.pending[room.chatRoomId]) ?? NO_PENDING
   const start = useStartChat()
   const leave = useLeaveChat()
   const [text, setText] = useState('')
@@ -161,6 +178,8 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     ? data.pages.flatMap((p) => p.messages).toReversed()
     : []
   const latestId = messages.at(-1)?.messageId
+  // 화면에 보인 가장 최근 메시지까지 읽음으로 알린다(방을 보는 중 받은 메시지 포함).
+  useMarkRoomRead(room.chatRoomId, messages.at(-1)?.roomSequence)
   const listRef = useRef<HTMLDivElement>(null)
   const keepOffset = useRef<number | null>(null)
 
@@ -174,7 +193,7 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     } else {
       box.scrollTop = box.scrollHeight
     }
-  }, [latestId, messages.length])
+  }, [latestId, messages.length, pending.length])
 
   const loadOlder = () => {
     const box = listRef.current
@@ -186,8 +205,9 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     e.preventDefault()
     const content = text.trim()
     if (!content) return
-    if (publish(room.chatRoomId, content)) setText('')
-    else toast('채팅 서버에 연결되지 않았어요. 잠시 후 다시 보내 주세요.')
+    // 연결이 없으면 실패로 표시돼 다시 보낼 수 있다.
+    sendChatMessage(room.chatRoomId, content)
+    setText('')
   }
 
   return (
@@ -282,6 +302,13 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
                 mine={m.senderUserId === myUserId}
               />
             ))}
+            {pending.map((p) => (
+              <PendingItem
+                key={p.clientMessageId}
+                chatRoomId={room.chatRoomId}
+                pending={p}
+              />
+            ))}
           </>
         )}
       </div>
@@ -321,6 +348,47 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
         </form>
       )}
     </section>
+  )
+}
+
+const NO_PENDING: PendingMessage[] = []
+
+/** 보내는 중이거나 실패한 내 메시지. 실패하면 다시 보내기·지우기 */
+function PendingItem({
+  chatRoomId,
+  pending,
+}: {
+  chatRoomId: number
+  pending: PendingMessage
+}) {
+  const failed = pending.status === 'failed'
+  return (
+    <div
+      className={`${styles.msg} ${styles.me} ${failed ? styles.failed : styles.sending}`}
+    >
+      <div className={styles.bubble}>{pending.content}</div>
+      {failed ? (
+        <span className={styles.failNote} role="alert">
+          <span>{pending.error ?? '보내지 못했어요.'}</span>
+          <button
+            type="button"
+            className="link"
+            onClick={() => retryPending(chatRoomId, pending.clientMessageId)}
+          >
+            다시 보내기
+          </button>
+          <button
+            type="button"
+            className="link"
+            onClick={() => discardPending(chatRoomId, pending.clientMessageId)}
+          >
+            지우기
+          </button>
+        </span>
+      ) : (
+        <time>보내는 중…</time>
+      )}
+    </div>
   )
 }
 

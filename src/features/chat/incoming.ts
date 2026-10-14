@@ -4,14 +4,16 @@ import type {
   ChatError,
   ChatMessage,
   ChatMessagePage,
-  ChatNotification,
+  ChatRoom,
 } from '@/entities/chat/types'
 import { toast } from '@/shared/ui/toastStore'
-import { useChatStore } from './chatStore'
+import { failPending, resolvePending, useChatStore } from './chatStore'
 
 /**
- * 실시간으로 받은 메시지를 그 방의 이력 캐시 맨 앞(최신)에 붙인다.
- * 이력을 아직 불러오지 않은 방은 건드리지 않는다(열 때 불러온다). 같은 메시지는 두 번 넣지 않는다.
+ * 실시간으로 받은 메시지(/user/queue/chats/messages)를 반영한다. 보낸 사람 자신에게도 온다.
+ * - 그 방의 이력 캐시 맨 앞(최신)에 붙인다. 이력을 아직 불러오지 않은 방은 열 때 불러온다
+ * - 내가 보낸 것이면 보내는 중 표시를 지운다
+ * - 방 목록 캐시의 마지막 메시지를 바꾸고, 보고 있지 않은 방에 상대가 보낸 것이면 안 읽은 수를 올린다
  */
 export function applyIncomingMessage(
   queryClient: QueryClient,
@@ -32,33 +34,47 @@ export function applyIncomingMessage(
       }
     },
   )
-  // 퇴장 안내(SYSTEM)는 참여 상태가 바뀐 것이고, 모르는 방의 메시지는 새 방(상대가 시작)이다.
-  const rooms = queryClient.getQueryData<{ chatRoomId: number }[]>(
-    chatKeys.rooms(),
+  resolvePending(message)
+
+  const { myUserId, viewingRoomId } = useChatStore.getState()
+  const countsAsUnread =
+    message.senderUserId !== myUserId && viewingRoomId !== message.chatRoomId
+  const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
+  const known = rooms?.some((r) => r.chatRoomId === message.chatRoomId)
+  queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (list) =>
+    list?.map((room) => {
+      if (room.chatRoomId !== message.chatRoomId) return room
+      const newer =
+        !room.lastMessage ||
+        room.lastMessage.roomSequence < message.roomSequence
+      return {
+        ...room,
+        lastMessage: newer ? message : room.lastMessage,
+        unreadCount: (room.unreadCount ?? 0) + (countsAsUnread ? 1 : 0),
+      }
+    }),
   )
-  if (
-    message.messageType === 'SYSTEM' ||
-    !rooms?.some((r) => r.chatRoomId === message.chatRoomId)
-  ) {
+  // 퇴장 안내(SYSTEM)는 참여 상태가 바뀐 것이고, 모르는 방의 메시지는 상대가 새로 시작한 방이다.
+  if (message.messageType === 'SYSTEM' || !known) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }
 }
 
-/** 새 메시지 알림. 지금 보고 있는 방이 아니면 안 읽은 수를 올린다. */
-export function applyNotification(notification: ChatNotification) {
-  useChatStore.setState((s) => {
-    if (s.viewingRoomId === notification.chatRoomId) return s
-    return {
-      unread: {
-        ...s.unread,
-        [notification.chatRoomId]: (s.unread[notification.chatRoomId] ?? 0) + 1,
-      },
-    }
-  })
+/** 방 목록 캐시에서 이 방의 안 읽은 수를 0으로 (읽음 처리 직후) */
+export function clearUnread(queryClient: QueryClient, chatRoomId: number) {
+  queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (list) =>
+    list?.map((room) =>
+      room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room,
+    ),
+  )
 }
 
-/** 보내기 오류. 상대가 나간 방이면 방 상태를 다시 불러와 다시 시작 안내를 띄운다. */
+/**
+ * 보내기 오류(/user/queue/chats/errors). 어느 메시지인지 알면 그 메시지를 실패로 표시한다.
+ * 상대가 나간 방이면 방 상태를 다시 불러와 다시 시작 안내를 띄운다.
+ */
 export function applyChatError(queryClient: QueryClient, error: ChatError) {
+  if (error.clientMessageId) failPending(error.clientMessageId, error.message)
   toast(error.message)
   if (
     error.code === 'CHAT_PARTNER_LEFT' ||

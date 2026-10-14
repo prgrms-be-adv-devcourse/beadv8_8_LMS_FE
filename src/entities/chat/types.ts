@@ -20,6 +20,10 @@ export type ChatRoom = {
   status: ChatRoomStatus
   createdAt: string
   members: ChatRoomMember[]
+  /** 내가 볼 수 있는 가장 최근 메시지. 없으면 null (BE #197 전에는 필드 없음) */
+  lastMessage?: ChatMessage | null
+  /** 내가 안 읽은 상대 메시지 수(시스템 안내 포함) (BE #197 전에는 필드 없음) */
+  unreadCount?: number
 }
 
 /** 메시지 이력·실시간 수신(/user/queue/chats/messages) */
@@ -32,6 +36,8 @@ export type ChatMessage = {
   messageType: ChatMessageType
   content: string
   sentAt: string
+  /** 보낸 사람이 STOMP 전송에 붙인 임시 ID. 실시간 전달에만 있고 이력·방 목록에서는 null */
+  clientMessageId?: string | null
 }
 
 /** GET /chats/{chatRoomId}/messages. 최신순 */
@@ -51,4 +57,9 @@ export type ChatNotification = {
 }
 
 /** STOMP 처리 오류(/user/queue/chats/errors). 보낸 사람에게만 온다 */
-export type ChatError = { code: string; message: string }
+export type ChatError = {
+  code: string
+  message: string
+  /** 실패한 전송의 임시 ID. 보내지 않았거나 본문을 읽지 못했으면 null */
+  clientMessageId?: string | null
+}
