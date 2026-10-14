@@ -640,3 +640,44 @@ p {
   color: var(--hold);
   font-weight: 600;
 }
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  flex: none;
+}
+.tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.tag {
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: 4px;
+  padding: 1px 7px;
+}
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.sum {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sum span {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sum b {
+  font: 600 20px var(--f-mono);
+}

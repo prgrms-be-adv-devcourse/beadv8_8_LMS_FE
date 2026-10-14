@@ -15,11 +15,16 @@ export const ME_ID = 1
 export const rs = <T,>(data: T, status = 200) =>
   HttpResponse.json({ statusCode: status, message: '', data }, { status })
 
-/** 앱 전체 라우터로 path를 그린다. 로그인 상태와 지갑 응답을 미리 정한다. */
+type WalletResponder = () => Response | Promise<Response>
+
+/**
+ * 앱 전체 라우터로 path를 그린다. 로그인 상태와 지갑 응답을 미리 정한다.
+ * wallet에 함수를 넘기면 지갑 응답을 직접 만든다(실패·지연 확인용).
+ */
 export function renderApp(
   path: string,
   viewer: Viewer,
-  wallet: Partial<Wallet> = {},
+  wallet: Partial<Wallet> | WalletResponder = {},
 ) {
   const me: Me | null =
     viewer === 'GUEST'
@@ -35,16 +40,18 @@ export function renderApp(
   queryClient.setQueryData(meQuery.queryKey, me)
   server.use(
     http.get('*/api/v1/wallets/me', () =>
-      rs({
-        walletId: 1,
-        chargeBalanceHp: 120000,
-        revenueBalanceHp: 43000,
-        heldChargeHp: 0,
-        heldRevenueHp: 0,
-        availableTotalHp: 163000,
-        heldTotalHp: 0,
-        ...wallet,
-      }),
+      typeof wallet === 'function'
+        ? wallet()
+        : rs({
+            walletId: 1,
+            chargeBalanceHp: 120000,
+            revenueBalanceHp: 43000,
+            heldChargeHp: 0,
+            heldRevenueHp: 0,
+            availableTotalHp: 163000,
+            heldTotalHp: 0,
+            ...wallet,
+          }),
     ),
   )
   const router = createMemoryRouter(routes, { initialEntries: [path] })

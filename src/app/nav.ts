@@ -7,7 +7,14 @@ import {
   type Viewer,
 } from '@/shared/auth/role'
 
-export type NavItem = { path: string; label: string; roles: Viewer[] }
+export type NavItem = {
+  path: string
+  label: string
+  /** 메뉴를 보여 줄 역할 */
+  roles: Viewer[]
+  /** 화면에 들어올 수 있는 역할이 메뉴와 다를 때만 */
+  routeRoles?: Viewer[]
+}
 export type NavGroup = { title: string; items: NavItem[] }
 
 /** 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다. */
@@ -50,7 +57,13 @@ export const NAV: NavGroup[] = [
     title: '판매·인증',
     items: [
       { path: '/studio', label: '강의 판매', roles: ['VERIFIED_INFLUENCER'] },
-      { path: '/verify', label: '채널 인증', roles: ['USER'] },
+      {
+        path: '/verify',
+        label: '채널 인증',
+        roles: ['USER'],
+        // 승인되면 그 자리에서 인플루언서가 되므로, 인플루언서도 완료 안내를 볼 수 있게 한다.
+        routeRoles: MEMBER,
+      },
       { path: '/promote', label: '승급 신청', roles: ['INFLUENCER'] },
     ],
   },

@@ -17,6 +17,12 @@ import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { CartPage } from '@/pages/cart/CartPage'
+import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
+import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
+import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
+import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
+import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
 import { LecturesPage } from '@/pages/lectures/LecturesPage'
@@ -40,6 +46,8 @@ const EXTRA_ROUTES: PageDef[] = [
     roles: SIGNED_IN,
   },
   { path: '/search', title: '검색', roles: ['GUEST', ...MEMBER] },
+  // 치지직 연동 콜백 뒤 BE가 보내는 경로(BE ApiV1MemberChannelController.RESULT_PATH)
+  { path: '/mypage', title: '치지직 연동 결과', roles: MEMBER },
   { path: '/library/orders', title: '주문 내역', roles: MEMBER },
   { path: '/library/orders/:orderId/done', title: '주문 완료', roles: MEMBER },
   { path: '/library/:lectureId/watch', title: '강의 시청', roles: MEMBER },
@@ -62,10 +70,10 @@ const EXTRA_ROUTES: PageDef[] = [
 ]
 
 const PAGES: PageDef[] = [
-  ...NAV.flatMap((g) => g.items).map(({ path, label, roles }) => ({
+  ...NAV.flatMap((g) => g.items).map(({ path, label, roles, routeRoles }) => ({
     path,
     title: label,
-    roles,
+    roles: routeRoles ?? roles,
   })),
   ...EXTRA_ROUTES,
 ]
@@ -80,6 +88,12 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/library/orders/:orderId/done': <OrderDonePage />,
   '/library/:lectureId/watch': <WatchPage />,
   '/library/:lectureId/review': <ReviewWritePage />,
+  '/influencers': <InfluencersPage />,
+  '/influencers/:memberId': <InfluencerProfilePage />,
+  '/verify': <VerifyPage />,
+  '/mypage': <ChzzkResultPage />,
+  '/settings': <SettingsPage />,
+  '/profile/edit': <MyProfilePage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {

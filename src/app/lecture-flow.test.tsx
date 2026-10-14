@@ -187,6 +187,77 @@ describe('바로 구매', () => {
     expect(ordered).toEqual([7])
   })
 
+  it('지갑을 불러오는 동안에는 결제할 수 없다', async () => {
+    mockLectureDetail()
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    renderApp('/lectures/7', 'USER', async () => {
+      await gate
+      return rs({
+        walletId: 1,
+        chargeBalanceHp: 120000,
+        revenueBalanceHp: 0,
+        heldChargeHp: 0,
+        heldRevenueHp: 0,
+        availableTotalHp: 120000,
+        heldTotalHp: 0,
+      })
+    })
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '바로 구매' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    expect(
+      within(dialog).getByRole('button', { name: '잔액 확인 중…' }),
+    ).toBeDisabled()
+
+    release()
+    expect(
+      await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
+  it('지갑 조회에 실패하면 결제를 막고 다시 시도할 수 있다', async () => {
+    mockLectureDetail()
+    let fail = true
+    renderApp('/lectures/7', 'USER', () =>
+      fail
+        ? HttpResponse.json(
+            { status: 400, code: 'WALLET_UNAVAILABLE', detail: '지갑 오류' },
+            { status: 400 },
+          )
+        : rs({
+            walletId: 1,
+            chargeBalanceHp: 120000,
+            revenueBalanceHp: 0,
+            heldChargeHp: 0,
+            heldRevenueHp: 0,
+            availableTotalHp: 120000,
+            heldTotalHp: 0,
+          }),
+    )
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '바로 구매' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '보유 HP를 불러오지 못했어요. 지갑 오류',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '잔액을 확인하지 못했어요' }),
+    ).toBeDisabled()
+
+    fail = false
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(
+      await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
   it('HP가 모자라면 결제 대신 충전으로 안내한다', async () => {
     mockLectureDetail()
     renderApp('/lectures/7', 'USER', {
