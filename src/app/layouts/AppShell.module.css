@@ -247,3 +247,16 @@
     transition: none;
   }
 }
+
+.cnt {
+  font: 600 11px/18px var(--f-mono);
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--signal);
+  color: var(--signal-ink);
+  text-align: center;
+}
+.navItem.on .cnt {
+  background: var(--signal);
+}
