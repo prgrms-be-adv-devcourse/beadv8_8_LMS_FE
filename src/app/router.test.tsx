@@ -51,8 +51,9 @@ describe('라우트 가드', () => {
   it('비회원이 회원 화면에 들어오면 로그인 안내를 보여 준다', async () => {
     renderAt('/wallet', 'GUEST')
     expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
+    // 로그인 모달은 LoginRequired의 effect에서 열려서 안내 문구보다 한 번 늦게 그려질 수 있다.
     expect(
-      screen.getByRole('dialog', { name: '합방 시작하기' }),
+      await screen.findByRole('dialog', { name: '합방 시작하기' }),
     ).toBeInTheDocument()
   })
 
