@@ -12,10 +12,12 @@ pnpm만 쓴다(`packageManager`로 버전 고정, Node 24는 `.node-version`). n
 pnpm dev            # /api → http://localhost:8080 (로컬 BE) 프록시
 pnpm build          # tsc -b(타입 체크) 후 vite build
 pnpm lint           # oxlint
+pnpm test           # Vitest + Testing Library + MSW
+pnpm format:check   # Prettier 검사
 pnpm format         # Prettier 적용 / format:check는 검사만
 ```
 
-CI(`.github/workflows/ci.yml`)는 `format:check → lint → build` 순서로 돌고, 셋 다 통과해야 배포된다. 테스트 러너는 아직 없다.
+CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고, 모두 통과해야 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
 
 ## 화면 명세: `docs/mockup-ui.html`
 
@@ -35,6 +37,13 @@ CI(`.github/workflows/ci.yml`)는 `format:check → lint → build` 순서로 �
 - 명세: https://dev.hapbang.duckdns.org/v3/api-docs (Swagger UI: `/swagger-ui/index.html`). 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN` 테스트 로그인이 있다.
 - 인증은 세션 쿠키(`SESSION`, HttpOnly)다. Spring CSRF가 켜져 있어 변경 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 하고, 없으면 403이 난다.
 - 응답 형식이 아직 통일되지 않았다: 대부분 `{ statusCode, message, data }`로 감싸지만 `/members/me`·`local-login`은 감싸지 않고, 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
+
+## 강의 구매자 기능과 개발용 목
+
+- 강의 목록·상세, 장바구니·주문, 내 강의·시청, 구매 확정·취소, 리뷰 화면이 연결되어 있다.
+- 로컬 BE의 주문·구매 목록·리뷰 API는 아직 501 스텁이다. 구매자 콘텐츠 접근 권한과 실제 HP 차감·반환도 BE 구현 후 통합 검증한다.
+- 개발 서버에서 `VITE_ENABLE_MSW=true`일 때 `src/mocks/lecture.ts`의 목을 사용한다. 강의 정보와 최초 장바구니는 실제 BE에서 읽고, 모의 주문·리뷰·장바구니 변경은 메모리에만 보관한다. 새로고침하면 초기화되며 실제 서버 장바구니를 변경하지 않는다.
+- 구매 목록과 내 리뷰는 첫 페이지로만 보유·작성 여부를 판단하지 않는다. 자료 다운로드는 클릭 시 시청 URL을 다시 발급받는다.
 
 ## 배포·환경변수
 
