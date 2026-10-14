@@ -1,4 +1,4 @@
-# main·dev로 가는 PR마다 린트와 빌드(타입 체크 포함)를 실행한다.
+# main·dev로 가는 PR마다 포맷 검사, 린트, 빌드(타입 체크 포함)를 실행한다.
 # deploy.yml도 배포 전에 이 워크플로를 호출해, 병합된 커밋이 통과해야만 배포된다.
 name: CI
 
@@ -31,6 +31,9 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - name: 포맷 검사
+        run: pnpm format:check
 
       - name: 린트
         run: pnpm lint
