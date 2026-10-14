@@ -1,0 +1,89 @@
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+.split > :global(.page) {
+  margin: 0;
+  max-width: none;
+  min-width: 0;
+}
+@media (max-width: 960px) {
+  .split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.player {
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: #0b0c0f;
+  color: #f2f3f6;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+.video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0b0c0f;
+  border-radius: 10px;
+}
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.heading h1 {
+  font-size: 22px;
+  font-weight: 700;
+}
+.curr {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.curr li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.curr li:first-child {
+  border-top: 0;
+}
+.mark {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  display: grid;
+  place-items: center;
+  font: 600 10px var(--f-mono);
+  color: var(--ink-3);
+}
+.mark.now {
+  border-color: var(--signal);
+  color: var(--signal);
+}
+.lesson {
+  flex: 1;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+.lesson[aria-current='true'] {
+  font-weight: 700;
+}
