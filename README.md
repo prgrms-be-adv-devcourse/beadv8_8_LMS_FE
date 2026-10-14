@@ -15,9 +15,27 @@ pnpm dev            # http://localhost:5173, /api는 로컬 BE(localhost:8080)�
 | --- | --- |
 | `pnpm build` | 타입 체크(`tsc -b`) 후 빌드 |
 | `pnpm lint` | oxlint |
+| `pnpm test` | Vitest 단위·컴포넌트 테스트 (`test:watch`는 감시 모드) |
 | `pnpm format` | Prettier로 포맷 적용 (`format:check`는 CI에서 검사만) |
 
-import는 `@/`가 `src/`를 가리킨다(`import App from '@/App.tsx'`).
+import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/client'`).
+
+### 개발 서버 도구
+
+- **역할 전환 스트립**: 개발 서버 화면 맨 위의 `DEV 역할` 버튼으로 로컬 BE 테스트 계정에 로그인한다(`POST /api/v1/members/local-login`). 로컬 BE에 local-login이 켜져 있어야 한다. 운영 번들에는 들어가지 않는다.
+- **MSW 목**: BE에 아직 없는 API는 `src/mocks/`에 핸들러를 만들고, `.env.example`을 `.env.local`로 복사해 `VITE_ENABLE_MSW=true`로 켠다. 목이 없는 요청은 로컬 BE로 간다.
+
+### 폴더
+
+| 경로 | 내용 |
+| --- | --- |
+| `src/app/` | 라우터(역할별 가드), 앱 셸·내비, QueryClient |
+| `src/shared/api/` | API 클라이언트: CSRF 헤더, `RsData` 언랩, `ProblemDetail` → `ApiError` |
+| `src/shared/auth/` | 내 정보(`meQuery`), 역할, 로그인·로그아웃 |
+| `src/shared/ui/`, `src/shared/styles/` | 공용 컴포넌트, 디자인 토큰(`docs/mockup-ui.html` 기준) |
+| `src/features/{모듈}/` | BE 모듈별 API·화면 (member, lecture, appearance, billing, chat, support, admin …) |
+| `src/pages/` | 공통 화면(자리표시, 404, 오류) |
+| `src/mocks/` | MSW 핸들러 |
 
 ## 문서
 

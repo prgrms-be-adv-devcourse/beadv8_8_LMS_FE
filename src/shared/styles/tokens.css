@@ -1,0 +1,82 @@
+/* 디자인 토큰 (docs/mockup-ui.html). HP 종류는 색으로 고정: 충전=파랑, 수익=초록, 보류=호박색 */
+:root {
+  --bg: #f1f2f5;
+  --surface: #ffffff;
+  --sunken: #e8eaef;
+  --line: #dadde5;
+  --line-2: #c3c8d3;
+  --ink: #14161b;
+  --ink-2: #454b5a;
+  --ink-3: #737a8c;
+  --signal: #ee5a24;
+  --signal-ink: #ffffff;
+  --signal-soft: #fce6dc;
+  --charge: #2c5fd6;
+  --charge-soft: #e1e9fb;
+  --earn: #0a8659;
+  --earn-soft: #dcf1e7;
+  --hold: #a0650c;
+  --hold-soft: #f6ead3;
+  --bad: #c0283a;
+  --bad-soft: #fadfe2;
+  --shadow:
+    0 1px 2px rgba(20, 22, 27, 0.06), 0 10px 30px rgba(20, 22, 27, 0.08);
+  --f-display:
+    'Black Han Sans', 'IBM Plex Sans KR', 'Apple SD Gothic Neo', sans-serif;
+  --f-body:
+    'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui,
+    sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --r: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0e1014;
+    --surface: #171a20;
+    --sunken: #1f232b;
+    --line: #2a2f39;
+    --line-2: #3a404c;
+    --ink: #eceef3;
+    --ink-2: #b0b6c3;
+    --ink-3: #7f8698;
+    --signal: #ff6b3a;
+    --signal-ink: #140a05;
+    --signal-soft: #3a2119;
+    --charge: #79a2ff;
+    --charge-soft: #1b2640;
+    --earn: #3ccb93;
+    --earn-soft: #12302a;
+    --hold: #e3a94f;
+    --hold-soft: #33281a;
+    --bad: #ff6f7f;
+    --bad-soft: #3a1c22;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0e1014;
+  --surface: #171a20;
+  --sunken: #1f232b;
+  --line: #2a2f39;
+  --line-2: #3a404c;
+  --ink: #eceef3;
+  --ink-2: #b0b6c3;
+  --ink-3: #7f8698;
+  --signal: #ff6b3a;
+  --signal-ink: #140a05;
+  --signal-soft: #3a2119;
+  --charge: #79a2ff;
+  --charge-soft: #1b2640;
+  --earn: #3ccb93;
+  --earn-soft: #12302a;
+  --hold: #e3a94f;
+  --hold-soft: #33281a;
+  --bad: #ff6f7f;
+  --bad-soft: #3a1c22;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
