@@ -13,7 +13,7 @@ API 명세(dev): https://dev.hapbang.duckdns.org/swagger-ui.html
 
 ```
 PR → dev/main 병합 → GitHub Actions
-  ci      npm ci → lint → build(tsc 포함)
+  ci      pnpm install → format:check → lint → build(tsc 포함)
   build   이미지 빌드 → GHCR push   :dev|:latest, :sha-<커밋>
   deploy  서버에서 해당 환경의 web 컨테이너만 교체 → healthy 확인
 ```
@@ -50,5 +50,5 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 | --- | --- |
 | `Dockerfile` | node로 빌드 → nginx에서 `dist/` 서빙(80) |
 | `nginx.conf` | SPA fallback, `/assets/` 장기 캐시, `index.html` 캐시 안 함 |
-| `.github/workflows/ci.yml` | PR마다 lint·build |
+| `.github/workflows/ci.yml` | PR마다 format:check·lint·build |
 | `.github/workflows/deploy.yml` | `main`·`dev` 병합 시 빌드·배포 |
