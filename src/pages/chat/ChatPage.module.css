@@ -78,11 +78,19 @@
   flex-direction: column;
   min-width: 0;
 }
-.backToRooms {
-  display: none;
+.close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
   color: var(--ink-2);
   text-decoration: none;
-  font-size: 18px;
+  font-size: 16px;
+}
+.close:hover {
+  background: var(--sunken);
+  color: var(--ink);
 }
 .leaveConfirm {
   display: flex;
@@ -167,9 +175,6 @@
   .chat:not(.threadOpen) .thread,
   .chat:not(.threadOpen) .placeholder {
     display: none;
-  }
-  .backToRooms {
-    display: inline;
   }
   .msg {
     max-width: 88%;
