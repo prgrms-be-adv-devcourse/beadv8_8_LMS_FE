@@ -22,7 +22,7 @@ import {
   useChatStore,
   type PendingMessage,
 } from '@/features/chat/chatStore'
-import { useLeaveChat, useStartChat } from '@/features/chat/useChatActions'
+import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
 import { useViewer } from '@/shared/auth/session'
@@ -37,7 +37,9 @@ export function ChatPage() {
   const chatRoomId = Number(useParams().chatRoomId) || null
   const viewer = useViewer()
   const { data: me } = useQuery(meQuery)
+  // 상대의 재입장은 BE가 남은 회원에게 보내는 재입장 안내(SYSTEM 메시지)로 알게 되고, 그때 방 상태를 다시 부른다.
   const { data: rooms, error, isPending, refetch } = useQuery(chatRoomsQuery)
+
   const room = rooms?.find((r) => r.chatRoomId === chatRoomId)
 
   // 보고 있는 방의 알림은 안 읽은 수로 세지 않는다. 화면을 떠나는 것은 퇴장이 아니다.
@@ -159,7 +161,6 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const partnerLeft = partner !== undefined && !partner.active
   const status = useChatStore((s) => s.status)
   const pending = useChatStore((s) => s.pending[room.chatRoomId]) ?? NO_PENDING
-  const start = useStartChat()
   const leave = useLeaveChat()
   const [text, setText] = useState('')
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -317,15 +318,8 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
       </div>
       {partnerLeft ? (
         <div className={styles.partnerLeft} role="status">
-          <span>상대가 나간 대화라 메시지를 보낼 수 없어요.</span>
-          <button
-            type="button"
-            className="btn primary sm"
-            disabled={start.isPending}
-            onClick={() => start.mutate(partner.userId)}
-          >
-            채팅 다시 시작
-          </button>
+          상대가 나간 대화예요. 상대가 다시 채팅을 시작하면 이어서 대화할 수
+          있어요.
         </div>
       ) : (
         <form className={styles.composer} onSubmit={send}>
