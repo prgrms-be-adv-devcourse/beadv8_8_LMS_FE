@@ -13,7 +13,7 @@ API 명세(dev): https://dev.hapbang.duckdns.org/swagger-ui.html
 
 ```
 PR → dev/main 병합 → GitHub Actions
-  ci      npm ci → lint → build(tsc 포함)
+  ci      pnpm install → lint → build(tsc 포함)
   build   이미지 빌드 → GHCR push   :dev|:latest, :sha-<커밋>
   deploy  서버에서 해당 환경의 web 컨테이너만 교체 → healthy 확인
 ```
