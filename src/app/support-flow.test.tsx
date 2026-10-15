@@ -154,7 +154,7 @@ describe('고객센터 (회원)', () => {
     expect(screen.getByRole('button', { name: '접수하기' })).toBeDisabled()
   })
 
-  it('내 문의는 제목으로 찾고 정렬을 바꿀 수 있다', async () => {
+  it('내 문의 검색어·정렬은 URL에 남고 미리 채우기 값은 그대로 둔다', async () => {
     const seen: string[] = []
     server.use(
       http.get('*/api/v1/inquiries', ({ request }) => {
@@ -162,7 +162,7 @@ describe('고객센터 (회원)', () => {
         return rs(page([summary()]))
       }),
     )
-    renderApp('/support', 'USER')
+    const router = renderApp('/support?category=OTHER', 'USER')
     await screen.findByRole('link', { name: /환전이 늦어요/ })
     await userEvent.type(screen.getByLabelText('내 문의 검색'), '환전{Enter}')
     await userEvent.selectOptions(screen.getByLabelText('정렬'), 'OLDEST')
@@ -171,6 +171,32 @@ describe('고객센터 (회원)', () => {
         '?keyword=%ED%99%98%EC%A0%84&sort=OLDEST&page=0&size=10',
       ),
     )
+    const params = new URLSearchParams(router.state.location.search)
+    expect(Object.fromEntries(params)).toEqual({
+      category: 'OTHER',
+      q: '환전',
+      sort: 'OLDEST',
+    })
+  })
+
+  it('상세에서 돌아오면 보던 검색어·페이지로 다시 연다', async () => {
+    const seen: string[] = []
+    server.use(
+      http.get('*/api/v1/inquiries', ({ request }) => {
+        seen.push(new URL(request.url).search)
+        return rs({
+          content: [summary()],
+          page: { size: 10, number: 1, totalElements: 11, totalPages: 2 },
+        })
+      }),
+    )
+    renderApp('/support?q=%ED%99%98%EC%A0%84&page=2', 'USER')
+    await screen.findByRole('link', { name: /환전이 늦어요/ })
+    expect(seen[0]).toBe(
+      '?keyword=%ED%99%98%EC%A0%84&sort=LATEST&page=1&size=10',
+    )
+    expect(screen.getByLabelText('내 문의 검색')).toHaveValue('환전')
+    expect(screen.getByText('2 / 2')).toBeInTheDocument()
   })
 
   it('문의 상세는 답변을 보여 주고, 답변이 달리면 삭제할 수 없다', async () => {

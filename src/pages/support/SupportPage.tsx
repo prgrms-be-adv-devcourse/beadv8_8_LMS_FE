@@ -36,19 +36,45 @@ export function SupportPage() {
   )
 }
 
+/**
+ * 내 문의 검색어·정렬·페이지는 URL에 둔다(?q=&sort=&page=, page는 1부터).
+ * 상세에서 돌아와도 보던 목록이 남는다. 새 문의 미리 채우기 값(category·orderItemId)은 건드리지 않는다.
+ */
+function useListParams() {
+  const [params, setParams] = useSearchParams()
+  const keyword = params.get('q') ?? ''
+  const sort: InquirySort =
+    params.get('sort') === 'OLDEST' ? 'OLDEST' : 'LATEST'
+  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
+
+  const update = (
+    next: Partial<{ keyword: string; sort: InquirySort; page: number }>,
+  ) => {
+    const merged = { keyword, sort, page, ...next }
+    setParams((prev) => {
+      const search = new URLSearchParams(prev)
+      if (merged.keyword) search.set('q', merged.keyword)
+      else search.delete('q')
+      if (merged.sort !== 'LATEST') search.set('sort', merged.sort)
+      else search.delete('sort')
+      if (merged.page > 0) search.set('page', String(merged.page + 1))
+      else search.delete('page')
+      return search
+    })
+  }
+  return { keyword, sort, page, update }
+}
+
 function MyInquiries() {
-  const [draft, setDraft] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [sort, setSort] = useState<InquirySort>('LATEST')
-  const [page, setPage] = useState(0)
+  const { keyword, sort, page, update } = useListParams()
+  const [draft, setDraft] = useState(keyword)
   const { data, error, isPending, refetch } = useQuery(
     myInquiriesQuery({ keyword, sort, page }),
   )
 
   const search = (e: FormEvent) => {
     e.preventDefault()
-    setKeyword(draft.trim())
-    setPage(0)
+    update({ keyword: draft.trim(), page: 0 })
   }
 
   return (
@@ -75,10 +101,9 @@ function MyInquiries() {
         <select
           className="select sm"
           value={sort}
-          onChange={(e) => {
-            setSort(e.target.value as InquirySort)
-            setPage(0)
-          }}
+          onChange={(e) =>
+            update({ sort: e.target.value as InquirySort, page: 0 })
+          }
           aria-label="정렬"
         >
           <option value="LATEST">최신순</option>
@@ -106,7 +131,7 @@ function MyInquiries() {
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={setPage}
+            onChange={(p) => update({ page: p })}
           />
         </>
       )}
