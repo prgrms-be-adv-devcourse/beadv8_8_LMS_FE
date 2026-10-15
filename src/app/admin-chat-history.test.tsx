@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -77,6 +77,7 @@ const history: ChatRoomHistory = {
       deletedAt: null,
     },
   ],
+  nextCursor: null,
 }
 
 afterEach(() => queryClient.clear())
@@ -128,6 +129,166 @@ describe('관리자 채팅 기록', () => {
     expect(screen.getByText('종료')).toBeInTheDocument()
     expect(screen.getByText(/하루 \(회원 #7\) · 나감/)).toBeInTheDocument()
     expect(screen.getByLabelText('채팅방 번호')).toHaveValue('42')
+  })
+
+  it('여러 페이지에 나뉜 기록을 이어 받아 빠짐·중복 없이 시간순으로 보여 준다', async () => {
+    const at = (minute: number) =>
+      `2026-10-10T10:${String(minute).padStart(2, '0')}:00`
+    const msg = (id: number, minute: number, content: string) => ({
+      messageId: id,
+      roomSequence: id,
+      senderUserId: 7,
+      messageType: 'TEXT' as const,
+      content,
+      sentAt: at(minute),
+      deletedAt: null,
+    })
+    // 1페이지 끝과 2페이지 처음이 같은 시각: 기록이 메시지보다 먼저다.
+    const pages: Record<string, ChatRoomHistory> = {
+      first: {
+        ...history,
+        logs: [
+          {
+            logId: 1,
+            actorUserId: 7,
+            eventType: 'ROOM_CREATED',
+            occurredAt: at(0),
+          },
+          {
+            logId: 2,
+            actorUserId: 8,
+            eventType: 'MEMBER_LEFT',
+            occurredAt: at(2),
+          },
+        ],
+        messages: [msg(1, 1, '첫 메시지')],
+        nextCursor: 'c1',
+      },
+      c1: {
+        // 방 정보는 첫 페이지 값을 쓴다. 다음 페이지 값이 달라도 화면은 바뀌지 않는다.
+        ...history,
+        status: 'ACTIVE',
+        endedAt: null,
+        members: [
+          {
+            userId: 7,
+            nickname: '바뀐 닉네임',
+            active: true,
+            participationVersion: 2,
+          },
+        ],
+        logs: [],
+        messages: [
+          msg(2, 2, '퇴장 안내 직후'),
+          // 같은 밀리초 안에서 마이크로초로만 다르고 ID는 거꾸로다: 시각이 먼저다.
+          { ...msg(9, 3, '같은 밀리초 앞'), sentAt: `${at(3)}.000100` },
+          { ...msg(3, 3, '같은 밀리초 뒤'), sentAt: `${at(3)}.000200` },
+        ],
+        nextCursor: null,
+      },
+    }
+    const cursors: (string | null)[] = []
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', ({ request }) => {
+        const url = new URL(request.url)
+        const cursor = url.searchParams.get('cursor')
+        cursors.push(cursor)
+        return rs(pages[cursor ?? 'first'])
+      }),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(3)
+    expect(screen.getByText(/불러온 메시지/)).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: '다음 기록 더 보기' }),
+    )
+    await waitFor(() =>
+      expect(within(list).getAllByRole('listitem')).toHaveLength(6),
+    )
+    expect(cursors).toEqual([null, 'c1'])
+    const items = within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(items[0]).toMatch(/채팅방을 만들었어요/)
+    expect(items[1]).toMatch(/첫 메시지/)
+    expect(items[2]).toMatch(/새벽님이 나갔어요/)
+    expect(items[3]).toMatch(/퇴장 안내 직후/)
+    expect(items[4]).toMatch(/같은 밀리초 앞/)
+    expect(items[5]).toMatch(/같은 밀리초 뒤/)
+    // 마지막 페이지면 더 보기가 없다.
+    expect(
+      screen.queryByRole('button', { name: '다음 기록 더 보기' }),
+    ).toBeNull()
+    expect(screen.getByText('4개')).toBeInTheDocument()
+    // 방 정보는 첫 페이지 값(종료, 종료 시각, 참여자) 그대로다.
+    expect(screen.getByText('종료')).toBeInTheDocument()
+    expect(screen.getByText('종료 시각')).toBeInTheDocument()
+    expect(screen.getByText(/하루 \(회원 #7\) · 나감/)).toBeInTheDocument()
+    expect(screen.queryByText(/바뀐 닉네임/)).toBeNull()
+  })
+
+  it('다음 기록을 못 불러와도 불러온 기록은 그대로 두고, 다시 시도하면 이어 붙인다', async () => {
+    let failNext = true
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        if (!cursor) return rs({ ...history, nextCursor: 'c1' })
+        if (failNext)
+          return HttpResponse.json(
+            { status: 500, code: 'INTERNAL_ERROR', detail: '잠시 실패했어요.' },
+            { status: 500 },
+          )
+        return rs({
+          ...history,
+          logs: [],
+          messages: [
+            {
+              messageId: 500,
+              roomSequence: 50,
+              senderUserId: 7,
+              messageType: 'TEXT',
+              content: '다음 페이지 메시지',
+              sentAt: '2026-10-12T10:00:00',
+              deletedAt: null,
+            },
+          ],
+          nextCursor: null,
+        })
+      }),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    const firstCount = within(list).getAllByRole('listitem').length
+
+    await userEvent.click(
+      screen.getByRole('button', { name: '다음 기록 더 보기' }),
+    )
+    // 오류가 나도 불러온 기록과 방 정보는 남는다.
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('다음 기록을 불러오지 못했어요.')
+    expect(
+      within(screen.getByRole('list', { name: '채팅 기록' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(firstCount)
+    expect(
+      screen.getByRole('heading', { name: '채팅방 #42' }),
+    ).toBeInTheDocument()
+
+    failNext = false
+    await userEvent.click(
+      within(alert).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(await screen.findByText('다음 페이지 메시지')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(
+      within(screen.getByRole('list', { name: '채팅 기록' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(firstCount + 1)
   })
 
   it('없는 방이면 안내한다', async () => {

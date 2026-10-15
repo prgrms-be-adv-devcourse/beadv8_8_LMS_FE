@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { chatHistoryQuery } from '@/entities/chat/api'
 import type {
@@ -9,7 +9,7 @@ import type {
   ChatRoomLog,
 } from '@/entities/chat/types'
 import { isApiError } from '@/shared/api/ApiError'
-import { formatDateTime, parseServerDate } from '@/shared/lib/date'
+import { formatDateTime } from '@/shared/lib/date'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -81,52 +81,126 @@ function Lookup({ initial }: { initial: string }) {
 }
 
 function History({ chatRoomId }: { chatRoomId: number }) {
-  const { data, error, isPending, refetch } = useQuery(
-    chatHistoryQuery(chatRoomId),
-  )
+  const {
+    data,
+    error,
+    isPending,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isFetchNextPageError,
+  } = useInfiniteQuery(chatHistoryQuery(chatRoomId))
   if (isPending) return <Loading />
-  if (isApiError(error, 'CHAT_ROOM_NOT_FOUND'))
-    return (
-      <EmptyState title="채팅방을 찾을 수 없어요">
-        채팅방 번호를 다시 확인해 주세요.
-      </EmptyState>
+  // 첫 페이지를 못 불러왔을 때만 화면 전체를 오류로 바꾼다.
+  if (!data) {
+    if (isApiError(error, 'CHAT_ROOM_NOT_FOUND'))
+      return (
+        <EmptyState title="채팅방을 찾을 수 없어요">
+          채팅방 번호를 다시 확인해 주세요.
+        </EmptyState>
+      )
+    return <LoadError error={error} retry={refetch} />
+  }
+  // 불러온 기록이 있으면 그대로 두고, 다음 페이지(또는 다시 불러오기) 실패는 버튼 자리에서 안내하고 다시 시도한다.
+  const more = error ? (
+    <div className="notice bad" role="alert">
+      <span>
+        {isFetchNextPageError
+          ? '다음 기록을 불러오지 못했어요.'
+          : '기록을 새로 불러오지 못했어요.'}{' '}
+        {error.message}
+      </span>
+      <button
+        type="button"
+        className="btn sm"
+        disabled={isFetchingNextPage}
+        onClick={() =>
+          void (isFetchNextPageError ? fetchNextPage() : refetch())
+        }
+      >
+        다시 시도
+      </button>
+    </div>
+  ) : (
+    hasNextPage && (
+      <button
+        type="button"
+        className="btn sm"
+        disabled={isFetchingNextPage}
+        onClick={() => void fetchNextPage()}
+      >
+        {isFetchingNextPage ? '불러오는 중…' : '다음 기록 더 보기'}
+      </button>
     )
-  if (error) return <LoadError error={error} retry={refetch} />
-  return <HistoryView history={data} />
+  )
+  return <HistoryView pages={data.pages} more={more} />
 }
 
 type Entry =
-  | { kind: 'message'; at: string; message: ChatHistoryMessage }
-  | { kind: 'log'; at: string; log: ChatRoomLog }
+  | { kind: 'log'; at: string; id: number; log: ChatRoomLog }
+  | { kind: 'message'; at: string; id: number; message: ChatHistoryMessage }
 
-/** 메시지와 입장·퇴장 기록을 시간순으로 합친다(같은 시각이면 기록 먼저). */
-function mergeTimeline(history: ChatRoomHistory): Entry[] {
-  const entries: Entry[] = [
-    ...history.logs.map((log) => ({
-      kind: 'log' as const,
-      at: log.occurredAt,
-      log,
-    })),
-    ...history.messages.map((message) => ({
-      kind: 'message' as const,
-      at: message.sentAt,
-      message,
-    })),
-  ]
-  const time = (e: Entry) => parseServerDate(e.at).getTime()
-  return entries.sort(
-    (a, b) =>
-      time(a) - time(b) || (a.kind === b.kind ? 0 : a.kind === 'log' ? -1 : 1),
+/**
+ * 페이지들의 메시지와 입장·퇴장 기록을 한 흐름으로 합친다. BE와 같은 순서(시각 → 같은 시각이면 기록 먼저 → ID)이고,
+ * 같은 항목은 한 번만 넣는다.
+ */
+function mergeTimeline(pages: ChatRoomHistory[]): Entry[] {
+  const entries = new Map<string, Entry>()
+  for (const page of pages) {
+    for (const log of page.logs)
+      entries.set(`log-${log.logId}`, {
+        kind: 'log',
+        at: log.occurredAt,
+        id: log.logId,
+        log,
+      })
+    for (const message of page.messages)
+      entries.set(`msg-${message.messageId}`, {
+        kind: 'message',
+        at: message.sentAt,
+        id: message.messageId,
+        message,
+      })
+  }
+  const rank = (e: Entry) => (e.kind === 'log' ? 0 : 1)
+  return [...entries.values()].sort(
+    (a, b) => compareServerTime(a.at, b.at) || rank(a) - rank(b) || a.id - b.id,
   )
 }
 
-function HistoryView({ history }: { history: ChatRoomHistory }) {
+/**
+ * 서버 시각(LocalDateTime 문자열)을 정밀도를 잃지 않고 비교한다. Date는 밀리초까지만 다뤄
+ * 마이크로초가 다른 두 항목을 같은 시각으로 보고 ID 순으로 뒤집을 수 있다.
+ * 같은 시간대의 ISO 문자열이므로 소수 부분 자릿수만 맞추면 문자열 비교가 시각 비교다.
+ */
+function compareServerTime(a: string, b: string) {
+  const key = (value: string) => {
+    const [base, fraction = ''] = value.split('.')
+    const withSeconds = base.length === 16 ? `${base}:00` : base
+    return `${withSeconds}.${fraction.padEnd(9, '0')}`
+  }
+  const ka = key(a)
+  const kb = key(b)
+  return ka < kb ? -1 : ka > kb ? 1 : 0
+}
+
+/** 방 정보(첫 페이지 값)와 지금까지 불러온 기록. more는 다음 페이지 버튼(더 없으면 없음) */
+function HistoryView({
+  pages,
+  more,
+}: {
+  pages: ChatRoomHistory[]
+  more: ReactNode
+}) {
+  const [history] = pages
   const nickname = (userId: number | null) =>
     userId === null
       ? '시스템'
       : (history.members.find((m) => m.userId === userId)?.nickname ??
         `회원 ${userId}`)
-  const timeline = mergeTimeline(history)
+  const timeline = mergeTimeline(pages)
+  const messageCount = timeline.filter((e) => e.kind === 'message').length
 
   return (
     <>
@@ -157,8 +231,10 @@ function HistoryView({ history }: { history: ChatRoomHistory }) {
               </span>
             ))}
           </dd>
-          <dt>메시지</dt>
-          <dd className="num">{history.messages.length}개</dd>
+          <dt>{more ? '불러온 메시지' : '메시지'}</dt>
+          <dd className="num">
+            {messageCount}개{more && ' (아래에서 더 불러올 수 있어요)'}
+          </dd>
         </dl>
       </section>
       {timeline.length === 0 ? (
@@ -186,6 +262,7 @@ function HistoryView({ history }: { history: ChatRoomHistory }) {
           )}
         </ol>
       )}
+      {more && <div className={styles.more}>{more}</div>}
     </>
   )
 }

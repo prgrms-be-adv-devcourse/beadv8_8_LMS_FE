@@ -113,13 +113,21 @@ export type ChatHistoryMessage = NotificationFields & {
   deletedAt: string | null
 }
 
-/** GET /chats/admin/{chatRoomId}/history (관리자 분쟁 확인용). logs·messages는 오래된 순 */
+/**
+ * GET /chats/admin/{chatRoomId}/history 한 페이지 (관리자 분쟁 확인용).
+ * 기록과 메시지를 하나의 시간순 흐름(시각 → 같은 시각이면 기록 먼저 → ID)으로 보고 오래된 쪽부터 커서로 나눈다.
+ * 방 정보(status·members 등)는 페이지마다 같은 값이 온다
+ */
 export type ChatRoomHistory = {
   chatRoomId: number
   status: ChatRoomStatus
   createdAt: string
   endedAt: string | null
   members: ChatRoomMember[]
+  /** 이 페이지 구간의 기록(시간순) */
   logs: ChatRoomLog[]
+  /** 이 페이지 구간의 메시지(시간순) */
   messages: ChatHistoryMessage[]
+  /** 다음(더 최근) 페이지 커서. 더 없으면 null (BE #263) */
+  nextCursor: string | null
 }
