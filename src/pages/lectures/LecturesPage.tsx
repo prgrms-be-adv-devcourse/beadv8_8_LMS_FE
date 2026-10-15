@@ -1,20 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
   LECTURE_SORT_LABEL,
   type LectureSort,
   type LectureSummary,
 } from '@/entities/lecture/types'
-import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
-import { Rating } from '@/entities/lecture/ui/Rating'
+import { LectureCard as BaseLectureCard } from '@/entities/lecture/ui/LectureCard'
 import {
   useBuyerState,
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
 import { useViewer } from '@/shared/auth/session'
-import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -142,6 +140,7 @@ export function LecturesPage() {
   )
 }
 
+/** 보유 중·장바구니·내 강의 표시를 붙인 강의 카드 */
 function LectureCard({
   lecture,
   buyer,
@@ -154,48 +153,19 @@ function LectureCard({
   const owned = buyer.owned.has(lecture.lectureId)
   const inCart = buyer.inCart.has(lecture.lectureId)
   const mine = lecture.sellerUserId === buyer.myUserId
-  const body = (
-    <>
-      <LectureThumb
-        lectureId={lecture.lectureId}
-        title={lecture.title}
-        thumbnailUrl={lecture.thumbnailUrl}
-      />
-      <div className={styles.meta}>
-        <span className={styles.title}>{lecture.title}</span>
-        <span className={styles.seller}>{lecture.sellerNickname}</span>
-        <div className={styles.foot}>
-          <Rating average={lecture.averageRating} count={lecture.reviewCount} />
-          <span className="num">{formatNumber(lecture.priceHp)} HP</span>
-        </div>
-        {(owned || inCart || mine) && (
-          <div className={styles.flags}>
+  return (
+    <BaseLectureCard
+      lecture={lecture}
+      guest={guest}
+      flags={
+        (owned || inCart || mine) && (
+          <>
             {owned && <span className="pill ok">보유 중</span>}
             {inCart && <span className="pill info">장바구니</span>}
             {mine && <span className="pill mute">내 강의</span>}
-          </div>
-        )}
-      </div>
-    </>
-  )
-
-  // 비회원은 상세를 볼 수 없어 로그인 모달을 연다.
-  if (guest) {
-    return (
-      <button
-        type="button"
-        className={styles.card}
-        onClick={() =>
-          openLoginModal('강의 상세와 구매는 로그인 후 이용할 수 있어요.')
-        }
-      >
-        {body}
-      </button>
-    )
-  }
-  return (
-    <Link className={styles.card} to={`/lectures/${lecture.lectureId}`}>
-      {body}
-    </Link>
+          </>
+        )
+      }
+    />
   )
 }

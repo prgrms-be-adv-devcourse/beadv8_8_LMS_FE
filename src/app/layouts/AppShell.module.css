@@ -260,3 +260,182 @@
 .navItem.on .cnt {
   background: var(--signal);
 }
+
+/* ── 홈 레이아웃 (RouteHandle.layout = 'top', 디자인: 합방 홈 화면) ── */
+.homeTop {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+}
+.topnav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.topnavItem {
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.topnavItem:hover {
+  color: var(--ink);
+  background: var(--sunken);
+}
+.topnavItem.on {
+  color: var(--ink);
+  font-weight: 700;
+}
+.search {
+  flex: 1 1 220px;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--sunken);
+  border-radius: 999px;
+  padding: 0 14px;
+  min-height: 40px;
+  color: var(--ink-3);
+}
+.search input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  color: var(--ink);
+}
+.searchIcon {
+  display: none;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  color: var(--ink-2);
+  margin-left: auto;
+}
+.iconBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+}
+.profile {
+  position: relative;
+}
+.avatarBtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+}
+.profileMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 25;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.profileMenu .meText {
+  display: block;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.profileMenu :global(.btn) {
+  justify-content: flex-start;
+}
+
+/* 홈에서는 내비 레일이 늘 햄버거로 여는 드로어다 */
+.topLayout .menuBtn {
+  display: grid;
+}
+.topLayout .shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+.topLayout .side {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  width: min(280px, 84vw);
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0.2s;
+}
+.topLayout .sideOpen {
+  transform: none;
+  visibility: visible;
+}
+.topLayout .navScrim {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(10, 12, 16, 0.5);
+}
+/* 홈 섹션은 화면 끝까지 꽉 찬 띠라 바깥 여백을 두지 않는다 */
+.topLayout .main {
+  padding: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .topLayout .side {
+    transition: none;
+  }
+}
+
+/* 좁은 화면 (모바일 아트보드): 가로 메뉴·검색창 대신 검색 아이콘 */
+@media (max-width: 960px) {
+  .topnav {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .homeTop {
+    gap: 6px;
+    padding: 8px 8px 8px 12px;
+  }
+  .homeTop .onair {
+    display: none;
+  }
+  .search {
+    display: none;
+  }
+  .searchIcon {
+    display: grid;
+  }
+  .homeTop .right {
+    margin-left: 0;
+  }
+  .homeTop .iconBtn {
+    display: none;
+  }
+}

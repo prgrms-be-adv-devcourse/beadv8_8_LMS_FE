@@ -31,7 +31,6 @@ export const ADMIN: Viewer[] = ['ADMIN']
 /** 역할별 첫 화면 */
 export function homePathOf(viewer: Viewer): string {
   if (viewer === 'ADMIN') return '/admin'
-  if (viewer === 'GUEST') return '/lectures'
   return '/'
 }
 
