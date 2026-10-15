@@ -33,3 +33,35 @@ export function LoadError({
     </EmptyState>
   )
 }
+
+/**
+ * 이미 보여 주는 데이터는 그대로 두고, 그 자리에서 다시 불러오기·더 불러오기 실패를 알린다.
+ * 첫 조회 실패(보여 줄 데이터가 없음)는 LoadError를 쓴다.
+ */
+export function InlineLoadError({
+  title,
+  error,
+  retry,
+  retrying = false,
+}: {
+  title: string
+  error: Error
+  retry: () => void
+  retrying?: boolean
+}) {
+  return (
+    <div className="notice bad" role="alert">
+      <span>
+        {title} {error.message}
+      </span>
+      <button
+        type="button"
+        className="btn sm"
+        disabled={retrying}
+        onClick={retry}
+      >
+        다시 시도
+      </button>
+    </div>
+  )
+}

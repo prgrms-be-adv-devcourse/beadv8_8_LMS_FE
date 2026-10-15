@@ -32,14 +32,20 @@ import { formatDate, parseServerDate } from '@/shared/lib/date'
 import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './ChatPage.module.css'
 
 export function ChatPage() {
   const chatRoomId = Number(useParams().chatRoomId) || null
   const { data: me } = useQuery(meQuery)
   // 상대의 재입장은 BE가 남은 회원에게 보내는 재입장 안내(SYSTEM 메시지)로 알게 되고, 그때 방 상태를 다시 부른다.
-  const { data: rooms, error, isPending, refetch } = useQuery(chatRoomsQuery)
+  const {
+    data: rooms,
+    error,
+    isPending,
+    isFetching,
+    refetch,
+  } = useQuery(chatRoomsQuery)
 
   const room = rooms?.find((r) => r.chatRoomId === chatRoomId)
 
@@ -59,9 +65,18 @@ export function ChatPage() {
             : '인플루언서끼리 1:1로 일정과 조건을 맞춰요. 대화 기록은 분쟁 확인용으로 보관돼요.'
         }
       />
+      {/* 이미 보이는 목록이 있으면 다시 불러오기가 실패해도 그대로 두고 위에서 알린다. */}
+      {rooms && error && (
+        <InlineLoadError
+          title="대화 목록을 새로 불러오지 못했어요."
+          error={error}
+          retrying={isFetching}
+          retry={() => void refetch()}
+        />
+      )}
       {isPending || !me ? (
         <Loading />
-      ) : error ? (
+      ) : !rooms ? (
         <LoadError error={error} retry={refetch} />
       ) : rooms.length === 0 && !chatRoomId ? (
         <EmptyState
@@ -173,9 +188,11 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     error,
     isPending,
     refetch,
+    isFetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
   } = useInfiniteQuery(chatMessagesQuery(room.chatRoomId))
 
   // 오래된 것부터 그린다(순번순, 같은 메시지는 한 번).
@@ -201,7 +218,11 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const loadOlder = () => {
     const box = listRef.current
     if (box) keepOffset.current = box.scrollHeight - box.scrollTop
-    void fetchNextPage()
+    // 실패하면 메시지가 늘지 않아 위치를 되돌리는 효과가 돌지 않는다. 기억한 위치를 지워야
+    // 그 뒤 새 메시지가 왔을 때 맨 아래로 내려간다(다시 시도하면 새로 잡는다).
+    void fetchNextPage().then((result) => {
+      if (result.isError) keepOffset.current = null
+    })
   }
 
   const send = (e: FormEvent) => {
@@ -278,20 +299,38 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
       <div className={styles.msgs} ref={listRef} aria-live="polite">
         {isPending ? (
           <Loading />
-        ) : error ? (
+        ) : !data ? (
           <LoadError error={error} retry={refetch} />
         ) : (
           <>
-            {hasNextPage && (
-              <button
-                type="button"
-                className="btn ghost sm"
-                style={{ alignSelf: 'center' }}
-                disabled={isFetchingNextPage}
-                onClick={loadOlder}
-              >
-                {isFetchingNextPage ? '불러오는 중…' : '이전 메시지 더 보기'}
-              </button>
+            {/* 보이던 대화는 그대로 두고, 실패는 그 자리에서 알린다. */}
+            {error && !isFetchNextPageError && (
+              <InlineLoadError
+                title="대화를 새로 불러오지 못했어요."
+                error={error}
+                retrying={isFetching}
+                retry={() => void refetch()}
+              />
+            )}
+            {error && isFetchNextPageError ? (
+              <InlineLoadError
+                title="이전 메시지를 불러오지 못했어요."
+                error={error}
+                retrying={isFetchingNextPage}
+                retry={loadOlder}
+              />
+            ) : (
+              hasNextPage && (
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  style={{ alignSelf: 'center' }}
+                  disabled={isFetchingNextPage}
+                  onClick={loadOlder}
+                >
+                  {isFetchingNextPage ? '불러오는 중…' : '이전 메시지 더 보기'}
+                </button>
+              )
             )}
             {messages.length === 0 && (
               <p
