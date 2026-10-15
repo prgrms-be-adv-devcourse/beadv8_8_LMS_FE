@@ -38,7 +38,7 @@ export const NAV: NavGroup[] = [
     items: [
       { path: '/', label: '홈', roles: ALL },
       { path: '/lectures', label: '강의', roles: ALL },
-      { path: '/recruits', label: '출연 모집', roles: ALL },
+      { path: '/recruits', label: '출연 모집', roles: SIGNED_IN },
       { path: '/influencers', label: '인플루언서', roles: SIGNED_IN },
     ],
   },

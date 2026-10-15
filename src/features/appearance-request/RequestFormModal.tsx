@@ -87,7 +87,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
       )
     },
     onError: (error) => {
-      if (isApiError(error, 'INSUFFICIENT_HP')) return setShortHp(true)
+      if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 요청서를 저장했고 HP 보류만 늦어지고 있다.
         // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록에서 결과를 확인하게 한다.

@@ -188,6 +188,40 @@ describe('출연 요청 보내기', () => {
     ).toBeInTheDocument()
   })
 
+  it('잔액이 부족하면(409 INSUFFICIENT_BALANCE) 충전 안내를 보여 준다', async () => {
+    mockGuestProfile()
+    server.use(
+      http.post('*/api/v1/appearances/requests', () =>
+        HttpResponse.json(
+          {
+            status: 409,
+            code: 'INSUFFICIENT_BALANCE',
+            detail: 'HP 잔액이 부족합니다.',
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+    document.cookie = 'XSRF-TOKEN=t'
+    renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
+
+    const dialog = await openRequestForm()
+    await userEvent.type(within(dialog).getByLabelText('제목'), '합방')
+    await userEvent.type(within(dialog).getByLabelText('요청 내용'), '내용')
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: /HP 보류하고 요청/ }),
+    )
+
+    expect(
+      await within(dialog).findByText(
+        'HP가 부족해 요청을 보내지 못했어요. 충전한 뒤 다시 보내 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
+    ).toBeInTheDocument()
+  })
+
   it('유저는 요청 대신 채널 인증을 안내받는다', async () => {
     mockGuestProfile()
     renderApp(`/influencers/${GUEST_ID}`, 'USER')
