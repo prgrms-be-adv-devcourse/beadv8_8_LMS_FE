@@ -61,25 +61,31 @@ describe('라우트 가드', () => {
   it('권한 없는 회원은 역할 첫 화면으로 보낸다', async () => {
     const router = renderAt('/studio', 'USER')
     expect(
-      await screen.findByRole('heading', { name: '홈' }),
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /합방 상대를 찾고/,
+      }),
     ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
   })
 
-  it('비회원 홈은 강의 목록, 관리자 홈은 운영 대시보드로 보낸다', async () => {
+  it('홈은 비회원도 볼 수 있다', async () => {
     const guest = renderAt('/', 'GUEST')
     expect(
-      await screen.findByRole('heading', { name: '강의' }),
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /합방 상대를 찾고/,
+      }),
     ).toBeInTheDocument()
-    expect(guest.state.location.pathname).toBe('/lectures')
+    expect(guest.state.location.pathname).toBe('/')
   })
 
-  it('관리자 홈은 운영 대시보드다', async () => {
+  it('관리자도 홈을 보고, 운영 화면으로 가는 버튼이 있다', async () => {
     const admin = renderAt('/', 'ADMIN')
     expect(
-      await screen.findByRole('heading', { name: '대시보드' }),
-    ).toBeInTheDocument()
-    expect(admin.state.location.pathname).toBe('/admin')
+      await screen.findByRole('link', { name: '운영 화면으로' }),
+    ).toHaveAttribute('href', '/admin')
+    expect(admin.state.location.pathname).toBe('/')
   })
 
   it('권한이 있으면 화면을 보여 준다', async () => {
@@ -105,9 +111,9 @@ describe('내비 레일', () => {
       .map((a) => a.textContent)
   }
 
-  it('비회원은 강의·출연 모집만 본다', async () => {
+  it('비회원은 홈·강의·출연 모집만 본다', async () => {
     renderAt('/lectures', 'GUEST')
-    expect(await navLabels()).toEqual(['강의', '출연 모집'])
+    expect(await navLabels()).toEqual(['홈', '강의', '출연 모집'])
   })
 
   it('유저는 채널 인증을 보고 출연·강의 판매는 보지 않는다', async () => {

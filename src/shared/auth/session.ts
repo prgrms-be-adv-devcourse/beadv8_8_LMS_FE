@@ -53,6 +53,6 @@ export function useLogout() {
     // 다른 회원의 데이터가 남지 않도록 캐시를 모두 비운다.
     queryClient.clear()
     queryClient.setQueryData(meQuery.queryKey, null)
-    navigate('/lectures')
+    navigate('/')
   }
 }

@@ -690,6 +690,26 @@ p {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 14px;
 }
+/* "ON AIR" 표시 (로고 옆·홈 소개) */
+.onair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.1em;
+  color: var(--signal);
+  border: 1.5px solid var(--signal);
+  border-radius: 4px;
+  padding: 1px 5px 1px 4px;
+}
+.onair::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+}
 
 /* 강의 등록·수정 (목업 LectureEditScreen) */
 .progress {
