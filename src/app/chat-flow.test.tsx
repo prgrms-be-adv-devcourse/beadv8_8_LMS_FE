@@ -1,10 +1,11 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
 import { useChatStore } from '@/features/chat/chatStore'
+import { READ_RETRY_DELAY_MS } from '@/features/chat/useChatUnread'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
@@ -877,5 +878,118 @@ describe('역순·중복 수신', () => {
     )
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+  })
+})
+
+describe('읽음 처리', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('읽음 요청이 실패하면 안 읽은 수를 되돌리고 잠시 뒤 다시 보낸다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockChat(
+      [room({ unreadCount: 2 })],
+      [message({ content: '읽을 메시지', roomSequence: 7 })],
+    )
+    const bodies: unknown[] = []
+    server.use(
+      http.put('*/api/v1/chats/:chatRoomId/read', async ({ request }) => {
+        bodies.push(await request.json())
+        return bodies.length === 1
+          ? HttpResponse.json(
+              { status: 500, code: 'INTERNAL_ERROR', detail: '잠시 실패' },
+              { status: 500 },
+            )
+          : new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByText('읽을 메시지')
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+
+    // 실패 → 지웠던 안 읽은 수가 돌아온다(안내는 띄우지 않는다).
+    await waitFor(() => expect(bodies).toHaveLength(1))
+    expect(
+      await within(nav).findByLabelText('안 읽은 메시지 2개'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('잠시 실패')).toBeNull()
+
+    // 잠시 뒤 같은 순번으로 다시 보내고, 성공하면 안 읽은 수를 지운다.
+    await act(() => vi.advanceTimersByTimeAsync(READ_RETRY_DELAY_MS))
+    await waitFor(() => expect(bodies).toHaveLength(2))
+    expect(bodies[1]).toEqual({ lastReadSequence: 7 })
+    await waitFor(() =>
+      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
+    )
+  })
+
+  it('가려진 동안 이미 읽은 순번의 이전 메시지가 늦게 와도, 다시 보면 안 읽은 수가 남지 않는다', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus')
+    mockChat([room()], [message({ content: '읽은 메시지', roomSequence: 7 })])
+    renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByText('읽은 메시지')
+    await waitFor(() =>
+      expect(reads).toEqual([
+        { chatRoomId: '5', body: { lastReadSequence: 7 } },
+      ]),
+    )
+    const client = await connectSocket()
+
+    hasFocus.mockReturnValue(false)
+    act(() => {
+      window.dispatchEvent(new Event('blur'))
+    })
+    // 역순 전달로 순번 6이 늦게 왔다(서버는 7까지 읽음 처리함).
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '늦게 온 이전 메시지', roomSequence: 6 }),
+      ),
+    )
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(
+      await within(nav).findByLabelText('안 읽은 메시지 1개'),
+    ).toBeInTheDocument()
+
+    hasFocus.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+    })
+    await waitFor(() =>
+      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
+    )
+    expect(reads).toHaveLength(1)
+  })
+
+  it('탭이 가려져 있으면 읽음 처리를 미루고, 그사이 온 메시지는 안 읽은 수로 센다', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    mockChat(
+      [room({ unreadCount: 1 })],
+      [message({ content: '안 본 메시지', roomSequence: 3 })],
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByText('안 본 메시지')
+    const client = await connectSocket()
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '가려진 동안', roomSequence: 4 }),
+      ),
+    )
+    await screen.findAllByText('가려진 동안')
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).getByLabelText('안 읽은 메시지 2개')).toBeInTheDocument()
+    expect(reads).toEqual([])
+
+    // 다시 보면(포커스) 마지막 순번까지 읽음 처리한다.
+    hasFocus.mockReturnValue(true)
+    act(() => {
+      window.dispatchEvent(new Event('focus'))
+    })
+    await waitFor(() =>
+      expect(reads).toEqual([
+        { chatRoomId: '5', body: { lastReadSequence: 4 } },
+      ]),
+    )
+    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
   })
 })
