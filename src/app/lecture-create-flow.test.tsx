@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { lectureKeys } from '@/entities/lecture/api'
 import type { LectureRegisterInput } from '@/entities/lecture/types'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -285,11 +284,36 @@ describe('강의 등록', () => {
     ])
   })
 
-  it('제목·가격·모든 강의 제목과 업로드가 갖춰져야 검수 신청이 열리고, 성공하면 토스트 후 /studio로 간다', async () => {
+  it('제목·가격·모든 강의 제목과 업로드가 갖춰져야 검수 신청이 열리고, 성공하면 토스트 후 /studio 목록에서 새 강의를 보여 준다', async () => {
     mockUpload()
     const bodies = mockCreate()
-    const mineKey = [...lectureKeys.mine(), { page: 0 }]
-    queryClient.setQueryData(mineKey, { content: [] })
+    // 등록 후 이동하는 강의 판매 화면(/studio)의 목록. 등록한 뒤에는 새 강의가 담긴다.
+    const myLectures = () =>
+      bodies.map((body, i) => ({
+        lectureId: 100 + i,
+        title: body.title,
+        priceHp: body.priceHp,
+        thumbnailUrl: null,
+        status: 'PENDING_INSPECTION',
+        rejectionReason: null,
+        deleted: false,
+        inspectionRequestedAt: '2026-10-15T10:00:00',
+        inspectedAt: null,
+        createdAt: '2026-10-15T10:00:00',
+      }))
+    const page = <T,>(content: T[]) => ({
+      content,
+      page: {
+        size: 20,
+        number: 0,
+        totalElements: content.length,
+        totalPages: 1,
+      },
+    })
+    server.use(
+      http.get('*/api/v1/lectures/me', () => rs(page(myLectures()))),
+      http.get('*/api/v1/lectures/sales', () => rs(page([]))),
+    )
     const router = openForm()
 
     await userEvent.type(
@@ -334,7 +358,7 @@ describe('강의 등록', () => {
         contents: [{ fileId: 7, title: '장비', contentType: 'VIDEO' }],
       },
     ])
-    expect(queryClient.getQueryState(mineKey)?.isInvalidated).toBe(true)
+    expect(await screen.findByRole('link', { name: '첫 방송' })).toBeVisible()
   })
 
   it('썸네일을 올리면 미리보기에 보이고 등록 요청에 실린다', async () => {

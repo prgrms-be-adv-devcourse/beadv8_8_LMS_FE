@@ -1,3 +1,5 @@
+import type { ObjectionStatus, OrderItemStatus } from '@/entities/order/types'
+
 /** 강의 검수 상태. 판매 중(ON_SALE)인 강의만 담고 살 수 있다. */
 export type LectureStatus = 'PENDING_INSPECTION' | 'REJECTED' | 'ON_SALE'
 
@@ -91,4 +93,36 @@ export const LECTURE_SORT_LABEL: Record<LectureSort, string> = {
   RATING: '평점순',
   PRICE_ASC: '낮은 가격순',
   PRICE_DESC: '높은 가격순',
+}
+
+/** GET /lectures/me 한 줄. 판매자 본인의 강의를 삭제한 것까지 모두 담는다 */
+export type MyLecture = {
+  lectureId: number
+  title: string
+  priceHp: number
+  /** Presigned GET, 1시간 유효 */
+  thumbnailUrl: string | null
+  status: LectureStatus
+  rejectionReason: string | null
+  /** 삭제(soft delete)한 강의. status보다 우선해 삭제됨으로 보여 준다 */
+  deleted: boolean
+  inspectionRequestedAt: string
+  inspectedAt: string | null
+  createdAt: string
+}
+
+/** GET /lectures/sales 한 줄 (주문 항목 하나). 취소·반환한 것도 담는다 */
+export type Sale = {
+  orderItemId: number
+  lectureId: number
+  /** 주문 시점 제목 */
+  lectureTitle: string
+  /** 주문 시점 가격 */
+  priceHp: number
+  status: OrderItemStatus
+  purchasedAt: string
+  /** 구매일 + 31일 00:00 KST */
+  payoutScheduledAt: string
+  paidOutAt: string | null
+  objectionStatus: ObjectionStatus
 }

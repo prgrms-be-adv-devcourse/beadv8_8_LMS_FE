@@ -25,6 +25,7 @@ import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProf
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
 import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { StudioPage } from '@/pages/studio/StudioPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
@@ -111,6 +112,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/chat': <ChatPage />,
   '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
+  '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
 }
 

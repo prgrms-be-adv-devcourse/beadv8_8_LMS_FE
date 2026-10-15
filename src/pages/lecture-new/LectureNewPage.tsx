@@ -12,7 +12,10 @@ export function LectureNewPage() {
   const create = useMutation({
     mutationFn: createLecture,
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: lectureKeys.mine() })
+      // 내 강의 목록은 페이지마다 캐시되므로 모든 페이지를 다시 불러온다.
+      void queryClient.invalidateQueries({
+        queryKey: [...lectureKeys.all, 'mine'],
+      })
       toast('검수를 신청했어요. 승인되면 공개돼요.')
       navigate('/studio')
     },
