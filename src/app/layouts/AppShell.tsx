@@ -17,7 +17,7 @@ import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { LoginModal } from '@/shared/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, VIEWER_LABEL, type Viewer } from '@/shared/auth/role'
-import { useLogout, useViewer } from '@/shared/auth/session'
+import { useLogout, useLogoutSync, useViewer } from '@/shared/auth/session'
 import { Avatar } from '@/shared/ui/Avatar'
 import { HpAmount } from '@/shared/ui/HpAmount'
 import { openLoginModal } from '@/shared/ui/loginModal'
@@ -47,6 +47,7 @@ function useLayout() {
  */
 export function AppShell() {
   const viewer = useViewer() ?? 'GUEST'
+  useLogoutSync()
   const navigation = useNavigation()
   const { pathname } = useLocation()
   // 드로어를 연 화면의 경로. 다른 화면으로 이동하면 경로가 달라져 저절로 닫힌다.
