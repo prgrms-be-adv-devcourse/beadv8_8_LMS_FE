@@ -1,6 +1,15 @@
 import { useState, type FormEvent } from 'react'
+import {
+  canEditContents,
+  readOnlyContentsNotice,
+} from '@/entities/lecture/edit'
 import { contentTypeOf, priceError, TITLE_MAX } from '@/entities/lecture/rules'
-import type { LectureRegisterInput } from '@/entities/lecture/types'
+import type {
+  LectureContent,
+  LectureContentInput,
+  LectureDetail,
+  LectureInfoUpdateInput,
+} from '@/entities/lecture/types'
 import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
@@ -14,47 +23,100 @@ import { THUMB_KEY, useUploads } from './useUploads'
 let lessonSeq = 0
 const newLesson = (): Lesson => ({ key: `lesson-${++lessonSeq}`, title: '' })
 
+/** 수정할 강의의 콘텐츠를 강 순서대로 강 목록으로 만든다 */
+function lessonsOf(lecture: LectureDetail): Lesson[] {
+  return [...lecture.contents]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map((c) => ({
+      key: `lesson-${++lessonSeq}`,
+      title: c.title,
+      current:
+        c.fileId === null
+          ? undefined
+          : { fileId: c.fileId, contentType: c.contentType },
+    }))
+}
+
+/** 폼이 넘기는 값. 수정이면 changed로 바뀐 부분만 보낸다 */
+export type LectureEditorValue = {
+  info: LectureInfoUpdateInput
+  contents: LectureContentInput[]
+  changed: { info: boolean; contents: boolean }
+}
+
 type ServerErrors = {
   title?: string
   price?: string
   lessons: Record<string, string | undefined>
-  /** 칸에 붙일 수 없는 오류 (파일 오류 등) */
+  /** 칸에 붙일 수 없는 오류 (파일 오류, 중간 실패 안내 등) */
   form?: string
 }
 
 const NO_ERRORS: ServerErrors = { lessons: {} }
 
 type LectureEditorFormProps = {
-  /** 검수 신청. 실패하면 오류를 칸 아래와 안내 영역에 나눠 보여 준다 */
-  onSubmit: (input: LectureRegisterInput) => Promise<unknown>
+  /** 수정할 강의. 없으면 등록 폼이다 */
+  lecture?: LectureDetail
+  /** 검수 신청·저장. 실패하면 오류를 칸 아래와 안내 영역에 나눠 보여 준다 */
+  onSubmit: (value: LectureEditorValue) => Promise<unknown>
+  /** 저장된 강 미리보기(수정). 판매자용 시청 URL을 연다 */
+  onPreview?: (content: LectureContent) => void
 }
 
-/** 강의 등록 폼. 기본 정보, 강 목록, 오른쪽 미리보기로 이루어진다(목업 LectureEditScreen). */
-export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [price, setPrice] = useState('10000')
-  const [lessons, setLessons] = useState<Lesson[]>(() => [newLesson()])
+/**
+ * 강의 등록·수정 폼. 기본 정보, 강 목록, 오른쪽 미리보기로 이루어진다(목업 LectureEditScreen).
+ * 수정이면 기존 값을 채우고, "바뀐 것"은 항상 최신 lecture와 비교한다(중간 실패 뒤 다시 불러와도 입력은 유지).
+ * 강의 내용은 반려된 강의만 바꿀 수 있다(BE D11).
+ */
+export function LectureEditorForm({
+  lecture,
+  onSubmit,
+  onPreview,
+}: LectureEditorFormProps) {
+  const [title, setTitle] = useState(lecture?.title ?? '')
+  const [description, setDescription] = useState(lecture?.description ?? '')
+  const [price, setPrice] = useState(
+    lecture ? String(lecture.priceHp) : '10000',
+  )
+  const [lessons, setLessons] = useState<Lesson[]>(() =>
+    lecture ? lessonsOf(lecture) : [newLesson()],
+  )
+  const [thumbRemoved, setThumbRemoved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [serverErrors, setServerErrors] = useState<ServerErrors>(NO_ERRORS)
   const uploads = useUploads()
 
+  const editing = !!lecture
+  const contentsEditable = !lecture || canEditContents(lecture)
+  const rejected = !!lecture && canEditContents(lecture)
+
   const priceHp = Number(price) || 0
   const errPrice = priceError(priceHp)
   const thumb = uploads.get(THUMB_KEY).upload
-  const thumbUrl = useObjectUrl(
+  const currentThumb =
+    lecture && !thumbRemoved && lecture.thumbnailFileId !== null
+      ? { fileId: lecture.thumbnailFileId, url: lecture.thumbnailUrl }
+      : undefined
+  const thumbnailFileId =
+    thumb?.status === 'done' ? thumb.fileId : (currentThumb?.fileId ?? null)
+  const newThumbUrl = useObjectUrl(
     thumb?.status === 'done' ? thumb.file : undefined,
   )
+  const thumbUrl = newThumbUrl ?? currentThumb?.url ?? null
 
-  const contents = lessons.map((lesson) => {
+  const contents = lessons.map((lesson): LectureContentInput | null => {
+    const lessonTitle = lesson.title.trim()
+    if (!lessonTitle) return null
     const upload = uploads.get(lesson.key).upload
-    return upload?.status === 'done' && lesson.title.trim()
-      ? {
-          fileId: upload.fileId,
-          title: lesson.title.trim(),
-          contentType: contentTypeOf(upload.fileType),
-        }
-      : null
+    if (upload?.status === 'done')
+      return {
+        fileId: upload.fileId,
+        title: lessonTitle,
+        contentType: contentTypeOf(upload.fileType),
+      }
+    if (lesson.current && upload?.status !== 'uploading')
+      return { ...lesson.current, title: lessonTitle }
+    return null
   })
   const ready =
     !!title.trim() &&
@@ -63,18 +125,29 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
     contents.every((c) => c !== null) &&
     (!thumb || thumb.status === 'done')
 
+  const info: LectureInfoUpdateInput = {
+    title: title.trim(),
+    description: description.trim() || null,
+    priceHp,
+    thumbnailFileId,
+  }
+  const changed = {
+    info: !lecture || infoChanged(info, lecture),
+    contents: !lecture || contentsChanged(contents, lecture),
+  }
+  const canSubmit =
+    ready && !submitting && (!editing || rejected || changed.info)
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!ready || submitting) return
+    if (!canSubmit) return
     setSubmitting(true)
     setServerErrors(NO_ERRORS)
     try {
       await onSubmit({
-        title: title.trim(),
-        description: description.trim() || null,
-        priceHp,
-        thumbnailFileId: thumb?.status === 'done' ? thumb.fileId : null,
+        info,
         contents: contents.filter((c) => c !== null),
+        changed,
       })
     } catch (error) {
       setServerErrors(toServerErrors(error, lessons))
@@ -89,11 +162,26 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
       lessons: { ...prev.lessons, [key]: undefined },
     }))
 
+  /** 강에 연결된 저장된 콘텐츠. 새 파일을 올렸으면 저장 전이라 미리볼 수 없다 */
+  const savedContentOf = (lesson: Lesson) =>
+    lesson.current && uploads.get(lesson.key).upload?.status !== 'done'
+      ? lecture?.contents.find((c) => c.fileId === lesson.current?.fileId)
+      : undefined
+
+  const submitLabel = !editing
+    ? '검수 신청'
+    : rejected
+      ? '수정 후 재검수 신청'
+      : '저장'
+
   return (
     <form className="split" noValidate onSubmit={submit}>
       <div className="page" style={{ gap: 16 }}>
         <section className="panel form">
-          <h2>기본 정보</h2>
+          <div className="panel-head">
+            <h2>기본 정보</h2>
+            {editing && <span className="pill ok">수정해도 바로 반영</span>}
+          </div>
           <Field id="le-title" label="강의 제목" error={serverErrors.title}>
             <input
               id="le-title"
@@ -135,18 +223,34 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
               }}
             />
           </Field>
-          <ThumbnailPicker uploads={uploads} />
+          <ThumbnailPicker
+            uploads={uploads}
+            hasCurrent={!!currentThumb}
+            onRemoveCurrent={() => setThumbRemoved(true)}
+          />
         </section>
 
         <section className="panel">
           <div className="panel-head">
             <h2>강의 내용</h2>
-            <span className="fine num">{lessons.length}강</span>
+            {contentsEditable ? (
+              <span className="fine num">{lessons.length}강</span>
+            ) : (
+              <span className="pill mute">바꿀 수 없음</span>
+            )}
           </div>
+          {lecture && !contentsEditable && (
+            <div className="notice">
+              {readOnlyContentsNotice(lecture.status)}
+            </div>
+          )}
           <LessonList
             lessons={lessons}
             uploads={uploads}
             titleErrors={serverErrors.lessons}
+            readOnly={!contentsEditable}
+            savedContentOf={savedContentOf}
+            onPreview={onPreview}
             onTitle={(key, value) => {
               clearLessonError(key)
               setLessons((prev) =>
@@ -169,20 +273,22 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
               setLessons((prev) => prev.filter((l) => l.key !== key))
             }}
           />
-          <button
-            type="button"
-            className="btn"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setLessons((prev) => [...prev, newLesson()])}
-          >
-            <span aria-hidden="true">+</span> 강 추가
-          </button>
+          {contentsEditable && (
+            <button
+              type="button"
+              className="btn"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setLessons((prev) => [...prev, newLesson()])}
+            >
+              <span aria-hidden="true">+</span> 강 추가
+            </button>
+          )}
         </section>
       </div>
 
       <aside className="panel sticky">
         <LectureThumb
-          lectureId={0}
+          lectureId={lecture?.lectureId ?? 0}
           title={title || '강의 제목'}
           thumbnailUrl={thumbUrl}
         />
@@ -190,10 +296,23 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
         <div className="big-price" style={{ fontSize: 22 }}>
           {formatNumber(priceHp)} HP
         </div>
-        <p className="fine">
-          검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
-          공개·판매가 시작돼요.
-        </p>
+        {!editing ? (
+          <p className="fine">
+            검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
+            공개·판매가 시작돼요.
+          </p>
+        ) : rejected ? (
+          <div className="notice warn">
+            반려 사유를 고친 뒤 다시 검수를 신청해요.
+          </div>
+        ) : changed.info ? (
+          <div className="notice">
+            <span className="pill ok">바로 반영</span>
+            제목·소개·가격·썸네일만 바뀌어 재검수 없이 반영돼요.
+          </div>
+        ) : (
+          <p className="fine">바뀐 내용이 없어요.</p>
+        )}
         {serverErrors.form && (
           <div className="notice bad" role="alert">
             {serverErrors.form}
@@ -202,9 +321,9 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
         <button
           type="submit"
           className="btn primary block"
-          disabled={!ready || submitting}
+          disabled={!canSubmit}
         >
-          검수 신청
+          {submitLabel}
         </button>
         {!ready && (
           <p className="fine">
@@ -218,10 +337,35 @@ export function LectureEditorForm({ onSubmit }: LectureEditorFormProps) {
   )
 }
 
+function infoChanged(info: LectureInfoUpdateInput, lecture: LectureDetail) {
+  return (
+    info.title !== lecture.title ||
+    info.description !== (lecture.description || null) ||
+    info.priceHp !== lecture.priceHp ||
+    info.thumbnailFileId !== lecture.thumbnailFileId
+  )
+}
+
+/** 강 순서·제목·파일 중 하나라도 다르면 바뀐 것이다 */
+function contentsChanged(
+  contents: (LectureContentInput | null)[],
+  lecture: LectureDetail,
+) {
+  const saved = [...lecture.contents]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map((c) => [c.fileId, c.title, c.contentType])
+  const draft = contents.map((c) =>
+    c ? [c.fileId, c.title, c.contentType] : null,
+  )
+  return JSON.stringify(saved) !== JSON.stringify(draft)
+}
+
 const LESSON_TITLE_FIELD = /^contents\[(\d+)\]\.title$/
 
 /** BE 오류를 칸별 오류와 안내 영역 오류로 나눈다 */
 function toServerErrors(error: unknown, lessons: Lesson[]): ServerErrors {
+  if (error instanceof Error && error.name === 'LectureSaveError')
+    return { lessons: {}, form: error.message }
   if (!isApiError(error))
     return {
       lessons: {},

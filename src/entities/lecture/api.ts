@@ -5,8 +5,10 @@ import type { PagedModel } from '@/shared/api/types'
 import { uploadBody, type UploadOptions } from '@/shared/api/upload'
 import type {
   ContentAccess,
+  LectureContentInput,
   LectureDetail,
   LectureFileInput,
+  LectureInfoUpdateInput,
   LectureRegisterInput,
   LectureSort,
   LectureSummary,
@@ -157,4 +159,30 @@ export function uploadLectureFileContent(
 /** 강의 등록. 검수 대기(PENDING_INSPECTION, 비공개)로 시작한다 */
 export function createLecture(input: LectureRegisterInput) {
   return api<{ id: number }>('/lectures', { method: 'POST', body: input })
+}
+
+/** 강의 정보 수정. 삭제하기 전이면 상태와 관계없이 고칠 수 있고 재검수 없이 바로 반영된다(204) */
+export function updateLectureInfo(
+  lectureId: number,
+  input: LectureInfoUpdateInput,
+) {
+  return api<void>(`/lectures/${lectureId}`, { method: 'PATCH', body: input })
+}
+
+/** 콘텐츠 목록 전체 교체. 반려(REJECTED)된 강의만 되고 교체한 뒤에도 반려 그대로다(204). 교체하면 contentId가 새로 매겨진다 */
+export function replaceLectureContents(
+  lectureId: number,
+  contents: LectureContentInput[],
+) {
+  return api<void>(`/lectures/${lectureId}/contents`, {
+    method: 'PUT',
+    body: { contents },
+  })
+}
+
+/** 재검수 신청. 반려(REJECTED) → 검수 대기(PENDING_INSPECTION) (204) */
+export function requestInspection(lectureId: number) {
+  return api<void>(`/lectures/${lectureId}/inspection-requests`, {
+    method: 'POST',
+  })
 }

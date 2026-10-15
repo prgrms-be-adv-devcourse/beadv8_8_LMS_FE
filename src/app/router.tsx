@@ -36,6 +36,7 @@ import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
 import { LecturesPage } from '@/pages/lectures/LecturesPage'
+import { LectureEditPage } from '@/pages/lecture-edit/LectureEditPage'
 import { LectureNewPage } from '@/pages/lecture-new/LectureNewPage'
 import { LibraryPage } from '@/pages/library/LibraryPage'
 import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
@@ -123,6 +124,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
   '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
+  '/studio/lectures/:lectureId/edit': <LectureEditPage />,
   '/admin/chats': <AdminChatHistoryPage />,
   '/admin/chats/:chatRoomId': <AdminChatHistoryPage />,
   '/support': <SupportPage />,

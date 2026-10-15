@@ -14,6 +14,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* 재생 동의 전 안내 상자. 플레이어 자리와 같은 크기다 */
 .player {
   aspect-ratio: 16 / 9;
   max-width: 100%;
@@ -28,12 +29,6 @@
   font-size: 14px;
   padding: 16px;
   text-align: center;
-}
-.video {
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #0b0c0f;
-  border-radius: 10px;
 }
 .heading {
   display: flex;
