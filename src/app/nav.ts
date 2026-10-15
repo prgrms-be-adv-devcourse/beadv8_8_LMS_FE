@@ -64,7 +64,13 @@ export const NAV: NavGroup[] = [
         // 승인되면 그 자리에서 인플루언서가 되므로, 인플루언서도 완료 안내를 볼 수 있게 한다.
         routeRoles: MEMBER,
       },
-      { path: '/promote', label: '승급 신청', roles: ['INFLUENCER'] },
+      {
+        path: '/promote',
+        label: '승급 신청',
+        roles: ['INFLUENCER'],
+        // 승인되면 그 자리에서 인증된 인플루언서가 되므로, 완료 안내를 볼 수 있게 한다.
+        routeRoles: INFLUENCER,
+      },
     ],
   },
   {
