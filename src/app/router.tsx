@@ -24,6 +24,7 @@ import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
 import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
+import { PromotePage } from '@/pages/promote/PromotePage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { StudioPage } from '@/pages/studio/StudioPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
@@ -108,6 +109,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/mypage': <ChzzkResultPage />,
   '/settings': <SettingsPage />,
   '/profile/edit': <MyProfilePage />,
+  '/promote': <PromotePage />,
   '/appearances': <AppearancesPage />,
   '/chat': <ChatPage />,
   '/chat/:chatRoomId': <ChatPage />,

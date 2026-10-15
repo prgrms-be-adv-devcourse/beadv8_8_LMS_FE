@@ -53,3 +53,16 @@ export type ChannelVerificationResult = {
 export const PLATFORM_LABEL: Record<ChannelPlatform, string> = {
   CHZZK: '치지직',
 }
+
+/** 승급 신청 상태: 심사 중 / 승인(인증된 인플루언서) / 반려(다시 신청 가능) */
+export type UpgradeRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+
+/** GET·POST /members/upgrade-requests (본인만) */
+export type UpgradeRequest = {
+  id: number
+  status: UpgradeRequestStatus
+  requestReason: string
+  rejectionReason: string | null
+  requestedAt: string
+  reviewedAt: string | null
+}

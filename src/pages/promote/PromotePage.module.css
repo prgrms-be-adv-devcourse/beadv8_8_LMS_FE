@@ -1,0 +1,15 @@
+.reason {
+  min-height: 160px;
+}
+.submit {
+  align-self: flex-start;
+}
+.meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}

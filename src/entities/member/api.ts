@@ -3,6 +3,7 @@ import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type { Me } from '@/shared/auth/me'
 import type {
+  UpgradeRequest,
   ChannelVerificationResult,
   MemberProfile,
   MemberProfileDetail,
@@ -16,6 +17,8 @@ export const memberKeys = {
   profile: (memberId: number) =>
     [...memberKeys.all, 'profile', memberId] as const,
   myChannels: () => [...memberKeys.all, 'channels', 'me'] as const,
+  myUpgradeRequests: () =>
+    [...memberKeys.all, 'upgrade-requests', 'me'] as const,
 }
 
 export const INFLUENCER_PAGE_SIZE = 12
@@ -74,3 +77,20 @@ export function requestChannelApproval(channelId: number) {
 
 /** 치지직 연동 시작. BE가 치지직 동의 화면으로 보낸 뒤 /mypage?chzzk=…로 돌려보낸다. */
 export const CHZZK_CONNECT_URL = '/api/v1/members/channels/chzzk/connect'
+
+/** 승급 신청 사유 최대 길이 (BE InfluencerUpgradeRequest.REASON_MAX) */
+export const UPGRADE_REASON_MAX = 500
+
+/** 내 승급 신청 내역 (최신순) */
+export const myUpgradeRequestsQuery = queryOptions({
+  queryKey: memberKeys.myUpgradeRequests(),
+  queryFn: () => api<UpgradeRequest[]>('/members/upgrade-requests/me'),
+})
+
+/** 승급 신청. 인플루언서만, 심사 중인 신청은 1건(UPGRADE_REQUEST_ALREADY_PENDING) */
+export function requestUpgrade(reason: string) {
+  return api<UpgradeRequest>('/members/upgrade-requests', {
+    method: 'POST',
+    body: { reason },
+  })
+}
