@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { walletQuery } from '@/entities/wallet/api'
 import { meQuery } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { useToastStore } from '@/shared/ui/toastStore'
@@ -93,6 +94,9 @@ describe('채팅 연결이 끊겼을 때 세션 확인', () => {
     // 비회원도 볼 수 있는 화면에서 확인한다(채팅 화면은 권한 안내가 로그인 모달을 다시 연다).
     renderApp('/', 'INFLUENCER')
     const client = await connectSocket()
+    await waitFor(() =>
+      expect(queryClient.getQueryData(walletQuery.queryKey)).toBeDefined(),
+    )
 
     act(() => client.disconnect())
 
@@ -105,6 +109,8 @@ describe('채팅 연결이 끊겼을 때 세션 확인', () => {
     await waitFor(() => expect(client.active).toBe(false))
     expect(meCalls).toBe(1)
     expect(queryClient.getQueryData(meQuery.queryKey)).toBeNull()
+    // 이전 회원 데이터(지갑 등)는 남지 않는다.
+    expect(queryClient.getQueryData(walletQuery.queryKey)).toBeUndefined()
   })
 
   it('세션이 살아 있으면 연결을 유지하고, 다시 연결되기 전에는 한 번만 확인한다', async () => {

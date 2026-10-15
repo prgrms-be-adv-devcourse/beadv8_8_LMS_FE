@@ -66,7 +66,7 @@ export function useLogout() {
  * 비회원으로 바꾸고(채팅 연결도 닫힌다) 다른 회원의 데이터가 남지 않도록 나머지 캐시를 지운다.
  * 내 정보까지 clear()로 지우면 화면이 구독하던 쿼리가 끊겨, 다시 그려지기 전까지 로그인 화면이 남는다.
  */
-function clearSession(queryClient: QueryClient) {
+export function clearSession(queryClient: QueryClient) {
   queryClient.setQueryData(meQuery.queryKey, null)
   queryClient.removeQueries({
     predicate: (query) => query.queryHash !== hashKey(meQuery.queryKey),

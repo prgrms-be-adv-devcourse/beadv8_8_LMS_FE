@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { chatKeys } from '@/entities/chat/api'
 import { API_BASE } from '@/shared/api/client'
 import { meQuery } from '@/shared/auth/me'
+import { clearSession } from '@/shared/auth/session'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { failAllSending, useChatStore } from './chatStore'
 import { applyChatError, applyIncomingMessage } from './incoming'
@@ -39,8 +40,10 @@ export function ChatConnection({ userId }: { userId: number }) {
       const me = await queryClient
         .fetchQuery({ ...meQuery, staleTime: 0 })
         .catch(() => undefined)
-      if (me === null)
-        openLoginModal('로그인이 끊겼어요. 다시 로그인해 주세요.')
+      if (me !== null) return
+      // 로그아웃과 같이 이전 회원 데이터를 지운다(새로고침 없이 다른 계정으로 로그인해도 남지 않게).
+      clearSession(queryClient)
+      openLoginModal('로그인이 끊겼어요. 다시 로그인해 주세요.')
     }
     const client = new Client({
       brokerURL: brokerUrl(),
