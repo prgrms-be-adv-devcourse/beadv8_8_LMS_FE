@@ -9,36 +9,134 @@ import type {
 import { toast } from '@/shared/ui/toastStore'
 import { failPending, resolvePending, useChatStore } from './chatStore'
 
+type MessagePages = InfiniteData<ChatMessagePage, number | null>
+
+/** 방 목록을 불러오는 동안 도착한 메시지와, 도착 당시 안 읽은 수로 셌는지 */
+type RoomArrival = { message: ChatMessage; countsAsUnread: boolean }
+
+// 조회 중에 도착한 메시지. 조회 응답이 그 메시지보다 먼저 만들어졌으면 응답에 빠지므로(이력),
+// 또는 응답이 로컬에서 올린 안 읽은 수·마지막 메시지를 덮으므로(방 목록) 조회가 끝나면 다시 반영한다.
+// watchChatLoads()가 반영하고 비운다.
+const historyArrivals = new Map<number, ChatMessage[]>()
+let roomArrivals: RoomArrival[] = []
+
+function isFetching(queryClient: QueryClient, queryKey: readonly unknown[]) {
+  return queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+}
+
+/**
+ * 메시지들을 이력 캐시 첫 페이지(최신)에 합친다. 이미 있는 메시지(같은 ID)는 건너뛰고,
+ * 첫 페이지는 최신순(roomSequence 내림차순)을 지킨다.
+ */
+function mergeIntoPages(data: MessagePages, messages: ChatMessage[]) {
+  const known = new Set(
+    data.pages.flatMap((page) => page.messages.map((m) => m.messageId)),
+  )
+  // 이미 있는 메시지와, 이번에 합칠 메시지끼리의 중복(같은 메시지를 두 번 받은 경우)을 모두 건너뛴다.
+  const added = messages.filter((m) => {
+    if (known.has(m.messageId)) return false
+    known.add(m.messageId)
+    return true
+  })
+  if (added.length === 0) return data
+  const [first, ...rest] = data.pages
+  const merged = [...added, ...first.messages].sort(
+    (a, b) => b.roomSequence - a.roomSequence,
+  )
+  return { ...data, pages: [{ ...first, messages: merged }, ...rest] }
+}
+
+/** 방 목록 응답에 빠진(응답의 마지막 메시지보다 새) 메시지만 마지막 메시지·안 읽은 수에 다시 반영한다. */
+function reapplyToRooms(rooms: ChatRoom[], arrivals: RoomArrival[]) {
+  return rooms.map((room) =>
+    arrivals
+      .filter((a) => a.message.chatRoomId === room.chatRoomId)
+      .sort((a, b) => a.message.roomSequence - b.message.roomSequence)
+      .reduce((acc, { message, countsAsUnread }) => {
+        if (
+          acc.lastMessage &&
+          acc.lastMessage.roomSequence >= message.roomSequence
+        )
+          return acc
+        return {
+          ...acc,
+          lastMessage: message,
+          unreadCount: (acc.unreadCount ?? 0) + (countsAsUnread ? 1 : 0),
+        }
+      }, room),
+  )
+}
+
+/**
+ * 채팅 조회(이력·방 목록)가 성공할 때마다 그동안 도착해 보관한 메시지를 결과에 다시 반영한다.
+ * 채팅 연결이 있는 동안 구독하고, 돌려준 함수로 구독을 끊고 보관한 메시지를 버린다.
+ */
+export function watchChatLoads(queryClient: QueryClient) {
+  const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+    const [scope, kind, chatRoomId] = event.query.queryKey
+    if (scope !== chatKeys.all[0]) return
+    // 나가기·재입장은 그 방의 이력 캐시를 지운다. 보관한 메시지도 버려야, 다시 불러온 이력(새 조회 범위)에
+    // 이전 참여 때 받은 메시지가 끼어들지 않는다.
+    if (event.type === 'removed') {
+      if (kind === 'messages') historyArrivals.delete(Number(chatRoomId))
+      if (kind === 'rooms') roomArrivals = []
+      return
+    }
+    // setQueryData(실시간 메시지 반영 등)도 manual 'success'를 낸다. 실제 조회 결과일 때만 반영한다.
+    if (
+      event.type !== 'updated' ||
+      event.action.type !== 'success' ||
+      event.action.manual
+    )
+      return
+    if (kind === 'messages') {
+      const arrived = historyArrivals.get(Number(chatRoomId))
+      if (!arrived) return
+      historyArrivals.delete(Number(chatRoomId))
+      queryClient.setQueryData<MessagePages>(event.query.queryKey, (data) =>
+        data ? mergeIntoPages(data, arrived) : data,
+      )
+    } else if (kind === 'rooms' && roomArrivals.length > 0) {
+      const arrived = roomArrivals
+      roomArrivals = []
+      queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (rooms) =>
+        rooms ? reapplyToRooms(rooms, arrived) : rooms,
+      )
+    }
+  })
+  return () => {
+    unsubscribe()
+    historyArrivals.clear()
+    roomArrivals = []
+  }
+}
+
 /**
  * 실시간으로 받은 메시지(/user/queue/chats/messages)를 반영한다. 보낸 사람 자신에게도 온다.
  * - 그 방의 이력 캐시 맨 앞(최신)에 붙인다. 이력을 아직 불러오지 않은 방은 열 때 불러온다
  * - 내가 보낸 것이면 보내는 중 표시를 지운다
  * - 방 목록 캐시의 마지막 메시지를 바꾸고, 보고 있지 않은 방에 상대가 보낸 것이면 안 읽은 수를 올린다
+ * - 이력·방 목록을 불러오는 중이면 보관했다가 조회가 끝나면 다시 반영한다(응답에 빠졌을 수 있다)
  */
 export function applyIncomingMessage(
   queryClient: QueryClient,
   message: ChatMessage,
 ) {
-  queryClient.setQueryData<InfiniteData<ChatMessagePage, number | null>>(
-    chatKeys.messages(message.chatRoomId),
-    (data) => {
-      if (!data) return data
-      const exists = data.pages.some((page) =>
-        page.messages.some((m) => m.messageId === message.messageId),
-      )
-      if (exists) return data
-      const [first, ...rest] = data.pages
-      return {
-        ...data,
-        pages: [{ ...first, messages: [message, ...first.messages] }, ...rest],
-      }
-    },
+  const historyKey = chatKeys.messages(message.chatRoomId)
+  if (isFetching(queryClient, historyKey)) {
+    const arrived = historyArrivals.get(message.chatRoomId) ?? []
+    historyArrivals.set(message.chatRoomId, [...arrived, message])
+  }
+  queryClient.setQueryData<MessagePages>(historyKey, (data) =>
+    data ? mergeIntoPages(data, [message]) : data,
   )
   resolvePending(message)
 
   const { myUserId, viewingRoomId } = useChatStore.getState()
   const countsAsUnread =
     message.senderUserId !== myUserId && viewingRoomId !== message.chatRoomId
+  if (isFetching(queryClient, chatKeys.rooms()))
+    roomArrivals.push({ message, countsAsUnread })
   const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
   const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
   // 나간 것으로 알고 있던 회원이 보낸 메시지면 그 회원이 다시 채팅을 시작(재입장)한 것이다.
@@ -71,8 +169,14 @@ export function applyIncomingMessage(
   }
 }
 
-/** 방 목록 캐시에서 이 방의 안 읽은 수를 0으로 (읽음 처리 직후) */
+/**
+ * 방 목록 캐시에서 이 방의 안 읽은 수를 0으로 (읽음 처리 직후).
+ * 방 목록 조회 중에 보관한 이 방 메시지도 읽은 것으로 바꿔, 조회가 끝난 뒤 안 읽은 수에 다시 더하지 않는다.
+ */
 export function clearUnread(queryClient: QueryClient, chatRoomId: number) {
+  roomArrivals = roomArrivals.map((a) =>
+    a.message.chatRoomId === chatRoomId ? { ...a, countsAsUnread: false } : a,
+  )
   queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (list) =>
     list?.map((room) =>
       room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room,

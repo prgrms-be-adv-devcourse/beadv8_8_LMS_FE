@@ -7,7 +7,11 @@ import { meQuery } from '@/shared/auth/me'
 import { clearSession } from '@/shared/auth/session'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { failAllSending, useChatStore } from './chatStore'
-import { applyChatError, applyIncomingMessage } from './incoming'
+import {
+  applyChatError,
+  applyIncomingMessage,
+  watchChatLoads,
+} from './incoming'
 
 // 새 메시지 알림(/user/queue/chats/notifications)은 받는 사람에게 메시지 큐로도 같은 메시지가 오므로 구독하지 않는다.
 // 안 읽은 수·마지막 메시지는 메시지 큐로 받은 메시지에서 고친다.
@@ -23,7 +27,8 @@ function brokerUrl() {
 
 /**
  * 앱 전체에서 STOMP 연결 하나를 유지한다(세션 쿠키로 인증). 화면에는 아무것도 그리지 않는다.
- * 방 단위 topic은 없고 회원별 큐로만 받는다. 재연결되면 끊긴 동안 놓친 메시지를 채우려고 채팅 데이터를 다시 부른다.
+ * 방 단위 topic은 없고 회원별 큐로만 받는다. 연결될 때마다(최초 연결 포함) 구독 전에 놓친 메시지를 채우려고
+ * 채팅 데이터를 다시 부른다.
  * userId가 바뀌면(로그아웃·역할 전환) 연결을 새로 맺는다.
  * 연결이 끊기면 세션이 살아 있는지 한 번 확인한다. 세션이 없으면(로그아웃·만료, BE가 소켓을 닫은 경우)
  * 비회원으로 바꿔 이 컴포넌트가 사라지게 하고, 거절될 재연결을 반복하지 않는다.
@@ -32,7 +37,7 @@ export function ChatConnection({ userId }: { userId: number }) {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    let connectedOnce = false
+    const stopWatchingLoads = watchChatLoads(queryClient)
     // 끊긴 뒤 세션을 확인했는지. 다시 연결되면 초기화한다(BE가 응답하지 않는 동안 재시도마다 확인하지 않게).
     let sessionChecked = false
 
@@ -55,9 +60,10 @@ export function ChatConnection({ userId }: { userId: number }) {
         client.subscribe(QUEUE.errors, (frame) =>
           applyChatError(queryClient, JSON.parse(frame.body)),
         )
-        if (connectedOnce)
-          void queryClient.invalidateQueries({ queryKey: chatKeys.all })
-        connectedOnce = true
+        // 구독 전에 불러온 이력에는 구독 전까지 온 메시지가 빠져 있을 수 있다(최초 연결 전에 연 방,
+        // 끊긴 동안 온 메시지). 구독한 뒤 다시 불러와 사이 구간을 메운다. 불러오는 중에 온 메시지는
+        // applyIncomingMessage가 보관했다가 합친다.
+        void queryClient.invalidateQueries({ queryKey: chatKeys.all })
         sessionChecked = false
         useChatStore.setState({ status: 'connected' })
       },
@@ -89,6 +95,7 @@ export function ChatConnection({ userId }: { userId: number }) {
 
     return () => {
       void client.deactivate()
+      stopWatchingLoads()
       useChatStore.setState({
         status: 'idle',
         publish: () => false,

@@ -87,6 +87,8 @@ async function connectSocket() {
   await waitFor(() => expect(FakeStompClient.latest()).toBeDefined())
   const client = FakeStompClient.latest()!
   act(() => client.connect())
+  // 연결되면 구독 전에 놓친 메시지를 채우려고 채팅 데이터를 다시 부른다. 끝날 때까지 기다린다.
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   return client
 }
 
@@ -487,6 +489,7 @@ describe('채팅', () => {
     renderApp('/chat/5', 'INFLUENCER')
     await screen.findByRole('textbox', { name: '메시지' })
     const client = await connectSocket()
+    const before = roomCalls
     act(() =>
       client.push('/user/queue/chats/errors', {
         code: 'CHAT_PARTNER_LEFT',
@@ -498,7 +501,7 @@ describe('채팅', () => {
         '상대가 나간 채팅방에는 메시지를 보낼 수 없습니다.',
       ),
     ).toBeInTheDocument()
-    await waitFor(() => expect(roomCalls).toBe(2))
+    await waitFor(() => expect(roomCalls).toBe(before + 1))
   })
 
   it('연결이 끊겼다가 다시 연결되면 놓친 메시지를 채우려고 이력을 다시 불러온다', async () => {
@@ -514,13 +517,14 @@ describe('채팅', () => {
     renderApp('/chat/5', 'INFLUENCER')
     await screen.findByRole('textbox', { name: '메시지' })
     const client = await connectSocket()
-    await waitFor(() => expect(messageCalls).toBe(1))
+    // 방을 열 때 1번, 최초 연결 뒤 구독 전 구간을 메우려고 1번
+    expect(messageCalls).toBe(2)
 
     act(() => client.disconnect())
     expect(useChatStore.getState().status).toBe('disconnected')
     expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
     act(() => client.connect())
-    await waitFor(() => expect(messageCalls).toBe(2))
+    await waitFor(() => expect(messageCalls).toBe(3))
   })
 
   it('관리자는 인플루언서 프로필에서 채팅을 시작한다(출연 요청은 보이지 않는다)', async () => {
@@ -667,5 +671,117 @@ describe('출연 알림', () => {
       ),
     )
     await waitFor(() => expect(roomCalls).toBe(before + 1))
+  })
+})
+
+describe('누락 방지 (구독과 조회 사이)', () => {
+  /** 응답을 테스트가 정할 때까지 붙잡아 두는 핸들러용 */
+  function deferred() {
+    let release!: () => void
+    const wait = new Promise<void>((r) => (release = r))
+    return { wait, release }
+  }
+
+  it('이력을 불러오는 중에 도착한 메시지는 조회 결과에 빠져도 화면에 남는다', async () => {
+    mockChat([room()])
+    const gate = deferred()
+    let messageCalls = 0
+    server.use(
+      http.get('*/api/v1/chats/5/messages', async () => {
+        messageCalls++
+        // 연결 직후 다시 부르는 조회만 붙잡는다(그 사이 도착한 메시지가 응답에 없다).
+        if (messageCalls === 2) await gate.wait
+        return rs({
+          messages: [message({ content: '조회 결과', roomSequence: 1 })],
+          nextCursor: null,
+        })
+      }),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    expect(await screen.findByText('조회 결과')).toBeInTheDocument()
+    await waitFor(() => expect(FakeStompClient.latest()).toBeDefined())
+    const client = FakeStompClient.latest()!
+    act(() => client.connect())
+    await waitFor(() => expect(messageCalls).toBe(2))
+
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '조회 중 도착', roomSequence: 2 }),
+      ),
+    )
+    gate.release()
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    // 방 목록 미리보기에도 보이므로 대화 안에서 찾는다. 같은 메시지가 두 번 붙지 않는다.
+    const thread = screen.getByRole('region', { name: /님과의 대화/ })
+    expect(within(thread).getAllByText('조회 중 도착')).toHaveLength(1)
+  })
+
+  it('최초 연결에서도 구독한 뒤 이력을 다시 불러와, 연결 전에 온 메시지를 채운다', async () => {
+    mockChat([room()])
+    let connected = false
+    server.use(
+      http.get('*/api/v1/chats/5/messages', () =>
+        rs({
+          messages: connected
+            ? [
+                message({ content: '연결 전 도착', roomSequence: 2 }),
+                message({ content: '처음 메시지', roomSequence: 1 }),
+              ]
+            : [message({ content: '처음 메시지', roomSequence: 1 })],
+          nextCursor: null,
+        }),
+      ),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    expect(await screen.findByText('처음 메시지')).toBeInTheDocument()
+    expect(screen.queryByText('연결 전 도착')).toBeNull()
+
+    connected = true
+    await connectSocket()
+    expect(await screen.findByText('연결 전 도착')).toBeInTheDocument()
+  })
+
+  it('방 목록을 다시 부르는 중에 온 메시지는 안 읽은 수에 남고, 응답에 이미 있으면 두 번 세지 않는다', async () => {
+    const latest = message({ chatRoomId: 6, roomSequence: 4 })
+    const gate = deferred()
+    let roomCalls = 0
+    let includeLatest = false
+    mockChat([])
+    server.use(
+      http.get('*/api/v1/chats', async () => {
+        roomCalls++
+        if (roomCalls === 2) await gate.wait
+        return rs([
+          room(),
+          room({
+            chatRoomId: 6,
+            unreadCount: includeLatest ? 1 : 0,
+            lastMessage: includeLatest ? latest : null,
+          }),
+        ])
+      }),
+    )
+    renderApp('/chat', 'INFLUENCER')
+    await screen.findByRole('navigation', { name: '대화 목록' })
+    await waitFor(() => expect(FakeStompClient.latest()).toBeDefined())
+    const client = FakeStompClient.latest()!
+    act(() => client.connect())
+    await waitFor(() => expect(roomCalls).toBe(2))
+
+    // 연결 직후 방 목록 조회 중에 도착 → 응답(도착 전 상태)에 덮이지 않는다.
+    act(() => client.push('/user/queue/chats/messages', latest))
+    gate.release()
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+
+    // 다시 불러온 응답에 이미 반영돼 있으면 그대로 둔다(1개).
+    includeLatest = true
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] }),
+    )
+    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
   })
 })
