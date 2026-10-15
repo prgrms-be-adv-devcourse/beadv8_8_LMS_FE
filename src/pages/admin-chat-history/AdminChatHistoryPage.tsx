@@ -12,7 +12,7 @@ import { isApiError } from '@/shared/api/ApiError'
 import { formatDateTime } from '@/shared/lib/date'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminChatHistoryPage.module.css'
 
 const EVENT_LABEL: Record<ChatRoomEventType, string> = {
@@ -104,24 +104,16 @@ function History({ chatRoomId }: { chatRoomId: number }) {
   }
   // 불러온 기록이 있으면 그대로 두고, 다음 페이지(또는 다시 불러오기) 실패는 버튼 자리에서 안내하고 다시 시도한다.
   const more = error ? (
-    <div className="notice bad" role="alert">
-      <span>
-        {isFetchNextPageError
+    <InlineLoadError
+      title={
+        isFetchNextPageError
           ? '다음 기록을 불러오지 못했어요.'
-          : '기록을 새로 불러오지 못했어요.'}{' '}
-        {error.message}
-      </span>
-      <button
-        type="button"
-        className="btn sm"
-        disabled={isFetchingNextPage}
-        onClick={() =>
-          void (isFetchNextPageError ? fetchNextPage() : refetch())
-        }
-      >
-        다시 시도
-      </button>
-    </div>
+          : '기록을 새로 불러오지 못했어요.'
+      }
+      error={error}
+      retrying={isFetchingNextPage}
+      retry={() => void (isFetchNextPageError ? fetchNextPage() : refetch())}
+    />
   ) : (
     hasNextPage && (
       <button

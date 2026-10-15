@@ -993,3 +993,109 @@ describe('읽음 처리', () => {
     expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
   })
 })
+
+describe('다시 불러오기 실패 시 보이던 화면 유지', () => {
+  const failure = () =>
+    HttpResponse.json(
+      { status: 400, code: 'INVALID_REQUEST', detail: '잠시 실패했어요.' },
+      { status: 400 },
+    )
+
+  it('이전 메시지를 못 불러와도 대화를 두고 안내하며, 다시 시도하면 이어 붙인다', async () => {
+    let failOlder = true
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats/5/messages', ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        if (!cursor)
+          return rs({
+            messages: [message({ content: '최근 메시지', roomSequence: 2 })],
+            nextCursor: 2,
+          })
+        if (failOlder) return failure()
+        return rs({
+          messages: [message({ content: '오래된 메시지', roomSequence: 1 })],
+          nextCursor: null,
+        })
+      }),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText('최근 메시지')
+
+    await userEvent.click(
+      within(thread).getByRole('button', { name: '이전 메시지 더 보기' }),
+    )
+    const alert = await within(thread).findByRole('alert')
+    expect(alert).toHaveTextContent('이전 메시지를 불러오지 못했어요.')
+    expect(within(thread).getByText('최근 메시지')).toBeInTheDocument()
+
+    failOlder = false
+    await userEvent.click(
+      within(alert).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(await within(thread).findByText('오래된 메시지')).toBeInTheDocument()
+    expect(within(thread).getByText('최근 메시지')).toBeInTheDocument()
+    expect(within(thread).queryByRole('alert')).toBeNull()
+  })
+
+  it('재연결 때 이력을 다시 불러오지 못해도 보이던 대화를 둔다', async () => {
+    let failHistory = false
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats/5/messages', () =>
+        failHistory
+          ? failure()
+          : rs({
+              messages: [message({ content: '보이던 대화', roomSequence: 1 })],
+              nextCursor: null,
+            }),
+      ),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText('보이던 대화')
+    const client = await connectSocket()
+
+    failHistory = true
+    act(() => client.disconnect())
+    act(() => client.connect())
+
+    expect(await within(thread).findByRole('alert')).toHaveTextContent(
+      '대화를 새로 불러오지 못했어요.',
+    )
+    expect(within(thread).getByText('보이던 대화')).toBeInTheDocument()
+    expect(
+      within(thread).getByRole('textbox', { name: '메시지' }),
+    ).toBeInTheDocument()
+  })
+
+  it('방 목록을 다시 불러오지 못해도 목록을 두고 위에서 안내한다', async () => {
+    let failRooms = false
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats', () => (failRooms ? failure() : rs([room()]))),
+    )
+    renderApp('/chat', 'INFLUENCER')
+    const list = await screen.findByRole('navigation', { name: '대화 목록' })
+    expect(within(list).getByText('편집하는 고래')).toBeInTheDocument()
+
+    failRooms = true
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] }),
+    )
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '대화 목록을 새로 불러오지 못했어요.',
+    )
+    expect(
+      within(screen.getByRole('navigation', { name: '대화 목록' })).getByText(
+        '편집하는 고래',
+      ),
+    ).toBeInTheDocument()
+
+    failRooms = false
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
+  })
+})
