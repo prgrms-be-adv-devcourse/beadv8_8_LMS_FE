@@ -17,16 +17,20 @@ import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
+import { AdminInquiriesPage } from '@/pages/admin-inquiries/AdminInquiriesPage'
+import { AdminInquiryPage } from '@/pages/admin-inquiry/AdminInquiryPage'
 import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
 import { ChatPage } from '@/pages/chat/ChatPage'
 import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
+import { InquiryPage } from '@/pages/inquiry/InquiryPage'
 import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
 import { PromotePage } from '@/pages/promote/PromotePage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { StudioPage } from '@/pages/studio/StudioPage'
+import { SupportPage } from '@/pages/support/SupportPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
@@ -79,6 +83,7 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/support/inquiries/:inquiryId', title: '문의 상세', roles: MEMBER },
   { path: '/settings/withdraw', title: '회원 탈퇴', roles: MEMBER },
   { path: '/admin/lectures/:lectureId', title: '강의 검수', roles: ADMIN },
+  { path: '/admin/inquiries/:inquiryId', title: '문의 답변', roles: ADMIN },
   { path: '/admin/disputes/:disputeId', title: '이의 제기 판정', roles: ADMIN },
   { path: '/admin/members/:memberId', title: '회원 상세', roles: ADMIN },
   { path: '/admin/deals/:dealId', title: '거래 상세', roles: ADMIN },
@@ -116,6 +121,10 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
   '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
+  '/support': <SupportPage />,
+  '/support/inquiries/:inquiryId': <InquiryPage />,
+  '/admin/inquiries': <AdminInquiriesPage />,
+  '/admin/inquiries/:inquiryId': <AdminInquiryPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {
