@@ -1,14 +1,23 @@
 import { useRef } from 'react'
 import { TITLE_MAX } from '@/entities/lecture/rules'
+import type { ContentType, LectureContent } from '@/entities/lecture/types'
 import type { Upload, Uploads } from './useUploads'
 
-export type Lesson = { key: string; title: string }
+/** 이미 강의에 연결돼 있는 파일. 새 파일을 올리지 않으면 이 fileId를 그대로 다시 보낸다 */
+export type CurrentFile = { fileId: number; contentType: ContentType }
+
+export type Lesson = { key: string; title: string; current?: CurrentFile }
 
 type LessonListProps = {
   lessons: Lesson[]
   uploads: Uploads
   /** 검수 신청 때 BE가 돌려준 강 제목 오류 (강 key별) */
   titleErrors: Record<string, string | undefined>
+  /** 판매 중·검수 대기 강의. 제목과 파일을 바꿀 수 없고 미리보기만 된다 */
+  readOnly?: boolean
+  /** 강에 연결된 저장된 콘텐츠. 있으면 미리보기 버튼을 둔다(새로 올린 파일은 저장 전이라 없음) */
+  savedContentOf?: (lesson: Lesson) => LectureContent | undefined
+  onPreview?: (content: LectureContent) => void
   onTitle: (key: string, title: string) => void
   onMove: (index: number, by: -1 | 1) => void
   onRemove: (key: string) => void
@@ -19,6 +28,9 @@ export function LessonList({
   lessons,
   uploads,
   titleErrors,
+  readOnly = false,
+  savedContentOf,
+  onPreview,
   onTitle,
   onMove,
   onRemove,
@@ -32,8 +44,11 @@ export function LessonList({
           lesson={lesson}
           uploads={uploads}
           titleError={titleErrors[lesson.key]}
+          readOnly={readOnly}
           first={i === 0}
           last={i === lessons.length - 1}
+          saved={savedContentOf?.(lesson)}
+          onPreview={onPreview}
           onTitle={(title) => onTitle(lesson.key, title)}
           onMove={(by) => onMove(i, by)}
           onRemove={lessons.length > 1 ? () => onRemove(lesson.key) : undefined}
@@ -48,8 +63,11 @@ type LessonRowProps = {
   lesson: Lesson
   uploads: Uploads
   titleError?: string
+  readOnly: boolean
   first: boolean
   last: boolean
+  saved?: LectureContent
+  onPreview?: (content: LectureContent) => void
   onTitle: (title: string) => void
   onMove: (by: -1 | 1) => void
   /** 없으면 마지막 1강이라 지울 수 없다 */
@@ -61,8 +79,11 @@ function LessonRow({
   lesson,
   uploads,
   titleError,
+  readOnly,
   first,
   last,
+  saved,
+  onPreview,
   onTitle,
   onMove,
   onRemove,
@@ -71,6 +92,30 @@ function LessonRow({
   const { upload, rejection } = uploads.get(lesson.key)
   const busy = upload?.status === 'uploading'
   const error = rejection ?? (upload?.status === 'error' ? upload.error : null)
+  const preview = saved && onPreview && (
+    <button
+      type="button"
+      className="btn ghost sm"
+      onClick={() => onPreview(saved)}
+    >
+      미리보기
+    </button>
+  )
+
+  if (readOnly) {
+    return (
+      <div className="lesson" role="group" aria-label={`${no}강`}>
+        <span className="no num">{String(no).padStart(2, '0')}</span>
+        <div className="lesson-main">
+          <span className="row-title">{lesson.title}</span>
+          <div className="lesson-meta">
+            <UploadMeta no={no} upload={upload} current={lesson.current} />
+          </div>
+        </div>
+        {preview && <div className="row-actions">{preview}</div>}
+      </div>
+    )
+  }
 
   return (
     <div className="lesson" role="group" aria-label={`${no}강`}>
@@ -90,7 +135,7 @@ function LessonRow({
           </span>
         )}
         <div className="lesson-meta">
-          <UploadMeta no={no} upload={upload} />
+          <UploadMeta no={no} upload={upload} current={lesson.current} />
         </div>
         {error && (
           <span className="fine c-bad" role="alert">
@@ -112,6 +157,7 @@ function LessonRow({
             if (file) uploads.start(lesson.key, 'LESSON', file)
           }}
         />
+        {preview}
         {upload?.status === 'error' && (
           <button
             type="button"
@@ -127,7 +173,7 @@ function LessonRow({
           disabled={busy}
           onClick={() => input.current?.click()}
         >
-          {upload ? '파일 교체' : '파일 올리기'}
+          {upload || lesson.current ? '파일 교체' : '파일 올리기'}
         </button>
         <button
           type="button"
@@ -160,9 +206,25 @@ function LessonRow({
   )
 }
 
-export function UploadMeta({ no, upload }: { no: number; upload?: Upload }) {
-  if (!upload || upload.status === 'error')
+const KIND: Record<ContentType, string> = { VIDEO: '영상', DOCUMENT: '자료' }
+
+/** 강의 파일 상태. 새로 올린 파일이 없으면 이미 연결된 파일을 보여 준다(BE가 파일명을 주지 않아 종류만) */
+export function UploadMeta({
+  no,
+  upload,
+  current,
+}: {
+  no: number
+  upload?: Upload
+  current?: CurrentFile
+}) {
+  if (!upload || upload.status === 'error') {
+    if (current)
+      return (
+        <span className="fine">{KIND[current.contentType]} · 올린 파일</span>
+      )
     return <span className="fine c-bad">파일이 없어요</span>
+  }
   if (upload.status === 'uploading') {
     return <UploadProgress label={`${no}강 업로드`} ratio={upload.progress} />
   }

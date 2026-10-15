@@ -2,15 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { lectureQuery, reviewsQuery } from '@/entities/lecture/api'
-import type { LectureDetail } from '@/entities/lecture/types'
+import { editLabel } from '@/entities/lecture/edit'
+import type { LectureContent, LectureDetail } from '@/entities/lecture/types'
 import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
+import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { Rating, Stars } from '@/entities/lecture/ui/Rating'
 import { useAddToCart } from '@/features/cart/useCartActions'
 import { CheckoutModal } from '@/features/checkout/CheckoutModal'
+import { ContentPreviewModal } from '@/features/lecture-preview/ContentPreviewModal'
 import {
   useBuyerState,
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
+import { meQuery } from '@/shared/auth/me'
 import { useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -43,6 +47,10 @@ export function LectureDetailPage() {
 }
 
 function Detail({ lecture }: { lecture: LectureDetail }) {
+  const { data: me } = useQuery(meQuery)
+  // 판매자 본인은 사는 대신 상태를 보고 고치며, 강을 미리 볼 수 있다(목업 v-own).
+  const seller = !!me && me.id === lecture.sellerUserId
+  const [preview, setPreview] = useState<LectureContent | null>(null)
   return (
     <div className="split">
       <div className="page" style={{ gap: 20 }}>
@@ -82,14 +90,65 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
                   <span className="pill mute">
                     {c.contentType === 'VIDEO' ? '영상' : '자료'}
                   </span>
+                  {seller && (
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={() => setPreview(c)}
+                    >
+                      미리보기
+                    </button>
+                  )}
                 </li>
               ))}
           </ol>
         </section>
         <Reviews lectureId={lecture.lectureId} />
       </div>
-      <BuyPanel lecture={lecture} />
+      {seller ? (
+        <SellerPanel lecture={lecture} />
+      ) : (
+        <BuyPanel lecture={lecture} />
+      )}
+      {preview && (
+        <ContentPreviewModal
+          lectureId={lecture.lectureId}
+          content={preview}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
+  )
+}
+
+/** 판매자 본인에게 보이는 오른쪽 패널. 상태와 반려 사유를 보여 주고 수정 화면으로 보낸다 */
+function SellerPanel({ lecture }: { lecture: LectureDetail }) {
+  return (
+    <aside className="panel sticky">
+      <div className={styles.bigPrice}>
+        {formatNumber(lecture.priceHp)} <span>HP</span>
+      </div>
+      <div className="notice">
+        <MyLectureStatusPill lecture={lecture} />
+        내가 판매하는 강의예요.
+      </div>
+      {lecture.status === 'REJECTED' && lecture.rejectionReason && (
+        <div className="notice warn">
+          <b>반려 사유</b> {lecture.rejectionReason}
+        </div>
+      )}
+      {!lecture.deleted && (
+        <Link
+          className="btn primary block"
+          to={`/studio/lectures/${lecture.lectureId}/edit`}
+        >
+          {editLabel(lecture.status)}
+        </Link>
+      )}
+      <Link className="btn block" to="/studio">
+        강의 판매
+      </Link>
+    </aside>
   )
 }
 

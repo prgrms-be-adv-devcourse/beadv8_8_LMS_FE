@@ -21,13 +21,27 @@ export type LectureFileInput = {
   fileSize: number
 }
 
-/** POST /lectures. contents 순서가 강 순서(sequence 1부터)다 */
-export type LectureRegisterInput = {
+/** 강의 콘텐츠 한 개(등록·교체 요청). fileId는 업로드 완료된 본인 파일이다 */
+export type LectureContentInput = {
+  fileId: number
+  title: string
+  contentType: ContentType
+}
+
+/**
+ * PATCH /lectures/{lectureId}. 제목·소개·가격·썸네일 전체를 덮어쓴다.
+ * thumbnailFileId가 null이면 썸네일을 지우므로, 유지하려면 상세의 thumbnailFileId를 그대로 보낸다(BE D53)
+ */
+export type LectureInfoUpdateInput = {
   title: string
   description: string | null
   priceHp: number
   thumbnailFileId: number | null
-  contents: { fileId: number; title: string; contentType: ContentType }[]
+}
+
+/** POST /lectures. contents 순서가 강 순서(sequence 1부터)다 */
+export type LectureRegisterInput = LectureInfoUpdateInput & {
+  contents: LectureContentInput[]
 }
 
 /** GET /lectures 한 줄 (판매 중 강의만) */
@@ -45,6 +59,8 @@ export type LectureSummary = {
 
 export type LectureContent = {
   contentId: number
+  /** 연결된 파일 ID. 판매자·관리자에게만 오고 그 밖에는 null(BE D53). 콘텐츠 교체에서 바꾸지 않는 강은 이 값을 다시 보낸다 */
+  fileId: number | null
   title: string
   sequence: number
   contentType: ContentType
@@ -59,6 +75,8 @@ export type LectureDetail = {
   description: string
   priceHp: number
   thumbnailUrl: string | null
+  /** 썸네일 파일 ID. 판매자·관리자에게만 오고 그 밖에는 null(BE D53). 정보 수정에서 썸네일을 유지하려면 다시 보낸다 */
+  thumbnailFileId: number | null
   status: LectureStatus
   /** 판매자·관리자에게만 */
   rejectionReason: string | null

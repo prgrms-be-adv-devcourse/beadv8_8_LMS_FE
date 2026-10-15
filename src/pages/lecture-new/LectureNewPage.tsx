@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { createLecture, lectureKeys } from '@/entities/lecture/api'
-import { LectureEditorForm } from '@/features/lecture-editor/LectureEditorForm'
+import {
+  LectureEditorForm,
+  type LectureEditorValue,
+} from '@/features/lecture-editor/LectureEditorForm'
 import { PageHead } from '@/shared/ui/PageHead'
 import { toast } from '@/shared/ui/toastStore'
 
@@ -10,7 +13,8 @@ export function LectureNewPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const create = useMutation({
-    mutationFn: createLecture,
+    mutationFn: ({ info, contents }: LectureEditorValue) =>
+      createLecture({ ...info, contents }),
     onSuccess: () => {
       // 내 강의 목록은 페이지마다 캐시되므로 모든 페이지를 다시 불러온다.
       void queryClient.invalidateQueries({

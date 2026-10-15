@@ -25,7 +25,7 @@ const inspection = (
   ...overrides,
 })
 
-const detail = (overrides: Partial<LectureDetail> = {}) => ({
+const detail = (overrides: Partial<LectureDetail> = {}): LectureDetail => ({
   lectureId: 1,
   sellerUserId: 9,
   sellerNickname: '새벽라디오 윤',
@@ -34,7 +34,7 @@ const detail = (overrides: Partial<LectureDetail> = {}) => ({
   priceHp: 11000,
   thumbnailUrl: null,
   thumbnailFileId: null,
-  status: 'PENDING_INSPECTION' as LectureStatus,
+  status: 'PENDING_INSPECTION',
   rejectionReason: null,
   deleted: false,
   averageRating: null,
@@ -45,14 +45,14 @@ const detail = (overrides: Partial<LectureDetail> = {}) => ({
       fileId: 102,
       title: '반주 음원 고르는 법',
       sequence: 2,
-      contentType: 'DOCUMENT' as const,
+      contentType: 'DOCUMENT',
     },
     {
       contentId: 11,
       fileId: 101,
       title: '노래방송과 저작권 기초',
       sequence: 1,
-      contentType: 'VIDEO' as const,
+      contentType: 'VIDEO',
     },
   ],
   createdAt: '2026-10-09T10:00:00',
@@ -88,7 +88,7 @@ function serveInspections(
 }
 
 /** 관리자 상세와 시청 URL을 정한다. 상세는 부를 때마다 다음 응답을 쓴다(마지막은 반복). */
-function serveDetail(...responses: ReturnType<typeof detail>[]) {
+function serveDetail(...responses: LectureDetail[]) {
   let calls = 0
   server.use(
     http.get('*/api/v1/lectures/admin/1', () =>
