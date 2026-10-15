@@ -230,6 +230,67 @@ describe('관리자 채팅 기록', () => {
     expect(screen.queryByText(/바뀐 닉네임/)).toBeNull()
   })
 
+  it('다음 기록을 못 불러와도 불러온 기록은 그대로 두고, 다시 시도하면 이어 붙인다', async () => {
+    let failNext = true
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', ({ request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor')
+        if (!cursor) return rs({ ...history, nextCursor: 'c1' })
+        if (failNext)
+          return HttpResponse.json(
+            { status: 500, code: 'INTERNAL_ERROR', detail: '잠시 실패했어요.' },
+            { status: 500 },
+          )
+        return rs({
+          ...history,
+          logs: [],
+          messages: [
+            {
+              messageId: 500,
+              roomSequence: 50,
+              senderUserId: 7,
+              messageType: 'TEXT',
+              content: '다음 페이지 메시지',
+              sentAt: '2026-10-12T10:00:00',
+              deletedAt: null,
+            },
+          ],
+          nextCursor: null,
+        })
+      }),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    const firstCount = within(list).getAllByRole('listitem').length
+
+    await userEvent.click(
+      screen.getByRole('button', { name: '다음 기록 더 보기' }),
+    )
+    // 오류가 나도 불러온 기록과 방 정보는 남는다.
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('다음 기록을 불러오지 못했어요.')
+    expect(
+      within(screen.getByRole('list', { name: '채팅 기록' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(firstCount)
+    expect(
+      screen.getByRole('heading', { name: '채팅방 #42' }),
+    ).toBeInTheDocument()
+
+    failNext = false
+    await userEvent.click(
+      within(alert).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(await screen.findByText('다음 페이지 메시지')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(
+      within(screen.getByRole('list', { name: '채팅 기록' })).getAllByRole(
+        'listitem',
+      ),
+    ).toHaveLength(firstCount + 1)
+  })
+
   it('없는 방이면 안내한다', async () => {
     server.use(
       http.get('*/api/v1/chats/admin/9/history', () =>

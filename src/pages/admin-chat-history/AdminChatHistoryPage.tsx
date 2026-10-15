@@ -89,32 +89,52 @@ function History({ chatRoomId }: { chatRoomId: number }) {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetchNextPageError,
   } = useInfiniteQuery(chatHistoryQuery(chatRoomId))
   if (isPending) return <Loading />
-  if (isApiError(error, 'CHAT_ROOM_NOT_FOUND'))
-    return (
-      <EmptyState title="채팅방을 찾을 수 없어요">
-        채팅방 번호를 다시 확인해 주세요.
-      </EmptyState>
+  // 첫 페이지를 못 불러왔을 때만 화면 전체를 오류로 바꾼다.
+  if (!data) {
+    if (isApiError(error, 'CHAT_ROOM_NOT_FOUND'))
+      return (
+        <EmptyState title="채팅방을 찾을 수 없어요">
+          채팅방 번호를 다시 확인해 주세요.
+        </EmptyState>
+      )
+    return <LoadError error={error} retry={refetch} />
+  }
+  // 불러온 기록이 있으면 그대로 두고, 다음 페이지(또는 다시 불러오기) 실패는 버튼 자리에서 안내하고 다시 시도한다.
+  const more = error ? (
+    <div className="notice bad" role="alert">
+      <span>
+        {isFetchNextPageError
+          ? '다음 기록을 불러오지 못했어요.'
+          : '기록을 새로 불러오지 못했어요.'}{' '}
+        {error.message}
+      </span>
+      <button
+        type="button"
+        className="btn sm"
+        disabled={isFetchingNextPage}
+        onClick={() =>
+          void (isFetchNextPageError ? fetchNextPage() : refetch())
+        }
+      >
+        다시 시도
+      </button>
+    </div>
+  ) : (
+    hasNextPage && (
+      <button
+        type="button"
+        className="btn sm"
+        disabled={isFetchingNextPage}
+        onClick={() => void fetchNextPage()}
+      >
+        {isFetchingNextPage ? '불러오는 중…' : '다음 기록 더 보기'}
+      </button>
     )
-  if (error) return <LoadError error={error} retry={refetch} />
-  return (
-    <HistoryView
-      pages={data.pages}
-      more={
-        hasNextPage && (
-          <button
-            type="button"
-            className="btn sm"
-            disabled={isFetchingNextPage}
-            onClick={() => void fetchNextPage()}
-          >
-            {isFetchingNextPage ? '불러오는 중…' : '다음 기록 더 보기'}
-          </button>
-        )
-      }
-    />
   )
+  return <HistoryView pages={data.pages} more={more} />
 }
 
 type Entry =
