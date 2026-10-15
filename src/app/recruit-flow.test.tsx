@@ -483,6 +483,25 @@ describe('모집 상세 공통', () => {
       screen.getByText(/없거나 아직 HP 보류를 처리 중인 모집글이에요/),
     ).toBeInTheDocument()
   })
+  it('숫자가 아닌 주소면 요청하지 않고 찾을 수 없다고 안내한다', async () => {
+    let requested = false
+    server.use(
+      http.get('*/api/v1/appearances/recruits/:id', () => {
+        requested = true
+        return problem(400, 'INVALID_REQUEST')
+      }),
+    )
+    renderApp('/recruits/abc', 'INFLUENCER')
+    expect(
+      await screen.findByText('모집글을 찾을 수 없어요'),
+    ).toBeInTheDocument()
+    expect(requested).toBe(false)
+  })
+
+  it('비회원이 상세에 오면 로그인 안내를 보여 준다', async () => {
+    renderApp('/recruits/7', 'GUEST')
+    expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
+  })
 })
 
 describe('모집 상세 · 게스트', () => {

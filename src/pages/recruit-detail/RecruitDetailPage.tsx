@@ -22,18 +22,21 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 export function RecruitDetailPage() {
   const recruitId = Number(useParams().recruitId)
+  // /recruits/abc처럼 숫자가 아닌 주소는 BE에 묻지 않고 없는 모집글로 본다.
+  const validId = Number.isSafeInteger(recruitId) && recruitId > 0
   const viewer = useViewer()
   const { data: me } = useQuery(meQuery)
-  const { data, error, isPending, refetch } = useQuery(recruitQuery(recruitId))
+  const { data, error, isPending, refetch } = useQuery({
+    ...recruitQuery(recruitId),
+    enabled: validId,
+  })
 
   return (
     <div className="page">
       <Link className="back" to="/recruits">
         ← 출연 모집
       </Link>
-      {isPending || !me || !viewer ? (
-        <Loading />
-      ) : isApiError(error, 'APPEARANCE_RECRUIT_NOT_FOUND') ? (
+      {!validId || isApiError(error, 'APPEARANCE_RECRUIT_NOT_FOUND') ? (
         <EmptyState
           title="모집글을 찾을 수 없어요"
           action={
@@ -45,6 +48,8 @@ export function RecruitDetailPage() {
           없거나 아직 HP 보류를 처리 중인 모집글이에요. 방금 올렸다면 잠시 뒤 내
           모집글에서 확인해 주세요.
         </EmptyState>
+      ) : isPending || !me || !viewer ? (
+        <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : (
