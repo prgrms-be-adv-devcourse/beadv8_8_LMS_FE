@@ -66,3 +66,24 @@ export type UpgradeRequest = {
   requestedAt: string
   reviewedAt: string | null
 }
+
+/** GET /members/admin/upgrade-requests 한 줄 (처리 전이면 reviewedAt·reviewedBy·rejectionReason은 null) */
+export type UpgradeReview = {
+  requestId: number
+  memberId: number
+  nickname: string
+  requestReason: string
+  status: UpgradeRequestStatus
+  requestedAt: string
+  reviewedAt: string | null
+  /** 처리한 관리자 ID */
+  reviewedBy: number | null
+  rejectionReason: string | null
+  /** 그 회원의 승인된 채널. 관리자가 주소로 들어가 활동을 확인한다 */
+  channels: {
+    platform: ChannelPlatform
+    channelName: string
+    channelUrl: string
+    followerCount: number
+  }[]
+}
