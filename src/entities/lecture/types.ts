@@ -6,6 +6,28 @@ export type LectureSort = 'LATEST' | 'PRICE_ASC' | 'PRICE_DESC' | 'RATING'
 
 export type ContentType = 'VIDEO' | 'DOCUMENT'
 
+/** 강의 파일 종류. 종류마다 받는 형식과 최대 크기가 다르다(rules.ts FILE_RULES) */
+export type LectureFileType =
+  'LECTURE_THUMBNAIL' | 'LECTURE_VIDEO' | 'LECTURE_DOCUMENT'
+
+/** POST /lectures/files */
+export type LectureFileInput = {
+  fileType: LectureFileType
+  originalFilename: string
+  contentType: string
+  /** 바이트. 본문 업로드의 Content-Length와 같아야 한다 */
+  fileSize: number
+}
+
+/** POST /lectures. contents 순서가 강 순서(sequence 1부터)다 */
+export type LectureRegisterInput = {
+  title: string
+  description: string | null
+  priceHp: number
+  thumbnailFileId: number | null
+  contents: { fileId: number; title: string; contentType: ContentType }[]
+}
+
 /** GET /lectures 한 줄 (판매 중 강의만) */
 export type LectureSummary = {
   lectureId: number
