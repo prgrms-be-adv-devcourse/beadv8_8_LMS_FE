@@ -73,6 +73,20 @@ export function sortRoomsByRecent<T extends ChatRoom>(rooms: T[]): T[] {
   return [...rooms].sort((a, b) => at(b).localeCompare(at(a)))
 }
 
+/**
+ * 이력 페이지들을 화면에 그릴 순서(오래된 순, roomSequence 오름차순)로 펼친다. 같은 메시지는 한 번만.
+ * 실시간 메시지는 순서가 뒤바뀌어 올 수 있어 페이지 순서에 기대지 않고 순번으로 정렬한다.
+ */
+export function orderedMessages<
+  T extends { messageId: number; roomSequence: number },
+>(pages: { messages: T[] }[]): T[] {
+  const byId = new Map<number, T>()
+  for (const page of pages)
+    for (const m of page.messages)
+      if (!byId.has(m.messageId)) byId.set(m.messageId, m)
+  return [...byId.values()].sort((a, b) => a.roomSequence - b.roomSequence)
+}
+
 /** 1:1 방의 상대 (없으면 undefined) */
 export function partnerOf(room: ChatRoom, myUserId: number | undefined) {
   return room.members.find((m) => m.userId !== myUserId)

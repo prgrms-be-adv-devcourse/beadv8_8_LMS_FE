@@ -121,7 +121,10 @@ describe('채팅', () => {
     // 이력은 최신순으로 온다
     mockChat(
       [room()],
-      [message({ content: '두 번째' }), message({ content: '첫 번째' })],
+      [
+        message({ content: '두 번째', roomSequence: 2 }),
+        message({ content: '첫 번째', roomSequence: 1 }),
+      ],
     )
     document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(`/influencers/${PARTNER_ID}`, 'INFLUENCER')
@@ -628,6 +631,7 @@ describe('출연 알림', () => {
           notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
           referenceId: 4,
           parentReferenceId: 7,
+          roomSequence: 2,
         }),
         message({
           messageType: 'NOTIFICATION',
@@ -636,6 +640,7 @@ describe('출연 알림', () => {
           notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
           referenceId: 3,
           parentReferenceId: null,
+          roomSequence: 1,
         }),
       ],
     )
@@ -782,6 +787,61 @@ describe('누락 방지 (구독과 조회 사이)', () => {
     await act(() =>
       queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] }),
     )
+    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+  })
+})
+
+describe('역순·중복 수신', () => {
+  it('늦게 도착한 이전 메시지도 순번 순서대로 그린다', async () => {
+    mockChat([room()], [message({ content: '하나', roomSequence: 1 })])
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText('하나')
+    const client = await connectSocket()
+
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '셋', roomSequence: 3 }),
+      ),
+    )
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '둘', roomSequence: 2 }),
+      ),
+    )
+
+    await within(thread).findByText('둘')
+    const bubbles = within(thread)
+      .getAllByText(/^(하나|둘|셋)$/)
+      .map((b) => b.textContent)
+    expect(bubbles).toEqual(['하나', '둘', '셋'])
+  })
+
+  it('같은 메시지를 두 번 받아도 대화와 안 읽은 수에 한 번만 반영한다', async () => {
+    mockChat(
+      [room(), room({ chatRoomId: 6, unreadCount: 0 })],
+      [message({ content: '보는 방', roomSequence: 1 })],
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText('보는 방')
+    const client = await connectSocket()
+
+    const here = message({ content: '두 번 온 메시지', roomSequence: 2 })
+    const other = message({ chatRoomId: 6, roomSequence: 4 })
+    act(() => {
+      client.push('/user/queue/chats/messages', here)
+      client.push('/user/queue/chats/messages', here)
+      client.push('/user/queue/chats/messages', other)
+      client.push('/user/queue/chats/messages', other)
+    })
+
+    expect(await within(thread).findAllByText('두 번 온 메시지')).toHaveLength(
+      1,
+    )
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { QueryClient, type InfiniteData } from '@tanstack/react-query'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chatKeys } from '@/entities/chat/api'
 import type {
   ChatMessage,
@@ -139,5 +139,31 @@ describe('조회 중 도착한 메시지 다시 반영', () => {
     const [updated] = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())!
     expect(updated.lastMessage?.messageId).toBe(200)
     expect(updated.unreadCount).toBe(0)
+  })
+})
+
+describe('중복 수신', () => {
+  it('같은 메시지는 안 읽은 수에 한 번만 더한다', () => {
+    queryClient.setQueryData(chatKeys.rooms(), [room()])
+    const arrived = message({ messageId: 200, chatRoomId: 6, roomSequence: 4 })
+    applyIncomingMessage(queryClient, arrived)
+    applyIncomingMessage(queryClient, arrived)
+
+    const [updated] = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())!
+    expect(updated.unreadCount).toBe(1)
+  })
+
+  it('방 목록에 없는 방의 메시지는 다시 받아도 방 목록을 다시 부른다', () => {
+    queryClient.setQueryData(chatKeys.rooms(), [room()])
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries')
+    const arrived = message({ messageId: 200, chatRoomId: 9, roomSequence: 1 })
+    applyIncomingMessage(queryClient, arrived)
+    applyIncomingMessage(queryClient, arrived)
+
+    const roomReloads = invalidate.mock.calls.filter(
+      ([filters]) =>
+        JSON.stringify(filters?.queryKey) === JSON.stringify(chatKeys.rooms()),
+    )
+    expect(roomReloads).toHaveLength(2)
   })
 })

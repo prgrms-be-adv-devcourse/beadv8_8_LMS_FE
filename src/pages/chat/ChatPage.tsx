@@ -10,6 +10,7 @@ import { Link, useParams } from 'react-router'
 import {
   chatMessagesQuery,
   chatRoomsQuery,
+  orderedMessages,
   partnerOf,
   sortRoomsByRecent,
 } from '@/entities/chat/api'
@@ -177,10 +178,8 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     isFetchingNextPage,
   } = useInfiniteQuery(chatMessagesQuery(room.chatRoomId))
 
-  // 페이지는 최신순이라 뒤집어 오래된 것부터 그린다.
-  const messages = data
-    ? data.pages.flatMap((p) => p.messages).toReversed()
-    : []
+  // 오래된 것부터 그린다(순번순, 같은 메시지는 한 번).
+  const messages = data ? orderedMessages(data.pages) : []
   const latestId = messages.at(-1)?.messageId
   // 화면에 보인 가장 최근 메시지까지 읽음으로 알린다(방을 보는 중 받은 메시지 포함).
   useMarkRoomRead(room.chatRoomId, messages.at(-1)?.roomSequence)

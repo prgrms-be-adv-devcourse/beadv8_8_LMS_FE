@@ -20,6 +20,24 @@ type RoomArrival = { message: ChatMessage; countsAsUnread: boolean }
 const historyArrivals = new Map<number, ChatMessage[]>()
 let roomArrivals: RoomArrival[] = []
 
+/**
+ * 이미 반영한 실시간 메시지 ID. 같은 메시지가 다시 오면(중복 전달·재전송 응답) 목록·안 읽은 수에
+ * 두 번 반영하지 않는다. 오래된 것부터 지워 크기를 제한한다.
+ */
+const appliedIds = new Set<number>()
+const APPLIED_LIMIT = 1000
+
+/** 처음 보는 메시지면 기억하고 true */
+function rememberApplied(messageId: number) {
+  if (appliedIds.has(messageId)) return false
+  appliedIds.add(messageId)
+  if (appliedIds.size > APPLIED_LIMIT) {
+    const oldest = appliedIds.values().next().value
+    if (oldest !== undefined) appliedIds.delete(oldest)
+  }
+  return true
+}
+
 function isFetching(queryClient: QueryClient, queryKey: readonly unknown[]) {
   return queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
 }
@@ -108,11 +126,13 @@ export function watchChatLoads(queryClient: QueryClient) {
     unsubscribe()
     historyArrivals.clear()
     roomArrivals = []
+    appliedIds.clear()
   }
 }
 
 /**
  * 실시간으로 받은 메시지(/user/queue/chats/messages)를 반영한다. 보낸 사람 자신에게도 온다.
+ * 순서가 뒤바뀌어 올 수 있고(순번으로 정렬해 그린다), 같은 메시지가 다시 오면 한 번만 반영한다.
  * - 그 방의 이력 캐시 맨 앞(최신)에 붙인다. 이력을 아직 불러오지 않은 방은 열 때 불러온다
  * - 내가 보낸 것이면 보내는 중 표시를 지운다
  * - 방 목록 캐시의 마지막 메시지를 바꾸고, 보고 있지 않은 방에 상대가 보낸 것이면 안 읽은 수를 올린다
@@ -122,6 +142,20 @@ export function applyIncomingMessage(
   queryClient: QueryClient,
   message: ChatMessage,
 ) {
+  // 내가 다시 보낸 메시지에 서버가 기존 메시지를 돌려줘도 보내는 중 표시는 지운다.
+  resolvePending(message)
+  // 이미 반영한 메시지(중복 전달)는 목록·안 읽은 수에 다시 반영하지 않는다.
+  // 다만 방 목록에 아직 없는 방이면 다시 부른다. 처음 받았을 때의 재조회가 방이 생기기 전 상태를
+  // 돌려줬을 수 있다.
+  if (!rememberApplied(message.messageId)) {
+    const known = queryClient
+      .getQueryData<ChatRoom[]>(chatKeys.rooms())
+      ?.some((r) => r.chatRoomId === message.chatRoomId)
+    if (!known)
+      void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
+    return
+  }
+
   const historyKey = chatKeys.messages(message.chatRoomId)
   if (isFetching(queryClient, historyKey)) {
     const arrived = historyArrivals.get(message.chatRoomId) ?? []
@@ -130,7 +164,6 @@ export function applyIncomingMessage(
   queryClient.setQueryData<MessagePages>(historyKey, (data) =>
     data ? mergeIntoPages(data, [message]) : data,
   )
-  resolvePending(message)
 
   const { myUserId, viewingRoomId } = useChatStore.getState()
   const countsAsUnread =
