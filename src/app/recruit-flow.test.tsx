@@ -735,6 +735,16 @@ describe('모집 상세 · 호스트', () => {
     expect(await screen.findByRole('button', { name: '수락' })).toBeDisabled()
   })
 
+  it('정원이 찼으면 대기 지원이 다른 페이지에 있어도 조기 마감 안내를 보여 준다', async () => {
+    mockHost({ value: recruit({ hostId: ME_ID, selectedCount: 3 }) }, [
+      applicant({ status: 'SELECTED', appearanceId: 300 }),
+    ])
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(
+      await screen.findByText(/정원이 다 차서 더 수락할 수 없어요/),
+    ).toBeInTheDocument()
+  })
+
   it('거절하면 미선정이 된다', async () => {
     const current = { value: recruit({ hostId: ME_ID }) }
     const applicants = [applicant()]

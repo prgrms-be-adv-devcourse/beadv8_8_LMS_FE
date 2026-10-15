@@ -25,7 +25,6 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
   const startChat = useStartChat()
   const open = isRecruitOpen(recruit)
   const full = recruit.selectedCount >= recruit.recruitCount
-  const waiting = data?.content.some((a) => a.status === 'APPLIED')
 
   return (
     <section className="panel">
@@ -43,7 +42,8 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
         <p className="fine">아직 지원한 게스트가 없어요.</p>
       ) : (
         <>
-          {open && full && waiting && (
+          {/* 대기 지원이 다른 페이지에만 있을 수 있어 현재 페이지로 판단하지 않는다. */}
+          {open && full && (
             <div className="notice">
               정원이 다 차서 더 수락할 수 없어요. 조기 마감하면 대기 중인 지원은
               미선정이 돼요.
