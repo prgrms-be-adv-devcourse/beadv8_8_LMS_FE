@@ -9,11 +9,12 @@ import type { UpgradeRequest } from '@/entities/member/types'
 import { UpgradeStatusPill } from '@/entities/member/ui/UpgradeStatusPill'
 import { useRequestUpgrade } from '@/features/upgrade/useRequestUpgrade'
 import { meQuery } from '@/shared/auth/me'
-import { useViewer } from '@/shared/auth/session'
+import { useLogout, useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './PromotePage.module.css'
 
 /**
  * 승급 신청: 인플루언서 → 인증된 인플루언서(강의 등록·판매). 심사는 관리자 재량이다.
@@ -22,7 +23,6 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
  */
 export function PromotePage() {
   const viewer = useViewer()
-  const queryClient = useQueryClient()
   const {
     data: requests,
     error,
@@ -32,11 +32,6 @@ export function PromotePage() {
   const latest = requests?.[0]
   const approvedButStale =
     latest?.status === 'APPROVED' && viewer === 'INFLUENCER'
-
-  useEffect(() => {
-    if (approvedButStale)
-      void queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
-  }, [approvedButStale, queryClient])
 
   return (
     <div className="page narrow">
@@ -58,9 +53,15 @@ export function PromotePage() {
         </div>
       ) : (
         <>
-          <CurrentStatus latest={latest} />
-          {latest?.status !== 'PENDING' && !approvedButStale && (
-            <ApplyForm again={latest?.status === 'REJECTED'} />
+          {approvedButStale ? (
+            <ApprovedButStale />
+          ) : (
+            <>
+              <CurrentStatus latest={latest} />
+              {latest?.status !== 'PENDING' && (
+                <ApplyForm again={latest?.status === 'REJECTED'} />
+              )}
+            </>
           )}
         </>
       )}
@@ -92,10 +93,59 @@ function CurrentStatus({ latest }: { latest: UpgradeRequest | undefined }) {
         </span>
       </div>
     )
+  return null
+}
+
+/**
+ * 승인됐는데 내 정보가 아직 인플루언서인 경우. 내 정보를 한 번 다시 불러오고,
+ * 그래도 그대로면(BE가 세션 역할을 바꾸지 못한 경우 등) 다시 불러오기·재로그인을 안내한다.
+ * 역할이 바뀌면 부모가 완료 안내로 바꿔 그리므로 이 컴포넌트는 사라진다.
+ */
+function ApprovedButStale() {
+  const queryClient = useQueryClient()
+  const logout = useLogout()
+  const [checking, setChecking] = useState(true)
+
+  const refetchMe = () =>
+    queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
+
+  useEffect(() => {
+    let active = true
+    void queryClient
+      .invalidateQueries({ queryKey: meQuery.queryKey })
+      .finally(() => active && setChecking(false))
+    return () => {
+      active = false
+    }
+  }, [queryClient])
+
+  if (checking)
+    return (
+      <div className="notice" role="status">
+        <span className="pill ok">승인</span>
+        승급이 승인됐어요. 계정 정보를 다시 불러오는 중이에요.
+      </div>
+    )
   return (
-    <div className="notice" role="status">
+    <div className="notice warn" role="status">
       <span className="pill ok">승인</span>
-      승급이 승인됐어요. 계정 정보를 다시 불러오는 중이에요.
+      <span>
+        승급이 승인됐는데 아직 계정에 반영되지 않았어요. 다시 불러와 보고, 계속
+        그대로면 로그아웃한 뒤 다시 로그인해 주세요.
+      </span>
+      <button
+        type="button"
+        className="btn sm"
+        onClick={() => {
+          setChecking(true)
+          void refetchMe().finally(() => setChecking(false))
+        }}
+      >
+        다시 불러오기
+      </button>
+      <button type="button" className="btn ghost sm" onClick={logout}>
+        로그아웃
+      </button>
     </div>
   )
 }
@@ -120,8 +170,7 @@ function ApplyForm({ again }: { again: boolean }) {
       >
         <textarea
           id="upgrade-reason"
-          className="textarea"
-          style={{ minHeight: 160 }}
+          className={`textarea ${styles.reason}`}
           maxLength={UPGRADE_REASON_MAX}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
@@ -130,8 +179,7 @@ function ApplyForm({ again }: { again: boolean }) {
       </Field>
       <button
         type="submit"
-        className="btn primary"
-        style={{ alignSelf: 'flex-start' }}
+        className={`btn primary ${styles.submit}`}
         disabled={!trimmed || apply.isPending}
       >
         {again ? '다시 신청' : '승급 신청'}
@@ -148,18 +196,14 @@ function History({ requests }: { requests: UpgradeRequest[] }) {
         {requests.map((r) => (
           <div key={r.id} className="row-item">
             <div className="row-main">
-              <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span className={styles.meta}>
                 <UpgradeStatusPill status={r.status} />
                 <span className="fine">
                   {formatDate(r.requestedAt)} 신청
                   {r.reviewedAt && ` · ${formatDate(r.reviewedAt)} 처리`}
                 </span>
               </span>
-              <span
-                style={{ whiteSpace: 'pre-line', overflowWrap: 'anywhere' }}
-              >
-                {r.requestReason}
-              </span>
+              <span className={styles.text}>{r.requestReason}</span>
               {r.rejectionReason && (
                 <span className="fine c-bad">
                   반려 사유: {r.rejectionReason}

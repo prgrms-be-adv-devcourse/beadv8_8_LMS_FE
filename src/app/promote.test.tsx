@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -105,6 +105,46 @@ describe('승급 신청', () => {
       'href',
       '/studio',
     )
+  })
+
+  it('승인됐는데 내 정보가 그대로면 다시 불러오기와 재로그인을 안내한다', async () => {
+    let role = 'INFLUENCER'
+    let meCalls = 0
+    server.use(
+      http.get('*/api/v1/members/upgrade-requests/me', () =>
+        rs([
+          upgrade({ status: 'APPROVED', reviewedAt: '2026-10-15T09:00:00' }),
+        ]),
+      ),
+      http.get('*/api/v1/members/me', () => {
+        meCalls++
+        return rs({
+          id: ME_ID,
+          email: 'a@b.c',
+          nickname: '하늘',
+          role,
+          status: 'ACTIVE',
+          profileImageUrl: null,
+        })
+      }),
+    )
+    renderApp('/promote', 'INFLUENCER')
+
+    const notice = (await screen.findByText(/아직 계정에 반영되지 않았어요/))
+      .parentElement as HTMLElement
+    expect(meCalls).toBe(1)
+    // 상단 바에도 로그아웃이 있으므로 안내 안에서 찾는다.
+    expect(
+      within(notice).getByRole('button', { name: '로그아웃' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('승급 신청 사유')).toBeNull()
+
+    role = 'VERIFIED_INFLUENCER'
+    await userEvent.click(
+      within(notice).getByRole('button', { name: '다시 불러오기' }),
+    )
+    expect(await screen.findByText('승급 완료')).toBeInTheDocument()
+    expect(meCalls).toBe(2)
   })
 
   it('심사 중이면 다시 신청할 수 없다', async () => {
