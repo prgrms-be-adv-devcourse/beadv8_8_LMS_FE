@@ -34,11 +34,18 @@ export const chatMessagesQuery = (chatRoomId: number) =>
     getNextPageParam: (last) => last.nextCursor,
   })
 
-/** 관리자 분쟁 확인용 전체 기록. 종료된 방, 숨겨진·삭제된 메시지도 포함한다 */
+/** 관리자 분쟁 확인용 기록(오래된 쪽부터 페이지). 종료된 방, 숨겨진·삭제된 메시지도 포함한다 */
+export const CHAT_HISTORY_PAGE_SIZE = 50
+
 export const chatHistoryQuery = (chatRoomId: number) =>
-  queryOptions({
+  infiniteQueryOptions({
     queryKey: chatKeys.history(chatRoomId),
-    queryFn: () => api<ChatRoomHistory>(`/chats/admin/${chatRoomId}/history`),
+    queryFn: ({ pageParam }) =>
+      api<ChatRoomHistory>(`/chats/admin/${chatRoomId}/history`, {
+        query: { cursor: pageParam ?? undefined, size: CHAT_HISTORY_PAGE_SIZE },
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
   })
 
 /**
