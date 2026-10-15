@@ -176,7 +176,7 @@ describe('채팅', () => {
     expect(screen.getAllByText('안녕하세요')).toHaveLength(1)
   })
 
-  it('보내기 오류는 그 메시지를 실패로 표시하고 다시 보낼 수 있다', async () => {
+  it('보내기 오류는 그 메시지를 실패로 표시하고 같은 임시 ID로 다시 보낼 수 있다', async () => {
     mockChat([room()])
     renderApp('/chat/5', 'INFLUENCER')
     const input = await screen.findByRole('textbox', { name: '메시지' })
@@ -205,8 +205,42 @@ describe('채팅', () => {
     expect(client.published).toHaveLength(2)
     const retried = JSON.parse(client.published[1].body)
     expect(retried.content).toBe('실패할 메시지')
-    expect(retried.clientMessageId).not.toBe(clientMessageId)
+    // 같은 임시 ID로 다시 보낸다(저장됐는데 응답만 놓쳤어도 서버가 두 번 저장하지 않는다).
+    expect(retried.clientMessageId).toBe(clientMessageId)
     expect(await screen.findByText('보내는 중…')).toBeInTheDocument()
+  })
+
+  it('끊긴 사이 저장됐지만 응답을 놓친 메시지는 다시 연결된 뒤 이력에서 찾아 성공으로 정리한다', async () => {
+    let saved: ChatMessage | null = null
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats/5/messages', () =>
+        rs({ messages: saved ? [saved] : [], nextCursor: null }),
+      ),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    await userEvent.type(input, '저장은 됐어요')
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    const { clientMessageId } = JSON.parse(client.published[0].body)
+
+    // 서버는 저장했지만 돌려주기 전에 연결이 끊겼다.
+    saved = message({
+      senderUserId: ME_ID,
+      content: '저장은 됐어요',
+      roomSequence: 1,
+      clientMessageId,
+    })
+    act(() => client.disconnect())
+    const thread = screen.getByRole('region', { name: /님과의 대화/ })
+    expect(await within(thread).findByRole('alert')).toBeInTheDocument()
+
+    // 다시 연결되면 이력을 다시 불러오고, 내 메시지의 임시 ID로 실패 표시를 지운다.
+    act(() => client.connect())
+    await waitFor(() => expect(within(thread).queryByRole('alert')).toBeNull())
+    expect(within(thread).getAllByText('저장은 됐어요')).toHaveLength(1)
+    expect(client.published).toHaveLength(1)
   })
 
   it('연결이 끊기면 보내는 중이던 메시지를 실패로 바꾼다', async () => {

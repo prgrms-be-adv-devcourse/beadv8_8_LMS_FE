@@ -167,3 +167,38 @@ describe('중복 수신', () => {
     expect(roomReloads).toHaveLength(2)
   })
 })
+
+describe('전송 결과 복구', () => {
+  const failed = {
+    clientMessageId: 'c-1',
+    content: '보낸 메시지',
+    status: 'failed' as const,
+  }
+
+  it('이력 조회 결과에 내 메시지(같은 임시 ID)가 있으면 실패 표시를 지운다', async () => {
+    useChatStore.setState({ pending: { 5: [failed] } })
+    const finish = startHistoryFetch(queryClient, 5)
+    await finish([
+      message({
+        senderUserId: ME,
+        clientMessageId: 'c-1',
+        content: '보낸 메시지',
+      }),
+    ])
+    expect(useChatStore.getState().pending[5]).toBeUndefined()
+  })
+
+  it('방 목록의 마지막 메시지만으로는 지우지 않는다(이력이 더 오래되면 메시지가 사라지므로)', async () => {
+    useChatStore.setState({ pending: { 5: [failed] } })
+    await queryClient.fetchQuery({
+      queryKey: chatKeys.rooms(),
+      queryFn: async () => [
+        room({
+          chatRoomId: 5,
+          lastMessage: message({ senderUserId: ME, clientMessageId: 'c-1' }),
+        }),
+      ],
+    })
+    expect(useChatStore.getState().pending[5]).toEqual([failed])
+  })
+})

@@ -55,7 +55,10 @@ export type ChatMessage = NotificationFields & {
   messageType: ChatMessageType
   content: string
   sentAt: string
-  /** 보낸 사람이 STOMP 전송에 붙인 임시 ID. 실시간 전달에만 있고 이력·방 목록에서는 null */
+  /**
+   * 보낸 사람이 STOMP 전송에 붙인 임시 ID. 내 메시지에만 담긴다(실시간·이력·방 목록 lastMessage, BE #261).
+   * 상대 메시지는 null
+   */
   clientMessageId?: string | null
 }
 
