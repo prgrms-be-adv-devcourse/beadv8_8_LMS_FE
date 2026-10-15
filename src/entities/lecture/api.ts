@@ -2,9 +2,12 @@ import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { allPages } from '@/shared/api/allPages'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
+import { uploadBody, type UploadOptions } from '@/shared/api/upload'
 import type {
   ContentAccess,
   LectureDetail,
+  LectureFileInput,
+  LectureRegisterInput,
   LectureSort,
   LectureSummary,
   MyLecture,
@@ -125,4 +128,33 @@ export function deleteReview(reviewId: number) {
 /** 목록 노출과 신규 판매만 멈춘다(soft delete). 이미 삭제한 강의도 204다. */
 export function deleteLecture(lectureId: number) {
   return api<void>(`/lectures/${lectureId}`, { method: 'DELETE' })
+}
+
+/**
+ * 강의 파일 올리기 1단계: 파일 정보를 등록하고 fileId를 받는다(PENDING).
+ * 업로드가 실패하거나 끊기면 다시 올릴 때 이 단계부터 새로 한다.
+ */
+export function registerLectureFile(
+  input: LectureFileInput,
+  signal?: AbortSignal,
+) {
+  return api<{ fileId: number }>('/lectures/files', {
+    method: 'POST',
+    body: input,
+    signal,
+  })
+}
+
+/** 강의 파일 올리기 2단계: 본문을 그대로 올린다. 성공하면 파일이 UPLOADED가 된다 */
+export function uploadLectureFileContent(
+  fileId: number,
+  file: Blob,
+  options: UploadOptions,
+) {
+  return uploadBody(`/lectures/files/${fileId}/content`, file, options)
+}
+
+/** 강의 등록. 검수 대기(PENDING_INSPECTION, 비공개)로 시작한다 */
+export function createLecture(input: LectureRegisterInput) {
+  return api<{ id: number }>('/lectures', { method: 'POST', body: input })
 }

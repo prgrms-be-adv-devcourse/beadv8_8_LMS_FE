@@ -30,6 +30,7 @@ import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
 import { LecturesPage } from '@/pages/lectures/LecturesPage'
+import { LectureNewPage } from '@/pages/lecture-new/LectureNewPage'
 import { LibraryPage } from '@/pages/library/LibraryPage'
 import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
 import { OrdersPage } from '@/pages/orders/OrdersPage'
@@ -112,6 +113,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
   '/studio': <StudioPage />,
+  '/studio/lectures/new': <LectureNewPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {

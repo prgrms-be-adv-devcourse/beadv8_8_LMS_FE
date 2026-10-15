@@ -749,3 +749,70 @@ table.tbl {
   border-radius: 50%;
   background: var(--signal);
 }
+
+/* 강의 등록·수정 (목업 LectureEditScreen) */
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+}
+.big-price {
+  font: 600 28px var(--f-mono);
+  letter-spacing: -0.02em;
+}
+.thumb-pick {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.upload-mini {
+  /* 목업은 label이지만 키보드로도 누를 수 있게 button으로 쓴다 */
+  background: none;
+  border: 1.5px dashed var(--line-2);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.lessons {
+  display: flex;
+  flex-direction: column;
+}
+.lesson {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.lesson:first-child {
+  border-top: 0;
+}
+.lesson .no {
+  font: 600 12px var(--f-mono);
+  color: var(--ink-3);
+  width: 24px;
+  flex: none;
+}
+.lesson-main {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.lesson-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}

@@ -6,7 +6,7 @@ import type { ProblemDetail, RsData } from './types'
 export const API_BASE = '/api/v1'
 
 const CSRF_COOKIE = 'XSRF-TOKEN'
-const CSRF_HEADER = 'X-XSRF-TOKEN'
+export const CSRF_HEADER = 'X-XSRF-TOKEN'
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
 type Json = Record<string, unknown> | unknown[]
@@ -96,7 +96,7 @@ function isRsData(json: unknown): json is RsData<unknown> {
  * CSRF 토큰 쿠키가 아직 없으면(첫 방문, 로그아웃 직후) GET 한 번으로 받아 온다.
  * 응답 상태(401 포함)와 상관없이 BE가 쿠키를 내려 준다.
  */
-async function ensureCsrfToken(): Promise<string | null> {
+export async function ensureCsrfToken(): Promise<string | null> {
   const token = readCookie(CSRF_COOKIE)
   if (token) return token
   await fetch(`${API_BASE}/members/me`, { credentials: 'same-origin' }).catch(
