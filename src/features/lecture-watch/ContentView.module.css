@@ -1,0 +1,21 @@
+.player {
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: #0b0c0f;
+  color: #f2f3f6;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+.video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0b0c0f;
+  border-radius: 10px;
+}

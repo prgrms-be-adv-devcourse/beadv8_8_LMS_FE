@@ -2,11 +2,24 @@ import { useRef } from 'react'
 import { UploadProgress } from './LessonList'
 import { THUMB_KEY, type Uploads } from './useUploads'
 
+type ThumbnailPickerProps = {
+  uploads: Uploads
+  /** 강의에 이미 있는 썸네일(수정). 새 파일을 올리거나 빼지 않으면 그대로 둔다 */
+  hasCurrent?: boolean
+  /** 기존 썸네일을 뺀다. 저장하면 썸네일이 지워진다 */
+  onRemoveCurrent?: () => void
+}
+
 /** 썸네일 이미지(선택). 고르는 즉시 올린다. 없으면 미리보기는 기본 색 카드다. */
-export function ThumbnailPicker({ uploads }: { uploads: Uploads }) {
+export function ThumbnailPicker({
+  uploads,
+  hasCurrent = false,
+  onRemoveCurrent,
+}: ThumbnailPickerProps) {
   const input = useRef<HTMLInputElement>(null)
   const { upload, rejection } = uploads.get(THUMB_KEY)
   const error = rejection ?? (upload?.status === 'error' ? upload.error : null)
+  const has = !!upload || hasCurrent
 
   return (
     <div className="field">
@@ -32,7 +45,7 @@ export function ThumbnailPicker({ uploads }: { uploads: Uploads }) {
           disabled={upload?.status === 'uploading'}
           onClick={() => input.current?.click()}
         >
-          {upload ? '이미지 바꾸기' : '이미지 올리기'}
+          {has ? '이미지 바꾸기' : '이미지 올리기'}
         </button>
         {upload?.status === 'error' && (
           <button
@@ -43,11 +56,14 @@ export function ThumbnailPicker({ uploads }: { uploads: Uploads }) {
             다시 올리기
           </button>
         )}
-        {upload && (
+        {has && (
           <button
             type="button"
             className="btn ghost sm"
-            onClick={() => uploads.remove(THUMB_KEY)}
+            onClick={() => {
+              uploads.remove(THUMB_KEY)
+              onRemoveCurrent?.()
+            }}
           >
             빼기
           </button>
