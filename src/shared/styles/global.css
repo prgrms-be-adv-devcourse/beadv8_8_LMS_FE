@@ -816,3 +816,81 @@ table.tbl {
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* 관리자 심사 (목업 AdminQueue·AdminLectureDetail) */
+.q-item {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.q-item:first-child {
+  border-top: 0;
+}
+.chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.chip.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+}
+.chip.sm {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.tpl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+.chk-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+.chk-row input {
+  accent-color: var(--ink);
+  width: 16px;
+  height: 16px;
+}
+
+/* 좁은 화면 아래 고정 행동 버튼. 넓은 화면에서는 옆 패널이 그 역할을 한다 */
+.m-cta {
+  display: none;
+}
+@media (max-width: 960px) {
+  .m-cta {
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px 10px 16px;
+    box-shadow: var(--shadow);
+  }
+  .m-cta span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
