@@ -110,11 +110,11 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {
   if (path === '/') {
-    // 홈은 비회원·관리자를 각자 첫 화면으로 보내야 해서 권한 검사를 HomePage가 한다.
+    // 홈은 모든 역할 공통 첫 화면이다(비회원 포함).
     return {
       index: true,
       element: <HomePage />,
-      handle: { title } satisfies RouteHandle,
+      handle: { title, roles, layout: 'top' } satisfies RouteHandle,
     }
   }
   return {

@@ -1,0 +1,585 @@
+/* 홈 (디자인: 합방 홈 화면 캔버스, 데스크톱 1280·모바일 390) */
+.home {
+  display: flex;
+  flex-direction: column;
+}
+/* 띠 안쪽의 가운데 단 */
+.wrap {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+.eyebrow {
+  font: 600 12px var(--f-mono);
+  letter-spacing: 0.1em;
+  color: var(--ink-3);
+}
+.h2 {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.15;
+}
+.lede {
+  color: var(--ink-2);
+}
+
+/* 소개: 흰 띠 */
+.heroBand {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.hero {
+  padding-top: 56px;
+  padding-bottom: 56px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: center;
+}
+.heroText {
+  flex: 1 1 420px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.h1 {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(38px, 5vw, 56px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+.heroLede {
+  font-size: 18px;
+  color: var(--ink-2);
+  max-width: 34em;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.actions :global(.btn) {
+  min-height: 52px;
+  padding: 0 22px;
+  font-size: 16px;
+}
+
+/* 화면 예시 카드 (장식) */
+.example {
+  flex: 1 1 360px;
+  min-width: 0;
+  position: relative;
+  height: 340px;
+}
+.exampleLabel {
+  position: absolute;
+  right: 0;
+  bottom: -24px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.mini {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: min(300px, 90%);
+}
+.miniA {
+  left: 0;
+  top: 0;
+  transform: rotate(-2deg);
+}
+.miniB {
+  right: 0;
+  top: 96px;
+  transform: rotate(2deg);
+}
+.miniC {
+  left: 6%;
+  bottom: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  width: min(320px, 94%);
+}
+.miniText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.miniRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 소개 영상 */
+.video {
+  padding-top: 64px;
+  padding-bottom: 64px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: center;
+  scroll-margin-top: 64px;
+}
+.play {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--signal);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.player {
+  flex: 3 1 480px;
+  min-width: 0;
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #14161b;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px 24px;
+  isolation: isolate;
+}
+.player::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.05) 0 1px,
+    transparent 1px 4px
+  );
+}
+.playerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.playerTop :global(.onair) {
+  color: #ff8a5c;
+  border-color: #ff8a5c;
+}
+.playerTop :global(.onair)::before {
+  background: #ff8a5c;
+}
+.playerTitle {
+  font-family: var(--f-display);
+  font-size: clamp(20px, 3vw, 30px);
+  line-height: 1.15;
+}
+.videoText {
+  flex: 2 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.chapters {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chapters li {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.chapters li:first-child {
+  border-top: 0;
+}
+.no {
+  font: 600 12px var(--f-mono);
+  color: var(--signal);
+  width: 24px;
+  flex: none;
+}
+
+/* 인플루언서 되기: 주황 띠 */
+.camp {
+  background: var(--signal);
+  color: #fff;
+}
+.campInner {
+  padding-top: 64px;
+  padding-bottom: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+.campHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.campText {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 40em;
+}
+.campText p {
+  font-size: 17px;
+  opacity: 0.92;
+}
+.campEyebrow {
+  font: 600 12px var(--f-mono);
+  letter-spacing: 0.1em;
+  opacity: 0.85;
+}
+.campTitle {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(34px, 4.5vw, 48px);
+  line-height: 1.1;
+}
+/* 공용 .btn이 나중에 로드되므로 한 단계 더 구체적으로 둔다 */
+.camp .campBtn {
+  min-height: 52px;
+  padding: 0 22px;
+  font-size: 16px;
+  background: #14161b;
+  color: #fff;
+  border-color: #14161b;
+}
+.camp .campBtn:hover {
+  border-color: #fff;
+}
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+.step {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step.here {
+  background: #fff;
+  color: var(--ink);
+  border-color: #fff;
+}
+.stepNo {
+  font: 600 12px var(--f-mono);
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hereTag {
+  border-radius: 999px;
+  padding: 1px 9px;
+  font: 600 12px var(--f-body);
+  letter-spacing: 0;
+  background: var(--signal);
+  color: #fff;
+}
+.stepName {
+  font-size: 20px;
+}
+.stepCan {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* 공통 섹션 */
+.section {
+  padding-top: 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.secHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.secText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 출연료가 움직이는 4단계 */
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.flow li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.k {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font: 600 14px var(--f-mono);
+}
+.sunken {
+  background: var(--sunken);
+}
+.hold {
+  background: var(--hold-soft);
+  color: var(--hold);
+}
+.signal {
+  background: var(--signal-soft);
+  color: var(--signal);
+}
+.earn {
+  background: var(--earn-soft);
+  color: var(--earn);
+}
+
+/* 강의 */
+.lectures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+
+/* 비회원 시작 띠 (가운데 단 안에 놓는다) */
+.bandWrap {
+  margin-top: 72px;
+}
+.band {
+  background: var(--ink);
+  color: var(--surface);
+  border-radius: 14px;
+  padding: 32px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.band > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.band :global(.btn) {
+  min-height: 48px;
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--surface);
+}
+.bandTitle {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 28px;
+}
+.bandSub {
+  opacity: 0.75;
+}
+
+/* 푸터 */
+.footer {
+  margin-top: 72px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.footer .wrap {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 24px;
+  padding-bottom: 32px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.footer a {
+  color: var(--ink-3);
+}
+.footerLogo {
+  font-family: var(--f-display);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
+}
+
+@media (max-width: 960px) {
+  .flow,
+  .lectures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 좁은 화면 (모바일 아트보드) */
+@media (max-width: 600px) {
+  .wrap {
+    padding: 0 16px;
+  }
+  .hero {
+    padding-top: 28px;
+    padding-bottom: 28px;
+    gap: 14px;
+  }
+  .video {
+    padding-top: 28px;
+    padding-bottom: 0;
+    gap: 12px;
+  }
+  .play {
+    width: 60px;
+    height: 60px;
+  }
+  .campInner {
+    padding-top: 32px;
+    padding-bottom: 32px;
+    gap: 14px;
+  }
+  .section {
+    padding-top: 28px;
+  }
+  .bandWrap,
+  .footer {
+    margin-top: 28px;
+  }
+  .band {
+    padding: 24px 20px;
+  }
+  .band :global(.btn) {
+    width: 100%;
+  }
+  .bandTitle {
+    font-size: 24px;
+  }
+  .heroLede {
+    font-size: 15px;
+  }
+  .actions {
+    flex-direction: column;
+  }
+  .actions :global(.btn),
+  .camp .campBtn {
+    width: 100%;
+  }
+  /* 모바일 아트보드 순서: 소개 문구 → 예시 카드 → 버튼 (안내 한 줄은 없다) */
+  .heroText {
+    display: contents;
+  }
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .actions {
+    order: 2;
+  }
+  .heroFine {
+    display: none;
+  }
+  /* 예시 카드는 한 장만 남긴다 */
+  .example {
+    order: 1;
+    flex: none;
+    height: auto;
+  }
+  .miniA,
+  .miniB,
+  .exampleLabel {
+    display: none;
+  }
+  .miniC {
+    position: static;
+    width: 100%;
+    box-shadow: none;
+    background: var(--bg);
+  }
+  .h2 {
+    font-size: 26px;
+  }
+  /* 모바일 아트보드: 번호는 왼쪽, 제목·설명은 오른쪽의 낮은 줄 */
+  .flow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .flow li {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    column-gap: 12px;
+    row-gap: 2px;
+    padding: 14px 16px;
+    border-radius: 10px;
+  }
+  .flow li .k {
+    grid-row: span 2;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    font-size: 13px;
+  }
+  .flow li b {
+    font-size: 14px;
+  }
+  .lectures {
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    scrollbar-width: none;
+  }
+  .lectures > * {
+    flex: 0 0 200px;
+  }
+  /* 모바일 아트보드: 버튼은 등급 카드 아래 */
+  .campHead {
+    display: contents;
+  }
+  .campInner > :global(.btn),
+  .camp .campBtn {
+    order: 1;
+  }
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
