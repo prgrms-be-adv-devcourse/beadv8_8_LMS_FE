@@ -523,6 +523,46 @@ describe('채팅', () => {
     await waitFor(() => expect(messageCalls).toBe(2))
   })
 
+  it('관리자는 인플루언서 프로필에서 채팅을 시작한다(출연 요청은 보이지 않는다)', async () => {
+    let target: unknown
+    server.use(
+      http.get(`*/api/v1/members/${PARTNER_ID}`, () =>
+        rs({
+          id: PARTNER_ID,
+          nickname: '편집하는 고래',
+          role: 'VERIFIED_INFLUENCER',
+          profileImageUrl: null,
+          channels: [],
+        }),
+      ),
+      http.post('*/api/v1/chats', async ({ request }) => {
+        target = await request.json()
+        return rs(room(), 201)
+      }),
+    )
+    mockChat([room()])
+    const router = renderApp(`/influencers/${PARTNER_ID}`, 'ADMIN')
+
+    const start = await screen.findByRole('button', { name: '채팅 시작' })
+    expect(
+      screen.queryByRole('button', { name: '출연 요청 보내기' }),
+    ).toBeNull()
+    await userEvent.click(start)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/5'))
+    expect(target).toEqual({ targetUserId: PARTNER_ID })
+  })
+
+  it('관리자 채팅이 비어 있으면 인플루언서 목록으로 안내한다', async () => {
+    mockChat([])
+    renderApp('/chat', 'ADMIN')
+    expect(
+      await screen.findByText(/인플루언서 이상 회원과 1:1로 대화해요/),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: '인플루언서 찾기' }),
+    ).toHaveAttribute('href', '/influencers')
+  })
+
   it('유저는 채팅 연결을 맺지 않는다', async () => {
     server.use(
       http.get('*/api/v1/lectures', () =>

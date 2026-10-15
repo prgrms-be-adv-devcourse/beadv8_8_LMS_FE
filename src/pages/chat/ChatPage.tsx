@@ -25,7 +25,6 @@ import {
 import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
-import { useViewer } from '@/shared/auth/session'
 import { formatDate, parseServerDate } from '@/shared/lib/date'
 import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -35,7 +34,6 @@ import styles from './ChatPage.module.css'
 
 export function ChatPage() {
   const chatRoomId = Number(useParams().chatRoomId) || null
-  const viewer = useViewer()
   const { data: me } = useQuery(meQuery)
   // 상대의 재입장은 BE가 남은 회원에게 보내는 재입장 안내(SYSTEM 메시지)로 알게 되고, 그때 방 상태를 다시 부른다.
   const { data: rooms, error, isPending, refetch } = useQuery(chatRoomsQuery)
@@ -52,7 +50,11 @@ export function ChatPage() {
     <div className="page">
       <PageHead
         title="채팅"
-        lede="인플루언서끼리 1:1로 일정과 조건을 맞춰요. 대화 기록은 분쟁 확인용으로 보관돼요."
+        lede={
+          me?.role === 'ADMIN'
+            ? '인플루언서 이상 회원과 1:1로 대화해요. 대화 기록은 판단 근거로 보관돼요.'
+            : '인플루언서끼리 1:1로 일정과 조건을 맞춰요. 대화 기록은 분쟁 확인용으로 보관돼요.'
+        }
       />
       {isPending || !me ? (
         <Loading />
@@ -62,11 +64,9 @@ export function ChatPage() {
         <EmptyState
           title="아직 대화가 없어요"
           action={
-            viewer !== 'ADMIN' && (
-              <Link className="btn primary" to="/influencers">
-                인플루언서 찾기
-              </Link>
-            )
+            <Link className="btn primary" to="/influencers">
+              인플루언서 찾기
+            </Link>
           }
         >
           인플루언서 프로필에서 채팅을 시작할 수 있어요.
