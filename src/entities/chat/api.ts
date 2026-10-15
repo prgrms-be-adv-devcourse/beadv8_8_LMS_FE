@@ -1,12 +1,14 @@
 import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
-import type { ChatMessagePage, ChatRoom } from './types'
+import type { ChatMessagePage, ChatRoom, ChatRoomHistory } from './types'
 
 export const chatKeys = {
   all: ['chat'] as const,
   rooms: () => [...chatKeys.all, 'rooms'] as const,
   messages: (chatRoomId: number) =>
     [...chatKeys.all, 'messages', chatRoomId] as const,
+  history: (chatRoomId: number) =>
+    [...chatKeys.all, 'history', chatRoomId] as const,
 }
 
 export const CHAT_PAGE_SIZE = 30
@@ -30,6 +32,13 @@ export const chatMessagesQuery = (chatRoomId: number) =>
       }),
     initialPageParam: null as number | null,
     getNextPageParam: (last) => last.nextCursor,
+  })
+
+/** 관리자 분쟁 확인용 전체 기록. 종료된 방, 숨겨진·삭제된 메시지도 포함한다 */
+export const chatHistoryQuery = (chatRoomId: number) =>
+  queryOptions({
+    queryKey: chatKeys.history(chatRoomId),
+    queryFn: () => api<ChatRoomHistory>(`/chats/admin/${chatRoomId}/history`),
   })
 
 /**

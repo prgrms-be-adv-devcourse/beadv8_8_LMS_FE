@@ -1,0 +1,44 @@
+.lookup {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.lookup .input {
+  width: 160px;
+}
+.timeline {
+  padding: 4px 20px;
+  gap: 0;
+}
+.item {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.item:first-child {
+  border-top: 0;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.text {
+  font-size: 14px;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.deleted .text {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.event {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-3);
+}

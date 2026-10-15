@@ -16,6 +16,7 @@ import { consumeReturnTo } from '@/shared/auth/session'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
+import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
 import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
@@ -78,6 +79,7 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/support/inquiries/:inquiryId', title: '문의 상세', roles: MEMBER },
   { path: '/settings/withdraw', title: '회원 탈퇴', roles: MEMBER },
   { path: '/admin/lectures/:lectureId', title: '강의 검수', roles: ADMIN },
+  { path: '/admin/chats/:chatRoomId', title: '채팅 기록', roles: ADMIN },
   { path: '/admin/disputes/:disputeId', title: '이의 제기 판정', roles: ADMIN },
   { path: '/admin/members/:memberId', title: '회원 상세', roles: ADMIN },
   { path: '/admin/deals/:dealId', title: '거래 상세', roles: ADMIN },
@@ -114,6 +116,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
   '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
+  '/admin/chats': <AdminChatHistoryPage />,
+  '/admin/chats/:chatRoomId': <AdminChatHistoryPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {
