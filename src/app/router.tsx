@@ -22,6 +22,7 @@ import { AdminInquiriesPage } from '@/pages/admin-inquiries/AdminInquiriesPage'
 import { AdminInquiryPage } from '@/pages/admin-inquiry/AdminInquiryPage'
 import { AdminLecturePage } from '@/pages/admin-lecture/AdminLecturePage'
 import { AdminLecturesPage } from '@/pages/admin-lectures/AdminLecturesPage'
+import { AdminPromotionsPage } from '@/pages/admin-promotions/AdminPromotionsPage'
 import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
 import { ChatPage } from '@/pages/chat/ChatPage'
@@ -132,6 +133,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/support': <SupportPage />,
   '/support/inquiries/:inquiryId': <InquiryPage />,
   '/admin/lectures': <AdminLecturesPage />,
+  '/admin/promotions': <AdminPromotionsPage />,
   '/admin/lectures/:lectureId': <AdminLecturePage />,
   '/admin/inquiries': <AdminInquiriesPage />,
   '/admin/inquiries/:inquiryId': <AdminInquiryPage />,
