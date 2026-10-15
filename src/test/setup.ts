@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
-import { afterAll, afterEach, beforeAll, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import { resetLectureDb } from '@/mocks/lecture'
 import { FakeStompClient } from './fakeStomp'
 import { server } from './server'
@@ -12,6 +12,10 @@ configure({ asyncUtilTimeout: 5000 })
 vi.mock('@stomp/stompjs', () => ({ Client: FakeStompClient }))
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
+// jsdom은 document.hasFocus()가 늘 false다. 사용자가 화면을 보고 있는 것으로 둔다(채팅 읽음 처리 기준).
+beforeEach(() => {
+  vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+})
 afterEach(() => {
   server.resetHandlers()
   resetLectureDb()

@@ -13,6 +13,7 @@ import {
   resolvePendingByIds,
   useChatStore,
 } from './chatStore'
+import { isPageActive } from './pageActive'
 
 type MessagePages = InfiniteData<ChatMessagePage, number | null>
 
@@ -196,8 +197,10 @@ export function applyIncomingMessage(
   )
 
   const { myUserId, viewingRoomId } = useChatStore.getState()
+  // 보고 있는 방이라도 탭이 가려졌거나 포커스가 없으면 아직 읽지 않은 것이다(다시 보일 때 읽음 처리).
   const countsAsUnread =
-    message.senderUserId !== myUserId && viewingRoomId !== message.chatRoomId
+    message.senderUserId !== myUserId &&
+    (viewingRoomId !== message.chatRoomId || !isPageActive())
   if (isFetching(queryClient, chatKeys.rooms()))
     roomArrivals.push({ message, countsAsUnread })
   const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
@@ -244,6 +247,15 @@ export function clearUnread(queryClient: QueryClient, chatRoomId: number) {
     list?.map((room) =>
       room.chatRoomId === chatRoomId ? { ...room, unreadCount: 0 } : room,
     ),
+  )
+}
+
+/** 방 목록 캐시의 이 방 안 읽은 수 */
+export function unreadOf(queryClient: QueryClient, chatRoomId: number) {
+  return (
+    queryClient
+      .getQueryData<ChatRoom[]>(chatKeys.rooms())
+      ?.find((room) => room.chatRoomId === chatRoomId)?.unreadCount ?? 0
   )
 }
 
