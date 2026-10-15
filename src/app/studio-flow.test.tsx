@@ -330,6 +330,36 @@ describe('강의 판매 화면', () => {
     expect(requested.sales[0]).toBe('0')
   })
 
+  it('URL의 페이지가 마지막 페이지를 넘으면 마지막 페이지로 옮긴다', async () => {
+    // Spring Page는 범위를 넘는 페이지에 빈 content와 실제 totalPages를 준다.
+    const respond = <T,>(request: Request, item: T) => {
+      const p = Number(new URL(request.url).searchParams.get('page'))
+      return rs({
+        content: p < 2 ? [item] : [],
+        page: { size: 20, number: p, totalElements: 21, totalPages: 2 },
+      })
+    }
+    server.use(
+      http.get('*/api/v1/lectures/me', ({ request }) =>
+        respond(request, myLecture({ title: '둘째 페이지 강의' })),
+      ),
+      http.get('*/api/v1/lectures/sales', ({ request }) =>
+        respond(request, sale({ lectureTitle: '둘째 페이지 판매' })),
+      ),
+    )
+    const router = renderApp(
+      '/studio?page=9&salesPage=9',
+      'VERIFIED_INFLUENCER',
+    )
+
+    expect(
+      await screen.findByRole('link', { name: '둘째 페이지 강의' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('둘째 페이지 판매')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?page=2&salesPage=2')
+    expect(screen.queryByText('등록한 강의가 없어요')).not.toBeInTheDocument()
+  })
+
   it('강의와 판매 내역이 없으면 빈 상태를 보여 준다', async () => {
     serveStudio()
     renderApp('/studio', 'VERIFIED_INFLUENCER')

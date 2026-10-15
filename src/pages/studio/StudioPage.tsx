@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { myLecturesQuery, salesQuery } from '@/entities/lecture/api'
 import { isRefunded } from '@/entities/lecture/sale'
@@ -8,6 +8,7 @@ import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
 import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { SaleStatusPill } from '@/entities/lecture/ui/SaleStatusPill'
 import { DeleteLectureModal } from '@/features/lecture-delete/DeleteLectureModal'
+import type { PagedModel } from '@/shared/api/types'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -21,14 +22,39 @@ function usePageParam(key: string) {
   const requested = Number(params.get(key) ?? 1)
   const page =
     Number.isSafeInteger(requested) && requested > 0 ? requested - 1 : 0
-  const setPage = (next: number) =>
-    setParams((prev) => {
-      const params = new URLSearchParams(prev)
-      if (next > 0) params.set(key, String(next + 1))
-      else params.delete(key)
-      return params
-    })
+  const setPage = (next: number, { replace = false } = {}) =>
+    setParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next > 0) params.set(key, String(next + 1))
+        else params.delete(key)
+        return params
+      },
+      { replace },
+    )
   return [page, setPage] as const
+}
+
+type PageQuery = { data?: PagedModel<unknown>; isPlaceholderData: boolean }
+
+/**
+ * URL의 페이지가 마지막 페이지를 넘으면(목록이 줄었거나 직접 입력) 마지막 페이지로 옮긴다.
+ * 옮기는 동안에는 true다. 그동안 빈 목록 대신 불러오는 중으로 보여 준다.
+ */
+function useClampPage(
+  page: number,
+  { data, isPlaceholderData }: PageQuery,
+  setPage: ReturnType<typeof usePageParam>[1],
+) {
+  const last =
+    data && !isPlaceholderData
+      ? Math.max(data.page.totalPages - 1, 0)
+      : undefined
+  const outOfRange = last !== undefined && page > last
+  useEffect(() => {
+    if (outOfRange) setPage(last, { replace: true })
+  }, [outOfRange, last, setPage])
+  return outOfRange || (isPlaceholderData && data?.content.length === 0)
 }
 
 export function StudioPage() {
@@ -51,13 +77,15 @@ export function StudioPage() {
 
 function MyLectures() {
   const [page, setPage] = usePageParam('page')
-  const { data, error, isPending, refetch } = useQuery(myLecturesQuery(page))
+  const query = useQuery(myLecturesQuery(page))
+  const { data, error, isPending, refetch } = query
+  const moving = useClampPage(page, query, setPage)
   const [deleting, setDeleting] = useState<MyLecture | null>(null)
 
   return (
     <section className="panel">
       <h2>내 강의</h2>
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -157,12 +185,14 @@ function MyLectureRow({
 
 function Sales() {
   const [page, setPage] = usePageParam('salesPage')
-  const { data, error, isPending, refetch } = useQuery(salesQuery(page))
+  const query = useQuery(salesQuery(page))
+  const { data, error, isPending, refetch } = query
+  const moving = useClampPage(page, query, setPage)
 
   return (
     <section className="panel">
       <h2>판매 내역</h2>
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
