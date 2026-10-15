@@ -63,3 +63,41 @@ export type ChatError = {
   /** 실패한 전송의 임시 ID. 보내지 않았거나 본문을 읽지 못했으면 null */
   clientMessageId?: string | null
 }
+
+/** 입장·퇴장 기록 종류 */
+export type ChatRoomEventType =
+  | 'ROOM_CREATED'
+  | 'MEMBER_JOINED'
+  | 'MEMBER_LEFT'
+  | 'MEMBER_REJOINED'
+  | 'ROOM_ENDED'
+
+export type ChatRoomLog = {
+  logId: number
+  /** 기록을 남긴 회원. 방 종료처럼 시스템 기록이면 null일 수 있다 */
+  actorUserId: number | null
+  eventType: ChatRoomEventType
+  occurredAt: string
+}
+
+/** 관리자 기록용 메시지. 참여자에게 숨겨진 메시지와 삭제된 메시지(deletedAt)도 온다 */
+export type ChatHistoryMessage = {
+  messageId: number
+  roomSequence: number
+  senderUserId: number
+  messageType: ChatMessageType
+  content: string
+  sentAt: string
+  deletedAt: string | null
+}
+
+/** GET /chats/admin/{chatRoomId}/history (관리자 분쟁 확인용). logs·messages는 오래된 순 */
+export type ChatRoomHistory = {
+  chatRoomId: number
+  status: ChatRoomStatus
+  createdAt: string
+  endedAt: string | null
+  members: ChatRoomMember[]
+  logs: ChatRoomLog[]
+  messages: ChatHistoryMessage[]
+}
