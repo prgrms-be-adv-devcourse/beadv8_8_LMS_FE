@@ -32,6 +32,8 @@ import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
 import { InquiryPage } from '@/pages/inquiry/InquiryPage'
 import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
 import { PromotePage } from '@/pages/promote/PromotePage'
+import { RecruitDetailPage } from '@/pages/recruit-detail/RecruitDetailPage'
+import { RecruitsPage } from '@/pages/recruits/RecruitsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { StudioPage } from '@/pages/studio/StudioPage'
 import { SupportPage } from '@/pages/support/SupportPage'
@@ -122,6 +124,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/profile/edit': <MyProfilePage />,
   '/promote': <PromotePage />,
   '/appearances': <AppearancesPage />,
+  '/recruits': <RecruitsPage />,
+  '/recruits/:recruitId': <RecruitDetailPage />,
   '/chat': <ChatPage />,
   '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
@@ -12,16 +11,16 @@ import type {
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
+import {
+  HOLD_POLL_INTERVAL_MS,
+  useLimitedPolling,
+} from '@/shared/lib/useLimitedPolling'
 import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AppearancesPage.module.css'
-
-/** HP 보류 결과를 기다리는 동안 보낸 요청 목록을 다시 부르는 간격·시간 */
-export const HOLD_POLL_INTERVAL_MS = 5_000
-export const HOLD_POLL_DURATION_MS = 60_000
 
 const TABS: { side: RequestSide; label: string }[] = [
   { side: 'host', label: '호스트로 (보낸 요청)' },
@@ -191,15 +190,4 @@ function RequestCard({
       </div>
     </Link>
   )
-}
-
-/** active인 동안 정해진 시간만 true. 그 뒤로는 수동 새로고침에 맡긴다. */
-function useLimitedPolling(active: boolean) {
-  const [expired, setExpired] = useState(false)
-  useEffect(() => {
-    if (!active) return
-    const timer = setTimeout(() => setExpired(true), HOLD_POLL_DURATION_MS)
-    return () => clearTimeout(timer)
-  }, [active])
-  return active && !expired
 }

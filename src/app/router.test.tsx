@@ -111,9 +111,10 @@ describe('내비 레일', () => {
       .map((a) => a.textContent)
   }
 
-  it('비회원은 홈·강의·출연 모집만 본다', async () => {
+  it('비회원은 홈·강의만 본다', async () => {
     renderAt('/lectures', 'GUEST')
-    expect(await navLabels()).toEqual(['홈', '강의', '출연 모집'])
+    // 출연 모집은 BE 목록·상세가 로그인 필수라 회원에게만 보인다.
+    expect(await navLabels()).toEqual(['홈', '강의'])
   })
 
   it('유저는 채널 인증을 보고 출연·강의 판매는 보지 않는다', async () => {
