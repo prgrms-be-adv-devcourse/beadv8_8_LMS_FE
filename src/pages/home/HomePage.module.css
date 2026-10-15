@@ -448,6 +448,10 @@
   color: var(--ink);
 }
 
+/*
+ * 반응형은 앱의 다른 화면처럼 뷰포트 기준 @media로 한다. 디자인 캔버스의 @container app은
+ * 목업 뷰어가 아트보드를 컨테이너 안에 그려서 쓰는 것이고, 실제 앱에는 app 컨테이너가 없다.
+ */
 @media (max-width: 960px) {
   .flow,
   .lectures {

@@ -166,4 +166,50 @@ describe('홈', () => {
       within(menu).getByRole('link', { name: '계정 설정' }),
     ).toHaveAttribute('href', '/settings')
   })
+
+  it('프로필 메뉴는 Esc와 바깥 클릭으로 닫힌다', async () => {
+    mockLectures(0)
+    renderApp('/', 'USER')
+    const avatar = await screen.findByRole('button', { name: '하늘 메뉴' })
+
+    await userEvent.click(avatar)
+    expect(avatar).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.keyboard('{Escape}')
+    expect(avatar).toHaveAttribute('aria-expanded', 'false')
+
+    await userEvent.click(avatar)
+    expect(avatar).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(
+      screen.getByRole('heading', { level: 1, name: /합방 상대를 찾고/ }),
+    )
+    expect(avatar).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('푸터 고객센터는 회원만 링크, 관리자는 문의 답변, 비회원은 글자만', async () => {
+    mockLectures(0)
+    renderApp('/', 'GUEST')
+    const guestFooter = await screen.findByRole('contentinfo')
+    expect(within(guestFooter).getByText('고객센터').tagName).toBe('SPAN')
+    expect(
+      within(guestFooter).queryByRole('link', { name: '고객센터' }),
+    ).toBeNull()
+  })
+
+  it('관리자 푸터는 문의 답변으로 연결한다', async () => {
+    mockLectures(0)
+    renderApp('/', 'ADMIN')
+    const footer = await screen.findByRole('contentinfo')
+    expect(
+      within(footer).getByRole('link', { name: '문의 답변' }),
+    ).toHaveAttribute('href', '/admin/inquiries')
+  })
+
+  it('회원 푸터는 고객센터로 연결한다', async () => {
+    mockLectures(0)
+    renderApp('/', 'USER')
+    const footer = await screen.findByRole('contentinfo')
+    expect(
+      within(footer).getByRole('link', { name: '고객센터' }),
+    ).toHaveAttribute('href', '/support')
+  })
 })

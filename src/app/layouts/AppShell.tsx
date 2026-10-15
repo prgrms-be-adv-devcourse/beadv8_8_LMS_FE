@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Link,
@@ -270,9 +270,26 @@ function ProfileMenu({ viewer }: { viewer: Viewer }) {
   const { data: me } = useQuery(meQuery)
   const logout = useLogout()
   const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+
+  // 열려 있는 동안 Esc나 메뉴 바깥을 누르면 닫는다.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    const onPointer = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onPointer)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('pointerdown', onPointer)
+    }
+  }, [open])
+
   if (!me) return null
   return (
-    <div className={styles.profile}>
+    <div className={styles.profile} ref={box}>
       <button
         type="button"
         className={styles.avatarBtn}

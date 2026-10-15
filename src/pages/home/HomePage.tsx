@@ -169,13 +169,20 @@ export function HomePage() {
       <footer className={styles.footer}>
         <div className={styles.wrap}>
           <span className={styles.footerLogo}>합방</span>
-          <Link to="/support">고객센터</Link>
+          <SupportLink viewer={viewer} />
           <span>이용약관</span>
           <span>개인정보 처리방침</span>
         </div>
       </footer>
     </div>
   )
+}
+
+/** 고객센터: 회원은 고객센터, 관리자는 문의 답변, 비회원은 글자만(고객센터는 회원 전용) */
+function SupportLink({ viewer }: { viewer: Viewer }) {
+  if (viewer === 'ADMIN') return <Link to="/admin/inquiries">문의 답변</Link>
+  if (viewer === 'GUEST') return <span>고객센터</span>
+  return <Link to="/support">고객센터</Link>
 }
 
 function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
@@ -344,6 +351,7 @@ function CampAction({ viewer }: { viewer: Viewer }) {
 
 /** 최근 판매 중인 강의 4개 (비회원도 볼 수 있는 강의 목록 API) */
 function LatestLectures({ guest }: { guest: boolean }) {
+  // 강의 목록 첫 화면과 같은 쿼리(같은 캐시)를 써서 4개만 보여 준다. 홈에서 강의로 넘어가면 바로 그려진다.
   const { data, error, isPending, refetch } = useQuery(
     lecturesQuery({ sort: 'LATEST', page: 0 }),
   )
