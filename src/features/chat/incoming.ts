@@ -60,7 +60,13 @@ export function applyIncomingMessage(
     }),
   )
   // 퇴장 안내(SYSTEM)·재입장은 참여 상태가 바뀐 것이고, 모르는 방의 메시지는 상대가 새로 시작한 방이다.
-  if (message.messageType === 'SYSTEM' || !cached || senderRejoined) {
+  // 출연 알림(NOTIFICATION)은 BE가 방을 새로 만들거나 나갔던 받는 사람(나)을 재입장시킨 뒤 보낸다.
+  if (
+    message.messageType === 'SYSTEM' ||
+    message.messageType === 'NOTIFICATION' ||
+    !cached ||
+    senderRejoined
+  ) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }
 }

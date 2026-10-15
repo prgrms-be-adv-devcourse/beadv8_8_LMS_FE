@@ -577,3 +577,95 @@ describe('채팅', () => {
     expect(FakeStompClient.instances).toHaveLength(0)
   })
 })
+
+describe('출연 알림', () => {
+  const requestNotice = (patch: Partial<ChatMessage> = {}) =>
+    message({
+      messageType: 'NOTIFICATION',
+      senderUserId: PARTNER_ID,
+      content:
+        '편집하는 고래님이 출연을 요청했습니다.\n제목: 주말 합방\n출연료: 30,000 HP',
+      notificationKind: 'APPEARANCE_REQUEST_SENT',
+      referenceId: 30,
+      parentReferenceId: null,
+      ...patch,
+    })
+
+  it('알림은 카드로 보여 주고 요청서로 이동하며, 방 목록에는 첫 줄만 보인다', async () => {
+    const notice = requestNotice()
+    mockChat([room({ lastMessage: notice, unreadCount: 1 })], [notice])
+    renderApp('/chat/5', 'INFLUENCER')
+
+    const card = await screen.findByRole('article', { name: '출연 알림' })
+    expect(
+      within(card).getByText('편집하는 고래님이 출연을 요청했습니다.'),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText(/제목: 주말 합방\s+출연료: 30,000 HP/),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByRole('link', { name: '요청서 보기' }),
+    ).toHaveAttribute('href', '/appearances/requests/30')
+    const list = screen.getByRole('navigation', { name: '대화 목록' })
+    expect(
+      within(list).getByText('편집하는 고래님이 출연을 요청했습니다.'),
+    ).toBeInTheDocument()
+    expect(within(list).queryByText(/제목: 주말 합방/)).toBeNull()
+  })
+
+  it('모집 지원 알림은 모집글로 이동하고, 모집글 ID가 없던 옛 알림은 링크가 없다', async () => {
+    mockChat(
+      [room()],
+      [
+        message({
+          messageType: 'NOTIFICATION',
+          content:
+            '편집하는 고래님이 출연 모집에 지원했습니다.\n모집글: 새 지원',
+          notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
+          referenceId: 4,
+          parentReferenceId: 7,
+        }),
+        message({
+          messageType: 'NOTIFICATION',
+          content:
+            '편집하는 고래님이 출연 모집에 지원했습니다.\n모집글: 옛 지원',
+          notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
+          referenceId: 3,
+          parentReferenceId: null,
+        }),
+      ],
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+
+    const cards = await screen.findAllByRole('article', { name: '출연 알림' })
+    // 이력은 최신순으로 오므로 화면에서는 옛 알림이 먼저다.
+    expect(within(cards[0]).getByText('모집글: 옛 지원')).toBeInTheDocument()
+    expect(within(cards[0]).queryByRole('link')).toBeNull()
+    expect(
+      within(cards[1]).getByRole('link', { name: '모집글 보기' }),
+    ).toHaveAttribute('href', '/recruits/7')
+  })
+
+  it('알림을 받으면 방 목록을 다시 불러온다(받는 사람 재입장·새 방)', async () => {
+    let roomCalls = 0
+    mockChat([room()], [])
+    server.use(
+      http.get('*/api/v1/chats', () => {
+        roomCalls++
+        return rs([room()])
+      }),
+    )
+    renderApp('/chat', 'INFLUENCER')
+    const client = await connectSocket()
+    await waitFor(() => expect(roomCalls).toBeGreaterThan(0))
+    const before = roomCalls
+
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        requestNotice({ roomSequence: 3 }),
+      ),
+    )
+    await waitFor(() => expect(roomCalls).toBe(before + 1))
+  })
+})

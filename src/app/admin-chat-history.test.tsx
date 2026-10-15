@@ -56,6 +56,18 @@ const history: ChatRoomHistory = {
       deletedAt: '2026-10-11T19:00:00',
     },
     {
+      messageId: 103,
+      roomSequence: 4,
+      senderUserId: 8,
+      messageType: 'NOTIFICATION',
+      content: '새벽님이 출연 모집에 지원했습니다.\n모집글: 주말 합방',
+      sentAt: '2026-10-10T10:03:00',
+      deletedAt: null,
+      notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
+      referenceId: 4,
+      parentReferenceId: 7,
+    },
+    {
       messageId: 102,
       roomSequence: 3,
       senderUserId: 8,
@@ -97,14 +109,21 @@ describe('관리자 채팅 기록', () => {
     const items = within(list)
       .getAllByRole('listitem')
       .map((li) => li.textContent)
-    expect(items).toHaveLength(6)
+    expect(items).toHaveLength(7)
     expect(items[0]).toMatch(/하루님이 채팅방을 만들었어요/)
     expect(items[1]).toMatch(/하루.*토요일 9시 방송 맞죠\?/)
     expect(items[2]).toMatch(/새벽.*삭제됨.*네 들어갈게요/)
     // 같은 시각이면 입장·퇴장 기록이 시스템 안내보다 먼저
-    expect(items[3]).toMatch(/새벽님이 나갔어요/)
-    expect(items[4]).toMatch(/새벽님이 나갔습니다\./)
-    expect(items[5]).toMatch(/채팅방이 종료됐어요/)
+    expect(items[3]).toMatch(
+      /출연 알림.*모집에 지원했습니다.*모집 지원 #4 · 모집글 #7/s,
+    )
+    expect(items[4]).toMatch(/새벽님이 나갔어요/)
+    expect(items[5]).toMatch(/새벽님이 나갔습니다\./)
+    expect(items[6]).toMatch(/채팅방이 종료됐어요/)
+    expect(screen.getByRole('link', { name: '모집글 #7' })).toHaveAttribute(
+      'href',
+      '/recruits/7',
+    )
 
     expect(screen.getByText('종료')).toBeInTheDocument()
     expect(screen.getByText(/하루 \(회원 #7\) · 나감/)).toBeInTheDocument()

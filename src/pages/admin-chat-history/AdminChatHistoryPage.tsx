@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { chatHistoryQuery } from '@/entities/chat/api'
 import type {
   ChatHistoryMessage,
@@ -210,6 +210,9 @@ function MessageItem({
         <b>{sender}</b>
         <span className="fine num">{formatDateTime(message.sentAt)}</span>
         <span className="fine num">#{message.roomSequence}</span>
+        {message.messageType === 'NOTIFICATION' && (
+          <span className="pill info">출연 알림</span>
+        )}
         {deleted && (
           <span className="pill bad">
             삭제됨 · {formatDateTime(message.deletedAt!)}
@@ -217,6 +220,34 @@ function MessageItem({
         )}
       </div>
       <p className={styles.text}>{message.content}</p>
+      {message.messageType === 'NOTIFICATION' && (
+        <NotificationRefs message={message} />
+      )}
     </li>
   )
+}
+
+/**
+ * 알림이 가리키는 출연 건 번호. 요청서 화면은 당사자(인플루언서)만 열 수 있어 번호만 보여 주고,
+ * 모집글은 관리자도 열 수 있어 링크를 단다.
+ */
+function NotificationRefs({ message }: { message: ChatHistoryMessage }) {
+  const { notificationKind, referenceId, parentReferenceId } = message
+  if (notificationKind === 'APPEARANCE_REQUEST_SENT')
+    return <span className="fine">출연 요청서 #{referenceId}</span>
+  if (notificationKind === 'APPEARANCE_APPLICATION_SUBMITTED')
+    return (
+      <span className="fine">
+        모집 지원 #{referenceId}
+        {parentReferenceId && (
+          <>
+            {' · '}
+            <Link className="link" to={`/recruits/${parentReferenceId}`}>
+              모집글 #{parentReferenceId}
+            </Link>
+          </>
+        )}
+      </span>
+    )
+  return null
 }

@@ -13,7 +13,9 @@ import {
   partnerOf,
   sortRoomsByRecent,
 } from '@/entities/chat/api'
+import { firstLine } from '@/entities/chat/notification'
 import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
+import { NotificationCard } from '@/entities/chat/ui/NotificationCard'
 import {
   discardPending,
   retryPending,
@@ -150,6 +152,7 @@ function roomPreview(
   if (partnerActive === false) return '상대가 나간 대화'
   const last = room.lastMessage
   if (!last) return `${formatDate(room.createdAt)} 시작`
+  if (last.messageType === 'NOTIFICATION') return firstLine(last.content)
   return last.senderUserId === myUserId && last.messageType === 'TEXT'
     ? `나: ${last.content}`
     : last.content
@@ -405,6 +408,14 @@ function MessageItem({
 }) {
   if (message.messageType === 'SYSTEM')
     return <p className={styles.system}>{message.content}</p>
+  if (message.messageType === 'NOTIFICATION')
+    return (
+      <NotificationCard
+        {...message}
+        time={timeFormatter.format(parseServerDate(message.sentAt))}
+        dateTime={message.sentAt}
+      />
+    )
   return (
     <div className={mine ? `${styles.msg} ${styles.me}` : styles.msg}>
       <div className={styles.bubble}>{message.content}</div>

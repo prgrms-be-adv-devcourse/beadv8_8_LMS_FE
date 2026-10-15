@@ -1,8 +1,27 @@
 /** 방 상태. 두 사람 모두 나가면 ENDED가 되고 다시 활성화하지 않는다 */
 export type ChatRoomStatus = 'ACTIVE' | 'ENDED'
 
-/** TEXT: 회원이 보낸 메시지, SYSTEM: 서버가 남긴 안내(예: "{닉네임}님이 나갔습니다.") */
-export type ChatMessageType = 'TEXT' | 'SYSTEM'
+/**
+ * TEXT: 회원이 보낸 메시지, SYSTEM: 서버가 남긴 안내(예: "{닉네임}님이 나갔습니다."),
+ * NOTIFICATION: 출연 모듈 이벤트로 남긴 알림(예: 출연 요청 도착). 보낸 사람은 출연 건의 행위자다
+ */
+export type ChatMessageType = 'TEXT' | 'SYSTEM' | 'NOTIFICATION'
+
+/**
+ * 알림 종류
+ * - APPEARANCE_REQUEST_SENT: 출연 요청 도착(게스트가 받음). referenceId = 요청서 ID
+ * - APPEARANCE_APPLICATION_SUBMITTED: 출연 모집 지원 도착(호스트가 받음). referenceId = 지원 ID, parentReferenceId = 모집글 ID
+ */
+export type NotificationKind =
+  'APPEARANCE_REQUEST_SENT' | 'APPEARANCE_APPLICATION_SUBMITTED'
+
+/** 알림 메시지에만 값이 있다. 다른 메시지는 null */
+export type NotificationFields = {
+  notificationKind?: NotificationKind | null
+  referenceId?: number | null
+  /** 상위 출연 건 ID(지원 알림의 모집글 ID). BE #232 전에 남은 알림은 null */
+  parentReferenceId?: number | null
+}
 
 export type ChatRoomMember = {
   userId: number
@@ -27,7 +46,7 @@ export type ChatRoom = {
 }
 
 /** 메시지 이력·실시간 수신(/user/queue/chats/messages) */
-export type ChatMessage = {
+export type ChatMessage = NotificationFields & {
   messageId: number
   chatRoomId: number
   /** 방 단위 순번. 이력 조회 cursor로도 쓴다 */
@@ -81,7 +100,7 @@ export type ChatRoomLog = {
 }
 
 /** 관리자 기록용 메시지. 참여자에게 숨겨진 메시지와 삭제된 메시지(deletedAt)도 온다 */
-export type ChatHistoryMessage = {
+export type ChatHistoryMessage = NotificationFields & {
   messageId: number
   roomSequence: number
   senderUserId: number
