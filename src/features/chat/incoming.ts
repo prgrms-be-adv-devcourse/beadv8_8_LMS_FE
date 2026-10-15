@@ -7,7 +7,12 @@ import type {
   ChatRoom,
 } from '@/entities/chat/types'
 import { toast } from '@/shared/ui/toastStore'
-import { failPending, resolvePending, useChatStore } from './chatStore'
+import {
+  failPending,
+  resolvePending,
+  resolvePendingByIds,
+  useChatStore,
+} from './chatStore'
 
 type MessagePages = InfiniteData<ChatMessagePage, number | null>
 
@@ -86,7 +91,21 @@ function reapplyToRooms(rooms: ChatRoom[], arrivals: RoomArrival[]) {
 }
 
 /**
- * 채팅 조회(이력·방 목록)가 성공할 때마다 그동안 도착해 보관한 메시지를 결과에 다시 반영한다.
+ * 서버에 저장된 내 메시지의 임시 ID로 보내는 중·실패 표시를 정리한다(응답을 놓친 전송의 결과 복구).
+ * 내 메시지에만 clientMessageId가 담기지만, 이전 BE를 생각해 보낸 사람도 확인한다.
+ */
+function resolveSavedPending(chatRoomId: number, messages: ChatMessage[]) {
+  const { myUserId } = useChatStore.getState()
+  const ids = new Set<string>()
+  for (const m of messages)
+    if (m.clientMessageId && m.senderUserId === myUserId)
+      ids.add(m.clientMessageId)
+  resolvePendingByIds(chatRoomId, ids)
+}
+
+/**
+ * 채팅 조회(이력·방 목록)가 성공할 때마다 그동안 도착해 보관한 메시지를 결과에 다시 반영하고,
+ * 이력 조회 결과의 저장된 내 메시지로 보내는 중·실패 표시를 정리한다.
  * 채팅 연결이 있는 동안 구독하고, 돌려준 함수로 구독을 끊고 보관한 메시지를 버린다.
  */
 export function watchChatLoads(queryClient: QueryClient) {
@@ -108,13 +127,24 @@ export function watchChatLoads(queryClient: QueryClient) {
     )
       return
     if (kind === 'messages') {
-      const arrived = historyArrivals.get(Number(chatRoomId))
-      if (!arrived) return
-      historyArrivals.delete(Number(chatRoomId))
-      queryClient.setQueryData<MessagePages>(event.query.queryKey, (data) =>
-        data ? mergeIntoPages(data, arrived) : data,
-      )
+      const roomId = Number(chatRoomId)
+      const arrived = historyArrivals.get(roomId)
+      if (arrived) {
+        historyArrivals.delete(roomId)
+        queryClient.setQueryData<MessagePages>(event.query.queryKey, (data) =>
+          data ? mergeIntoPages(data, arrived) : data,
+        )
+      }
+      const data = queryClient.getQueryData<MessagePages>(event.query.queryKey)
+      if (data)
+        resolveSavedPending(
+          roomId,
+          data.pages.flatMap((p) => p.messages),
+        )
     } else if (kind === 'rooms' && roomArrivals.length > 0) {
+      // 방 목록의 마지막 메시지로는 보내는 중 표시를 정리하지 않는다. 보내는 중 표시는 그 방 대화에서만
+      // 보이고 대화를 열면 이력을 불러와 정리된다. 방 목록만으로 정리하면 이력이 그보다 오래된 경우
+      // 메시지가 화면에서 사라진다.
       const arrived = roomArrivals
       roomArrivals = []
       queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (rooms) =>

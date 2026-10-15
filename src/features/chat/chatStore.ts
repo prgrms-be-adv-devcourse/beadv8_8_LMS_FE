@@ -74,14 +74,26 @@ export function sendChatMessage(chatRoomId: number, content: string) {
   if (!sent) failPending(clientMessageId, '채팅 서버에 연결되지 않았어요.')
 }
 
-/** 실패한 메시지를 같은 내용으로 다시 보낸다(새 임시 ID) */
+/**
+ * 실패한 메시지를 같은 임시 ID로 다시 보낸다. 사실은 저장됐는데 응답만 놓친 경우 서버가 새로 저장하지 않고
+ * 기존 메시지를 같은 clientMessageId로 돌려주므로(BE #261) 두 번 보내지지 않는다.
+ */
 export function retryPending(chatRoomId: number, clientMessageId: string) {
   const target = useChatStore
     .getState()
     .pending[chatRoomId]?.find((p) => p.clientMessageId === clientMessageId)
   if (!target) return
-  discardPending(chatRoomId, clientMessageId)
-  sendChatMessage(chatRoomId, target.content)
+  updatePending(chatRoomId, (list) =>
+    list.map((p) =>
+      p.clientMessageId === clientMessageId
+        ? { clientMessageId, content: p.content, status: 'sending' }
+        : p,
+    ),
+  )
+  const sent = useChatStore
+    .getState()
+    .publish(chatRoomId, target.content, clientMessageId)
+  if (!sent) failPending(clientMessageId, '채팅 서버에 연결되지 않았어요.')
 }
 
 export function discardPending(chatRoomId: number, clientMessageId: string) {
@@ -105,6 +117,21 @@ export function resolvePending(message: ChatMessage) {
     )
     return index < 0 ? list : list.filter((_, i) => i !== index)
   })
+}
+
+/**
+ * 서버에 저장된 내 메시지(이력·방 목록의 clientMessageId)와 같은 임시 ID의 보내는 중·실패 표시를 지운다.
+ * 재연결 등으로 응답을 놓쳤어도 저장된 메시지는 성공으로 정리된다.
+ */
+export function resolvePendingByIds(
+  chatRoomId: number,
+  clientMessageIds: ReadonlySet<string>,
+) {
+  if (clientMessageIds.size === 0) return
+  if (!useChatStore.getState().pending[chatRoomId]) return
+  updatePending(chatRoomId, (list) =>
+    list.filter((p) => !clientMessageIds.has(p.clientMessageId)),
+  )
 }
 
 export function failPending(clientMessageId: string, error: string) {
@@ -132,7 +159,7 @@ export function failAllSending() {
               ...p,
               status: 'failed',
               error:
-                '연결이 끊겨 전송 여부를 확인하지 못했어요. 대화에 없으면 다시 보내 주세요.',
+                '연결이 끊겨 전송 여부를 확인하지 못했어요. 다시 연결되면 저장된 메시지는 자동으로 정리되고, 다시 보내도 두 번 보내지지 않아요.',
             }
           : p,
       )
