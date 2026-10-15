@@ -5,15 +5,22 @@ import type { PagedModel } from '@/shared/api/types'
 import { uploadBody, type UploadOptions } from '@/shared/api/upload'
 import type {
   ContentAccess,
+  InspectionLecture,
   LectureDetail,
   LectureFileInput,
   LectureRegisterInput,
   LectureSort,
+  LectureStatus,
   LectureSummary,
   MyLecture,
   Review,
   Sale,
 } from './types'
+
+export type InspectionListParams = {
+  status: LectureStatus
+  page: number
+}
 
 export type LectureListParams = {
   keyword?: string
@@ -33,6 +40,10 @@ export const lectureKeys = {
     [...lectureKeys.all, 'access', lectureId, contentId] as const,
   mine: (page: number) => [...lectureKeys.all, 'mine', page] as const,
   sales: (page: number) => [...lectureKeys.all, 'sales', page] as const,
+  inspections: (params: InspectionListParams) =>
+    [...lectureKeys.all, 'inspections', params] as const,
+  adminDetail: (lectureId: number) =>
+    [...lectureKeys.all, 'admin-detail', lectureId] as const,
 }
 
 export const LECTURE_PAGE_SIZE = 12
@@ -157,4 +168,46 @@ export function uploadLectureFileContent(
 /** 강의 등록. 검수 대기(PENDING_INSPECTION, 비공개)로 시작한다 */
 export function createLecture(input: LectureRegisterInput) {
   return api<{ id: number }>('/lectures', { method: 'POST', body: input })
+}
+
+// ── 관리자 검수 ──
+
+/** 관리자 검수 목록 크기. BE 기본값과 같다. */
+export const INSPECTION_PAGE_SIZE = 20
+
+/** 상태별 검수 목록. 정렬은 BE가 검수 신청 오래된 순으로 고정한다. */
+export const inspectionsQuery = (params: InspectionListParams) =>
+  queryOptions({
+    queryKey: lectureKeys.inspections(params),
+    queryFn: () =>
+      api<PagedModel<InspectionLecture>>('/lectures/admin/inspections', {
+        query: {
+          status: params.status,
+          page: params.page,
+          size: INSPECTION_PAGE_SIZE,
+        },
+      }),
+    placeholderData: keepPreviousData,
+  })
+
+/** 관리자 상세. 검수 대기·반려·삭제한 강의도 반려 사유와 함께 본다(BE D30). */
+export const adminLectureQuery = (lectureId: number) =>
+  queryOptions({
+    queryKey: lectureKeys.adminDetail(lectureId),
+    queryFn: () => api<LectureDetail>(`/lectures/admin/${lectureId}`),
+  })
+
+/** 승인. 검수 대기 → 판매 중(204). 검수 대기가 아니면 409 NOT_PENDING_INSPECTION */
+export function approveLecture(lectureId: number) {
+  return api<void>(`/lectures/admin/${lectureId}/inspection/approve`, {
+    method: 'POST',
+  })
+}
+
+/** 반려. 검수 대기 → 반려(204). 사유는 판매자에게 그대로 보인다 */
+export function rejectLecture(lectureId: number, reason: string) {
+  return api<void>(`/lectures/admin/${lectureId}/inspection/reject`, {
+    method: 'POST',
+    body: { reason },
+  })
 }

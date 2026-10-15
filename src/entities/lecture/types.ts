@@ -111,6 +111,18 @@ export type MyLecture = {
   createdAt: string
 }
 
+/** GET /lectures/admin/inspections 한 줄. 삭제한 강의는 담지 않는다 */
+export type InspectionLecture = {
+  lectureId: number
+  sellerUserId: number
+  sellerNickname: string
+  title: string
+  priceHp: number
+  status: LectureStatus
+  /** 마지막 검수 신청 시각. 목록은 상태와 관계없이 이 값의 오래된 순이다 */
+  inspectionRequestedAt: string
+}
+
 /** GET /lectures/sales 한 줄 (주문 항목 하나). 취소·반환한 것도 담는다 */
 export type Sale = {
   orderItemId: number
