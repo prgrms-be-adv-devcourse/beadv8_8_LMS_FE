@@ -218,7 +218,11 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const loadOlder = () => {
     const box = listRef.current
     if (box) keepOffset.current = box.scrollHeight - box.scrollTop
-    void fetchNextPage()
+    // 실패하면 메시지가 늘지 않아 위치를 되돌리는 효과가 돌지 않는다. 기억한 위치를 지워야
+    // 그 뒤 새 메시지가 왔을 때 맨 아래로 내려간다(다시 시도하면 새로 잡는다).
+    void fetchNextPage().then((result) => {
+      if (result.isError) keepOffset.current = null
+    })
   }
 
   const send = (e: FormEvent) => {

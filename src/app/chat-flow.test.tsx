@@ -1099,3 +1099,59 @@ describe('다시 불러오기 실패 시 보이던 화면 유지', () => {
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 })
+
+describe('이전 메시지 조회 실패 뒤 스크롤', () => {
+  const original = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    'scrollHeight',
+  )
+  afterEach(() => {
+    if (original)
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', original)
+  })
+
+  it('이전 메시지를 못 불러온 뒤 새 메시지가 오면 맨 아래로 내려간다', async () => {
+    // jsdom은 레이아웃이 없어 scrollHeight가 0이다. 자식 수에 비례하게 흉내 낸다.
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.childElementCount * 100
+      },
+    })
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats/5/messages', ({ request }) =>
+        new URL(request.url).searchParams.get('cursor')
+          ? HttpResponse.json(
+              { status: 400, code: 'INVALID_REQUEST', detail: '실패' },
+              { status: 400 },
+            )
+          : rs({
+              messages: [message({ content: '최근 메시지', roomSequence: 2 })],
+              nextCursor: 2,
+            }),
+      ),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText('최근 메시지')
+    const client = await connectSocket()
+    const box = thread.querySelector('[aria-live="polite"]') as HTMLElement
+
+    // 위로 올려 이전 메시지를 부르다 실패한다.
+    box.scrollTop = 0
+    await userEvent.click(
+      within(thread).getByRole('button', { name: '이전 메시지 더 보기' }),
+    )
+    await within(thread).findByRole('alert')
+
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '새로 온 메시지', roomSequence: 3 }),
+      ),
+    )
+    await within(thread).findByText('새로 온 메시지')
+    expect(box.scrollTop).toBe(box.scrollHeight)
+  })
+})
