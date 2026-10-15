@@ -89,7 +89,7 @@ describe('라우트 가드', () => {
   })
 
   it('권한이 있으면 화면을 보여 준다', async () => {
-    renderAt('/studio/new', 'VERIFIED_INFLUENCER')
+    renderAt('/studio/lectures/new', 'VERIFIED_INFLUENCER')
     expect(
       await screen.findByRole('heading', { name: '강의 등록' }),
     ).toBeInTheDocument()
