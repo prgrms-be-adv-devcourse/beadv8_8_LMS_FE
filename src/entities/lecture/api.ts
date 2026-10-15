@@ -7,7 +7,9 @@ import type {
   LectureDetail,
   LectureSort,
   LectureSummary,
+  MyLecture,
   Review,
+  Sale,
 } from './types'
 
 export type LectureListParams = {
@@ -26,6 +28,8 @@ export const lectureKeys = {
     [...lectureKeys.all, 'reviews', lectureId] as const,
   access: (lectureId: number, contentId: number) =>
     [...lectureKeys.all, 'access', lectureId, contentId] as const,
+  mine: (page: number) => [...lectureKeys.all, 'mine', page] as const,
+  sales: (page: number) => [...lectureKeys.all, 'sales', page] as const,
 }
 
 export const LECTURE_PAGE_SIZE = 12
@@ -43,6 +47,31 @@ export const lecturesQuery = (params: LectureListParams) =>
         },
       }),
     // 검색어·정렬·페이지를 바꾸는 동안 이전 목록을 그대로 보여 준다.
+    placeholderData: keepPreviousData,
+  })
+
+/** 판매자 화면(/studio) 목록 크기. BE 기본값과 같다. */
+export const STUDIO_PAGE_SIZE = 20
+
+/** 내가 등록한 강의. 검수 대기·반려·삭제한 강의도 담는다. */
+export const myLecturesQuery = (page: number) =>
+  queryOptions({
+    queryKey: lectureKeys.mine(page),
+    queryFn: () =>
+      api<PagedModel<MyLecture>>('/lectures/me', {
+        query: { page, size: STUDIO_PAGE_SIZE },
+      }),
+    placeholderData: keepPreviousData,
+  })
+
+/** 내 강의 판매 내역. 최근 구매순이고 취소·반환도 담는다. */
+export const salesQuery = (page: number) =>
+  queryOptions({
+    queryKey: lectureKeys.sales(page),
+    queryFn: () =>
+      api<PagedModel<Sale>>('/lectures/sales', {
+        query: { page, size: STUDIO_PAGE_SIZE },
+      }),
     placeholderData: keepPreviousData,
   })
 
@@ -91,4 +120,9 @@ export function updateReview(reviewId: number, input: ReviewInput) {
 
 export function deleteReview(reviewId: number) {
   return api<void>(`/lectures/reviews/${reviewId}`, { method: 'DELETE' })
+}
+
+/** 목록 노출과 신규 판매만 멈춘다(soft delete). 이미 삭제한 강의도 204다. */
+export function deleteLecture(lectureId: number) {
+  return api<void>(`/lectures/${lectureId}`, { method: 'DELETE' })
 }

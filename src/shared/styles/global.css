@@ -466,6 +466,45 @@ p {
   color: var(--ink);
   font-weight: 600;
 }
+.app-note {
+  font-size: 13px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* 표. 좁은 화면에서는 .tbl-wrap 안에서 가로로 넘긴다 */
+.tbl-wrap {
+  overflow-x: auto;
+  margin: 0 -4px;
+}
+table.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 560px;
+}
+.tbl th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-3);
+  font-size: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.tbl tr:last-child td {
+  border-bottom: 0;
+}
+.tbl .r {
+  text-align: right;
+}
 
 /* 금액 내역 */
 .breakdown {

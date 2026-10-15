@@ -25,6 +25,7 @@ import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProf
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
 import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { StudioPage } from '@/pages/studio/StudioPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
@@ -63,9 +64,13 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/chat/:chatRoomId', title: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
   { path: '/wallet/charge/result', title: '충전 결과', roles: MEMBER },
   { path: '/wallet/account', title: '환전 계좌', roles: INFLUENCER },
-  { path: '/studio/new', title: '강의 등록', roles: ['VERIFIED_INFLUENCER'] },
   {
-    path: '/studio/:lectureId/edit',
+    path: '/studio/lectures/new',
+    title: '강의 등록',
+    roles: ['VERIFIED_INFLUENCER'],
+  },
+  {
+    path: '/studio/lectures/:lectureId/edit',
     title: '강의 수정',
     roles: ['VERIFIED_INFLUENCER'],
   },
@@ -106,6 +111,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/chat': <ChatPage />,
   '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
+  '/studio': <StudioPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {
