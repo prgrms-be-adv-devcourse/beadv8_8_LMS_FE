@@ -149,7 +149,9 @@ export const channelReviewsQuery = (
       api<PagedModel<ChannelReview>>('/members/admin/channels', {
         query: { status, page, size: 10 },
       }),
-    placeholderData: keepPreviousData,
+    // 페이지를 옮길 때만 이전 목록을 둔다. 상태 탭이 바뀌면 다른 탭의 행과 심사 버튼이 남지 않게 비운다.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === status ? previous : undefined,
   })
 
 /** 승인: 회원이 유저면 인플루언서가 되고, 그 회원 세션 권한도 BE가 바로 바꾼다 */

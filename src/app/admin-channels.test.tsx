@@ -221,6 +221,40 @@ describe('관리자 채널 인증 심사', () => {
     expect(approveCalls).toBe(1)
   })
 
+  it('상태 탭을 바꾸면 새 목록이 올 때까지 이전 탭의 행과 심사 버튼을 보이지 않는다', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    server.use(
+      http.get('*/api/v1/members/admin/channels', async ({ request }) => {
+        const status = new URL(request.url).searchParams.get('status')
+        if (status === 'REJECTED') await gate
+        return HttpResponse.json({
+          statusCode: 200,
+          message: '',
+          data: {
+            content: memberDb.channels.filter((c) => c.status === status),
+            page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
+          },
+        })
+      }),
+    )
+    renderApp('/admin/channels', 'ADMIN')
+    await item('새벽기타')
+    const tabs = screen.getByRole('group', { name: '심사 상태' })
+    await userEvent.click(within(tabs).getByRole('button', { name: '반려' }))
+
+    // 응답 전: 대기 탭의 행과 승인 버튼이 남지 않는다.
+    expect(
+      screen.queryByRole('listitem', { name: '새벽기타의 채널 인증 신청' }),
+    ).toBeNull()
+    // (상태 탭에도 '승인' 버튼이 있으므로 목록 자체가 없는지 본다)
+    expect(screen.queryByRole('list', { name: '채널 심사 목록' })).toBeNull()
+    expect(screen.getByText('불러오는 중…')).toBeInTheDocument()
+
+    release()
+    expect(await item('노을')).toBeInTheDocument()
+  })
+
   it('관리자가 아니면 열 수 없다', async () => {
     renderApp('/admin/channels', 'VERIFIED_INFLUENCER')
     expect(await screen.findByText(/권한|볼 수 없/)).toBeInTheDocument()
