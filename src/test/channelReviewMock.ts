@@ -3,9 +3,9 @@ import type { ChannelReview } from '@/entities/member/types'
 import type { PagedModel, RsData } from '@/shared/api/types'
 
 /**
- * 관리자 채널 인증 심사(GET /members/admin/channels, 승인·반려) 목. 로컬 BE에 심사 대기 채널이 없어도
- * 화면을 확인할 수 있게 한다(VITE_ENABLE_MSW=true일 때만 BE 대신 쓰인다). 데이터는 메모리에만 둔다.
- * 응답 형식은 BE ChannelReviewResponse와 같다.
+ * 테스트 전용: 관리자 채널 인증 심사(GET /members/admin/channels, 승인·반려)를 BE처럼 흉내 내는 MSW 핸들러.
+ * 데이터는 메모리에 두고 테스트마다 resetChannelReviewDb()로 초기화한다. 응답 형식은 BE ChannelReviewResponse와 같다.
+ * 개발 서버에서는 쓰지 않는다(실제 BE를 쓴다).
  */
 
 const sample = (): ChannelReview[] => [
@@ -87,10 +87,10 @@ const sample = (): ChannelReview[] => [
   },
 ]
 
-export const memberDb = { channels: sample() }
+export const channelReviewDb = { channels: sample() }
 
-export function resetMemberDb() {
-  memberDb.channels = sample()
+export function resetChannelReviewDb() {
+  channelReviewDb.channels = sample()
 }
 
 const ok = <T>(data: T) =>
@@ -120,7 +120,9 @@ function nowKst() {
 
 /** 심사 대기 채널을 찾는다. 없으면 BE와 같은 오류 응답 */
 function findReviewable(channelId: number) {
-  const channel = memberDb.channels.find((c) => c.channelId === channelId)
+  const channel = channelReviewDb.channels.find(
+    (c) => c.channelId === channelId,
+  )
   if (!channel)
     return problem(404, 'CHANNEL_NOT_FOUND', '채널을 찾을 수 없습니다.')
   if (channel.status !== 'PENDING')
@@ -132,12 +134,12 @@ function findReviewable(channelId: number) {
   return channel
 }
 
-export const memberHandlers: AnyHandler[] = [
+export const channelReviewHandlers: AnyHandler[] = [
   http.get('*/api/v1/members/admin/channels', ({ request }) => {
     const url = new URL(request.url)
     const status = url.searchParams.get('status') ?? 'PENDING'
     // 오래된 신청부터 (BE와 같은 고정 정렬)
-    const items = memberDb.channels
+    const items = channelReviewDb.channels
       .filter((c) => c.status === status)
       .sort((a, b) =>
         (a.requestedAt ?? a.followerCountAt ?? '').localeCompare(

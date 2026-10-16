@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
-import { resetMemberDb } from '@/mocks/member'
 import { FakeStompClient } from './fakeStomp'
 import { server } from './server'
 
@@ -18,7 +17,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   server.resetHandlers()
-  resetMemberDb()
   FakeStompClient.reset()
   cleanup()
   document.cookie.split('; ').forEach((c) => {
