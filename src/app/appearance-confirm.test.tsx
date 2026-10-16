@@ -12,6 +12,7 @@ import type {
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { expectSuccessToast } from '@/test/toast'
 
 const PARTNER_ID = 8
 
@@ -165,11 +166,8 @@ describe('출연 확인·불참 (호스트)', () => {
       within(dialog).getByRole('button', { name: '출연 확인' }),
     )
 
-    expect(
-      await screen.findByText(
-        '출연을 확인했어요. 게스트에게 25,000 HP가 지급돼요.',
-      ),
-    ).toBeInTheDocument()
+    // 지급이 처리 중(PENDING)이라 토스트는 확인 결과만 말한다.
+    await expectSuccessToast('출연을 확인했어요.')
     expect(token).toBe('t')
     expect(await screen.findByText(/· 호스트 확인/)).toBeInTheDocument()
     expect(screen.getByText('출연료 지급을 처리 중이에요.')).toBeInTheDocument()
@@ -178,6 +176,38 @@ describe('출연 확인·불참 (호스트)', () => {
     await waitFor(() => expect(wallet.wallet).toBeGreaterThan(walletBefore))
     await settleDetail()
   })
+
+  it.each(['DONE', 'DEAD'] as const)(
+    '지급 상태가 %s여도 토스트는 지급 완료를 말하지 않는다',
+    async (hpPayoutStatus) => {
+      const current = { value: appearance() }
+      mockAppearance(current)
+      server.use(
+        http.post('*/api/v1/appearances/40/confirm', () => {
+          current.value = appearance({
+            status: 'CONFIRMED',
+            confirmType: 'HOST',
+            confirmedAt: '2026-10-16T10:00:00',
+            hpPayoutStatus,
+          })
+          return rs(current.value)
+        }),
+      )
+      renderApp('/appearances/40', 'INFLUENCER')
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: '출연 확인' }),
+      )
+      const dialog = screen.getByRole('dialog', { name: '출연을 확인할까요?' })
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: '출연 확인' }),
+      )
+
+      await expectSuccessToast('출연을 확인했어요.')
+      expect(await screen.findByText(/· 호스트 확인/)).toBeInTheDocument()
+      await settleDetail()
+    },
+  )
 
   it('불참은 사유(선택)를 보내고 출연료 반환 진행 상태를 보여 준다', async () => {
     const current = { value: appearance() }
@@ -212,11 +242,7 @@ describe('출연 확인·불참 (호스트)', () => {
       within(dialog).getByRole('button', { name: '불참 처리' }),
     )
 
-    expect(
-      await screen.findByText(
-        '불참으로 처리했어요. 출연료 25,000 HP를 돌려받아요.',
-      ),
-    ).toBeInTheDocument()
+    await expectSuccessToast('불참으로 처리했어요.')
     expect(bodies).toEqual([{ reason: '연락이 되지 않았어요' }])
     expect(await screen.findByText('불참 · HP 반환')).toBeInTheDocument()
     expect(screen.getByText(/사유: 연락이 되지 않았어요/)).toBeInTheDocument()

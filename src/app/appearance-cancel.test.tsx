@@ -13,6 +13,7 @@ import type {
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { expectSuccessToast } from '@/test/toast'
 
 const PARTNER_ID = 8
 
@@ -474,11 +475,8 @@ describe('출연 취소 (호스트)', () => {
       within(dialog).getByRole('button', { name: '그래도 위약금 내고 취소' }),
     )
 
-    expect(
-      await screen.findByText(
-        '출연을 취소했어요. 위약금 7,500 HP가 게스트에게 지급돼요.',
-      ),
-    ).toBeInTheDocument()
+    // 위약금 정산이 처리 중(PENDING)이라 토스트는 취소 결과만 말한다.
+    await expectSuccessToast('출연을 취소했어요.')
     expect(bodies).toEqual([
       { reason: '방송이 취소됐어요' },
       { reason: '방송이 취소됐어요', confirmPendingCancelRequest: true },
@@ -594,6 +592,7 @@ describe('모집 전체 취소 (호스트)', () => {
     )
 
     expect(await screen.findByText('모집이 취소됐어요.')).toBeInTheDocument()
+    await expectSuccessToast('모집을 취소했어요.')
     expect(bodies).toEqual([
       { reason: null },
       { reason: null, confirmPendingCancelRequest: true },

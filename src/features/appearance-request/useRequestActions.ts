@@ -48,8 +48,8 @@ export function useRejectRequest(requestId: number) {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: (reason: string) => rejectAppearanceRequest(requestId, reason),
-    onSuccess: () =>
-      toast('출연 요청을 거절했어요. 보류된 HP는 호스트에게 돌아가요.'),
+    // 보류 HP 반환은 BE가 따로 처리해 응답 시점에 끝나지 않았을 수 있다. 진행 상태는 상세에서 보여 준다.
+    onSuccess: () => toast('출연 요청을 거절했어요.'),
     onError: (error) => toast(error.message),
     onSettled: invalidate,
   })
@@ -59,7 +59,7 @@ export function useCancelRequest(requestId: number) {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: () => cancelAppearanceRequest(requestId),
-    onSuccess: () => toast('출연 요청을 취소했어요. 보류한 HP를 돌려받아요.'),
+    onSuccess: () => toast('출연 요청을 취소했어요.'),
     onError: (error) => toast(error.message),
     onSettled: invalidate,
   })

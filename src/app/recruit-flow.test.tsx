@@ -929,6 +929,25 @@ describe('모집 상세 · 호스트', () => {
     expect(screen.queryByRole('button', { name: '수락' })).toBeNull()
   })
 
+  it('자리가 모두 찼으면 조기 마감 모달은 돌려받는 HP 없음으로 안내한다', async () => {
+    mockHost({ value: recruit({ hostId: ME_ID, selectedCount: 3 }) }, [])
+    renderApp('/recruits/7', 'INFLUENCER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '조기 마감' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: '모집을 조기 마감할까요?',
+    })
+    expect(within(dialog).queryByText('보류 중')).toBeNull()
+    expect(
+      within(dialog).getByText('0명 × 1인 출연료 30,000 HP'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('돌려받는 HP 없음')).toBeInTheDocument()
+    expect(within(dialog).queryByText('0 HP')).toBeNull()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
   it('조기 마감 모달은 돌려받을 HP(출연료 × 남은 자리)를 보여 주고 마감한다', async () => {
     const current = { value: recruit({ hostId: ME_ID }) }
     mockHost(current, [])
@@ -957,8 +976,14 @@ describe('모집 상세 · 호스트', () => {
         /대기 중인 지원은 모두 미선정이 되고, 채우지 못한 자리의 출연료\(1인 출연료 × \(모집 인원 − 성립 인원\)\)를 돌려받아요/,
       ),
     ).toBeInTheDocument()
-    // 30,000 × (3 − 1)
-    expect(within(dialog).getByText('60,000')).toBeInTheDocument()
+    // 지금 보류액(30,000 × 3)은 보여 주지 않고 채우지 못한 자리 기준으로만 안내한다: 30,000 × (3 − 1)
+    expect(within(dialog).queryByText('보류 중')).toBeNull()
+    expect(within(dialog).queryByText('90,000')).toBeNull()
+    expect(
+      within(dialog).getByText('2명 × 1인 출연료 30,000 HP'),
+    ).toBeInTheDocument()
+    expect(within(dialog).getByText('돌려받는 HP')).toBeInTheDocument()
+    expect(within(dialog).getByText('60,000 HP')).toBeInTheDocument()
     await userEvent.click(
       within(dialog).getByRole('button', { name: '조기 마감' }),
     )
