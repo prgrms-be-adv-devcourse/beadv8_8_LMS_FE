@@ -10,6 +10,11 @@ import type {
 } from '@/entities/lecture/types'
 import { formatDate } from '@/shared/lib/date'
 import { renderApp, rs } from '@/test/renderApp'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+} from '@/test/fieldError'
 import { server } from '@/test/server'
 
 const inspection = (
@@ -295,8 +300,15 @@ describe('강의 검수 상세', () => {
     const router = renderApp('/admin/lectures/1', 'ADMIN')
 
     const reject = await screen.findByRole('button', { name: '반려' })
-    expect(reject).toBeDisabled()
+    expectSubmitBlocked(reject)
     expect(screen.getByText('판매자에게 그대로 전달돼요.')).toBeInTheDocument()
+    // 비운 채 떠나면 칸에 오류를 보여 준다.
+    const why = screen.getByLabelText('반려 사유')
+    expectNoFieldError(why)
+    await userEvent.click(why)
+    await userEvent.tab()
+    expectFieldError(why, '반려 사유를 입력해 주세요.')
+    expectSubmitBlocked(reject)
 
     await userEvent.click(
       screen.getByRole('button', { name: '소개와 실제 내용이 달라요' }),
@@ -313,6 +325,37 @@ describe('강의 검수 상세', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/admin/lectures'),
     )
+  })
+
+  it('반려 사유에 서버 400 필드 오류가 오면 그 칸에 표시하고 포커스한다', async () => {
+    document.cookie = 'XSRF-TOKEN=t'
+    serveDetail(detail())
+    serveInspections()
+    server.use(
+      http.post('*/api/v1/lectures/admin/1/inspection/reject', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않습니다.',
+            errors: [{ field: 'reason', message: '반려 사유가 너무 길어요.' }],
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/admin/lectures/1', 'ADMIN')
+
+    const why = await screen.findByLabelText('반려 사유')
+    await userEvent.type(why, '음량이 낮아요')
+    await userEvent.click(screen.getByRole('button', { name: '반려' }))
+
+    await waitFor(() => expectFieldError(why, '반려 사유가 너무 길어요.'))
+    await waitFor(() => expect(why).toHaveFocus())
+    await userEvent.type(why, '!')
+    expectNoFieldError(why)
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('이미 처리된 강의면 409를 알리고 상세를 다시 불러온다', async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import {
   CONTENT_MAX,
   hostChannelUrlError,
@@ -11,6 +11,7 @@ import type {
 } from '@/entities/appearance/types'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import {
@@ -21,6 +22,13 @@ import {
 } from './useRequestActions'
 
 type Props = { request: AppearanceRequest; onClose: () => void }
+
+const EDIT_FIELD_ID = {
+  title: 'edit-title',
+  hostChannelUrl: 'edit-channel',
+  content: 'edit-content',
+} as const
+const EDIT_FIELD_ORDER = ['title', 'hostChannelUrl', 'content'] as const
 
 /**
  * 수락 (게스트). snapshot은 확인창을 연 순간의 요청서다. 화면에 보이는 이 내용·버전 그대로 동의한다.
@@ -158,13 +166,26 @@ export function EditRequestModal({ request, onClose }: Props) {
   if (title.trim() !== request.title) changes.title = title.trim()
   if (content.trim() !== request.content) changes.content = content.trim()
   if (url.trim() !== request.hostChannelUrl) changes.hostChannelUrl = url.trim()
-  const titleError = !title.trim() ? '제목을 입력해 주세요.' : undefined
-  const contentError = !content.trim()
-    ? '요청 내용을 입력해 주세요.'
-    : undefined
-  const urlError = hostChannelUrlError(url.trim()) ?? undefined
-  const invalid = Boolean(titleError || contentError || urlError)
+  const fields = useFieldErrors({
+    ids: EDIT_FIELD_ID,
+    order: EDIT_FIELD_ORDER,
+    errors: {
+      title: !title.trim() ? '제목을 입력해 주세요.' : undefined,
+      hostChannelUrl: hostChannelUrlError(url.trim()) ?? undefined,
+      content: !content.trim() ? '요청 내용을 입력해 주세요.' : undefined,
+    },
+  })
 
+  /** 저장 버튼 클릭과 입력칸 Enter가 함께 탄다 */
+  const save = (e: FormEvent) => {
+    e.preventDefault()
+    if (edit.isPending || fields.blockSubmit()) return
+    if (Object.keys(changes).length === 0) return
+    edit.mutate(changes, {
+      onSuccess: onClose,
+      onError: fields.applyServerErrors,
+    })
+  }
   return (
     <Modal
       title="요청서 고치기"
@@ -176,12 +197,14 @@ export function EditRequestModal({ request, onClose }: Props) {
             닫기
           </button>
           <button
-            type="button"
+            type="submit"
+            form="request-edit-form"
             className="btn primary"
             disabled={
-              invalid || Object.keys(changes).length === 0 || edit.isPending
+              edit.isPending ||
+              (!fields.hasErrors && Object.keys(changes).length === 0)
             }
-            onClick={() => edit.mutate(changes, { onSuccess: onClose })}
+            {...fields.submitProps}
           >
             저장
           </button>
@@ -192,34 +215,57 @@ export function EditRequestModal({ request, onClose }: Props) {
         출연료·일정은 바꿀 수 없어요. 바꾸려면 요청을 취소하고 다시 보내 주세요.
         고친 뒤에는 게스트가 바뀐 내용을 보고 수락해요.
       </p>
-      <div className="form">
-        <Field id="edit-title" label="제목" error={titleError}>
+      <form
+        {...fields.formProps}
+        id="request-edit-form"
+        className="form"
+        noValidate
+        onSubmit={save}
+      >
+        <Field id="edit-title" label="제목" error={fields.error('title')}>
           <input
-            id="edit-title"
+            {...fields.inputProps('title')}
             className="input"
             maxLength={TITLE_MAX}
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              fields.changed('title')
+              setTitle(e.target.value)
+            }}
           />
         </Field>
-        <Field id="edit-channel" label="내 채널 주소" error={urlError}>
+        <Field
+          id="edit-channel"
+          label="내 채널 주소"
+          error={fields.error('hostChannelUrl')}
+        >
           <input
-            id="edit-channel"
+            {...fields.inputProps('hostChannelUrl')}
             className="input"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(e) => {
+              fields.changed('hostChannelUrl')
+              setUrl(e.target.value)
+            }}
           />
         </Field>
-        <Field id="edit-content" label="요청 내용" error={contentError}>
+        <Field
+          id="edit-content"
+          label="요청 내용"
+          error={fields.error('content')}
+        >
           <textarea
-            id="edit-content"
+            {...fields.inputProps('content')}
             className="textarea"
             maxLength={CONTENT_MAX}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              fields.changed('content')
+              setContent(e.target.value)
+            }}
           />
         </Field>
-      </div>
+      </form>
     </Modal>
   )
 }

@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -8,6 +8,12 @@ import type { AppearanceRequest } from '@/entities/appearance/types'
 import type { MyChannel } from '@/entities/member/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+  expectSubmitOpen,
+} from '@/test/fieldError'
 import { server } from '@/test/server'
 
 const GUEST_ID = 8
@@ -237,6 +243,37 @@ describe('출연 요청 보내기', () => {
   })
 })
 
+describe('출연 요청서 입력 오류', () => {
+  it('제목을 비운 채 떠나면 제목에 오류를 보여 주고, 필수 값이 비어 있으면 요청 버튼을 막는다', async () => {
+    mockGuestProfile()
+    renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
+
+    const dialog = await openRequestForm()
+    const submit = await within(dialog).findByRole('button', {
+      name: /HP 보류하고 요청/,
+    })
+    expectSubmitBlocked(submit)
+    const title = within(dialog).getByLabelText('제목')
+    expectNoFieldError(title)
+
+    await userEvent.click(title)
+    await userEvent.tab()
+    expectFieldError(title, '제목을 입력해 주세요.')
+    // 건드리지 않은 아래 칸은 오류가 없다.
+    expectNoFieldError(within(dialog).getByLabelText('요청 내용'))
+
+    await userEvent.type(title, '주말 게임 합방')
+    expectNoFieldError(title)
+    expectSubmitBlocked(submit)
+    await userEvent.type(
+      within(dialog).getByLabelText('요청 내용'),
+      '공포 게임 2인',
+    )
+    expectSubmitOpen(submit)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+})
+
 describe('받은 출연 요청', () => {
   it('목록에서 요청서를 열어 본 버전 그대로 수락한다', async () => {
     const current = { value: request() }
@@ -379,6 +416,33 @@ describe('보낸 출연 요청', () => {
 
     expect(await screen.findByText('요청 취소 · HP 반환')).toBeInTheDocument()
     expect(screen.getByText('보류 HP 반환 처리 중이에요.')).toBeInTheDocument()
+  })
+})
+
+describe('요청서 고치기 입력 오류', () => {
+  it('요청 내용을 비운 채 떠나면 오류를 보여 주고 저장을 막는다', async () => {
+    mockRequestDetail({ value: request({ hostId: ME_ID, guestId: HOST_ID }) })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '요청서 고치기' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '요청서 고치기' })
+    const content = within(dialog).getByLabelText('요청 내용')
+    await userEvent.clear(content)
+    expectNoFieldError(content)
+    await userEvent.tab()
+
+    expectFieldError(content, '요청 내용을 입력해 주세요.')
+    expectSubmitBlocked(within(dialog).getByRole('button', { name: '저장' }))
+
+    // Enter 제출(form submit)도 보내지 않고 첫 오류 칸(요청 내용)으로 포커스한다.
+    // 저장 버튼이 form 밖(모달 footer)이라 user-event는 Enter 암묵 제출을 흉내 내지 않아 submit을 직접 보낸다.
+    const titleInput = within(dialog).getByLabelText<HTMLInputElement>('제목')
+    await userEvent.click(titleInput)
+    fireEvent.submit(titleInput.form!)
+    await waitFor(() => expect(content).toHaveFocus())
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 })
 

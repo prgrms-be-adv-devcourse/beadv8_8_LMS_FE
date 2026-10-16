@@ -5,6 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureRegisterInput } from '@/entities/lecture/types'
 import { renderApp, rs } from '@/test/renderApp'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+} from '@/test/fieldError'
 import { server } from '@/test/server'
 
 const PATH = '/studio/lectures/new'
@@ -110,15 +115,33 @@ function openForm() {
 }
 
 describe('강의 등록', () => {
-  it('가격이 1,000 HP 미만이거나 1,000 단위가 아니면 바로 오류를 보여 주고 검수 신청을 막는다', async () => {
+  it('제목을 건너뛰고 선택 칸(상세 소개)을 누르면 건너뛴 제목에 오류가 뜬다', async () => {
+    openForm()
+    const title = await screen.findByLabelText('강의 제목')
+    expectNoFieldError(title)
+    await userEvent.click(screen.getByLabelText('상세 소개'))
+
+    expectFieldError(title, '강의 제목을 입력해 주세요.')
+    expectNoFieldError(screen.getByLabelText('가격 (HP)'))
+    expectSubmitBlocked(screen.getByRole('button', { name: '검수 신청' }))
+  })
+
+  it('가격이 1,000 HP 미만이거나 1,000 단위가 아니면 칸을 떠날 때 오류를 보여 주고 검수 신청을 막는다', async () => {
     openForm()
     const price = await screen.findByLabelText('가격 (HP)')
     const submit = screen.getByRole('button', { name: '검수 신청' })
+    // 제목을 건너뛰면 제목 오류도 뜨므로 먼저 채운다.
+    await userEvent.type(screen.getByLabelText('강의 제목'), '통기타')
 
     await userEvent.clear(price)
     await userEvent.type(price, '999')
+    // 입력 중에는 오류를 보여 주지 않고 막기만 한다.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expectSubmitBlocked(submit)
+    await userEvent.tab()
     expect(screen.getByText('1,000 HP 이상으로 정해 주세요.')).toBeVisible()
-    expect(submit).toBeDisabled()
+    expect(price).toHaveAttribute('aria-invalid', 'true')
+    expect(price.closest('.field')).toHaveClass('invalid')
 
     await userEvent.clear(price)
     await userEvent.type(price, '1500')
@@ -340,7 +363,7 @@ describe('강의 등록', () => {
     expect(submitButton()).toBeEnabled()
 
     await userEvent.clear(screen.getByLabelText('가격 (HP)'))
-    expect(submitButton()).toBeDisabled()
+    expectSubmitBlocked(submitButton())
     await userEvent.type(screen.getByLabelText('가격 (HP)'), '30000')
 
     await userEvent.click(submitButton())

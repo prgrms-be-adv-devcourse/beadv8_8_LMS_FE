@@ -9,6 +9,7 @@ import {
 import type { InquiryCategory } from '@/entities/inquiry/types'
 import { purchasedQuery } from '@/entities/order/api'
 import { formatDate } from '@/shared/lib/date'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { useCreateInquiry } from './useInquiryActions'
 
@@ -17,6 +18,13 @@ type Props = {
   initialCategory?: InquiryCategory
   initialOrderItemId?: number
 }
+
+const FIELD_ID = {
+  orderItemId: 'inq-target',
+  title: 'inq-title',
+  content: 'inq-content',
+} as const
+const FIELD_ORDER = ['orderItemId', 'title', 'content'] as const
 
 /** 새 문의. 강의 내용 다름 이의 제기는 구매한 강의 중 하나를 골라야 한다. */
 export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
@@ -40,17 +48,26 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
     ? orderItemId
     : ''
 
-  const tooLong = title.length > INQUIRY_TITLE_MAX
-  const canSubmit =
-    title.trim() !== '' &&
-    !tooLong &&
-    content.trim() !== '' &&
-    (!dispute || target !== '') &&
-    !create.isPending
+  const fields = useFieldErrors({
+    ids: FIELD_ID,
+    order: FIELD_ORDER,
+    errors: {
+      orderItemId:
+        dispute && target === ''
+          ? '이의 제기할 강의를 골라 주세요.'
+          : undefined,
+      title: !title.trim()
+        ? '제목을 입력해 주세요.'
+        : title.length > INQUIRY_TITLE_MAX
+          ? `제목은 ${INQUIRY_TITLE_MAX}자까지 쓸 수 있어요.`
+          : undefined,
+      content: !content.trim() ? '내용을 입력해 주세요.' : undefined,
+    },
+  })
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!canSubmit) return
+    if (create.isPending || fields.blockSubmit()) return
     create.mutate(
       {
         category,
@@ -60,16 +77,23 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
       },
       {
         onSuccess: () => {
+          fields.reset()
           setTitle('')
           setContent('')
           setOrderItemId('')
         },
+        onError: fields.applyServerErrors,
       },
     )
   }
 
   return (
-    <form className="panel form" onSubmit={submit}>
+    <form
+      {...fields.formProps}
+      className="panel form"
+      noValidate
+      onSubmit={submit}
+    >
       <h2>새 문의</h2>
       <Field
         id="inq-category"
@@ -109,12 +133,19 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
             지급된 강의는 이의 제기할 수 없어요.
           </div>
         ) : (
-          <Field id="inq-target" label="이의 제기할 강의">
+          <Field
+            id="inq-target"
+            label="이의 제기할 강의"
+            error={fields.error('orderItemId')}
+          >
             <select
-              id="inq-target"
+              {...fields.inputProps('orderItemId')}
               className="select"
               value={target}
-              onChange={(e) => setOrderItemId(e.target.value)}
+              onChange={(e) => {
+                fields.changed('orderItemId')
+                setOrderItemId(e.target.value)
+              }}
             >
               <option value="">강의를 골라 주세요</option>
               {targets.map((p) => (
@@ -128,26 +159,28 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
       <Field
         id="inq-title"
         label="제목"
-        error={
-          tooLong
-            ? `제목은 ${INQUIRY_TITLE_MAX}자까지 쓸 수 있어요.`
-            : undefined
-        }
+        error={fields.error('title')}
         hint={`${title.length} / ${INQUIRY_TITLE_MAX}`}
       >
         <input
-          id="inq-title"
+          {...fields.inputProps('title')}
           className="input"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            fields.changed('title')
+            setTitle(e.target.value)
+          }}
         />
       </Field>
-      <Field id="inq-content" label="내용">
+      <Field id="inq-content" label="내용" error={fields.error('content')}>
         <textarea
-          id="inq-content"
+          {...fields.inputProps('content')}
           className="textarea"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            fields.changed('content')
+            setContent(e.target.value)
+          }}
           placeholder="언제, 무슨 일이 있었는지 적어 주세요."
         />
       </Field>
@@ -155,7 +188,8 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
         type="submit"
         className="btn primary"
         style={{ alignSelf: 'flex-start' }}
-        disabled={!canSubmit}
+        disabled={create.isPending}
+        {...fields.submitProps}
       >
         접수하기
       </button>
