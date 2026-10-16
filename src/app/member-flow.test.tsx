@@ -253,4 +253,79 @@ describe('계정 설정', () => {
     ).toBeInTheDocument()
     expect(uploads).toBe(0)
   })
+
+  describe('관리자', () => {
+    const admin = (patch: Partial<Me> = {}) => me({ role: 'ADMIN', ...patch })
+    const avatarButton = (name: string) =>
+      within(screen.getByRole('banner')).getByRole('button', { name })
+
+    it('프로필 메뉴에서 계정 설정으로 간다', async () => {
+      const router = renderApp('/admin', 'ADMIN')
+      const avatar = await screen.findByRole('button', { name: '하늘 메뉴' })
+      await userEvent.click(avatar)
+      // 관리자 레일에는 계정 설정이 없으니 프로필 메뉴 안에서 찾는다.
+      const menu = avatar.parentElement as HTMLElement
+      await userEvent.click(
+        within(menu).getByRole('link', { name: '계정 설정' }),
+      )
+      expect(router.state.location.pathname).toBe('/settings')
+      expect(
+        await screen.findByRole('heading', { level: 1, name: '계정 설정' }),
+      ).toBeInTheDocument()
+    })
+
+    it('닉네임을 바꾸면 상단 프로필 메뉴 이름도 바뀐다', async () => {
+      let saved: unknown
+      server.use(
+        http.patch('*/api/v1/members/me', async ({ request }) => {
+          saved = await request.json()
+          return rs(admin({ nickname: '운영자' }))
+        }),
+      )
+      document.cookie = 'XSRF-TOKEN=t'
+      renderApp('/settings', 'ADMIN')
+
+      const input = await screen.findByRole('textbox', { name: '닉네임' })
+      await userEvent.clear(input)
+      await userEvent.type(input, '운영자')
+      await userEvent.click(screen.getByRole('button', { name: '저장' }))
+      expect(await screen.findByText('닉네임을 바꿨어요.')).toBeInTheDocument()
+      expect(saved).toEqual({ nickname: '운영자' })
+      expect(avatarButton('운영자 메뉴')).toBeInTheDocument()
+    })
+
+    it('프로필 사진을 바꾸고 지우면 상단 아바타도 바뀐다', async () => {
+      const url = 'https://cdn.example/admin.png'
+      let uploadedTo: string | undefined
+      server.use(
+        http.put('*/api/v1/members/files/:memberId/content', ({ params }) => {
+          uploadedTo = String(params.memberId)
+          return rs(admin({ profileImageUrl: url }))
+        }),
+        http.delete('*/api/v1/members/me/profile-image', () => rs(admin())),
+      )
+      document.cookie = 'XSRF-TOKEN=t'
+      renderApp('/settings', 'ADMIN')
+
+      const file = new File(['png'], 'a.png', { type: 'image/png' })
+      await userEvent.upload(
+        await screen.findByLabelText('프로필 사진 파일'),
+        file,
+      )
+      expect(
+        await screen.findByText('프로필 사진을 바꿨어요.'),
+      ).toBeInTheDocument()
+      expect(uploadedTo).toBe(String(ME_ID))
+      expect(avatarButton('하늘 메뉴').querySelector('img')).toHaveAttribute(
+        'src',
+        url,
+      )
+
+      await userEvent.click(screen.getByRole('button', { name: '지우기' }))
+      expect(
+        await screen.findByText('프로필 사진을 지웠어요.'),
+      ).toBeInTheDocument()
+      expect(avatarButton('하늘 메뉴').querySelector('img')).toBeNull()
+    })
+  })
 })

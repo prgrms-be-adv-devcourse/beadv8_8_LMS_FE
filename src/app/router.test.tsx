@@ -105,6 +105,22 @@ describe('라우트 가드', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'))
   })
 
+  it('관리자도 계정 설정 주소로 들어오면 화면을 본다', async () => {
+    const router = renderAt('/settings', 'ADMIN')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '계정 설정' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Google · a@b.c')).toBeInTheDocument()
+    expect(screen.getByText('관리자', { selector: 'dd' })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/settings')
+    expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
+  })
+
+  it('관리자가 회원 탈퇴 주소로 들어오면 운영 첫 화면으로 보낸다', async () => {
+    const router = renderAt('/settings/withdraw', 'ADMIN')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'))
+  })
+
   it('로고를 누르면 홈으로 간다', async () => {
     const router = renderAt('/lectures', 'USER')
     await userEvent.click(await screen.findByRole('link', { name: '합방 홈' }))
@@ -164,6 +180,11 @@ describe('내비 레일', () => {
     const labels = await navLabels()
     expect(labels).toContain('강의 검수')
     expect(labels).not.toContain('지갑')
+  })
+
+  it('관리자 레일에는 계정 설정이 없다(프로필 메뉴로 들어간다)', async () => {
+    renderAt('/admin', 'ADMIN')
+    expect(await navLabels()).not.toContain('계정 설정')
   })
 })
 

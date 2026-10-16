@@ -82,7 +82,13 @@ export const NAV: NavGroup[] = [
     title: '지원',
     items: [
       { path: '/support', label: '고객센터', roles: MEMBER },
-      { path: '/settings', label: '계정 설정', roles: MEMBER },
+      {
+        path: '/settings',
+        label: '계정 설정',
+        roles: MEMBER,
+        // 관리자는 운영 레일에 두지 않고 상단 프로필 메뉴로만 들어온다.
+        routeRoles: SIGNED_IN,
+      },
     ],
   },
 ]
