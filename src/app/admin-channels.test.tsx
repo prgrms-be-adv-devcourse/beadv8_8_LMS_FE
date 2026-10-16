@@ -241,7 +241,12 @@ describe('관리자 채널 인증 심사', () => {
     renderApp('/admin/channels', 'ADMIN')
     await item('새벽기타')
     const tabs = screen.getByRole('group', { name: '심사 상태' })
-    await userEvent.click(within(tabs).getByRole('button', { name: '반려' }))
+    const rejectedTab = within(tabs).getByRole('button', { name: '반려' })
+    await userEvent.click(rejectedTab)
+    // 주소 변경은 비동기로 반영된다. 반려 탭이 눌린 화면이 그려질 때까지 기다린다.
+    await waitFor(() =>
+      expect(rejectedTab).toHaveAttribute('aria-pressed', 'true'),
+    )
 
     // 응답 전: 대기 탭의 행과 승인 버튼이 남지 않는다.
     expect(
