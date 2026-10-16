@@ -6,7 +6,6 @@ import { queryClient } from '@/app/queryClient'
 import { walletQuery } from '@/entities/wallet/api'
 import { meQuery } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { useToastStore } from '@/shared/ui/toastStore'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -41,7 +40,6 @@ afterEach(() => {
   channels.splice(0).forEach((c) => c.close())
   queryClient.clear()
   closeLoginModal()
-  useToastStore.setState({ message: null })
 })
 
 describe('탭 간 로그아웃 동기화', () => {

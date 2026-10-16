@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { recruitsQuery } from '@/entities/appearance/api'
 import type {
   Application,
   Recruit,
@@ -503,6 +504,14 @@ describe('모집글 올리기', () => {
     expect(router.state.location.search).toContain('holdPending=1')
     expect(screen.queryByRole('dialog', { name: '모집글 올리기' })).toBeNull()
     expect(posts).toBe(1)
+    // 내 모집글 탭으로 옮겨 부르는 목록 조회까지 끝나야 다음 테스트의 핸들러로 새지 않는다.
+    // (이동은 비동기라 진행 중 조회 수만 보면 조회가 시작되기 전일 수 있다)
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(recruitsQuery('mine', 0).queryKey)?.status,
+      ).toBe('success'),
+    )
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 })
 
