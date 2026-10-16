@@ -16,6 +16,7 @@ import { consumeReturnTo } from '@/shared/auth/session'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
+import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
 import { AdminInquiriesPage } from '@/pages/admin-inquiries/AdminInquiriesPage'
@@ -139,6 +140,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/support': <SupportPage />,
   '/support/inquiries/:inquiryId': <InquiryPage />,
   '/admin/lectures': <AdminLecturesPage />,
+  '/admin/channels': <AdminChannelsPage />,
   '/admin/promotions': <AdminPromotionsPage />,
   '/admin/lectures/:lectureId': <AdminLecturePage />,
   '/admin/inquiries': <AdminInquiriesPage />,

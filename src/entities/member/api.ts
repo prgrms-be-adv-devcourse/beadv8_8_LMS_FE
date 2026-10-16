@@ -3,6 +3,8 @@ import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type { Me } from '@/shared/auth/me'
 import type {
+  ChannelReview,
+  ChannelReviewStatus,
   UpgradeRequest,
   UpgradeRequestStatus,
   UpgradeReview,
@@ -23,6 +25,8 @@ export const memberKeys = {
     [...memberKeys.all, 'upgrade-requests', 'me'] as const,
   upgradeReviews: (status: UpgradeRequestStatus, page: number) =>
     [...memberKeys.all, 'upgrade-reviews', status, page] as const,
+  channelReviews: (status: ChannelReviewStatus, page: number) =>
+    [...memberKeys.all, 'channel-reviews', status, page] as const,
 }
 
 export const INFLUENCER_PAGE_SIZE = 12
@@ -127,6 +131,39 @@ export function approveUpgrade(requestId: number) {
 
 export function rejectUpgrade(requestId: number, reason: string) {
   return api<void>(`/members/admin/upgrade-requests/${requestId}/reject`, {
+    method: 'POST',
+    body: { reason },
+  })
+}
+
+// ── 관리자 채널 인증 심사 ──
+
+/** 심사 목록. 정렬은 BE가 오래된 신청부터로 고정한다 */
+export const channelReviewsQuery = (
+  status: ChannelReviewStatus,
+  page: number,
+) =>
+  queryOptions({
+    queryKey: memberKeys.channelReviews(status, page),
+    queryFn: () =>
+      api<PagedModel<ChannelReview>>('/members/admin/channels', {
+        query: { status, page, size: 10 },
+      }),
+    // 페이지를 옮길 때만 이전 목록을 둔다. 상태 탭이 바뀌면 다른 탭의 행과 심사 버튼이 남지 않게 비운다.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === status ? previous : undefined,
+  })
+
+/** 승인: 회원이 유저면 인플루언서가 되고, 그 회원 세션 권한도 BE가 바로 바꾼다 */
+export function approveChannel(channelId: number) {
+  return api<void>(`/members/admin/channels/${channelId}/approve`, {
+    method: 'POST',
+  })
+}
+
+/** 반려: 사유 필수, 500자 이하(REJECTION_REASON_MAX). 회원은 내 채널에서 사유를 보고 다시 요청한다 */
+export function rejectChannel(channelId: number, reason: string) {
+  return api<void>(`/members/admin/channels/${channelId}/reject`, {
     method: 'POST',
     body: { reason },
   })

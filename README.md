@@ -23,6 +23,7 @@ import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/clie
 ### 개발 서버 도구
 
 - **역할 전환 스트립**: 개발 서버 화면 맨 위의 `DEV 역할` 버튼으로 로컬 BE 테스트 계정에 로그인한다(`POST /api/v1/members/local-login`). 로컬 BE에 local-login이 켜져 있어야 한다. 운영 번들에는 들어가지 않는다.
+- **MSW 목**: 로컬 BE에 데이터가 없어도 화면을 확인할 수 있게 `src/mocks/`에 핸들러를 둔다(지금은 관리자 채널 인증 심사). `.env.example`을 `.env.local`로 복사해 `VITE_ENABLE_MSW=true`로 켠다. 목이 없는 요청은 로컬 BE로 간다.
 - **HP 충전(토스페이먼츠 테스트 결제)**: `.env.local`에 `VITE_TOSS_PAYMENTS_CLIENT_KEY=test_ck_…`를 넣는다. 비워 두면 충전 버튼이 꺼진다. 배포 값은 [배포](docs/deploy.md#환경변수) 참고.
 
 ### 폴더
@@ -35,6 +36,7 @@ import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/clie
 | `src/shared/ui/`, `src/shared/styles/` | 공용 컴포넌트, 디자인 토큰(`docs/mockup-ui.html` 기준) |
 | `src/features/{모듈}/` | BE 모듈별 API·화면 (member, lecture, appearance, billing, chat, support, admin …) |
 | `src/pages/` | 공통 화면(자리표시, 404, 오류) |
+| `src/mocks/` | 개발 서버용 MSW 핸들러 |
 | `src/test/` | 테스트 설정, MSW 서버, 테스트 전용 응답(fixture) |
 
 ## 문서

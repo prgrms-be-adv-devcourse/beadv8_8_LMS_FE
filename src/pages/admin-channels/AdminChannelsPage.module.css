@@ -1,0 +1,23 @@
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.channel {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.reason {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
