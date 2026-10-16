@@ -4,7 +4,11 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { appearanceQuery } from '@/entities/appearance/api'
-import type { Appearance, AppearanceSummary } from '@/entities/appearance/types'
+import type {
+  Appearance,
+  AppearanceSummary,
+  HpReleaseStatus,
+} from '@/entities/appearance/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -365,11 +369,62 @@ describe('출연 확인 결과 (게스트·자동 확인)', () => {
     ).toBeInTheDocument()
     expect(
       screen.getByText(
-        '출연료 지급을 늦어지고 있어요. 고객센터로 문의해 주세요.',
+        '출연료 지급을 처리하지 못했어요. 고객센터로 문의해 주세요.',
       ),
     ).toBeInTheDocument()
     await settleDetail()
   })
+})
+
+describe('HP 처리 안내', () => {
+  const cases = [
+    {
+      label: '출연료 지급을',
+      value: (s: HpReleaseStatus) =>
+        appearance({
+          status: 'CONFIRMED',
+          confirmType: 'HOST',
+          hpPayoutStatus: s,
+        }),
+    },
+    {
+      label: '출연료 반환을',
+      value: (s: HpReleaseStatus) =>
+        appearance({ status: 'ABSENT', hpReleaseStatus: s }),
+    },
+    {
+      label: '위약금 정산을',
+      value: (s: HpReleaseStatus) =>
+        appearance({ status: 'CANCELED_BY_HOST', hpPenaltyStatus: s }),
+    },
+  ]
+  const notes: [HpReleaseStatus, string][] = [
+    ['PENDING', '처리 중이에요.'],
+    ['DONE', '마쳤어요.'],
+    ['DEAD', '처리하지 못했어요. 고객센터로 문의해 주세요.'],
+  ]
+
+  it.each(
+    cases.flatMap(({ label, value }) =>
+      notes.map(([status, note]) => ({
+        label,
+        status,
+        value: value(status),
+        text: `${label} ${note}`,
+      })),
+    ),
+  )(
+    '$label $status 상태면 "$text"를 보여 준다',
+    async ({ status, value, text }) => {
+      mockAppearance({ value })
+      renderApp('/appearances/40', 'INFLUENCER')
+      const note = await screen.findByText(text)
+      // 실패만 경고색으로 보인다.
+      if (status === 'DEAD') expect(note).toHaveClass('c-bad')
+      else expect(note).not.toHaveClass('c-bad')
+      await settleDetail()
+    },
+  )
 })
 
 describe('내 출연 목록의 확인 대기', () => {
