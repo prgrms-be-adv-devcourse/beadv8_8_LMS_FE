@@ -1,27 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { orderQuery, ordersQuery } from '@/entities/order/api'
 import type { OrderItem, OrderSummary } from '@/entities/order/types'
 import { OrderItemStatusPill } from '@/entities/order/ui/OrderItemStatusPill'
 import { CancelPurchaseModal } from '@/features/purchase/PurchaseModals'
 import { formatDate, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 export function OrdersPage() {
-  const [params, setParams] = useSearchParams()
-  const requestedPage = Number(params.get('page') ?? 1)
-  const page =
-    Number.isSafeInteger(requestedPage) && requestedPage > 0
-      ? requestedPage - 1
-      : 0
-  const setPage = (next: number) =>
-    setParams(next > 0 ? { page: String(next + 1) } : {})
-  const { data, error, isPending, refetch } = useQuery(ordersQuery(page))
+  const [page, setPage] = usePageParam('page')
+  const query = useQuery(ordersQuery(page))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
 
   return (
     <div className="page">
@@ -32,7 +28,7 @@ export function OrdersPage() {
         title="주문 내역"
         lede="장바구니나 바로 구매로 만든 주문이에요. 주문 안의 강의는 하나씩 구매 확정되고 취소돼요."
       />
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />

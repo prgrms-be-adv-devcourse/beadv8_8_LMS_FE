@@ -4,6 +4,7 @@ import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { STATUS_LABEL } from '@/entities/inquiry/category'
 import type { InquirySort, InquiryStatus } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
@@ -15,7 +16,10 @@ const STATUSES: (InquiryStatus | undefined)[] = [
   'ANSWERED',
 ]
 
-/** 상태·정렬·페이지는 URL에 둔다(?status=&sort=&page=, page는 1부터). 기본은 답변 대기 · 오래된 순. */
+/**
+ * 상태·정렬은 URL에 둔다(?status=&sort=). 기본은 답변 대기 · 오래된 순이고, 바꾸면 첫 페이지로 간다.
+ * 페이지는 usePageParam이 맡는다.
+ */
 function useListParams() {
   const [params, setParams] = useSearchParams()
   const statusParam = params.get('status')
@@ -27,31 +31,26 @@ function useListParams() {
         : 'WAITING'
   const sort: InquirySort =
     params.get('sort') === 'LATEST' ? 'LATEST' : 'OLDEST'
-  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
 
   const update = (
-    next: Partial<{
-      status: InquiryStatus | undefined
-      sort: InquirySort
-      page: number
-    }>,
+    next: Partial<{ status: InquiryStatus | undefined; sort: InquirySort }>,
   ) => {
-    const merged = { status, sort, page, ...next }
+    const merged = { status, sort, ...next }
     const search = new URLSearchParams()
     if (merged.status !== 'WAITING')
       search.set('status', merged.status ?? 'ALL')
     if (merged.sort !== 'OLDEST') search.set('sort', merged.sort)
-    if (merged.page > 0) search.set('page', String(merged.page + 1))
     setParams(search)
   }
-  return { status, sort, page, update }
+  return { status, sort, update }
 }
 
 export function AdminInquiriesPage() {
-  const { status, sort, page, update } = useListParams()
-  const { data, error, isPending, refetch } = useQuery(
-    adminInquiriesQuery({ status, sort, page }),
-  )
+  const { status, sort, update } = useListParams()
+  const [page, setPage] = usePageParam('page')
+  const query = useQuery(adminInquiriesQuery({ status, sort, page }))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
 
   return (
     <div className="page">
@@ -71,7 +70,7 @@ export function AdminInquiriesPage() {
               type="button"
               className={status === s ? 'btn sm primary' : 'btn sm'}
               aria-pressed={status === s}
-              onClick={() => update({ status: s, page: 0 })}
+              onClick={() => update({ status: s })}
             >
               {s ? STATUS_LABEL[s] : '전체'}
             </button>
@@ -80,16 +79,14 @@ export function AdminInquiriesPage() {
         <select
           className="select sm"
           value={sort}
-          onChange={(e) =>
-            update({ sort: e.target.value as InquirySort, page: 0 })
-          }
+          onChange={(e) => update({ sort: e.target.value as InquirySort })}
           aria-label="정렬"
         >
           <option value="OLDEST">오래된 순</option>
           <option value="LATEST">최신순</option>
         </select>
       </div>
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -109,7 +106,7 @@ export function AdminInquiriesPage() {
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={(p) => update({ page: p })}
+            onChange={setPage}
           />
         </section>
       )}

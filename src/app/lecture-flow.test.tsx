@@ -157,6 +157,61 @@ describe('강의 목록', () => {
       await screen.findByRole('dialog', { name: '합방 시작하기' }),
     ).toBeInTheDocument()
   })
+
+  /** 강의 목록 요청의 page를 모은다. Spring Page처럼 범위를 넘는 페이지에는 빈 content와 실제 totalPages를 준다. */
+  function serveLecturePages(totalPages: number) {
+    const pages: number[] = []
+    server.use(
+      http.get('*/api/v1/lectures', ({ request }) => {
+        const p = Number(new URL(request.url).searchParams.get('page'))
+        pages.push(p)
+        return rs({
+          content:
+            p < totalPages
+              ? [summary(p + 1, `마이크 세팅 ${p + 1}`, 9000)]
+              : [],
+          page: {
+            size: 12,
+            number: p,
+            totalElements: totalPages,
+            totalPages,
+          },
+        })
+      }),
+      http.get('*/api/v1/lectures/purchased', () => rs(emptyPage)),
+      http.get('*/api/v1/lectures/cart', () =>
+        rs({ items: [], purchasableTotalHp: 0 }),
+      ),
+    )
+    return pages
+  }
+
+  it('URL의 페이지가 마지막 페이지를 넘으면 검색어·정렬을 두고 마지막 페이지로 옮긴다', async () => {
+    const pages = serveLecturePages(2)
+    const router = renderApp(
+      '/lectures?keyword=%EB%A7%88%EC%9D%B4%ED%81%AC&sort=PRICE_ASC&page=9',
+      'USER',
+    )
+
+    expect(
+      await screen.findByRole('link', { name: /마이크 세팅 2/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.search).toBe(
+      '?keyword=%EB%A7%88%EC%9D%B4%ED%81%AC&sort=PRICE_ASC&page=2',
+    )
+    expect(pages).toEqual([8, 1])
+    expect(screen.queryByText('찾는 강의가 없어요')).not.toBeInTheDocument()
+  })
+
+  it('정수가 아닌 페이지는 첫 페이지로 부른다', async () => {
+    const pages = serveLecturePages(2)
+    renderApp('/lectures?page=1.5', 'USER')
+
+    expect(
+      await screen.findByRole('link', { name: /마이크 세팅 1/ }),
+    ).toBeInTheDocument()
+    expect(pages).toEqual([0])
+  })
 })
 
 describe('바로 구매', () => {
@@ -365,6 +420,39 @@ describe('내 강의', () => {
     expect(
       await screen.findByText('볼 수 있는 강의가 아니에요'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('주문 내역', () => {
+  it('URL의 페이지가 마지막 페이지를 넘으면 마지막 페이지로 옮긴다', async () => {
+    mockOrders(purchasedOrder())
+    server.use(
+      http.get('*/api/v1/lectures/orders', ({ request }) => {
+        const p = Number(new URL(request.url).searchParams.get('page'))
+        return rs({
+          content:
+            p < 2
+              ? [
+                  {
+                    orderId: 500,
+                    totalAmountHp: 30000,
+                    status: 'PAID',
+                    progress: 'IN_PROGRESS',
+                    representativeTitle: '첫 방송 세팅',
+                    itemCount: 1,
+                    orderedAt: '2026-10-14T10:00:00',
+                  },
+                ]
+              : [],
+          page: { size: 10, number: p, totalElements: 11, totalPages: 2 },
+        })
+      }),
+    )
+    const router = renderApp('/library/orders?page=9', 'USER')
+
+    expect(await screen.findByText('주문 번호 500')).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?page=2')
+    expect(screen.queryByText('주문 내역이 없어요')).not.toBeInTheDocument()
   })
 })
 

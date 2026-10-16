@@ -92,6 +92,38 @@ describe('인플루언서', () => {
     )
     expect(screen.getByText('1,500')).toBeInTheDocument()
   })
+
+  it('목록 URL의 페이지가 마지막 페이지를 넘으면 마지막 페이지로 옮긴다', async () => {
+    // Spring Page는 범위를 넘는 페이지에 빈 content와 실제 totalPages를 준다.
+    server.use(
+      http.get('*/api/v1/members/influencers', ({ request }) => {
+        const p = Number(new URL(request.url).searchParams.get('page'))
+        return rs({
+          content:
+            p < 2
+              ? [
+                  {
+                    id: 8 + p,
+                    nickname: `둘째 페이지 고래 ${p + 1}`,
+                    role: 'VERIFIED_INFLUENCER',
+                    profileImageUrl: null,
+                  },
+                ]
+              : [],
+          page: { size: 12, number: p, totalElements: 13, totalPages: 2 },
+        })
+      }),
+    )
+    const router = renderApp('/influencers?page=9', 'INFLUENCER')
+
+    expect(
+      await screen.findByRole('link', { name: /둘째 페이지 고래 2/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?page=2')
+    expect(
+      screen.queryByText('아직 인증된 인플루언서가 없어요'),
+    ).not.toBeInTheDocument()
+  })
 })
 
 describe('채널 인증', () => {

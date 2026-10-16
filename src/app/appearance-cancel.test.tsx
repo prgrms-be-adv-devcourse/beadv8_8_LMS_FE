@@ -135,6 +135,67 @@ describe('내 출연 목록', () => {
     expect(roles).toContain('HOST')
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
+
+  it('두 목록의 URL 페이지가 마지막 페이지를 넘으면 역할 탭을 두고 각각 마지막 페이지로 옮긴다', async () => {
+    // Spring Page는 범위를 넘는 페이지에 빈 content와 실제 totalPages를 준다.
+    const pageOf = <T,>(request: Request, item: (p: number) => T) => {
+      const p = Number(new URL(request.url).searchParams.get('page'))
+      return rs({
+        content: p < 2 ? [item(p)] : [],
+        page: { size: 10, number: p, totalElements: 11, totalPages: 2 },
+      })
+    }
+    server.use(
+      http.get(`*/api/v1/members/${PARTNER_ID}`, () =>
+        rs(profile(PARTNER_ID, '편집하는 고래')),
+      ),
+      http.get('*/api/v1/appearances/requests/received', ({ request }) =>
+        pageOf(request, (p) => ({
+          id: 30 + p,
+          hostId: PARTNER_ID,
+          guestId: ME_ID,
+          title: `받은 요청 ${p + 1}`,
+          scheduledAt: '2999-10-20T21:00:00',
+          fee: 25000,
+          acceptDeadline: '2999-10-18T23:59:00',
+          status: 'REQUESTED',
+          createdAt: '2026-10-14T10:00:00',
+        })),
+      ),
+      http.get('*/api/v1/appearances', ({ request }) =>
+        pageOf(request, (p) =>
+          summary({
+            id: 40 + p,
+            hostId: PARTNER_ID,
+            guestId: ME_ID,
+            title: `성립한 출연 ${p + 1}`,
+          }),
+        ),
+      ),
+    )
+    const router = renderApp(
+      '/appearances?tab=guest&page=9&apage=9',
+      'INFLUENCER',
+    )
+
+    const section = await screen.findByRole('region', { name: '성립한 출연' })
+    expect(
+      await within(section).findByRole('link', { name: /성립한 출연 2/ }),
+    ).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: /받은 요청 2/ }),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(router.state.location.search).toBe('?tab=guest&page=2&apage=2'),
+    )
+    expect(
+      screen.queryByText('아직 받은 출연 요청이 없어요'),
+    ).not.toBeInTheDocument()
+    expect(
+      within(section).queryByText('아직 성립한 출연이 없어요.'),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
 })
 
 describe('출연 취소 (게스트)', () => {
