@@ -372,11 +372,9 @@ function ProfileMenu({ viewer }: { viewer: Viewer }) {
             {me.nickname}
             <small>{VIEWER_LABEL[viewer]}</small>
           </span>
-          {viewer !== 'ADMIN' && (
-            <Link className="btn ghost sm" to="/settings">
-              계정 설정
-            </Link>
-          )}
+          <Link className="btn ghost sm" to="/settings">
+            계정 설정
+          </Link>
           <button type="button" className="btn ghost sm" onClick={logout}>
             로그아웃
           </button>
