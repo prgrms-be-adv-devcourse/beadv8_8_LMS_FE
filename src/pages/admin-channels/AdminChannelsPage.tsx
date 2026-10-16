@@ -15,6 +15,7 @@ import {
   isFinalReviewError,
   useApproveChannel,
   useRejectChannel,
+  useReviewingChannel,
 } from '@/features/channel/useChannelReview'
 import { formatDate, formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -67,10 +68,10 @@ export function AdminChannelsPage() {
   const tab = TABS.find((t) => t.status === status) ?? TABS[0]
   const [dialog, setDialog] = useState<Dialog>(null)
   const close = () => setDialog(null)
-  // 요청 상태를 화면에 둔다. 모달을 닫았다 열어도 처리 중이면 다시 보내지 못한다(승인·반려 겹침 방지).
   const approve = useApproveChannel()
   const reject = useRejectChannel()
-  const busy = approve.isPending || reject.isPending
+  // 모달을 닫았다 열거나 화면을 다시 열어도, 진행 중인 승인·반려가 있으면 다시 보내지 못한다.
+  const busy = useReviewingChannel()
 
   return (
     <div className="page">
