@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { adminExchangeQuery } from '@/entities/wallet/adminExchangeApi'
 import {
+  APPLICANT_STATUS_LABEL,
   approveBlockReason,
   isExchangeReviewable,
 } from '@/entities/wallet/exchangeReview'
@@ -23,12 +24,6 @@ const back = (
     ← 환전 승인
   </Link>
 )
-
-const APPLICANT_STATUS_LABEL = {
-  ACTIVE: '정상',
-  SUSPENDED: '정지',
-  WITHDRAWN: '탈퇴',
-} as const
 
 export function AdminExchangePage() {
   const exchangeId = Number(useParams().exchangeId)

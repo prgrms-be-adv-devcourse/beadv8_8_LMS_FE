@@ -36,10 +36,10 @@ describe('approveBlockReason', () => {
     )
     expect(
       approveBlockReason(applicant({ status: 'SUSPENDED', approvable: false })),
-    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(정지됨).')
+    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(정지).')
     expect(
       approveBlockReason(applicant({ status: 'WITHDRAWN', approvable: false })),
-    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(탈퇴함).')
+    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(탈퇴).')
     expect(
       approveBlockReason(applicant({ role: 'USER', approvable: false })),
     ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(유저).')

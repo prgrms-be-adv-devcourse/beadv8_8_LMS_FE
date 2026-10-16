@@ -35,10 +35,14 @@ export function isExchangeReviewable(status: ExchangeStatus): boolean {
   return status === 'REQUESTED'
 }
 
-const APPLICANT_STATUS_LABEL: Record<ExchangeApplicant['status'], string> = {
+/** 신청자 회원 상태 표시. 상세 화면과 승인 불가 이유가 함께 쓴다 */
+export const APPLICANT_STATUS_LABEL: Record<
+  ExchangeApplicant['status'],
+  string
+> = {
   ACTIVE: '정상',
-  SUSPENDED: '정지됨',
-  WITHDRAWN: '탈퇴함',
+  SUSPENDED: '정지',
+  WITHDRAWN: '탈퇴',
 }
 
 /** 승인할 수 없으면 그 이유(거절은 할 수 있다). 신청자의 현재 회원 정보(복제본)로 정한다. */

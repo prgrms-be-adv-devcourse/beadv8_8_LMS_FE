@@ -267,7 +267,7 @@ describe('관리자 환전 상세', () => {
         status: 'SUSPENDED' as const,
         approvable: false,
       },
-      reason: '정상 상태의 인플루언서가 아니라 승인할 수 없어요(정지됨).',
+      reason: '정상 상태의 인플루언서가 아니라 승인할 수 없어요(정지).',
       shown: '정지',
     },
   ])(
