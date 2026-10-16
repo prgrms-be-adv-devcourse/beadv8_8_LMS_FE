@@ -23,7 +23,7 @@ export type ChargeFailure = {
 export type ChargeConfirmState =
   | { phase: 'confirming' }
   | { phase: 'completed'; order: ChargeOrder }
-  /** 정해진 횟수만큼 확인해도 PROCESSING. 결과는 BE가 나중에 확정한다. */
+  /** 정해진 횟수만큼 확인해도 결과를 모른다(PROCESSING·PENDING·조회 실패). PROCESSING은 BE가 나중에 확정한다. */
   | { phase: 'delayed' }
   | { phase: 'failed'; failure: ChargeFailure }
 
@@ -62,7 +62,10 @@ export function useChargeConfirm(
         await queryClient.invalidateQueries({ queryKey: walletKeys.me() })
       return order
     },
-    enabled: data?.status === 'PROCESSING',
+    // 승인 결과를 확인 중(202)이거나 승인 요청의 결과를 모를 때 주문 상태를 본다.
+    enabled:
+      data?.status === 'PROCESSING' ||
+      (error !== null && !isSettledFailure(error)),
     refetchInterval: (query) =>
       query.state.data?.status === 'PROCESSING' &&
       query.state.dataUpdateCount < CHARGE_POLL_MAX
@@ -70,10 +73,13 @@ export function useChargeConfirm(
         : false,
   })
 
-  if (error) return { phase: 'failed', failure: failureOf(error) }
-  if (!data) return { phase: 'confirming' }
-  if (data.status !== 'PROCESSING') return stateOf(data)
+  if (error && isSettledFailure(error))
+    return { phase: 'failed', failure: failureOf(error) }
+  if (!error && !data) return { phase: 'confirming' }
+  if (data && data.status !== 'PROCESSING') return stateOf(data)
 
+  // 승인 요청은 BE에 닿지 않았다(PENDING). 결제는 승인되지 않은 채로 끝나지만, 화면에서 단정하지 않는다.
+  if (poll.data?.status === 'PENDING') return { phase: 'delayed' }
   if (poll.data && poll.data.status !== 'PROCESSING') return stateOf(poll.data)
   // dataUpdatedAt을 읽어 같은 응답이 와도 다시 그린다(횟수는 쿼리 상태에만 있다).
   const polls = poll.dataUpdatedAt
@@ -89,6 +95,18 @@ function stateOf(order: ChargeOrder): ChargeConfirmState {
   if (order.status === 'PENDING' || order.status === 'PROCESSING')
     return { phase: 'confirming' }
   return { phase: 'completed', order }
+}
+
+/**
+ * BE가 결과를 확정한 실패인지. 4xx는 PG 승인 전에 막았거나 PG가 거절한 것이고,
+ * 503 CHARGE_UNAVAILABLE은 상태를 바꾸기 전에 거절한 것이다.
+ * 그 밖의 5xx·네트워크 오류는 승인됐는데 응답만 놓쳤을 수 있어 주문 상태로 확인한다.
+ */
+function isSettledFailure(error: Error): boolean {
+  return (
+    isApiError(error) &&
+    (error.status < 500 || error.code === 'CHARGE_UNAVAILABLE')
+  )
 }
 
 function failureOf(error: Error): ChargeFailure {

@@ -477,6 +477,8 @@ describe('충전 결과', () => {
     [404, 'CHARGE_NOT_FOUND'],
     [409, 'CHARGE_PAYMENT_KEY_CONFLICT'],
     [409, 'CHARGE_ALREADY_FAILED'],
+    // 상태를 바꾸기 전에 거절하므로 결과가 확정된 실패다
+    [503, 'CHARGE_UNAVAILABLE'],
   ])(
     '승인 요청이 %i %s로 실패하면 실패 화면에 코드를 보여 준다',
     async (status, code) => {
@@ -496,6 +498,43 @@ describe('충전 결과', () => {
       ).toHaveAttribute('href', '/wallet?charge=30000')
     },
   )
+
+  it('승인 응답을 받지 못하면(네트워크 오류) 주문 상태를 확인해 완료를 보여 준다', async () => {
+    mockCart()
+    mockConfirm(() => HttpResponse.error())
+    const calls = mockChargeStatus(order({ status: 'COMPLETED' }))
+    renderApp(SUCCESS, 'USER')
+
+    expect(
+      await screen.findByRole('heading', { name: '30,000 HP를 충전했어요' }),
+    ).toBeInTheDocument()
+    expect(calls).toEqual([ORDER_ID])
+  })
+
+  it('승인 요청이 5xx로 끝나 결과를 모르면 다시 결제하라고 하지 않고 지갑에서 확인하라고 안내한다', async () => {
+    mockConfirm(() => problem(500, 'CHARGE_STATE_INCONSISTENT'))
+    const calls = mockChargeStatus(order({ status: 'PROCESSING' }))
+    renderApp(SUCCESS, 'USER')
+
+    expect(
+      await screen.findByRole('heading', { name: '확인이 늦어지고 있어요' }),
+    ).toBeInTheDocument()
+    expect(calls).toHaveLength(15)
+    expect(
+      screen.queryByRole('link', { name: '다시 결제하기' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('결과를 모를 때 주문이 아직 결제 전(PENDING)이면 지갑에서 확인하라고 안내한다', async () => {
+    mockConfirm(() => HttpResponse.error())
+    const calls = mockChargeStatus(order({ status: 'PENDING' }))
+    renderApp(SUCCESS, 'USER')
+
+    expect(
+      await screen.findByRole('heading', { name: '확인이 늦어지고 있어요' }),
+    ).toBeInTheDocument()
+    expect(calls).toEqual([ORDER_ID])
+  })
 
   function countChargeRequests() {
     let count = 0

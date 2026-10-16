@@ -42,7 +42,8 @@ export function WalletPage() {
     )
   }, [hasChargeParam, setParams])
 
-  const earns = me?.role !== 'USER'
+  // 내 정보를 받기 전에는 수익 HP를 보여 주지 않는다(유저에게 잠깐 보이지 않게).
+  const earns = me ? me.role !== 'USER' : false
 
   return (
     <div className="page">
