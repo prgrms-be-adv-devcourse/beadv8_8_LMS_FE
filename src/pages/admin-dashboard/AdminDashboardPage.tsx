@@ -4,6 +4,7 @@ import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import { channelReviewsQuery, upgradeReviewsQuery } from '@/entities/member/api'
 import { payoutFailuresQuery } from '@/entities/payout/api'
+import { adminExchangesQuery } from '@/entities/wallet/adminExchangeApi'
 import { formatNumber } from '@/shared/lib/money'
 import { PageHead } from '@/shared/ui/PageHead'
 import styles from './AdminDashboardPage.module.css'
@@ -30,6 +31,7 @@ export function AdminDashboardPage() {
     adminInquiriesQuery({ status: 'WAITING', sort: 'OLDEST', page: 0 }),
   )
   const payouts = useQuery(payoutFailuresQuery(0))
+  const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
 
   return (
     <div className="page">
@@ -59,6 +61,11 @@ export function AdminDashboardPage() {
           query={inquiries}
         />
         <SummaryCard label="지급 실패" to="/admin/payouts" query={payouts} />
+        <SummaryCard
+          label="환전 승인 대기"
+          to="/admin/exchanges"
+          query={exchanges}
+        />
       </section>
     </div>
   )

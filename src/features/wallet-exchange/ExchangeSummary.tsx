@@ -6,8 +6,24 @@ import type { Exchange } from '@/entities/wallet/types'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 
-/** 서버가 확정한 환전 신청 내용(금액·잠정 정산 예정일·신청 당시 계좌). 신청 결과와 상세에서 함께 쓴다. */
-export function ExchangeSummary({ exchange }: { exchange: Exchange }) {
+/**
+ * 서버가 확정한 환전 신청 내용(금액·잠정 정산 예정일·신청 당시 계좌). 신청 결과와 상세에서 함께 쓴다.
+ * 관리자 환전 상세(AdminExchange)도 같은 필드라 함께 쓴다.
+ */
+export function ExchangeSummary({
+  exchange,
+}: {
+  exchange: Pick<
+    Exchange,
+    | 'requestedAmount'
+    | 'feeAmount'
+    | 'expectedPayoutAmount'
+    | 'settlementRoundDate'
+    | 'account'
+    | 'requestedAt'
+    | 'canceledAt'
+  >
+}) {
   const { account } = exchange
   return (
     <>
