@@ -68,7 +68,9 @@ function mockRequestRefund(
 }
 
 /** 환불 요청 조회 응답. 부를 때마다 respond에 몇 번째인지 넘긴다. */
-function mockGetRefund(respond: (call: number) => Response) {
+function mockGetRefund(
+  respond: (call: number) => Response | Promise<Response>,
+) {
   let calls = 0
   server.use(
     http.get(`*/api/v1/wallets/refunds/${REFUND_ID}`, () => respond(++calls)),
@@ -460,16 +462,41 @@ describe('환불 요청 취소', () => {
     )
     await user.click(within(dialog).getByRole('button', { name: '신청 취소' }))
 
-    expect(await within(dialog).findByText('신청 취소')).toBeInTheDocument()
-    expect(
-      within(dialog).getByText('충전 HP로 돌려준 금액').closest('div'),
-    ).toHaveTextContent('12,000 HP')
+    // 확인 버튼 이름도 '신청 취소'라서 결과 금액 행으로 취소 응답을 기다린다.
+    const returned = await within(dialog).findByText('충전 HP로 돌려준 금액')
+    expect(returned.closest('div')).toHaveTextContent('12,000 HP')
+    expect(within(dialog).getByText('신청 취소')).toHaveClass('pill')
     expect(cancels()).toBe(1)
     await waitFor(() =>
       expect(
         within(ownCard()).getByText('충전 HP').closest('div'),
       ).toHaveTextContent(/^충전 HP12,000$/),
     )
+  })
+
+  it('취소 뒤 늦게 도착한 조회 응답이 결과를 덮어쓰지 않는다', async () => {
+    // 취소를 보낼 때 이미 나가 있던 상태 조회가 취소 응답보다 늦게 온다.
+    let release!: () => void
+    const late = new Promise<void>((resolve) => (release = resolve))
+    const gets = mockGetRefund(() =>
+      late.then(() =>
+        rs(refund({ pendingAmount: 12000, status: 'REQUESTED' })),
+      ),
+    )
+    mockCancel(() => rs(refund({ status: 'CANCELED', returnedAmount: 12000 })))
+    const { user, dialog } = await submitRequested()
+    await waitFor(() => expect(gets()).toBe(1))
+
+    await user.click(
+      within(dialog).getByRole('button', { name: '환불 요청 취소' }),
+    )
+    await user.click(within(dialog).getByRole('button', { name: '신청 취소' }))
+    await within(dialog).findByText('충전 HP로 돌려준 금액')
+    release()
+    await settle()
+
+    expect(within(dialog).queryByText('접수됨')).toBeNull()
+    expect(within(dialog).getByText('신청 취소')).toHaveClass('pill')
   })
 
   it('이미 결제 취소를 시작했으면 최신 상태를 다시 조회한다', async () => {

@@ -46,7 +46,13 @@ export function useRefund() {
   // 결제 취소를 시작하기 전(REQUESTED)에만 받아 준다. 이미 시작했으면(409) 최신 상태를 다시 본다.
   const cancel = useMutation({
     mutationFn: (id: number) => cancelRefund(id),
-    onSuccess: (refund) => keep(queryClient, refund),
+    onSuccess: async (refund) => {
+      // 취소를 보낼 때 나가 있던 상태 조회가 늦게 와서 취소 결과를 덮어쓰지 않게 먼저 멈춘다.
+      await queryClient.cancelQueries({
+        queryKey: refundKeys.detail(refund.refundRequestId),
+      })
+      keep(queryClient, refund)
+    },
     onError: (error, id) => {
       if (isApiError(error, 'REFUND_NOT_CANCELABLE'))
         return queryClient.invalidateQueries({
