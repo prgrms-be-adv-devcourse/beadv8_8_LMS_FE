@@ -18,6 +18,7 @@ import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
+import { AdminPayoutsPage } from '@/pages/admin-payouts/AdminPayoutsPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
 import { AppearanceDetailPage } from '@/pages/appearance-detail/AppearanceDetailPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
@@ -148,6 +149,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/support/inquiries/:inquiryId': <InquiryPage />,
   '/admin/lectures': <AdminLecturesPage />,
   '/admin/channels': <AdminChannelsPage />,
+  '/admin/payouts': <AdminPayoutsPage />,
   '/admin/promotions': <AdminPromotionsPage />,
   '/admin/lectures/:lectureId': <AdminLecturePage />,
   '/admin/inquiries': <AdminInquiriesPage />,
