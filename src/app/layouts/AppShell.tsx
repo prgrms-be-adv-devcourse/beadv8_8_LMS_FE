@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Link,
   NavLink,
   useLocation,
   useMatches,
-  useNavigate,
   useNavigation,
 } from 'react-router'
 import { MY_ACTIVITY, navFor } from '@/app/nav'
@@ -167,15 +166,11 @@ function topNavFor(viewer: Viewer) {
   ]
 }
 
-/** 홈 헤더: 햄버거(전체 메뉴) · 로고 · 가로 메뉴 · 검색 · 로그인 또는 HP·알림·프로필 */
+/**
+ * 홈 헤더: 햄버거(전체 메뉴) · 로고 · 가로 메뉴 · 로그인 또는 HP·장바구니·프로필.
+ * 통합 검색은 BE API가 없어 두지 않는다(#101).
+ */
 function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
-  const navigate = useNavigate()
-  const [query, setQuery] = useState('')
-  const search = (e: FormEvent) => {
-    e.preventDefault()
-    const q = query.trim()
-    navigate(q ? `/search?${new URLSearchParams({ q })}` : '/search')
-  }
   return (
     <header className={styles.homeTop}>
       <MenuButton navOpen={navOpen} onToggleNav={onToggleNav} />
@@ -196,40 +191,6 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
           </NavLink>
         ))}
       </nav>
-      <form className={styles.search} role="search" onSubmit={search}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-        <input
-          aria-label="검색"
-          placeholder="인플루언서, 모집 글, 강의 검색"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </form>
-      <Link to="/search" className={styles.searchIcon} aria-label="검색">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          aria-hidden="true"
-        >
-          <circle cx="11" cy="11" r="7" />
-          <path d="m20 20-3.5-3.5" />
-        </svg>
-      </Link>
       <div className={styles.right}>
         <HeaderActions viewer={viewer} loginClassName="btn primary" />
       </div>
@@ -238,8 +199,9 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
 }
 
 /**
- * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 알림 · 장바구니 · 프로필 메뉴.
- * 알림·장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다.
+ * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 프로필 메뉴.
+ * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다.
+ * 알림은 BE API가 없어 두지 않는다(#101).
  */
 function HeaderActions({
   viewer,
@@ -263,15 +225,6 @@ function HeaderActions({
   return (
     <>
       {member && <HpPill />}
-      {member && (
-        <NavLink
-          to="/alerts"
-          className={`${styles.iconBtn} ${styles.headerIcon}`}
-          aria-label="알림"
-        >
-          <BellIcon />
-        </NavLink>
-      )}
       {member && <CartLink />}
       <ProfileMenu viewer={viewer} />
     </>
@@ -293,23 +246,6 @@ function CartLink() {
         </span>
       )}
     </NavLink>
-  )
-}
-
-function BellIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
-      <path d="M10 20a2 2 0 0 0 4 0" />
-    </svg>
   )
 }
 
@@ -445,16 +381,13 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
   )
 }
 
-/** 좁은 화면(≤860px) 드로어에서만 보이는 알림·장바구니. 넓은 화면에서는 상단 헤더에 있다. */
+/** 좁은 화면(≤860px) 드로어에서만 보이는 장바구니. 넓은 화면에서는 상단 헤더에 있다. */
 function NarrowShortcuts() {
   const count = useCartCount(true)
   const className = ({ isActive }: { isActive: boolean }) =>
     isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
   return (
     <div data-narrow-only className={styles.narrowOnly}>
-      <NavLink to="/alerts" className={className}>
-        알림
-      </NavLink>
       <NavLink to="/cart" className={className} aria-label={cartLabel(count)}>
         장바구니
         {!!count && (

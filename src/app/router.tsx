@@ -64,7 +64,6 @@ type PageDef = { path: string; title: string; roles: readonly Viewer[] }
 /** 내비 레일에 없는 화면: 상단 헤더로 들어가는 화면과 상세·하위 화면 (docs/mockup-ui.html의 EXTRA_ROUTES) */
 const EXTRA_ROUTES: PageDef[] = [
   { path: '/', title: '홈', roles: ALL },
-  { path: '/alerts', title: '알림', roles: MEMBER },
   { path: '/cart', title: '장바구니', roles: MEMBER },
   { path: '/lectures/:lectureId', title: '강의 상세', roles: SIGNED_IN },
   { path: '/recruits/:recruitId', title: '모집 상세', roles: SIGNED_IN },
@@ -73,7 +72,6 @@ const EXTRA_ROUTES: PageDef[] = [
     title: '인플루언서 프로필',
     roles: SIGNED_IN,
   },
-  { path: '/search', title: '검색', roles: ['GUEST', ...MEMBER] },
   // 치지직 연동 콜백 뒤 BE가 보내는 경로(BE ApiV1MemberChannelController.RESULT_PATH)
   { path: '/mypage', title: '치지직 연동 결과', roles: MEMBER },
   {
@@ -89,7 +87,6 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/chat/:chatRoomId', title: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
   { path: '/wallet/charge/result', title: '충전 결과', roles: MEMBER },
   { path: '/wallet/exchange', title: '환전 신청', roles: INFLUENCER },
-  { path: '/wallet/account', title: '환전 계좌', roles: INFLUENCER },
   {
     path: '/studio/lectures/new',
     title: '강의 등록',
@@ -105,9 +102,6 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/admin/lectures/:lectureId', title: '강의 검수', roles: ADMIN },
   { path: '/admin/chats/:chatRoomId', title: '채팅 기록', roles: ADMIN },
   { path: '/admin/inquiries/:inquiryId', title: '문의 답변', roles: ADMIN },
-  { path: '/admin/disputes/:disputeId', title: '이의 제기 판정', roles: ADMIN },
-  { path: '/admin/members/:memberId', title: '회원 상세', roles: ADMIN },
-  { path: '/admin/deals/:dealId', title: '거래 상세', roles: ADMIN },
 ]
 
 const PAGES: PageDef[] = [

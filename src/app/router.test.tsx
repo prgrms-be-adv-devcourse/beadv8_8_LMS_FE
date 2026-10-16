@@ -88,7 +88,7 @@ describe('라우트 가드', () => {
     expect(admin.state.location.pathname).toBe('/')
   })
 
-  it('메뉴에 없는 장바구니·알림도 주소로 들어오면 회원 권한을 따른다', async () => {
+  it('메뉴에 없는 장바구니도 주소로 들어오면 회원 권한을 따른다', async () => {
     renderAt('/cart', 'USER')
     expect(
       await screen.findByText('장바구니가 비어 있어요'),
@@ -124,8 +124,8 @@ describe('라우트 가드', () => {
     ).toBeNull()
   })
 
-  it('비회원이 장바구니·알림 주소로 들어오면 로그인 안내를 보여 준다', async () => {
-    renderAt('/alerts', 'GUEST')
+  it('비회원이 장바구니 주소로 들어오면 로그인 안내를 보여 준다', async () => {
+    renderAt('/cart', 'GUEST')
     expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
   })
 
@@ -169,6 +169,31 @@ describe('라우트 가드', () => {
       await screen.findByText('페이지를 찾을 수 없어요'),
     ).toBeInTheDocument()
   })
+
+  // BE API가 없어 진입점을 숨긴 화면(#101). 자리표시 대신 404를 보인다.
+  it.each([
+    ['/alerts', 'USER'],
+    ['/alerts', 'GUEST'],
+    ['/search', 'GUEST'],
+    ['/search?q=x', 'USER'],
+    ['/wallet/account', 'INFLUENCER'],
+    ['/admin/disputes', 'ADMIN'],
+    ['/admin/disputes/1', 'ADMIN'],
+    ['/admin/search', 'ADMIN'],
+    ['/admin/logs', 'ADMIN'],
+    ['/admin/members/1', 'ADMIN'],
+    ['/admin/deals/1', 'ADMIN'],
+  ] as const)(
+    '없어진 %s 주소로 들어오면(%s) 404 화면이다',
+    async (path, viewer) => {
+      renderAt(path, viewer)
+      expect(
+        await screen.findByText('페이지를 찾을 수 없어요'),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('준비 중인 화면이에요')).toBeNull()
+      expect(screen.queryByText('로그인이 필요해요')).toBeNull()
+    },
+  )
 })
 
 describe('내비 레일', () => {
@@ -187,7 +212,7 @@ describe('내비 레일', () => {
     expect(await navLabels()).toEqual(['강의'])
   })
 
-  it('회원 레일에는 홈·장바구니·알림이 없다(상단 헤더로 간다)', async () => {
+  it('회원 레일에는 홈·장바구니·알림이 없다', async () => {
     renderAt('/lectures', 'USER')
     const labels = await navLabels()
     expect(labels).toContain('내 강의')
@@ -209,6 +234,29 @@ describe('내비 레일', () => {
     const labels = await navLabels()
     expect(labels).toContain('강의 검수')
     expect(labels).not.toContain('지갑')
+  })
+
+  it('관리자 운영 메뉴에는 구현된 화면만 있다', async () => {
+    renderAt('/admin', 'ADMIN')
+    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const ops = within(nav).getByRole('group', { name: '운영' })
+    expect(
+      within(ops)
+        .getAllByRole('link')
+        .map((a) => a.textContent),
+    ).toEqual([
+      '대시보드',
+      '채널 인증 심사',
+      '승급 심사',
+      '강의 검수',
+      '지급 실패',
+      '문의 답변',
+      '채팅 기록',
+    ])
+    // 이의 제기 판단은 문의 답변 상세에서 한다.
+    expect(
+      within(ops).getByRole('link', { name: '문의 답변' }),
+    ).toHaveAttribute('href', '/admin/inquiries')
   })
 
   it('관리자 레일에는 계정 설정이 없다(프로필 메뉴로 들어간다)', async () => {
