@@ -48,7 +48,9 @@ function walletState(revenueBalanceHp: number) {
 }
 
 /** 신청 화면을 열고 계좌를 채운다. */
-async function openForm(revenueBalanceHp: number | (() => Response) = 43000) {
+async function openForm(
+  revenueBalanceHp: number | (() => Response | Promise<Response>) = 43000,
+) {
   const router = renderApp(
     '/wallet/exchange',
     'INFLUENCER',
@@ -295,6 +297,36 @@ describe('환전 신청', () => {
     expect(calls).toHaveLength(3)
     expect(new Set(calls.map((c) => c.key)).size).toBe(1)
     expect(new Set(calls.map((c) => JSON.stringify(c.body))).size).toBe(1)
+  })
+
+  it('지갑을 다시 불러온 뒤에 결과를 보여 줘서, 새로 신청하면 줄어든 수익 HP로 처음 금액을 정한다', async () => {
+    const wallet = walletState(43000)
+    // 신청 뒤 지갑 재조회 응답을 붙잡아 둔다.
+    const refetch = deferred()
+    let submitted = false
+    mockRequestExchange((body) => {
+      wallet.state.revenueBalanceHp -= body.amount
+      submitted = true
+      return rs(exchange({ requestedAmount: body.amount }), 201)
+    })
+    const { user } = await openForm(() =>
+      submitted ? refetch.promise.then(wallet.respond) : wallet.respond(),
+    )
+    await user.clear(screen.getByLabelText('환전할 HP'))
+    await user.type(screen.getByLabelText('환전할 HP'), '40000')
+    await fillAccount(user)
+    await user.click(submitButton())
+
+    await waitFor(() => expect(submitted).toBe(true))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(screen.queryByRole('region', { name: '환전 신청 결과' })).toBeNull()
+
+    // 붙잡아 둔 재조회를 풀면 그때의 지갑 값을 준다(넘기는 응답은 쓰지 않는다).
+    refetch.resolve(new Response())
+    await user.click(await screen.findByRole('button', { name: '새로 신청' }))
+
+    expect(screen.getByLabelText('환전할 HP')).toHaveValue('3000')
+    expect(screen.getByText(/환전 가능 3,000 HP/)).toBeInTheDocument()
   })
 
   it('새로 신청하면 입력을 비우고 새 멱등키를 쓴다', async () => {

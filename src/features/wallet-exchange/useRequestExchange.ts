@@ -10,7 +10,8 @@ import { isApiError } from '@/shared/api/ApiError'
  *   BE가 거절을 확정했으면(4xx·503 EXCHANGE_UNAVAILABLE) 버려 다음 제출은 새 신청이 된다.
  *   reset(새로 신청)이나 화면을 떠났다 오면 새 키를 쓴다.
  * - 신청 응답 뒤에는(성공·실패 모두) 보류로 잔액이 바뀌었을 수 있어 지갑·환전 내역을 다시 불러온다.
- *   무효화는 훅의 onSettled에 둬서 응답 전에 화면을 떠나도 실행된다.
+ *   무효화는 훅의 onSettled에 둬서 응답 전에 화면을 떠나도 실행된다. onSettled가 무효화 Promise를 돌려주므로
+ *   지갑을 다시 불러온 뒤에야 결과(exchange)가 보이고, 그래서 "새로 신청"의 처음 금액·검사는 줄어든 수익 HP 기준이다.
  */
 export function useRequestExchange() {
   const queryClient = useQueryClient()
