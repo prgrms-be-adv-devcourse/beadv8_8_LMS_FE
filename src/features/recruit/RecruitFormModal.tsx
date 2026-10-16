@@ -14,7 +14,6 @@ import {
   RECRUIT_COUNT_MAX,
   TITLE_MAX,
   validateRecruitForm,
-  type RecruitFormErrors,
   type RecruitFormValues,
 } from '@/entities/appearance/rules'
 import { myChannelsQuery } from '@/entities/member/api'
@@ -25,11 +24,36 @@ import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { isApiError } from '@/shared/api/ApiError'
 import { kstLocalInput, toServerDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
 
 const HOLD_PENDING_PATH = `/recruits?tab=mine&${HOLD_PENDING_PARAM}=1`
+
+/** 화면 순서대로 둔 입력칸. 앞 칸을 건너뛰고 아래 칸에 포커스하면 건너뛴 첫 오류 칸을 보여 준다 */
+const FIELD_ORDER = [
+  'title',
+  'feePerPerson',
+  'recruitCount',
+  'recruitDeadline',
+  'scheduledAt',
+  'expectedMinutes',
+  'hostChannelUrl',
+  'content',
+] as const satisfies readonly (keyof RecruitFormValues)[]
+
+/** 칸 이름 → 입력칸 id (오류 문구 id는 `${id}-error`) */
+const FIELD_ID: Record<keyof RecruitFormValues, string> = {
+  title: 'rn-title',
+  feePerPerson: 'rn-fee',
+  recruitCount: 'rn-seats',
+  recruitDeadline: 'rn-deadline',
+  scheduledAt: 'rn-air',
+  expectedMinutes: 'rn-minutes',
+  hostChannelUrl: 'rn-channel',
+  content: 'rn-content',
+}
 
 /** 출연 모집글 올리기. 올리면 1인 출연료 × 모집 인원만큼 HP가 보류된다. */
 export function RecruitFormModal({ onClose }: { onClose: () => void }) {
@@ -54,14 +78,12 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
     hostChannelUrl:
       urlTouched || !myChannel ? values.hostChannelUrl : myChannel.channelUrl,
   }
-  const [submitted, setSubmitted] = useState(false)
-  const [serverErrors, setServerErrors] = useState<RecruitFormErrors>({})
   const [shortHp, setShortHp] = useState(false)
-
-  const errors = validateRecruitForm(formValues, kstLocalInput())
-  const shown: RecruitFormErrors = submitted
-    ? { ...serverErrors, ...errors }
-    : serverErrors
+  const fields = useFieldErrors({
+    ids: FIELD_ID,
+    order: FIELD_ORDER,
+    errors: validateRecruitForm(formValues, kstLocalInput()),
+  })
   const fee = Number(values.feePerPerson) || 0
   const count = Number(values.recruitCount) || 0
   // 보여 주기용 합계. 실제 보류 금액은 BE가 계산한다.
@@ -97,11 +119,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
         navigate(HOLD_PENDING_PATH)
         return
       }
-      if (isApiError(error) && error.errors.length > 0) {
-        setServerErrors(
-          Object.fromEntries(error.errors.map((e) => [e.field, e.message])),
-        )
-      }
+      fields.applyServerErrors(error)
       toast(error.message)
     },
     onSettled: () =>
@@ -123,16 +141,21 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
       const value = numeric.has(key)
         ? e.target.value.replace(/\D/g, '')
         : e.target.value
-      setServerErrors((prev) => ({ ...prev, [key]: undefined }))
+      fields.changed(key)
       setValues((prev) => ({ ...prev, [key]: value }))
     }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
-    if (Object.keys(errors).length === 0 && spend.ready && spend.short === 0)
-      post.mutate()
+    if (fields.blockSubmit()) return
+    if (spend.ready && spend.short === 0) post.mutate()
   }
+
+  /** 입력칸 공통 속성: 오류 표시 속성과 값 바꾸기 */
+  const fieldProps = (key: keyof RecruitFormValues) => ({
+    ...fields.inputProps(key),
+    onChange: set(key),
+  })
 
   const blockedByHp = spend.ready && (spend.short > 0 || shortHp)
 
@@ -159,6 +182,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
               form="recruit-form"
               className="btn primary"
               disabled={!spend.ready || post.isPending}
+              {...fields.submitProps}
             >
               {!spend.ready
                 ? spend.error
@@ -170,14 +194,19 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
         </>
       }
     >
-      <form id="recruit-form" className="form" noValidate onSubmit={submit}>
-        <Field id="rn-title" label="제목" error={shown.title}>
+      <form
+        {...fields.formProps}
+        id="recruit-form"
+        className="form"
+        noValidate
+        onSubmit={submit}
+      >
+        <Field id="rn-title" label="제목" error={fields.error('title')}>
           <input
-            id="rn-title"
+            {...fieldProps('title')}
             className="input"
             maxLength={TITLE_MAX}
             value={formValues.title}
-            onChange={set('title')}
             placeholder="예: 금요일 밤 노래 릴레이 3인"
           />
         </Field>
@@ -185,29 +214,27 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
           <Field
             id="rn-fee"
             label="1인 출연료 (HP)"
-            error={shown.feePerPerson}
+            error={fields.error('feePerPerson')}
             hint={`최저 ${MINIMUM_FEE.toLocaleString()} HP`}
           >
             <input
-              id="rn-fee"
+              {...fieldProps('feePerPerson')}
               className="input num"
               inputMode="numeric"
               value={formValues.feePerPerson}
-              onChange={set('feePerPerson')}
             />
           </Field>
           <Field
             id="rn-seats"
             label="모집 인원"
-            error={shown.recruitCount}
+            error={fields.error('recruitCount')}
             hint={`최대 ${RECRUIT_COUNT_MAX}명`}
           >
             <input
-              id="rn-seats"
+              {...fieldProps('recruitCount')}
               className="input num"
               inputMode="numeric"
               value={formValues.recruitCount}
-              onChange={set('recruitCount')}
             />
           </Field>
         </div>
@@ -215,24 +242,26 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
           <Field
             id="rn-deadline"
             label="모집 마감 일시"
-            error={shown.recruitDeadline}
+            error={fields.error('recruitDeadline')}
             hint="마감하면 성립하지 못한 자리분 HP를 돌려받아요."
           >
             <input
-              id="rn-deadline"
+              {...fieldProps('recruitDeadline')}
               type="datetime-local"
               className="input"
               value={formValues.recruitDeadline}
-              onChange={set('recruitDeadline')}
             />
           </Field>
-          <Field id="rn-air" label="방송 예정 일시" error={shown.scheduledAt}>
+          <Field
+            id="rn-air"
+            label="방송 예정 일시"
+            error={fields.error('scheduledAt')}
+          >
             <input
-              id="rn-air"
+              {...fieldProps('scheduledAt')}
               type="datetime-local"
               className="input"
               value={formValues.scheduledAt}
-              onChange={set('scheduledAt')}
             />
           </Field>
         </div>
@@ -240,40 +269,41 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
           <Field
             id="rn-minutes"
             label="예상 출연 시간 (분)"
-            error={shown.expectedMinutes}
+            error={fields.error('expectedMinutes')}
           >
             <input
-              id="rn-minutes"
+              {...fieldProps('expectedMinutes')}
               className="input num"
               inputMode="numeric"
               max={EXPECTED_MINUTES_MAX}
               value={formValues.expectedMinutes}
-              onChange={set('expectedMinutes')}
             />
           </Field>
           <Field
             id="rn-channel"
             label="내 채널 주소"
-            error={shown.hostChannelUrl}
+            error={fields.error('hostChannelUrl')}
             hint={myChannel ? '승인된 내 채널로 채웠어요.' : undefined}
           >
             <input
-              id="rn-channel"
+              {...fieldProps('hostChannelUrl')}
               className="input"
               inputMode="url"
               value={formValues.hostChannelUrl}
-              onChange={set('hostChannelUrl')}
               placeholder="https://chzzk.naver.com/..."
             />
           </Field>
         </div>
-        <Field id="rn-content" label="콘텐츠 설명" error={shown.content}>
+        <Field
+          id="rn-content"
+          label="콘텐츠 설명"
+          error={fields.error('content')}
+        >
           <textarea
-            id="rn-content"
+            {...fieldProps('content')}
             className="textarea"
             maxLength={CONTENT_MAX}
             value={formValues.content}
-            onChange={set('content')}
             placeholder="방송 주제, 진행 방식, 필요한 장비"
           />
         </Field>

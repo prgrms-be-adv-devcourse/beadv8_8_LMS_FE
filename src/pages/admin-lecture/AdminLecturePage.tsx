@@ -12,6 +12,7 @@ import { ContentView } from '@/features/lecture-watch/ContentView'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -180,6 +181,13 @@ function Decide({ lectureId }: { lectureId: number }) {
     CHECKLIST.map(() => false),
   )
   const [reason, setReason] = useState('')
+  const fields = useFieldErrors({
+    ids: { reason: 'lc-why' },
+    order: ['reason'],
+    errors: {
+      reason: !reason.trim() ? '반려 사유를 입력해 주세요.' : undefined,
+    },
+  })
   const busy = approve.isPending || reject.isPending
 
   return (
@@ -214,26 +222,41 @@ function Decide({ lectureId }: { lectureId: number }) {
             key={t}
             type="button"
             className={reason === t ? 'chip sm on' : 'chip sm'}
-            onClick={() => setReason(t)}
+            onClick={() => {
+              fields.changed('reason')
+              setReason(t)
+            }}
           >
             {t}
           </button>
         ))}
       </div>
-      <Field id="lc-why" label="반려 사유" hint="판매자에게 그대로 전달돼요.">
+      <Field
+        id="lc-why"
+        label="반려 사유"
+        error={fields.error('reason')}
+        hint="판매자에게 그대로 전달돼요."
+      >
         <textarea
-          id="lc-why"
+          {...fields.inputProps('reason')}
           className="textarea"
           value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          onChange={(e) => {
+            fields.changed('reason')
+            setReason(e.target.value)
+          }}
           placeholder="예: 3강 음량이 다른 강의보다 크게 낮아요"
         />
       </Field>
       <button
         type="button"
         className="btn danger block"
-        disabled={!reason.trim() || busy}
-        onClick={() => reject.mutate(reason.trim())}
+        disabled={busy}
+        {...fields.submitProps}
+        onClick={() => {
+          if (fields.blockSubmit()) return
+          reject.mutate(reason.trim(), { onError: fields.applyServerErrors })
+        }}
       >
         반려
       </button>

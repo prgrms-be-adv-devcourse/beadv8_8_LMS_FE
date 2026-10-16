@@ -157,7 +157,9 @@ p {
 .btn.block {
   width: 100%;
 }
-.btn:disabled {
+/* aria-disabled: 검사 오류로 막힌 제출 버튼. 막힌 모양이지만 눌러서 첫 오류 칸을 안내한다 */
+.btn:disabled,
+.btn[aria-disabled='true'] {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -636,6 +638,16 @@ table.tbl {
   outline: none;
   border-color: var(--ink);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+/* 오류가 있는 칸 (Field error) */
+.field.invalid label {
+  color: var(--bad);
+}
+.field.invalid :is(.input, .select, .textarea) {
+  border-color: var(--bad);
+}
+.field.invalid :is(.input, .select, .textarea):focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 16%, transparent);
 }
 .select.sm {
   width: auto;
