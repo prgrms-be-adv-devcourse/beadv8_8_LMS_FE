@@ -138,8 +138,16 @@ describe('내 출연 목록', () => {
 
   it('두 목록의 URL 페이지가 마지막 페이지를 넘으면 역할 탭을 두고 각각 마지막 페이지로 옮긴다', async () => {
     // Spring Page는 범위를 넘는 페이지에 빈 content와 실제 totalPages를 준다.
-    const pageOf = <T,>(request: Request, item: (p: number) => T) => {
+    // 두 목록의 범위 밖 응답을 함께 풀어, 두 보정이 같은 때 일어나도 한쪽이 다른 쪽을 덮어쓰지 않는지 본다.
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    let held = 0
+    const pageOf = async <T,>(request: Request, item: (p: number) => T) => {
       const p = Number(new URL(request.url).searchParams.get('page'))
+      if (p >= 2) {
+        held++
+        await gate
+      }
       return rs({
         content: p < 2 ? [item(p)] : [],
         page: { size: 10, number: p, totalElements: 11, totalPages: 2 },
@@ -177,6 +185,8 @@ describe('내 출연 목록', () => {
       '/appearances?tab=guest&page=9&apage=9',
       'INFLUENCER',
     )
+    await waitFor(() => expect(held).toBe(2))
+    release()
 
     const section = await screen.findByRole('region', { name: '성립한 출연' })
     expect(
