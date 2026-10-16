@@ -7,6 +7,12 @@ import { inquiryKeys } from '@/entities/inquiry/api'
 import type { Inquiry, InquirySummary } from '@/entities/inquiry/types'
 import type { PurchasedLecture } from '@/entities/order/types'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+  expectSubmitOpen,
+} from '@/test/fieldError'
 import { server } from '@/test/server'
 
 const summary = (patch: Partial<InquirySummary> = {}): InquirySummary => ({
@@ -93,7 +99,7 @@ describe('고객센터 (회원)', () => {
       await screen.findByText('아직 남긴 문의가 없어요'),
     ).toBeInTheDocument()
     const submit = screen.getByRole('button', { name: '접수하기' })
-    expect(submit).toBeDisabled()
+    expectSubmitBlocked(submit)
     await userEvent.type(screen.getByLabelText('제목'), '환전이 늦어요')
     await userEvent.type(
       screen.getByLabelText('내용'),
@@ -178,7 +184,54 @@ describe('고객센터 (회원)', () => {
     ).toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('제목'), '제목')
     await userEvent.type(screen.getByLabelText('내용'), '내용')
-    expect(screen.getByRole('button', { name: '접수하기' })).toBeDisabled()
+    expectSubmitBlocked(screen.getByRole('button', { name: '접수하기' }))
+  })
+
+  it('제목을 비운 채 떠나면 제목에 오류를 보여 주고 접수를 막는다', async () => {
+    server.use(http.get('*/api/v1/inquiries', () => rs(page([]))))
+    renderApp('/support', 'USER')
+
+    const title = await screen.findByLabelText('제목')
+    const submit = screen.getByRole('button', { name: '접수하기' })
+    expectNoFieldError(title)
+    await userEvent.click(title)
+    await userEvent.tab()
+
+    expectFieldError(title, '제목을 입력해 주세요.')
+    expectNoFieldError(screen.getByLabelText('내용'))
+    expectSubmitBlocked(submit)
+    await userEvent.type(title, '환전이 늦어요')
+    expectNoFieldError(title)
+    expectSubmitBlocked(submit)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('막힌 접수하기를 누르거나 입력칸에서 Enter로 제출하면 보내지 않고 첫 오류 칸만 보여 주며 포커스한다', async () => {
+    let posts = 0
+    server.use(
+      http.get('*/api/v1/inquiries', () => rs(page([]))),
+      http.post('*/api/v1/inquiries', () => {
+        posts++
+        return rs(inquiry(), 201)
+      }),
+    )
+    renderApp('/support', 'USER')
+
+    const title = await screen.findByLabelText('제목')
+    const content = screen.getByLabelText('내용')
+    // Enter 제출(form submit)
+    await userEvent.type(title, '환전이 늦어요{Enter}')
+    expectFieldError(content, '내용을 입력해 주세요.')
+    await waitFor(() => expect(content).toHaveFocus())
+    expectNoFieldError(title)
+
+    // 제목을 비우고 버튼 클릭: 화면 순서상 첫 오류는 제목
+    await userEvent.clear(title)
+    await userEvent.click(screen.getByRole('button', { name: '접수하기' }))
+    expectFieldError(title, '제목을 입력해 주세요.')
+    await waitFor(() => expect(title).toHaveFocus())
+    expect(posts).toBe(0)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('내 문의 검색어·정렬은 URL에 남고 미리 채우기 값은 그대로 둔다', async () => {
@@ -404,6 +457,47 @@ describe('문의 답변 (관리자)', () => {
     expect(calls).toEqual(['POST 확인 중이에요', 'PUT 처리했어요', 'DELETE'])
   })
 
+  it('답변을 비운 채 떠나면 오류를 보여 주고 답변 달기를 막는다', async () => {
+    server.use(http.get('*/api/v1/inquiries/admin/5', () => rs(inquiry())))
+    renderApp('/admin/inquiries/5', 'ADMIN')
+
+    const box = await screen.findByLabelText('답변')
+    expectNoFieldError(box)
+    await userEvent.click(box)
+    await userEvent.tab()
+
+    expectFieldError(box, '답변을 입력해 주세요.')
+    expectSubmitBlocked(screen.getByRole('button', { name: '답변 달기' }))
+    await userEvent.type(box, '확인 중이에요')
+    expectNoFieldError(box)
+    expectSubmitOpen(screen.getByRole('button', { name: '답변 달기' }))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('이의 제기 판단 안내를 비운 채 떠나면 오류를 보여 주고 판단을 막는다', async () => {
+    server.use(
+      http.get('*/api/v1/inquiries/admin/5', () =>
+        rs(
+          inquiry({
+            category: 'LECTURE_CONTENT_DISPUTE',
+            targetType: 'LECTURE_ORDER_ITEM',
+            targetId: 11,
+          }),
+        ),
+      ),
+    )
+    renderApp('/admin/inquiries/5', 'ADMIN')
+
+    const box = await screen.findByLabelText('판단 안내')
+    await userEvent.click(screen.getByLabelText(/인정 · 구매자 반환/))
+    await userEvent.click(box)
+    await userEvent.tab()
+
+    expectFieldError(box, '판단 안내를 입력해 주세요.')
+    expectSubmitBlocked(screen.getByRole('button', { name: '판단하기' }))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
   it('판단 전 이의 제기는 인정·기각과 안내를 함께 보낸다', async () => {
     let sent: unknown
     let current = inquiry({
@@ -441,7 +535,7 @@ describe('문의 답변 (관리자)', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '답변 달기' })).toBeNull()
     const decide = screen.getByRole('button', { name: '판단하기' })
-    expect(decide).toBeDisabled()
+    expectSubmitBlocked(decide)
     await userEvent.click(screen.getByLabelText('기각 · 판매자 지급'))
     await userEvent.type(screen.getByLabelText('판단 안내'), '소개와 같아요')
     await userEvent.click(decide)

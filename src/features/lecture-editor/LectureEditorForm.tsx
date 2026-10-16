@@ -13,6 +13,7 @@ import type {
 import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { LessonList, type Lesson } from './LessonList'
 import { ThumbnailPicker } from './ThumbnailPicker'
@@ -44,15 +45,19 @@ export type LectureEditorValue = {
   changed: { info: boolean; contents: boolean }
 }
 
+/** 기본 정보 칸 (서버 필드 이름 → 입력칸 id), 화면 순서대로 */
+const FIELD_ID = { title: 'le-title', priceHp: 'le-price' } as const
+const FIELD_ORDER = ['title', 'priceHp'] as const
+
 type ServerErrors = {
-  title?: string
-  price?: string
+  /** 기본 정보 칸 오류 (서버 필드 이름 기준) */
+  fields: { field: string; message: string }[]
   lessons: Record<string, string | undefined>
   /** 칸에 붙일 수 없는 오류 (파일 오류, 중간 실패 안내 등) */
   form?: string
 }
 
-const NO_ERRORS: ServerErrors = { lessons: {} }
+const NO_ERRORS: ServerErrors = { fields: [], lessons: {} }
 
 type LectureEditorFormProps = {
   /** 수정할 강의. 없으면 등록 폼이다 */
@@ -91,7 +96,14 @@ export function LectureEditorForm({
   const rejected = !!lecture && canEditContents(lecture)
 
   const priceHp = Number(price) || 0
-  const errPrice = priceError(priceHp)
+  const fields = useFieldErrors({
+    ids: FIELD_ID,
+    order: FIELD_ORDER,
+    errors: {
+      title: !title.trim() ? '강의 제목을 입력해 주세요.' : undefined,
+      priceHp: priceError(priceHp) ?? undefined,
+    },
+  })
   const thumb = uploads.get(THUMB_KEY).upload
   const currentThumb =
     lecture && !thumbRemoved && lecture.thumbnailFileId !== null
@@ -119,8 +131,7 @@ export function LectureEditorForm({
     return null
   })
   const ready =
-    !!title.trim() &&
-    !errPrice &&
+    !fields.hasErrors &&
     lessons.length > 0 &&
     contents.every((c) => c !== null) &&
     (!thumb || thumb.status === 'done')
@@ -140,7 +151,7 @@ export function LectureEditorForm({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!canSubmit) return
+    if (submitting || fields.blockSubmit() || !canSubmit) return
     setSubmitting(true)
     setServerErrors(NO_ERRORS)
     try {
@@ -150,7 +161,10 @@ export function LectureEditorForm({
         changed,
       })
     } catch (error) {
-      setServerErrors(toServerErrors(error, lessons))
+      const next = toServerErrors(error, lessons)
+      setServerErrors(next)
+      fields.showServerErrors(next.fields)
+      if (Object.keys(next.lessons).length > 0) fields.focusInvalid()
     } finally {
       setSubmitting(false)
     }
@@ -175,23 +189,23 @@ export function LectureEditorForm({
       : '저장'
 
   return (
-    <form className="split" noValidate onSubmit={submit}>
+    <form {...fields.formProps} className="split" noValidate onSubmit={submit}>
       <div className="page" style={{ gap: 16 }}>
         <section className="panel form">
           <div className="panel-head">
             <h2>기본 정보</h2>
             {editing && <span className="pill ok">수정해도 바로 반영</span>}
           </div>
-          <Field id="le-title" label="강의 제목" error={serverErrors.title}>
+          <Field id="le-title" label="강의 제목" error={fields.error('title')}>
             <input
-              id="le-title"
+              {...fields.inputProps('title')}
               className="input"
               value={title}
               maxLength={TITLE_MAX}
               placeholder="예: 통기타 라이브 세팅"
               onChange={(e) => {
                 setTitle(e.target.value)
-                setServerErrors((prev) => ({ ...prev, title: undefined }))
+                fields.changed('title')
               }}
             />
           </Field>
@@ -210,16 +224,16 @@ export function LectureEditorForm({
           <Field
             id="le-price"
             label="가격 (HP)"
-            error={errPrice ?? serverErrors.price}
+            error={fields.error('priceHp')}
           >
             <input
-              id="le-price"
+              {...fields.inputProps('priceHp')}
               className="input num"
               inputMode="numeric"
               value={price}
               onChange={(e) => {
                 setPrice(e.target.value.replace(/\D/g, ''))
-                setServerErrors((prev) => ({ ...prev, price: undefined }))
+                fields.changed('priceHp')
               }}
             />
           </Field>
@@ -321,7 +335,9 @@ export function LectureEditorForm({
         <button
           type="submit"
           className="btn primary block"
-          disabled={!canSubmit}
+          // 칸 검사 오류는 눌러서 첫 오류 칸을 안내하고, 그 밖의 이유(강 목록·업로드·바뀐 것 없음)는 그냥 막는다.
+          disabled={submitting || (!fields.hasErrors && !canSubmit)}
+          {...fields.submitProps}
         >
           {submitLabel}
         </button>
@@ -365,21 +381,25 @@ const LESSON_TITLE_FIELD = /^contents\[(\d+)\]\.title$/
 /** BE 오류를 칸별 오류와 안내 영역 오류로 나눈다 */
 function toServerErrors(error: unknown, lessons: Lesson[]): ServerErrors {
   if (error instanceof Error && error.name === 'LectureSaveError')
-    return { lessons: {}, form: error.message }
+    return { fields: [], lessons: {}, form: error.message }
   if (!isApiError(error))
     return {
+      fields: [],
       lessons: {},
       form: '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.',
     }
   if (error.code === 'INVALID_PRICE')
-    return { lessons: {}, price: error.message }
+    return {
+      fields: [{ field: 'priceHp', message: error.message }],
+      lessons: {},
+    }
 
-  const result: ServerErrors = { lessons: {} }
+  const result: ServerErrors = { fields: [], lessons: {} }
   const rest: string[] = []
   for (const { field, message } of error.errors) {
     const lessonIndex = LESSON_TITLE_FIELD.exec(field)?.[1]
-    if (field === 'title') result.title = message
-    else if (field === 'priceHp') result.price = message
+    if (field === 'title' || field === 'priceHp')
+      result.fields.push({ field, message })
     else if (lessonIndex !== undefined && lessons[Number(lessonIndex)])
       result.lessons[lessons[Number(lessonIndex)].key] = message
     else rest.push(message)

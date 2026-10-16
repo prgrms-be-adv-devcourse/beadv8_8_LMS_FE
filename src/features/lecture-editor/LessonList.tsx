@@ -124,6 +124,7 @@ function LessonRow({
         <input
           className="input"
           aria-label={`${no}강 제목`}
+          aria-invalid={titleError ? true : undefined}
           placeholder="강의 제목"
           maxLength={TITLE_MAX}
           value={lesson.title}

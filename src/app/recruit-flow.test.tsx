@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { recruitsQuery } from '@/entities/appearance/api'
 import type {
@@ -12,6 +12,12 @@ import type {
 import { kstLocalInput } from '@/shared/lib/date'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+  expectSubmitOpen,
+} from '@/test/fieldError'
 import { server } from '@/test/server'
 
 const HOST_ID = 9
@@ -319,24 +325,29 @@ describe('출연 모집 목록', () => {
 })
 
 /** 모집 목록 + 승인된 내 채널. 모집글 올리기 모달을 연다 */
-async function openRecruitForm(wallet = {}) {
+/** approvedChannel: false면 승인된 내 채널이 없어 채널 주소를 채우지 않는다 */
+async function openRecruitForm(wallet = {}, { approvedChannel = true } = {}) {
   server.use(
     http.get('*/api/v1/appearances/recruits', () => rs(page([], 0, 0))),
     http.get('*/api/v1/appearances/recruits/mine', () => rs(page([], 0, 0))),
     http.get('*/api/v1/members/channels/me', () =>
-      rs([
-        {
-          id: 1,
-          platform: 'CHZZK',
-          channelName: '하늘 채널',
-          channelUrl: 'https://chzzk.naver.com/sky',
-          followerCount: 50,
-          followerCountAt: null,
-          status: 'APPROVED',
-          rejectionReason: null,
-          requestedAt: null,
-        },
-      ]),
+      rs(
+        approvedChannel
+          ? [
+              {
+                id: 1,
+                platform: 'CHZZK',
+                channelName: '하늘 채널',
+                channelUrl: 'https://chzzk.naver.com/sky',
+                followerCount: 50,
+                followerCountAt: null,
+                status: 'APPROVED',
+                rejectionReason: null,
+                requestedAt: null,
+              },
+            ]
+          : [],
+      ),
     ),
   )
   document.cookie = 'XSRF-TOKEN=t'
@@ -385,20 +396,16 @@ describe('모집글 올리기', () => {
     expect(
       within(dialog).getByText('보류할 HP (30,000 × 3명)'),
     ).toBeInTheDocument()
-    await userEvent.click(
+    // 제목·콘텐츠 설명이 비어 있어 게시할 수 없다.
+    expectSubmitBlocked(
       await within(dialog).findByRole('button', {
         name: '90,000 HP 보류하고 게시',
       }),
     )
 
-    expect(
-      await within(dialog).findByText('제목을 입력해 주세요.'),
-    ).toBeInTheDocument()
-    expect(
-      within(dialog).getByText('콘텐츠 설명을 입력해 주세요.'),
-    ).toBeInTheDocument()
     await userEvent.clear(count)
     await userEvent.type(count, '11')
+    await userEvent.tab()
     expect(
       within(dialog).getByText('모집 인원은 1~10명이에요.'),
     ).toBeInTheDocument()
@@ -981,6 +988,33 @@ describe('모집 상세 · 호스트', () => {
     expect(body).toEqual({ title: '바뀐 제목' })
   })
 
+  it('기본 정보 수정에서 제목을 비운 채 떠나면 오류를 보여 주고 저장을 막는다', async () => {
+    mockHost({ value: recruit({ hostId: ME_ID }) }, [])
+    renderApp('/recruits/7', 'INFLUENCER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '기본 정보 수정' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: '기본 정보 수정',
+    })
+    const title = within(dialog).getByLabelText('제목')
+    expectNoFieldError(title)
+    await userEvent.clear(title)
+    expectNoFieldError(title)
+    await userEvent.tab()
+
+    expectFieldError(title, '제목을 입력해 주세요.')
+    expectSubmitBlocked(within(dialog).getByRole('button', { name: '저장' }))
+    // 막힌 저장을 눌러도 보내지 않고 오류 칸으로 포커스한다.
+    await userEvent.click(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(title).toHaveFocus())
+    await userEvent.type(title, '바뀐 제목')
+    expectNoFieldError(title)
+    expectSubmitOpen(within(dialog).getByRole('button', { name: '저장' }))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
   it('반환 실패(DEAD)면 고객센터로 안내한다', async () => {
     mockHost(
       {
@@ -1015,5 +1049,176 @@ describe('모집 상세 · 호스트', () => {
     await userEvent.click(await screen.findByRole('button', { name: '채팅' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/chat/77'))
     expect(target).toEqual({ targetUserId: GUEST_ID })
+  })
+})
+
+describe('모집글 폼 입력 오류 표시', () => {
+  const field = (dialog: HTMLElement, label: string) =>
+    within(dialog).getByLabelText(label)
+  const submitButton = (dialog: HTMLElement) =>
+    within(dialog).findByRole('button', { name: /HP 보류하고 게시/ })
+  /** 오류가 표시된 칸: .field.invalid · aria-invalid · 오류 문구 연결 */
+  const expectInvalid = (
+    dialog: HTMLElement,
+    label: string,
+    message: string,
+  ) => {
+    const input = field(dialog, label)
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(input.closest('.field')).toHaveClass('invalid')
+    expect(input).toHaveAccessibleDescription(message)
+  }
+  const expectValid = (dialog: HTMLElement, label: string) => {
+    const input = field(dialog, label)
+    expect(input).not.toHaveAttribute('aria-invalid')
+    expect(input.closest('.field')).not.toHaveClass('invalid')
+  }
+
+  /** 모달을 닫기 전 남은 조회(잔액·채널)가 끝나야 다음 테스트로 새지 않는다 */
+  const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+
+  it('빈 폼이면 오류가 없고 게시 버튼은 비활성이다', async () => {
+    const { dialog } = await openRecruitForm()
+    expectSubmitBlocked(await submitButton(dialog))
+    expect(within(dialog).queryByRole('alert')).toBeNull()
+    expect(dialog.querySelector('[aria-invalid="true"]')).toBeNull()
+    expect(dialog.querySelector('.field.invalid')).toBeNull()
+    await settle()
+  })
+
+  it('제목을 비운 채 떠나면 제목에 오류·빨간 테두리·aria-invalid가 생긴다', async () => {
+    const { dialog } = await openRecruitForm()
+    await userEvent.click(field(dialog, '제목'))
+    expectValid(dialog, '제목')
+    await userEvent.tab()
+
+    expectInvalid(dialog, '제목', '제목을 입력해 주세요.')
+    // 아직 건드리지 않은 아래 칸(콘텐츠 설명)은 오류가 없다.
+    expectValid(dialog, '콘텐츠 설명')
+    await settle()
+  })
+
+  it('제목·출연료를 건너뛰고 아래 칸을 누르면 화면 순서상 가장 위인 제목에만 오류가 뜬다', async () => {
+    const { dialog } = await openRecruitForm()
+    // 출연료를 포커스하지 않고 비운다(포커스하면 건너뛰기가 아니다).
+    fireEvent.change(field(dialog, '1인 출연료 (HP)'), {
+      target: { value: '' },
+    })
+    await userEvent.click(field(dialog, '콘텐츠 설명'))
+
+    expectInvalid(dialog, '제목', '제목을 입력해 주세요.')
+    expectValid(dialog, '1인 출연료 (HP)')
+    // 지금 포커스한 칸은 떠나기 전이라 아직 오류가 없다.
+    expectValid(dialog, '콘텐츠 설명')
+
+    // 다른 아래 칸으로 옮겨도 위에 이미 보이는 오류가 있으면 더 늘리지 않는다.
+    await userEvent.click(field(dialog, '예상 출연 시간 (분)'))
+    expectValid(dialog, '1인 출연료 (HP)')
+    // 떠난 칸(콘텐츠 설명)은 그대로 오류를 보여 준다.
+    expectInvalid(dialog, '콘텐츠 설명', '콘텐츠 설명을 입력해 주세요.')
+    await settle()
+  })
+
+  it('값을 고치면 오류가 바로 사라지고, 모든 값이 맞으면 게시 버튼이 활성이 된다', async () => {
+    const { dialog } = await openRecruitForm()
+    await userEvent.click(field(dialog, '제목'))
+    await userEvent.tab()
+    expectInvalid(dialog, '제목', '제목을 입력해 주세요.')
+
+    await userEvent.type(field(dialog, '제목'), '주말 합방')
+    expectValid(dialog, '제목')
+    expect(within(dialog).queryByText('제목을 입력해 주세요.')).toBeNull()
+    // 콘텐츠 설명이 비어 있어 아직 막혀 있다.
+    expectSubmitBlocked(await submitButton(dialog))
+
+    await userEvent.type(field(dialog, '콘텐츠 설명'), '공포 게임')
+    expectSubmitOpen(await submitButton(dialog))
+    await settle()
+  })
+
+  it('제목만 쓰고 게시를 누르면 요청을 보내지 않고 화면 순서상 첫 오류 칸(채널 주소) 하나만 오류를 보여 주며 포커스한다', async () => {
+    let posts = 0
+    server.use(
+      http.post('*/api/v1/appearances/recruits', () => {
+        posts++
+        return rs(recruit(), 201)
+      }),
+    )
+    const scrolled: Element[] = []
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this)
+    })
+    onTestFinished(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView
+    })
+    const { dialog } = await openRecruitForm({}, { approvedChannel: false })
+    await userEvent.type(field(dialog, '제목'), '주말 합방')
+    const submit = await submitButton(dialog)
+    expectSubmitBlocked(submit)
+    await userEvent.click(submit)
+
+    const channel = field(dialog, '내 채널 주소')
+    expectInvalid(
+      dialog,
+      '내 채널 주소',
+      '채널 주소는 http:// 또는 https://로 시작해야 해요.',
+    )
+    await waitFor(() => expect(channel).toHaveFocus())
+    expect(scrolled.at(-1)).toBe(channel)
+    // 아래의 콘텐츠 설명은 아직 보여 주지 않는다.
+    expectValid(dialog, '콘텐츠 설명')
+    expect(posts).toBe(0)
+    await settle()
+  })
+
+  it('서버 400 필드 오류가 오면 그 칸에 표시하고 포커스·스크롤하며, 그 칸을 고치면 사라진다', async () => {
+    server.use(
+      http.post('*/api/v1/appearances/recruits', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않습니다.',
+            errors: [
+              {
+                field: 'hostChannelUrl',
+                message: '치지직 채널 주소가 아니에요.',
+              },
+            ],
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    // jsdom에는 scrollIntoView가 없어 이 테스트에서만 심는다
+    const scrolled: Element[] = []
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this)
+    })
+    onTestFinished(() => {
+      delete (Element.prototype as Partial<Element>).scrollIntoView
+    })
+    const { dialog } = await openRecruitForm()
+    await fillRecruitForm(dialog)
+    await userEvent.click(await submitButton(dialog))
+
+    await waitFor(() =>
+      expectInvalid(dialog, '내 채널 주소', '치지직 채널 주소가 아니에요.'),
+    )
+    await waitFor(() => expect(field(dialog, '내 채널 주소')).toHaveFocus())
+    expect(scrolled.at(-1)).toBe(field(dialog, '내 채널 주소'))
+
+    await userEvent.type(field(dialog, '내 채널 주소'), 'x')
+    expect(
+      within(dialog).queryByText('치지직 채널 주소가 아니에요.'),
+    ).toBeNull()
+    // 고치는 중에도 클라이언트 검사 오류가 남으면 계속 보여 준다(떠나기 전이라도).
+    await userEvent.clear(field(dialog, '내 채널 주소'))
+    expect(field(dialog, '내 채널 주소')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    )
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0))
+    await settle()
   })
 })

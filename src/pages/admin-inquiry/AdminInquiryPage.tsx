@@ -11,6 +11,7 @@ import {
   useReplyInquiry,
   useResolveObjection,
 } from '@/features/inquiry/useInquiryActions'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -167,30 +168,51 @@ function Detail({ inquiry }: { inquiry: Inquiry }) {
 function ReplyForm({ inquiryId }: { inquiryId: number }) {
   const [content, setContent] = useState('')
   const reply = useReplyInquiry(inquiryId)
+  const fields = useFieldErrors({
+    ids: { content: 'inq-reply' },
+    order: ['content'],
+    errors: { content: !content.trim() ? '답변을 입력해 주세요.' : undefined },
+  })
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!content.trim()) return
-    reply.mutate(content.trim(), { onSuccess: () => setContent('') })
+    if (fields.blockSubmit()) return
+    reply.mutate(content.trim(), {
+      onSuccess: () => {
+        fields.reset()
+        setContent('')
+      },
+      onError: fields.applyServerErrors,
+    })
   }
   return (
-    <form className="panel form" onSubmit={submit}>
+    <form
+      {...fields.formProps}
+      className="panel form"
+      noValidate
+      onSubmit={submit}
+    >
       <Field
         id="inq-reply"
         label="답변"
+        error={fields.error('content')}
         hint="답변은 문의한 회원의 고객센터에 보여요."
       >
         <textarea
-          id="inq-reply"
+          {...fields.inputProps('content')}
           className="textarea"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            fields.changed('content')
+            setContent(e.target.value)
+          }}
         />
       </Field>
       <button
         type="submit"
         className="btn primary"
         style={{ alignSelf: 'flex-end' }}
-        disabled={!content.trim() || reply.isPending}
+        disabled={reply.isPending}
+        {...fields.submitProps}
       >
         답변 달기
       </button>
@@ -204,14 +226,23 @@ function ResolveObjectionForm({ inquiryId }: { inquiryId: number }) {
   const [content, setContent] = useState('')
   const [confirming, setConfirming] = useState(false)
   const resolve = useResolveObjection(inquiryId)
-  const canSubmit = accepted !== null && content.trim() !== ''
+  const fields = useFieldErrors({
+    ids: { content: 'inq-resolution' },
+    order: ['content'],
+    errors: {
+      content: !content.trim() ? '판단 안내를 입력해 주세요.' : undefined,
+    },
+  })
 
   return (
     <form
+      {...fields.formProps}
+      noValidate
       className="panel form"
       onSubmit={(e) => {
         e.preventDefault()
-        if (canSubmit) setConfirming(true)
+        if (fields.blockSubmit() || accepted === null) return
+        setConfirming(true)
       }}
     >
       <h2>이의 제기 판단</h2>
@@ -240,19 +271,29 @@ function ResolveObjectionForm({ inquiryId }: { inquiryId: number }) {
           기각 · 판매자 지급
         </label>
       </fieldset>
-      <Field id="inq-resolution" label="판단 안내" hint="문의 답변으로 달려요.">
+      <Field
+        id="inq-resolution"
+        label="판단 안내"
+        error={fields.error('content')}
+        hint="문의 답변으로 달려요."
+      >
         <textarea
-          id="inq-resolution"
+          {...fields.inputProps('content')}
           className="textarea"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            fields.changed('content')
+            setContent(e.target.value)
+          }}
         />
       </Field>
       <button
         type="submit"
         className="btn primary"
         style={{ alignSelf: 'flex-end' }}
-        disabled={!canSubmit}
+        // 판단(인정·기각)을 고르지 않았으면 안내할 칸이 없어 그냥 막는다.
+        disabled={!fields.hasErrors && accepted === null}
+        {...fields.submitProps}
       >
         판단하기
       </button>
@@ -278,7 +319,10 @@ function ResolveObjectionForm({ inquiryId }: { inquiryId: number }) {
                 onClick={() =>
                   resolve.mutate(
                     { accepted, content: content.trim() },
-                    { onSettled: () => setConfirming(false) },
+                    {
+                      onError: fields.applyServerErrors,
+                      onSettled: () => setConfirming(false),
+                    },
                   )
                 }
               >

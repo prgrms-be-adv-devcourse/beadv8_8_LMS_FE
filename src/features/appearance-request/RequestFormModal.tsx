@@ -13,7 +13,6 @@ import {
   PENALTY_RATE_PERCENT,
   TITLE_MAX,
   validateRequestForm,
-  type RequestFormErrors,
   type RequestFormValues,
 } from '@/entities/appearance/rules'
 import { myChannelsQuery } from '@/entities/member/api'
@@ -23,6 +22,7 @@ import { useHpSpend } from '@/entities/wallet/useHpSpend'
 import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { isApiError } from '@/shared/api/ApiError'
 import { kstLocalInput, toServerDateTime } from '@/shared/lib/date'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Avatar } from '@/shared/ui/Avatar'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
@@ -31,6 +31,26 @@ import { toast } from '@/shared/ui/toastStore'
 type RequestFormModalProps = {
   guest: { id: number; nickname: string; profileImageUrl: string | null }
   onClose: () => void
+}
+
+/** 화면 순서대로 둔 입력칸과 그 id */
+const FIELD_ORDER = [
+  'title',
+  'fee',
+  'scheduledAt',
+  'expectedMinutes',
+  'acceptDeadline',
+  'hostChannelUrl',
+  'content',
+] as const satisfies readonly (keyof RequestFormValues)[]
+const FIELD_ID: Record<keyof RequestFormValues, string> = {
+  title: 'rq-title',
+  fee: 'rq-fee',
+  scheduledAt: 'rq-air',
+  expectedMinutes: 'rq-minutes',
+  acceptDeadline: 'rq-deadline',
+  hostChannelUrl: 'rq-channel',
+  content: 'rq-content',
 }
 
 /** 인플루언서에게 1:1 출연 요청 보내기. 보내면 출연료만큼 HP가 보류된다. */
@@ -55,14 +75,12 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
     hostChannelUrl:
       urlTouched || !myChannel ? values.hostChannelUrl : myChannel.channelUrl,
   }
-  const [submitted, setSubmitted] = useState(false)
-  const [serverErrors, setServerErrors] = useState<RequestFormErrors>({})
   const [shortHp, setShortHp] = useState(false)
-
-  const errors = validateRequestForm(formValues, kstLocalInput())
-  const shown: RequestFormErrors = submitted
-    ? { ...serverErrors, ...errors }
-    : serverErrors
+  const fields = useFieldErrors({
+    ids: FIELD_ID,
+    order: FIELD_ORDER,
+    errors: validateRequestForm(formValues, kstLocalInput()),
+  })
   const fee = Number(values.fee) || 0
   const spend = useHpSpend(fee)
 
@@ -96,11 +114,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         navigate(`/appearances?tab=host&${HOLD_PENDING_PARAM}=1`)
         return
       }
-      if (isApiError(error) && error.errors.length > 0) {
-        setServerErrors(
-          Object.fromEntries(error.errors.map((e) => [e.field, e.message])),
-        )
-      }
+      fields.applyServerErrors(error)
       toast(error.message)
     },
     onSettled: () =>
@@ -118,15 +132,14 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         key === 'fee' || key === 'expectedMinutes'
           ? e.target.value.replace(/\D/g, '')
           : e.target.value
-      setServerErrors((prev) => ({ ...prev, [key]: undefined }))
+      fields.changed(key)
       setValues((prev) => ({ ...prev, [key]: value }))
     }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    setSubmitted(true)
-    if (Object.keys(errors).length === 0 && spend.ready && spend.short === 0)
-      send.mutate()
+    if (fields.blockSubmit()) return
+    if (spend.ready && spend.short === 0) send.mutate()
   }
 
   const blockedByHp = spend.ready && (spend.short > 0 || shortHp)
@@ -154,6 +167,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
               form="appearance-request-form"
               className="btn primary"
               disabled={!spend.ready || send.isPending}
+              {...fields.submitProps}
             >
               {!spend.ready
                 ? spend.error
@@ -171,14 +185,15 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         <span className="fine">님에게 요청해요</span>
       </div>
       <form
+        {...fields.formProps}
         id="appearance-request-form"
         className="form"
         noValidate
         onSubmit={submit}
       >
-        <Field id="rq-title" label="제목" error={shown.title}>
+        <Field id="rq-title" label="제목" error={fields.error('title')}>
           <input
-            id="rq-title"
+            {...fields.inputProps('title')}
             className="input"
             maxLength={TITLE_MAX}
             value={formValues.title}
@@ -189,11 +204,11 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         <Field
           id="rq-fee"
           label="출연료 (HP)"
-          error={shown.fee}
+          error={fields.error('fee')}
           hint={`최저 ${MINIMUM_FEE.toLocaleString()} HP`}
         >
           <input
-            id="rq-fee"
+            {...fields.inputProps('fee')}
             className="input num"
             inputMode="numeric"
             value={formValues.fee}
@@ -201,9 +216,13 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
           />
         </Field>
         <div className="form-row">
-          <Field id="rq-air" label="방송 예정 일시" error={shown.scheduledAt}>
+          <Field
+            id="rq-air"
+            label="방송 예정 일시"
+            error={fields.error('scheduledAt')}
+          >
             <input
-              id="rq-air"
+              {...fields.inputProps('scheduledAt')}
               type="datetime-local"
               className="input"
               value={formValues.scheduledAt}
@@ -213,10 +232,10 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
           <Field
             id="rq-minutes"
             label="예상 출연 시간 (분)"
-            error={shown.expectedMinutes}
+            error={fields.error('expectedMinutes')}
           >
             <input
-              id="rq-minutes"
+              {...fields.inputProps('expectedMinutes')}
               className="input num"
               inputMode="numeric"
               max={EXPECTED_MINUTES_MAX}
@@ -228,11 +247,11 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         <Field
           id="rq-deadline"
           label="수락 기한"
-          error={shown.acceptDeadline}
+          error={fields.error('acceptDeadline')}
           hint="기한까지 수락하지 않으면 보류한 HP를 돌려받아요."
         >
           <input
-            id="rq-deadline"
+            {...fields.inputProps('acceptDeadline')}
             type="datetime-local"
             className="input"
             value={formValues.acceptDeadline}
@@ -242,11 +261,11 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         <Field
           id="rq-channel"
           label="내 채널 주소"
-          error={shown.hostChannelUrl}
+          error={fields.error('hostChannelUrl')}
           hint={myChannel ? '승인된 내 채널로 채웠어요.' : undefined}
         >
           <input
-            id="rq-channel"
+            {...fields.inputProps('hostChannelUrl')}
             className="input"
             inputMode="url"
             value={formValues.hostChannelUrl}
@@ -254,9 +273,13 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
             placeholder="https://chzzk.naver.com/..."
           />
         </Field>
-        <Field id="rq-content" label="요청 내용" error={shown.content}>
+        <Field
+          id="rq-content"
+          label="요청 내용"
+          error={fields.error('content')}
+        >
           <textarea
-            id="rq-content"
+            {...fields.inputProps('content')}
             className="textarea"
             maxLength={CONTENT_MAX}
             value={formValues.content}
