@@ -1,0 +1,26 @@
+.head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.head h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.historyHead {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.reason {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+}

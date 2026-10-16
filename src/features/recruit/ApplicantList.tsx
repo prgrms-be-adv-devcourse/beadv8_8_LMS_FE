@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { recruitApplicationsQuery } from '@/entities/appearance/api'
@@ -77,9 +78,12 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
                     <MemberChip memberId={application.guestId} size={32} />
                     <ApplicationStatusPill status={application.status} />
                     {application.appearanceId !== null && (
-                      <span className="fine">
+                      <Link
+                        className="link fine"
+                        to={`/appearances/${application.appearanceId}`}
+                      >
                         출연 #{application.appearanceId}
-                      </span>
+                      </Link>
                     )}
                   </div>
                   {application.message && (

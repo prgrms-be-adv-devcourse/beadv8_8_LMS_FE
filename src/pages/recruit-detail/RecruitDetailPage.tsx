@@ -5,6 +5,7 @@ import { recruitQuery } from '@/entities/appearance/api'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
 import type { HpReleaseStatus, Recruit } from '@/entities/appearance/types'
 import { RecruitStatusPill } from '@/entities/appearance/ui/RecruitStatusPill'
+import { CancelRecruitModal } from '@/features/appearance-cancel/CancelModals'
 import { ApplicantList } from '@/features/recruit/ApplicantList'
 import { ApplyPanel } from '@/features/recruit/ApplyPanel'
 import {
@@ -15,7 +16,7 @@ import { isApiError } from '@/shared/api/ApiError'
 import { meQuery } from '@/shared/auth/me'
 import type { Viewer } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
-import { formatDateTime } from '@/shared/lib/date'
+import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -68,9 +69,13 @@ function Detail({
   host: boolean
   viewer: Viewer
 }) {
-  const [modal, setModal] = useState<'edit' | 'close' | null>(null)
+  const [modal, setModal] = useState<'edit' | 'close' | 'cancel' | null>(null)
   const closeModal = () => setModal(null)
   const open = isRecruitOpen(recruit)
+  // 모집 중이거나 마감된 모집글을 방송 예정 일시 전까지 전체 취소할 수 있다.
+  const cancelable =
+    (recruit.status === 'RECRUITING' || recruit.status === 'CLOSED') &&
+    !isPast(recruit.scheduledAt)
 
   return (
     <>
@@ -137,6 +142,15 @@ function Detail({
               </button>
             </>
           )}
+          {host && cancelable && (
+            <button
+              type="button"
+              className="btn danger block"
+              onClick={() => setModal('cancel')}
+            >
+              모집 전체 취소
+            </button>
+          )}
         </aside>
       </div>
       {modal === 'edit' && (
@@ -144,6 +158,9 @@ function Detail({
       )}
       {modal === 'close' && (
         <CloseRecruitModal recruit={recruit} onClose={closeModal} />
+      )}
+      {modal === 'cancel' && (
+        <CancelRecruitModal recruit={recruit} onClose={closeModal} />
       )}
     </>
   )

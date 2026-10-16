@@ -2,7 +2,11 @@ import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type {
+  Appearance,
+  AppearanceRole,
+  AppearanceSummary,
   Application,
+  HostCancelInput,
   AppearanceRequest,
   AppearanceRequestEdit,
   AppearanceRequestInput,
@@ -42,6 +46,10 @@ export const appearanceKeys = {
     ] as const,
   myApplications: (page: number) =>
     [...appearanceKeys.all, 'applications', 'mine', page] as const,
+  appearances: (role: AppearanceRole, page: number) =>
+    [...appearanceKeys.all, 'appearances', role, page] as const,
+  appearance: (appearanceId: number) =>
+    [...appearanceKeys.all, 'appearance', appearanceId] as const,
 }
 
 /** 호스트로 보낸 요청(sent) / 게스트로 받은 요청(received). 최신순 고정 */
@@ -199,3 +207,71 @@ export function rejectApplication(applicationId: number) {
     method: 'POST',
   })
 }
+
+// ── 출연(성립 건) ──
+
+/** 내 출연 (호스트로 / 게스트로). 최신순 고정 */
+export const appearancesQuery = (role: AppearanceRole, page: number) =>
+  queryOptions({
+    queryKey: appearanceKeys.appearances(role, page),
+    queryFn: () =>
+      api<PagedModel<AppearanceSummary>>('/appearances', {
+        query: { role, page, size: 10 },
+      }),
+    // 같은 역할의 페이지를 넘길 때만 이전 목록을 유지한다(역할이 바뀌면 상대가 뒤바뀐 목록을 보여 주지 않게).
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === role ? previous : undefined,
+  })
+
+/** 출연 상세 (호스트·게스트만, 그 외 404 APPEARANCE_NOT_FOUND). 취소 요청 이력 포함 */
+export const appearanceQuery = (appearanceId: number) =>
+  queryOptions({
+    queryKey: appearanceKeys.appearance(appearanceId),
+    queryFn: () => api<Appearance>(`/appearances/${appearanceId}`),
+  })
+
+/** 출연 취소 요청 (게스트). 사유 필수, 방송 예정 일시 전까지, 출연 1건당 2번까지 */
+export function requestAppearanceCancel(appearanceId: number, reason: string) {
+  return api<Appearance>(`/appearances/${appearanceId}/cancel-requests`, {
+    method: 'POST',
+    body: { reason },
+  })
+}
+
+/** 출연 취소 요청 수락 (호스트). 합의 취소(위약금 없음) */
+export function acceptAppearanceCancel(appearanceId: number) {
+  return api<Appearance>(
+    `/appearances/${appearanceId}/cancel-requests/accept`,
+    { method: 'POST' },
+  )
+}
+
+/** 출연 취소 요청 거절 (호스트). 사유 선택. 출연은 유지되고 게스트는 1번 더 요청할 수 있다 */
+export function rejectAppearanceCancel(appearanceId: number, reason?: string) {
+  return api<Appearance>(
+    `/appearances/${appearanceId}/cancel-requests/reject`,
+    { method: 'POST', body: { reason: reason || null } },
+  )
+}
+
+/** 호스트 일방 취소. 게스트에게 위약금(출연료 30%)을 지급하고 나머지는 호스트에게 반환한다 */
+export function hostCancelAppearance(
+  appearanceId: number,
+  input: HostCancelInput,
+) {
+  return api<Appearance>(`/appearances/${appearanceId}/host-cancel`, {
+    method: 'POST',
+    body: { reason: input.reason || null, ...confirmBody(input) },
+  })
+}
+
+/** 모집 전체 취소 (호스트). 성립한 출연은 출연마다 일방 취소(위약금), 대기 지원은 미선정 */
+export function cancelRecruit(recruitId: number, input: HostCancelInput) {
+  return api<Recruit>(`/appearances/recruits/${recruitId}/cancel`, {
+    method: 'POST',
+    body: { reason: input.reason || null, ...confirmBody(input) },
+  })
+}
+
+const confirmBody = ({ confirmPendingCancelRequest }: HostCancelInput) =>
+  confirmPendingCancelRequest ? { confirmPendingCancelRequest: true } : {}

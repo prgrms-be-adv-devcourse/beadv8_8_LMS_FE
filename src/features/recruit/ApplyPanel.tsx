@@ -127,8 +127,14 @@ function ApplicationStatus({ application }: { application: Application }) {
         <div className="notice">
           <span className="pill ok">출연 성립</span> 호스트가 지원을 수락해
           출연이 성립했어요.
-          {application.appearanceId !== null &&
-            ` (출연 #${application.appearanceId})`}
+          {application.appearanceId !== null && (
+            <Link
+              className="link"
+              to={`/appearances/${application.appearanceId}`}
+            >
+              출연 상세 보기
+            </Link>
+          )}
         </div>
       )
     case 'NOT_SELECTED':
