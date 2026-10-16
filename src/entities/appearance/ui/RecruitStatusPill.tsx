@@ -1,6 +1,11 @@
 import { formatDday } from '@/shared/lib/date'
 import { isDeadlineSoon } from '../recruit'
-import type { Recruit, RecruitSummary } from '../types'
+import type {
+  Recruit,
+  RecruitCloseType,
+  RecruitStatus,
+  RecruitSummary,
+} from '../types'
 
 /**
  * 목록 카드의 상태. 모집 중이면 마감까지 남은 날(3일 이하면 signal),
@@ -23,22 +28,39 @@ export function RecruitStatusPill({
 }: {
   recruit: RecruitSummary & Partial<Pick<Recruit, 'closeType'>>
 }) {
-  const [tone, label] = labelOf(recruit)
+  const [tone, label] = labelOf(
+    recruit.status,
+    recruit.recruitDeadline,
+    recruit.closeType,
+  )
+  return <span className={`pill ${tone}`}>{label}</span>
+}
+
+/** 내 지원 목록의 모집 상태. 응답에 마감 일시·마감 방식이 없어 남은 날과 마감 방식은 보이지 않는다 */
+export function RecruitStatusOnlyPill({ status }: { status: RecruitStatus }) {
+  const [tone, label] = labelOf(status)
   return <span className={`pill ${tone}`}>{label}</span>
 }
 
 function labelOf(
-  recruit: RecruitSummary & Partial<Pick<Recruit, 'closeType'>>,
+  status: RecruitStatus,
+  recruitDeadline?: string,
+  closeType?: RecruitCloseType | null,
 ): [string, string] {
-  switch (recruit.status) {
+  switch (status) {
     case 'RECRUITING':
-      return ['warn', `모집 중 · ${formatDday(recruit.recruitDeadline)}`]
+      return [
+        'warn',
+        recruitDeadline
+          ? `모집 중 · ${formatDday(recruitDeadline)}`
+          : '모집 중',
+      ]
     case 'CLOSED':
       return [
         'mute',
-        recruit.closeType === 'EARLY'
+        closeType === 'EARLY'
           ? '조기 마감'
-          : recruit.closeType === 'DEADLINE'
+          : closeType === 'DEADLINE'
             ? '기한 마감'
             : '마감',
       ]

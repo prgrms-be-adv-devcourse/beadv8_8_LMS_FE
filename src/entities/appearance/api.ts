@@ -1,5 +1,4 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
-import { allPages } from '@/shared/api/allPages'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type {
@@ -43,8 +42,6 @@ export const appearanceKeys = {
     ] as const,
   myApplications: (page: number) =>
     [...appearanceKeys.all, 'applications', 'mine', page] as const,
-  myApplicationsAll: () =>
-    [...appearanceKeys.all, 'applications', 'mine', 'all'] as const,
 }
 
 /** 호스트로 보낸 요청(sent) / 게스트로 받은 요청(received). 최신순 고정 */
@@ -152,15 +149,6 @@ export const myApplicationsQuery = (page: number) =>
       }),
     placeholderData: keepPreviousData,
   })
-
-/**
- * 내 지원 전체. 모집글 상세에서 내가 지원했는지 찾는다.
- * 상세 응답에 내 지원이 없어(BE 개선 전) 첫 페이지만 보면 오래된 지원을 놓치므로 끝까지 부른다.
- */
-export const myApplicationsAllQuery = queryOptions({
-  queryKey: appearanceKeys.myApplicationsAll(),
-  queryFn: () => allPages<Application>('/appearances/applications/mine'),
-})
 
 /** 모집글 올리기. 1인 출연료 × 모집 인원만큼 HP를 보류한 뒤 RECRUITING으로 응답한다 */
 export function createRecruit(input: RecruitInput) {
