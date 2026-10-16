@@ -87,3 +87,29 @@ export type UpgradeReview = {
     followerCount: number
   }[]
 }
+
+/** 관리자 채널 심사 상태 (목록 필터). REGISTERED는 심사 대상이 아니다 */
+export type ChannelReviewStatus = Exclude<
+  ChannelVerificationStatus,
+  'REGISTERED'
+>
+
+/** GET /members/admin/channels 한 줄 (처리 전이면 verifiedAt·verifiedBy·rejectionReason은 null) */
+export type ChannelReview = {
+  channelId: number
+  memberId: number
+  nickname: string
+  platform: ChannelPlatform
+  channelName: string
+  channelUrl: string
+  followerCount: number
+  /** 팔로워 수를 잰 시각. 모르면 null */
+  followerCountAt: string | null
+  status: ChannelReviewStatus
+  /** 승인 요청 시각. 등록하자마자 자동 승인된 채널은 요청이 없어 null */
+  requestedAt: string | null
+  verifiedAt: string | null
+  /** 처리한 관리자 ID. 자동 승인이면 null */
+  verifiedBy: number | null
+  rejectionReason: string | null
+}
