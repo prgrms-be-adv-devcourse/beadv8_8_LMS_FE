@@ -1,13 +1,22 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { memberDb } from '@/mocks/member'
+import {
+  channelReviewDb,
+  channelReviewHandlers,
+  resetChannelReviewDb,
+} from '@/test/channelReviewMock'
 import { renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
 
-// 관리자 채널 심사 API는 MSW 목(src/mocks/member.ts)이 BE처럼 응답한다.
+// 관리자 채널 심사 API는 테스트 전용 목(src/test/channelReviewMock.ts)이 BE처럼 응답한다.
+// 테스트마다 등록한다(afterEach의 resetHandlers가 지운다). 테스트 안의 server.use가 이보다 먼저 쓰인다.
+beforeEach(() => {
+  resetChannelReviewDb()
+  server.use(...channelReviewHandlers)
+})
 
 afterEach(() => queryClient.clear())
 
@@ -72,9 +81,9 @@ describe('관리자 채널 인증 심사', () => {
       ).toBeNull(),
     )
     expect(screen.getByText('대기 1건')).toBeInTheDocument()
-    expect(memberDb.channels.find((c) => c.channelId === 101)?.status).toBe(
-      'APPROVED',
-    )
+    expect(
+      channelReviewDb.channels.find((c) => c.channelId === 101)?.status,
+    ).toBe('APPROVED')
   })
 
   it('반려는 사유가 있어야 보낼 수 있고, 자주 쓰는 사유를 고쳐 보낸다', async () => {
@@ -102,7 +111,9 @@ describe('관리자 채널 인증 심사', () => {
     expect(
       await screen.findByText('채널을 반려했어요. 사유가 회원에게 보여요.'),
     ).toBeInTheDocument()
-    expect(memberDb.channels.find((c) => c.channelId === 101)).toMatchObject({
+    expect(
+      channelReviewDb.channels.find((c) => c.channelId === 101),
+    ).toMatchObject({
       status: 'REJECTED',
       rejectionReason:
         '채널 소개란에서 인증 코드를 찾을 수 없어요 (소개란 확인 필요)',
@@ -119,7 +130,9 @@ describe('관리자 채널 인증 심사', () => {
           statusCode: 200,
           message: '',
           data: {
-            content: memberDb.channels.filter((c) => c.status === 'PENDING'),
+            content: channelReviewDb.channels.filter(
+              (c) => c.status === 'PENDING',
+            ),
             page: { size: 10, number: 0, totalElements: 2, totalPages: 1 },
           },
         })
@@ -232,7 +245,9 @@ describe('관리자 채널 인증 심사', () => {
           statusCode: 200,
           message: '',
           data: {
-            content: memberDb.channels.filter((c) => c.status === status),
+            content: channelReviewDb.channels.filter(
+              (c) => c.status === status,
+            ),
             page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
           },
         })

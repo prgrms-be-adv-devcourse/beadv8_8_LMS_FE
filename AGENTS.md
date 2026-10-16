@@ -39,7 +39,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 명세: https://dev.hapbang.duckdns.org/v3/api-docs (Swagger UI: `/swagger-ui/index.html`). 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN` 테스트 로그인이 있다.
 - 인증은 세션 쿠키(`SESSION`, HttpOnly)다. Spring CSRF가 켜져 있어 변경 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 하고, 없으면 403이 난다.
 - 응답은 `{ statusCode, message, data }`로 감싼다(`/members/me`·`local-login` 포함). 다만 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
-- 개발 서버는 `/api`를 로컬 BE로 보낸다. `VITE_ENABLE_MSW=true`일 때만 `src/mocks/`의 목이 일부 요청에 답한다(목이 없는 요청은 로컬 BE로 간다). 지금은 `src/mocks/member.ts`의 관리자 채널 인증 심사(목록·승인·반려) 목뿐이다. BE에도 있는 API지만 로컬에 심사 대기 데이터가 없어도 화면을 확인하려고 둔다(메모리 보관, 테스트마다 초기화).
+- 개발 서버는 `/api` 요청을 모두 로컬 BE로 보낸다(개발용 목 없음). MSW는 테스트(`msw/node`, `src/test/server.ts`)에서만 쓰고, 화면별 BE 흉내는 `src/test/` 아래에 둔다(예: 관리자 채널 심사 `src/test/channelReviewMock.ts`).
 
 ## 강의 구매자 기능
 
