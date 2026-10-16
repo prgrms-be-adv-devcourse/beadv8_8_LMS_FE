@@ -423,7 +423,7 @@ describe('모집글 올리기', () => {
     await userEvent.type(count, '3')
     expect(
       await within(dialog).findByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toHaveAttribute('href', '/wallet')
+    ).toHaveAttribute('href', '/wallet?charge=30000')
   })
 
   it('잔액이 부족하면(409 INSUFFICIENT_BALANCE) 안내와 지갑 링크를 보여 준다', async () => {

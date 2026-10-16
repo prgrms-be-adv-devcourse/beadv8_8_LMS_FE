@@ -25,6 +25,7 @@ import { AdminLecturesPage } from '@/pages/admin-lectures/AdminLecturesPage'
 import { AdminPromotionsPage } from '@/pages/admin-promotions/AdminPromotionsPage'
 import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
 import { CartPage } from '@/pages/cart/CartPage'
+import { ChargeResultPage } from '@/pages/charge-result/ChargeResultPage'
 import { ChatPage } from '@/pages/chat/ChatPage'
 import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
@@ -47,6 +48,7 @@ import { LibraryPage } from '@/pages/library/LibraryPage'
 import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
 import { OrdersPage } from '@/pages/orders/OrdersPage'
 import { ReviewWritePage } from '@/pages/review-write/ReviewWritePage'
+import { WalletPage } from '@/pages/wallet/WalletPage'
 import { WatchPage } from '@/pages/watch/WatchPage'
 
 // /api, /swagger-ui, /v3/api-docs로 시작하는 경로는 BE로 가므로 쓰지 않는다(docs/deploy.md).
@@ -141,6 +143,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/lectures/:lectureId': <AdminLecturePage />,
   '/admin/inquiries': <AdminInquiriesPage />,
   '/admin/inquiries/:inquiryId': <AdminInquiryPage />,
+  '/wallet': <WalletPage />,
+  '/wallet/charge/result': <ChargeResultPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {

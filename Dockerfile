@@ -9,6 +9,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+# 토스페이먼츠 테스트 클라이언트 키(공개 값). 비어 있으면 HP 충전이 꺼진 채로 빌드된다(docs/deploy.md).
+ARG VITE_TOSS_PAYMENTS_CLIENT_KEY=
+ENV VITE_TOSS_PAYMENTS_CLIENT_KEY=$VITE_TOSS_PAYMENTS_CLIENT_KEY
 RUN pnpm build
 
 FROM nginx:1.28-alpine
