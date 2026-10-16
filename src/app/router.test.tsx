@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { createMemoryRouter } from 'react-router'
@@ -88,6 +88,29 @@ describe('라우트 가드', () => {
     expect(admin.state.location.pathname).toBe('/')
   })
 
+  it('메뉴에 없는 장바구니·알림도 주소로 들어오면 회원 권한을 따른다', async () => {
+    renderAt('/cart', 'USER')
+    expect(
+      await screen.findByText('장바구니가 비어 있어요'),
+    ).toBeInTheDocument()
+  })
+
+  it('비회원이 장바구니·알림 주소로 들어오면 로그인 안내를 보여 준다', async () => {
+    renderAt('/alerts', 'GUEST')
+    expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
+  })
+
+  it('관리자가 장바구니 주소로 들어오면 운영 첫 화면으로 보낸다', async () => {
+    const router = renderAt('/cart', 'ADMIN')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'))
+  })
+
+  it('로고를 누르면 홈으로 간다', async () => {
+    const router = renderAt('/lectures', 'USER')
+    await userEvent.click(await screen.findByRole('link', { name: '합방 홈' }))
+    expect(router.state.location.pathname).toBe('/')
+  })
+
   it('권한이 있으면 화면을 보여 준다', async () => {
     renderAt('/studio/lectures/new', 'VERIFIED_INFLUENCER')
     expect(
@@ -104,17 +127,28 @@ describe('라우트 가드', () => {
 })
 
 describe('내비 레일', () => {
+  /** 넓은 화면 레일의 메뉴. 좁은 화면 드로어에만 보이는 항목(data-narrow-only)은 뺀다. */
   const navLabels = async () => {
     const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
     return within(nav)
       .getAllByRole('link')
+      .filter((a) => !a.closest('[data-narrow-only]'))
       .map((a) => a.textContent)
   }
 
-  it('비회원은 홈·강의만 본다', async () => {
+  it('비회원은 강의만 본다', async () => {
     renderAt('/lectures', 'GUEST')
-    // 출연 모집은 BE 목록·상세가 로그인 필수라 회원에게만 보인다.
-    expect(await navLabels()).toEqual(['홈', '강의'])
+    // 홈은 로고로 간다. 출연 모집은 BE 목록·상세가 로그인 필수라 회원에게만 보인다.
+    expect(await navLabels()).toEqual(['강의'])
+  })
+
+  it('회원 레일에는 홈·장바구니·알림이 없다(상단 헤더로 간다)', async () => {
+    renderAt('/lectures', 'USER')
+    const labels = await navLabels()
+    expect(labels).toContain('내 강의')
+    expect(labels).not.toContain('홈')
+    expect(labels).not.toContain('장바구니')
+    expect(labels).not.toContain('알림')
   })
 
   it('유저는 채널 인증을 보고 출연·강의 판매는 보지 않는다', async () => {

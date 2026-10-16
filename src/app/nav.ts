@@ -17,7 +17,13 @@ export type NavItem = {
 }
 export type NavGroup = { title: string; items: NavItem[] }
 
-/** 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다. */
+/** 좁은 화면에서 상단 헤더의 알림·장바구니를 대신 보여 줄 그룹 */
+export const MY_ACTIVITY = '내 활동'
+
+/**
+ * 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다.
+ * 홈은 로고로, 알림·장바구니는 상단 헤더로 들어가므로 여기 두지 않는다(라우트는 router.tsx EXTRA_ROUTES).
+ */
 export const NAV: NavGroup[] = [
   {
     title: '운영',
@@ -36,20 +42,17 @@ export const NAV: NavGroup[] = [
   {
     title: '둘러보기',
     items: [
-      { path: '/', label: '홈', roles: ALL },
       { path: '/lectures', label: '강의', roles: ALL },
       { path: '/recruits', label: '출연 모집', roles: SIGNED_IN },
       { path: '/influencers', label: '인플루언서', roles: SIGNED_IN },
     ],
   },
   {
-    title: '내 활동',
+    title: MY_ACTIVITY,
     items: [
       { path: '/appearances', label: '내 출연', roles: INFLUENCER },
       { path: '/library', label: '내 강의', roles: MEMBER },
-      { path: '/cart', label: '장바구니', roles: MEMBER },
       { path: '/chat', label: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
-      { path: '/alerts', label: '알림', roles: MEMBER },
       { path: '/wallet', label: '지갑', roles: MEMBER },
       { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
     ],
