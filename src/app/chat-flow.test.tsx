@@ -1450,3 +1450,189 @@ describe('채팅 참여 바뀜: 보내는 중 표시 정리·탭 간 동기화·
     await settle()
   })
 })
+
+describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
+  const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  const msg = (roomSequence: number, patch: Partial<ChatMessage> = {}) =>
+    message({
+      messageId: 500 + roomSequence,
+      roomSequence,
+      content: `순번 ${roomSequence}`,
+      ...patch,
+    })
+
+  /**
+   * 이력·방 목록 조회 수를 센다. history를 바꾸면 다음 조회부터 그 이력을 돌려준다.
+   * hold()를 부르면 다음 이력 조회 하나를 돌려준 함수가 불릴 때까지 붙잡는다(응답 내용은 요청 시점의 history).
+   */
+  function mockCounted(initial: ChatMessage[]) {
+    const state = {
+      history: initial,
+      historyCalls: 0,
+      roomCalls: 0,
+      held: null as (() => void) | null,
+      holdNext: false,
+    }
+    document.cookie = 'XSRF-TOKEN=t'
+    server.use(
+      readHandler,
+      http.get('*/api/v1/chats', () => {
+        state.roomCalls++
+        return rs([room({ lastMessage: state.history[0], unreadCount: 0 })])
+      }),
+      http.get('*/api/v1/chats/5/messages', async () => {
+        state.historyCalls++
+        const history = state.history
+        if (state.holdNext) {
+          state.holdNext = false
+          await new Promise<void>((resolve) => (state.held = resolve))
+        }
+        return rs({ messages: history, nextCursor: null })
+      }),
+    )
+    return state
+  }
+
+  /** 대화를 열고 첫 이력이 보인 뒤에 연결한다(연결 직후 다시 부르는 조회가 첫 조회와 겹치지 않게) */
+  async function openRoom(firstText: string) {
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText(firstText)
+    const client = await connectSocket()
+    await settle()
+    return { thread, client }
+  }
+  const push = (client: FakeStompClient, m: ChatMessage) =>
+    act(() => client.push('/user/queue/chats/messages', m))
+  const bubbles = (thread: HTMLElement) =>
+    within(thread)
+      .getAllByText(/^순번 \d+$/)
+      .map((b) => b.textContent)
+
+  it('순번 5 다음에 7이 오면 이력·방 목록을 한 번 다시 불러 빠진 6을 채운다', async () => {
+    const state = mockCounted([msg(5)])
+    const { thread, client } = await openRoom('순번 5')
+    const before = { ...state }
+
+    // 서버에는 6이 저장됐지만 이 탭은 전달받지 못했다.
+    state.history = [msg(7), msg(6), msg(5)]
+    push(client, msg(7))
+
+    expect(await within(thread).findByText('순번 6')).toBeInTheDocument()
+    await settle()
+    expect(state.historyCalls).toBe(before.historyCalls + 1)
+    expect(state.roomCalls).toBe(before.roomCalls + 1)
+    expect(bubbles(thread)).toEqual(['순번 5', '순번 6', '순번 7'])
+  })
+
+  it('순번이 이어지면 다시 부르지 않는다', async () => {
+    const state = mockCounted([msg(5)])
+    const { thread, client } = await openRoom('순번 5')
+    const before = { ...state }
+
+    push(client, msg(6))
+    expect(await within(thread).findByText('순번 6')).toBeInTheDocument()
+    await settle()
+    expect(state.historyCalls).toBe(before.historyCalls)
+    expect(state.roomCalls).toBe(before.roomCalls)
+  })
+
+  it('재입장 안내(SYSTEM) 뒤 첫 메시지는 순번이 벌어져도 다시 부르지 않는다', async () => {
+    // 상대가 재입장하면 조회 시작점이 바뀌어 안내 다음 순번과의 사이가 벌어질 수 있다.
+    const state = mockCounted([
+      msg(5, {
+        messageType: 'SYSTEM',
+        content: '편집하는 고래 님이 다시 들어왔어요.',
+      }),
+    ])
+    const { thread, client } = await openRoom(
+      '편집하는 고래 님이 다시 들어왔어요.',
+    )
+    const before = { ...state }
+
+    push(client, msg(9))
+    expect(await within(thread).findByText('순번 9')).toBeInTheDocument()
+    await settle()
+    expect(state.historyCalls).toBe(before.historyCalls)
+    expect(state.roomCalls).toBe(before.roomCalls)
+  })
+
+  it('방 목록을 다시 부르는 중에 또 순번이 벌어지면, 끝난 뒤 한 번 더 불러 안 읽은 수를 맞춘다', async () => {
+    // 보고 있지 않은 방: 서버 기준 상태를 돌려주는 방 목록. hold면 다음 조회 하나를 붙잡는다.
+    const server_ = {
+      last: msg(5),
+      unread: 0,
+      calls: 0,
+      holdNext: false,
+      held: null as (() => void) | null,
+    }
+    document.cookie = 'XSRF-TOKEN=t'
+    server.use(
+      readHandler,
+      http.get('*/api/v1/chats', async () => {
+        server_.calls++
+        const snapshot = room({
+          lastMessage: server_.last,
+          unreadCount: server_.unread,
+        })
+        if (server_.holdNext) {
+          server_.holdNext = false
+          await new Promise<void>((resolve) => (server_.held = resolve))
+        }
+        return rs([snapshot])
+      }),
+    )
+    renderApp('/chat', 'INFLUENCER')
+    const list = await screen.findByRole('navigation', { name: '대화 목록' })
+    const client = await connectSocket()
+    await settle()
+    const before = server_.calls
+
+    // 6을 놓치고 7을 받는다 → 방 목록을 다시 부른다(응답은 7까지, 안 읽은 2).
+    server_.last = msg(7)
+    server_.unread = 2
+    server_.holdNext = true
+    push(client, msg(7))
+    await waitFor(() => expect(server_.held).not.toBeNull())
+    // 응답을 기다리는 동안 8을 놓치고 9를 받는다. 서버 기준 안 읽은 수는 4다.
+    server_.last = msg(9)
+    server_.unread = 4
+    push(client, msg(9))
+    act(() => server_.held!())
+
+    expect(
+      await within(list).findByLabelText('안 읽은 메시지 4개'),
+    ).toBeInTheDocument()
+    await settle()
+    expect(server_.calls).toBe(before + 2)
+  })
+
+  it('다시 부르는 중에 또 순번이 벌어지면 겹쳐 부르지 않고, 끝난 뒤에도 빠져 있으면 한 번 더 불러 채운다', async () => {
+    const state = mockCounted([msg(5)])
+    const { thread, client } = await openRoom('순번 5')
+    const before = state.historyCalls
+
+    // 7을 받아 다시 부른다. 이 조회의 응답은 7까지다.
+    state.history = [msg(7), msg(6), msg(5)]
+    state.holdNext = true
+    push(client, msg(7))
+    await waitFor(() => expect(state.held).not.toBeNull())
+    // 응답을 기다리는 동안 8을 놓치고 9가 온다. 이미 부르는 중이라 겹쳐 부르지 않는다.
+    state.history = [msg(9), msg(8), msg(7), msg(6), msg(5)]
+    push(client, msg(9))
+    expect(state.historyCalls).toBe(before + 1)
+    act(() => state.held!())
+
+    // 첫 결과(7까지)에 9를 합치면 8이 빠져 있어 한 번 더 부른다.
+    expect(await within(thread).findByText('순번 8')).toBeInTheDocument()
+    await settle()
+    expect(state.historyCalls).toBe(before + 2)
+    expect(bubbles(thread)).toEqual([
+      '순번 5',
+      '순번 6',
+      '순번 7',
+      '순번 8',
+      '순번 9',
+    ])
+  })
+})
