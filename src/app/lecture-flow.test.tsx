@@ -463,13 +463,17 @@ describe('구매자 흐름 회귀', () => {
       }),
     )
     document.cookie = 'XSRF-TOKEN=t'
-    renderApp('/library/7/review', 'USER')
+    const router = renderApp('/library/7/review', 'USER')
     const save = await screen.findByRole('button', { name: '리뷰 고치기' })
     expect(save).toBeEnabled()
     await userEvent.click(screen.getByRole('radio', { name: '4점' }))
     await userEvent.click(save)
     await waitFor(() => expect(saved).toEqual({ rating: 4, content: '' }))
     expect(creates).toBe(0)
+    // 저장 뒤 내 강의로 이동해 다시 부르는 요청까지 끝나야 다음 테스트로 새지 않는다.
+    expect(await screen.findByText('리뷰를 고쳤어요.')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.pathname).toBe('/library'))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('자료 다운로드 시 만료된 주소 대신 새 주소를 발급받는다', async () => {
