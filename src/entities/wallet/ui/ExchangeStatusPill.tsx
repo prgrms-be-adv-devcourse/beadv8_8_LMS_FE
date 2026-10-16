@@ -2,6 +2,8 @@ import type { ExchangeStatus } from '../types'
 
 const LABEL: Record<ExchangeStatus, [tone: string, label: string]> = {
   REQUESTED: ['warn', '승인 대기'],
+  APPROVED: ['ok', '승인 · 송금 대기'],
+  REJECTED: ['bad', '거절'],
   PROCESSING: ['warn', '송금 중'],
   COMPLETED: ['ok', '송금 완료'],
   FAILED: ['bad', '송금 실패'],

@@ -16,6 +16,7 @@ const API = {
   lectures: '*/api/v1/lectures/admin/inspections',
   inquiries: '*/api/v1/inquiries/admin',
   payouts: '*/api/v1/lectures/admin/payout-failures',
+  exchanges: '*/api/v1/settlements/admin/exchanges',
 } as const
 
 const paged = (totalElements: number) =>
@@ -56,13 +57,14 @@ afterEach(async () => {
 })
 
 describe('관리자 운영 대시보드', () => {
-  it('관리자 첫 화면에서 다섯 업무의 대기 건수를 보여 준다', async () => {
+  it('관리자 첫 화면에서 여섯 업무의 대기 건수를 보여 준다', async () => {
     mockCounts({
       channels: 3,
       promotions: 1,
       lectures: 2,
       inquiries: 4,
       payouts: 5,
+      exchanges: 6,
     })
     renderApp('/admin', 'ADMIN')
 
@@ -74,6 +76,7 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('강의 검수 대기')).toHaveTextContent('2건')
     expect(await card('답변 대기 문의')).toHaveTextContent('4건')
     expect(await card('지급 실패')).toHaveTextContent('5건')
+    expect(await card('환전 승인 대기')).toHaveTextContent('6건')
   })
 
   it('대기 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지)', async () => {
@@ -88,7 +91,7 @@ describe('관리자 운영 대시보드', () => {
       ),
     )
     renderApp('/admin', 'ADMIN')
-    await waitFor(() => expect(seen).toHaveLength(5))
+    await waitFor(() => expect(seen).toHaveLength(6))
 
     const query = (path: string) => seen.find((s) => s.startsWith(path))
     expect(query('/api/v1/members/admin/channels')).toMatch(
@@ -104,6 +107,9 @@ describe('관리자 운영 대시보드', () => {
       /status=WAITING&sort=OLDEST&page=0/,
     )
     expect(query('/api/v1/lectures/admin/payout-failures')).toMatch(/page=0/)
+    expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
+      /status=REQUESTED&page=0/,
+    )
   })
 
   it.each([
@@ -112,6 +118,7 @@ describe('관리자 운영 대시보드', () => {
     ['강의 검수 대기', '/admin/lectures'],
     ['답변 대기 문의', '/admin/inquiries'],
     ['지급 실패', '/admin/payouts'],
+    ['환전 승인 대기', '/admin/exchanges'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
     mockCounts({
       channels: 1,
@@ -119,6 +126,7 @@ describe('관리자 운영 대시보드', () => {
       lectures: 1,
       inquiries: 1,
       payouts: 1,
+      exchanges: 1,
     })
     const router = renderApp('/admin', 'ADMIN')
 

@@ -432,6 +432,22 @@ describe('환전 내역', () => {
     expect(listCalls.at(-1)).toEqual({ page: '1', size: '10' })
   })
 
+  it('관리자가 승인·거절한 신청도 상태 배지로 보여 준다', async () => {
+    mockExchanges([
+      exchange({ exchangeId: 2, status: 'APPROVED' }),
+      exchange({ exchangeId: 1, status: 'REJECTED' }),
+    ])
+    renderApp('/wallet', 'INFLUENCER')
+
+    const history = await screen.findByRole('region', { name: '환전 내역' })
+    const [, approved, rejected] = await within(history).findAllByRole('row')
+    expect(within(approved).getByText('승인 · 송금 대기')).toHaveClass(
+      'pill',
+      'ok',
+    )
+    expect(within(rejected).getByText('거절')).toHaveClass('pill', 'bad')
+  })
+
   it('내역이 없으면 빈 상태를 보여 준다', async () => {
     mockExchanges([])
     renderApp('/wallet', 'INFLUENCER')
