@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ClipboardEvent,
   type FormEvent,
 } from 'react'
 import { Link, useParams } from 'react-router'
@@ -15,7 +16,12 @@ import {
   sortRoomsByRecent,
 } from '@/entities/chat/api'
 import { firstLine } from '@/entities/chat/notification'
-import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
+import {
+  CHAT_MESSAGE_COUNT_FROM,
+  CHAT_MESSAGE_MAX_LENGTH,
+  type ChatMessage,
+  type ChatRoom,
+} from '@/entities/chat/types'
 import { NotificationCard } from '@/entities/chat/ui/NotificationCard'
 import {
   discardPending,
@@ -29,10 +35,12 @@ import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
 import { formatDate, parseServerDate } from '@/shared/lib/date'
+import { formatNumber } from '@/shared/lib/money'
 import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
+import { toast } from '@/shared/ui/toastStore'
 import styles from './ChatPage.module.css'
 
 export function ChatPage() {
@@ -234,6 +242,42 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     setText('')
   }
 
+  // 붙여넣으면 넘는 길이는 입력창(maxLength)이 말없이 버리므로, 직접 잘라 넣고 알린다.
+  const inputRef = useRef<HTMLInputElement>(null)
+  const caretAfterPaste = useRef<number | null>(null)
+  const pasteWithinLimit = (e: ClipboardEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    // 한 줄 입력창은 줄바꿈을 지우고 넣는다. 같은 기준으로 세고, 줄바꿈이 있으면 직접 지워 넣는다.
+    const raw = e.clipboardData.getData('text')
+    const pasted = raw.replace(/[\r\n]/g, '')
+    const start = input.selectionStart ?? text.length
+    const end = input.selectionEnd ?? text.length
+    const room = CHAT_MESSAGE_MAX_LENGTH - (text.length - (end - start))
+    const truncated = pasted.length > room
+    if (!truncated && pasted === raw) return
+    e.preventDefault()
+    const inserted = truncated
+      ? pasted.slice(0, cutWithinLimit(pasted, room))
+      : pasted
+    const next = text.slice(0, start) + inserted + text.slice(end)
+    // 값을 바꾸면 커서가 끝으로 가므로, 그린 뒤 넣은 자리 바로 뒤로 되돌린다(값이 그대로면 다시 그리지 않는다).
+    if (next !== text) {
+      setText(next)
+      caretAfterPaste.current = start + inserted.length
+    }
+    if (!truncated) return
+    toast(
+      `메시지는 ${formatNumber(CHAT_MESSAGE_MAX_LENGTH)}자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.`,
+    )
+  }
+  useLayoutEffect(() => {
+    const caret = caretAfterPaste.current
+    if (caret === null) return
+    caretAfterPaste.current = null
+    inputRef.current?.setSelectionRange(caret, caret)
+  }, [text])
+  const showCount = text.length > CHAT_MESSAGE_COUNT_FROM
+
   return (
     <section
       className={styles.thread}
@@ -364,18 +408,30 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
         </div>
       ) : (
         <form className={styles.composer} onSubmit={send}>
-          <input
-            className="input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={
-              status === 'connected'
-                ? '메시지 입력'
-                : '채팅 서버에 연결하는 중…'
-            }
-            aria-label="메시지"
-            autoComplete="off"
-          />
+          <div className={styles.composerInput}>
+            <input
+              ref={inputRef}
+              className="input"
+              value={text}
+              maxLength={CHAT_MESSAGE_MAX_LENGTH}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={pasteWithinLimit}
+              placeholder={
+                status === 'connected'
+                  ? '메시지 입력'
+                  : '채팅 서버에 연결하는 중…'
+              }
+              aria-label="메시지"
+              aria-describedby={showCount ? 'chat-count' : undefined}
+              autoComplete="off"
+            />
+            {showCount && (
+              <span id="chat-count" className={`fine ${styles.count}`}>
+                {formatNumber(text.length)} /{' '}
+                {formatNumber(CHAT_MESSAGE_MAX_LENGTH)}
+              </span>
+            )}
+          </div>
           <button
             type="submit"
             className="btn primary"
@@ -387,6 +443,16 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
       )}
     </section>
   )
+}
+
+/**
+ * 붙여넣을 글에서 room(UTF-16 단위)까지 자를 위치. 이모지 같은 서로게이트 쌍의 가운데서 자르면
+ * 깨진 문자가 남으므로 그 쌍 앞에서 자른다.
+ */
+function cutWithinLimit(pasted: string, room: number) {
+  if (room <= 0) return 0
+  const lead = pasted.charCodeAt(room - 1)
+  return lead >= 0xd800 && lead <= 0xdbff ? room - 1 : room
 }
 
 const NO_PENDING: PendingMessage[] = []

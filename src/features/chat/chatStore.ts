@@ -96,6 +96,11 @@ export function retryPending(chatRoomId: number, clientMessageId: string) {
   if (!sent) failPending(clientMessageId, '채팅 서버에 연결되지 않았어요.')
 }
 
+/** 이 방의 보내는 중·실패 표시를 모두 지운다(나가기·재입장으로 참여가 바뀌어 이전 참여 때의 것이 의미 없을 때) */
+export function clearRoomPending(chatRoomId: number) {
+  updatePending(chatRoomId, () => [])
+}
+
 export function discardPending(chatRoomId: number, clientMessageId: string) {
   updatePending(chatRoomId, (list) =>
     list.filter((p) => p.clientMessageId !== clientMessageId),

@@ -8,6 +8,7 @@ import type {
 } from '@/entities/chat/types'
 import { toast } from '@/shared/ui/toastStore'
 import {
+  clearRoomPending,
   failPending,
   resolvePending,
   resolvePendingByIds,
@@ -25,6 +26,12 @@ type RoomArrival = { message: ChatMessage; countsAsUnread: boolean }
 // watchChatLoads()가 반영하고 비운다.
 const historyArrivals = new Map<number, ChatMessage[]>()
 let roomArrivals: RoomArrival[] = []
+// 이력을 다시 부르는 중에 또 순번 간격을 본 방. 진행 중인 조회 결과가 그 간격보다 먼저 만들어졌을 수 있어,
+// 조회가 끝난 뒤에도 간격이 남아 있으면 한 번 더 부른다.
+const gapsDuringFetch = new Set<number>()
+// 방 목록을 다시 부르는 중에 순번 간격을 봤는지. 진행 중인 조회 결과가 그 간격보다 먼저 만들어졌으면
+// 안 읽은 수·마지막 메시지가 틀리므로 조회가 끝나면 한 번 더 부른다.
+let roomsGapDuringFetch = false
 
 /**
  * 이미 반영한 실시간 메시지 ID. 같은 메시지가 다시 오면(중복 전달·재전송 응답) 목록·안 읽은 수에
@@ -46,6 +53,34 @@ function rememberApplied(messageId: number) {
 
 function isFetching(queryClient: QueryClient, queryKey: readonly unknown[]) {
   return queryClient.getQueryState(queryKey)?.fetchStatus === 'fetching'
+}
+
+/**
+ * 받은 메시지 앞에 빠진 순번이 있는지. 방 순번(roomSequence)은 방 안에서 1씩 늘어나므로,
+ * 지금까지 알던 마지막 메시지 순번 + 1보다 크면 그 사이를 받지 못한 것이다(연결 중 전달 실패·프레임 유실).
+ * 마지막 메시지가 시스템 안내(재입장·퇴장)면 건너뛴다: 재입장으로 조회 시작점(visibleFromSequence)이 바뀌면
+ * 안내 다음 메시지와의 사이가 자연스럽게 벌어진다.
+ */
+function hasGapAfter(
+  last: ChatMessage | null | undefined,
+  message: ChatMessage,
+) {
+  if (!last || last.messageType === 'SYSTEM') return false
+  return message.roomSequence > last.roomSequence + 1
+}
+
+/** 이력 캐시에서 가장 최신(순번이 가장 큰) 메시지 */
+function latestInPages(data: MessagePages) {
+  return data.pages[0]?.messages[0]
+}
+
+/** 이력 첫 페이지(최신순) 안에 빠진 순번이 있는지 */
+function hasGapInPages(data: MessagePages) {
+  const messages = data.pages[0]?.messages ?? []
+  return messages.some((newer, i) => {
+    const older = messages[i + 1]
+    return older !== undefined && hasGapAfter(older, newer)
+  })
 }
 
 /**
@@ -116,8 +151,14 @@ export function watchChatLoads(queryClient: QueryClient) {
     // 나가기·재입장은 그 방의 이력 캐시를 지운다. 보관한 메시지도 버려야, 다시 불러온 이력(새 조회 범위)에
     // 이전 참여 때 받은 메시지가 끼어들지 않는다.
     if (event.type === 'removed') {
-      if (kind === 'messages') historyArrivals.delete(Number(chatRoomId))
-      if (kind === 'rooms') roomArrivals = []
+      if (kind === 'messages') {
+        historyArrivals.delete(Number(chatRoomId))
+        gapsDuringFetch.delete(Number(chatRoomId))
+      }
+      if (kind === 'rooms') {
+        roomArrivals = []
+        roomsGapDuringFetch = false
+      }
       return
     }
     // setQueryData(실시간 메시지 반영 등)도 manual 'success'를 낸다. 실제 조회 결과일 때만 반영한다.
@@ -137,25 +178,37 @@ export function watchChatLoads(queryClient: QueryClient) {
         )
       }
       const data = queryClient.getQueryData<MessagePages>(event.query.queryKey)
+      // 조회 중에 본 간격이 결과를 합친 뒤에도 남아 있으면 한 번 더 부른다(한 번만: 숨겨진 메시지 등
+      // 서버에도 없는 순번이면 계속 부르지 않게).
+      if (gapsDuringFetch.delete(roomId) && data && hasGapInPages(data))
+        void queryClient.invalidateQueries({ queryKey: event.query.queryKey })
       if (data)
         resolveSavedPending(
           roomId,
           data.pages.flatMap((p) => p.messages),
         )
-    } else if (kind === 'rooms' && roomArrivals.length > 0) {
+    } else if (kind === 'rooms') {
       // 방 목록의 마지막 메시지로는 보내는 중 표시를 정리하지 않는다. 보내는 중 표시는 그 방 대화에서만
       // 보이고 대화를 열면 이력을 불러와 정리된다. 방 목록만으로 정리하면 이력이 그보다 오래된 경우
       // 메시지가 화면에서 사라진다.
-      const arrived = roomArrivals
-      roomArrivals = []
-      queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (rooms) =>
-        rooms ? reapplyToRooms(rooms, arrived) : rooms,
-      )
+      if (roomArrivals.length > 0) {
+        const arrived = roomArrivals
+        roomArrivals = []
+        queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (rooms) =>
+          rooms ? reapplyToRooms(rooms, arrived) : rooms,
+        )
+      }
+      if (roomsGapDuringFetch) {
+        roomsGapDuringFetch = false
+        void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
+      }
     }
   })
   return () => {
     unsubscribe()
     historyArrivals.clear()
+    gapsDuringFetch.clear()
+    roomsGapDuringFetch = false
     roomArrivals = []
     appliedIds.clear()
   }
@@ -188,13 +241,35 @@ export function applyIncomingMessage(
   }
 
   const historyKey = chatKeys.messages(message.chatRoomId)
-  if (isFetching(queryClient, historyKey)) {
+  const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
+  const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
+  // 방 목록에 없는 방의 메시지는 상대가 새로 시작했거나 서버가 나를 재입장시킨 것이다(내가 나갔던 방에 상대가
+  // 다시 시작·출연 알림). 남아 있는 이력·보내는 중 표시는 이전 참여 때의 것이라 버리고, 열 때 새 조회 범위로 불러온다.
+  if (rooms && !cached) {
+    queryClient.removeQueries({ queryKey: historyKey })
+    clearRoomPending(message.chatRoomId)
+  }
+  const historyFetching = isFetching(queryClient, historyKey)
+  if (historyFetching) {
     const arrived = historyArrivals.get(message.chatRoomId) ?? []
     historyArrivals.set(message.chatRoomId, [...arrived, message])
   }
+  // 이력을 불러 둔 방에서 순번이 건너뛰었으면 빠진 메시지를 채우려고 이력을 다시 부른다(합칠 때 messageId로 중복 제거).
+  // 이미 불러오는 중이면 그 결과를 기다린다. 이력이 없는 방은 열 때 불러오므로 대상이 아니다.
+  const history = queryClient.getQueryData<MessagePages>(historyKey)
+  const gapSeen =
+    history !== undefined && hasGapAfter(latestInPages(history), message)
+  const historyGap = gapSeen && !historyFetching
+  if (gapSeen && historyFetching) gapsDuringFetch.add(message.chatRoomId)
   queryClient.setQueryData<MessagePages>(historyKey, (data) =>
     data ? mergeIntoPages(data, [message]) : data,
   )
+  if (historyGap) {
+    // 다시 부른 결과가 이 메시지보다 먼저 만들어졌을 수 있으니 보관했다가 조회가 끝나면 다시 합친다.
+    const arrived = historyArrivals.get(message.chatRoomId) ?? []
+    historyArrivals.set(message.chatRoomId, [...arrived, message])
+    void queryClient.invalidateQueries({ queryKey: historyKey })
+  }
 
   const { myUserId, viewingRoomId } = useChatStore.getState()
   // 보고 있는 방이라도 탭이 가려졌거나 포커스가 없으면 아직 읽지 않은 것이다(다시 보일 때 읽음 처리).
@@ -203,13 +278,17 @@ export function applyIncomingMessage(
     (viewingRoomId !== message.chatRoomId || !isPageActive())
   if (isFetching(queryClient, chatKeys.rooms()))
     roomArrivals.push({ message, countsAsUnread })
-  const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
-  const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
   // 나간 것으로 알고 있던 회원이 보낸 메시지면 그 회원이 다시 채팅을 시작(재입장)한 것이다.
   const senderRejoined =
     cached?.members.some(
       (m) => m.userId === message.senderUserId && !m.active,
     ) === true
+  // 방 목록의 마지막 메시지와도 순번이 건너뛰었으면 안 읽은 수·마지막 메시지가 틀릴 수 있어 방 목록을 다시 부른다.
+  const roomsGapSeen =
+    cached !== undefined && hasGapAfter(cached.lastMessage, message)
+  const roomsFetching = isFetching(queryClient, chatKeys.rooms())
+  const roomsGap = roomsGapSeen && !roomsFetching
+  if (roomsGapSeen && roomsFetching) roomsGapDuringFetch = true
   queryClient.setQueryData<ChatRoom[]>(chatKeys.rooms(), (list) =>
     list?.map((room) => {
       if (room.chatRoomId !== message.chatRoomId) return room
@@ -229,7 +308,8 @@ export function applyIncomingMessage(
     message.messageType === 'SYSTEM' ||
     message.messageType === 'NOTIFICATION' ||
     !cached ||
-    senderRejoined
+    senderRejoined ||
+    roomsGap
   ) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }

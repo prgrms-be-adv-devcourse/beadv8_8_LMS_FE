@@ -12,6 +12,7 @@ import {
   applyIncomingMessage,
   watchChatLoads,
 } from './incoming'
+import { listenRoomChanges } from './roomSync'
 
 // 새 메시지 알림(/user/queue/chats/notifications)은 받는 사람에게 메시지 큐로도 같은 메시지가 오므로 구독하지 않는다.
 // 안 읽은 수·마지막 메시지는 메시지 큐로 받은 메시지에서 고친다.
@@ -38,6 +39,8 @@ export function ChatConnection({ userId }: { userId: number }) {
 
   useEffect(() => {
     const stopWatchingLoads = watchChatLoads(queryClient)
+    // 다른 탭의 나가기·다시 시작을 듣는다(이 방의 이전 참여 상태를 버린다).
+    const stopRoomSync = listenRoomChanges(queryClient)
     // 끊긴 뒤 세션을 확인했는지. 다시 연결되면 초기화한다(BE가 응답하지 않는 동안 재시도마다 확인하지 않게).
     let sessionChecked = false
 
@@ -96,6 +99,7 @@ export function ChatConnection({ userId }: { userId: number }) {
     return () => {
       void client.deactivate()
       stopWatchingLoads()
+      stopRoomSync()
       useChatStore.setState({
         status: 'idle',
         publish: () => false,

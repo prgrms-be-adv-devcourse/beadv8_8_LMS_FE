@@ -1,3 +1,8 @@
+/** 메시지 본문 최대 길이(글자 수, UTF-16 단위). BE 제한과 같다 */
+export const CHAT_MESSAGE_MAX_LENGTH = 2000
+/** 이 길이를 넘으면 입력창 아래에 남은 글자 수를 보여 준다 */
+export const CHAT_MESSAGE_COUNT_FROM = 1800
+
 /** 방 상태. 두 사람 모두 나가면 ENDED가 되고 다시 활성화하지 않는다 */
 export type ChatRoomStatus = 'ACTIVE' | 'ENDED'
 
