@@ -385,6 +385,16 @@ describe('모집글 올리기', () => {
     expect(
       within(dialog).getByText('보류할 HP (30,000 × 3명)'),
     ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        '마감하면 채우지 못한 자리의 출연료를 돌려받아요.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        /마감하면 채우지 못한 자리의 출연료를 쓴 종류 그대로 돌려받아요/,
+      ),
+    ).toBeInTheDocument()
     await userEvent.click(
       await within(dialog).findByRole('button', {
         name: '90,000 HP 보류하고 게시',
@@ -835,6 +845,9 @@ describe('모집 상세 · 호스트', () => {
     ) as HTMLElement
     expect(await within(row).findByText('편집하는 고래')).toBeInTheDocument()
     expect(within(row).getByText('대기')).toBeInTheDocument()
+    expect(
+      screen.getByText(/채우지 못한 자리의 출연료를 돌려받아요/),
+    ).toBeInTheDocument()
     await userEvent.click(within(row).getByRole('button', { name: '수락' }))
     const dialog = await screen.findByRole('dialog', {
       name: '지원을 수락할까요?',
@@ -933,7 +946,9 @@ describe('모집 상세 · 호스트', () => {
       name: '모집을 조기 마감할까요?',
     })
     expect(
-      within(dialog).getByText(/대기 중인 지원은 모두 미선정이 되고/),
+      within(dialog).getByText(
+        /대기 중인 지원은 모두 미선정이 되고, 채우지 못한 자리의 출연료\(1인 출연료 × \(모집 인원 − 성립 인원\)\)를 돌려받아요/,
+      ),
     ).toBeInTheDocument()
     // 30,000 × (3 − 1)
     expect(within(dialog).getByText('60,000')).toBeInTheDocument()
@@ -947,7 +962,7 @@ describe('모집 상세 · 호스트', () => {
     )
     expect(screen.getByText('조기 마감')).toHaveClass('pill')
     expect(
-      screen.getByText(/성립하지 못한 자리분 HP를 돌려받는 중이에요/),
+      screen.getByText('채우지 못한 자리의 출연료를 돌려받는 중이에요.'),
     ).toBeInTheDocument()
   })
 
@@ -981,24 +996,30 @@ describe('모집 상세 · 호스트', () => {
     expect(body).toEqual({ title: '바뀐 제목' })
   })
 
-  it('반환 실패(DEAD)면 고객센터로 안내한다', async () => {
+  it.each([
+    ['PENDING', '채우지 못한 자리의 출연료를 돌려받는 중이에요.'],
+    ['DONE', '채우지 못한 자리의 출연료를 돌려받았어요.'],
+    [
+      'DEAD',
+      '채우지 못한 자리의 출연료 반환을 처리하지 못했어요. 고객센터로 문의해 주세요.',
+    ],
+  ] as const)('반환이 %s 상태면 "%s"를 보여 준다', async (status, text) => {
     mockHost(
       {
         value: recruit({
           hostId: ME_ID,
           status: 'CLOSED',
           closeType: 'DEADLINE',
-          hpReleaseStatus: 'DEAD',
+          hpReleaseStatus: status,
         }),
       },
       [],
     )
     renderApp('/recruits/7', 'INFLUENCER')
-    expect(
-      await screen.findByText(
-        /HP 반환이 늦어지고 있어요. 고객센터로 문의해 주세요/,
-      ),
-    ).toBeInTheDocument()
+    const note = await screen.findByText(text)
+    // 실패만 경고색으로 보인다.
+    if (status === 'DEAD') expect(note).toHaveClass('c-bad')
+    else expect(note).not.toHaveClass('c-bad')
   })
 
   it('지원자 옆 채팅 버튼으로 채팅방을 연다', async () => {

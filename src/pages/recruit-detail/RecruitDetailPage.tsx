@@ -167,9 +167,9 @@ function Detail({
 }
 
 const RELEASE_LABEL: Record<HpReleaseStatus, string> = {
-  PENDING: '성립하지 못한 자리분 HP를 돌려받는 중이에요.',
-  DONE: '성립하지 못한 자리분 HP를 돌려받았어요.',
-  DEAD: '자리분 HP 반환이 늦어지고 있어요. 고객센터로 문의해 주세요.',
+  PENDING: '채우지 못한 자리의 출연료를 돌려받는 중이에요.',
+  DONE: '채우지 못한 자리의 출연료를 돌려받았어요.',
+  DEAD: '채우지 못한 자리의 출연료 반환을 처리하지 못했어요. 고객센터로 문의해 주세요.',
 }
 
 /** 지금 상태에서 무슨 일이 일어나는지 */
@@ -189,8 +189,8 @@ function StatusNote({ recruit, host }: { recruit: Recruit; host: boolean }) {
       return host ? (
         <p className="fine">
           지원을 수락하면 바로 출연이 성립해요.{' '}
-          {formatDateTime(recruit.recruitDeadline)}에 모집이 마감되고, 성립하지
-          못한 자리분 HP를 돌려받아요.
+          {formatDateTime(recruit.recruitDeadline)}에 모집이 마감되고, 채우지
+          못한 자리의 출연료를 돌려받아요.
         </p>
       ) : (
         <p className="fine">

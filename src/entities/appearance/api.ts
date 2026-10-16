@@ -171,7 +171,7 @@ export function updateRecruit(recruitId: number, edit: RecruitEdit) {
   })
 }
 
-/** 조기 마감 (호스트). 대기 중인 지원은 미선정이 되고 남은 자리분 HP를 돌려받는다 */
+/** 조기 마감 (호스트). 대기 중인 지원은 미선정이 되고 채우지 못한 자리의 출연료를 돌려받는다 */
 export function closeRecruit(recruitId: number) {
   return api<Recruit>(`/appearances/recruits/${recruitId}/close`, {
     method: 'POST',

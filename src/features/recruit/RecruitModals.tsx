@@ -158,8 +158,8 @@ export function CloseRecruitModal({ recruit, onClose }: RecruitProps) {
       }
     >
       <p>
-        대기 중인 지원은 모두 미선정이 되고, 성립하지 못한 자리분 HP(출연료 ×
-        (모집 인원 − 성립 인원))를 돌려받아요.
+        대기 중인 지원은 모두 미선정이 되고, 채우지 못한 자리의 출연료(1인
+        출연료 × (모집 인원 − 성립 인원))를 돌려받아요.
       </p>
       <div className="breakdown">
         <div className="row sub">
