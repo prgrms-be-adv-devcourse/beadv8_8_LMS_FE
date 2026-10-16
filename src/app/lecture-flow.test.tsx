@@ -4,10 +4,9 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureDetail, LectureSummary } from '@/entities/lecture/types'
-import { createOrder } from '@/entities/order/api'
-import type { Order } from '@/entities/order/types'
-import { lectureDb } from '@/mocks/lecture'
+import type { Order, OrderItemStatus } from '@/entities/order/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { mockOrders } from '@/test/lectureOrders'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -64,9 +63,9 @@ const emptyPage = {
   page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
 }
 
-/** 구매 확정 전(PURCHASED) 주문 1건을 목 DB에 넣는다. */
-function seedPurchasedOrder(): Order {
-  const order: Order = {
+/** 강의 7을 산 주문 1건. 기본은 구매 확정 전(PURCHASED)이다. */
+function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
+  return {
     orderId: 500,
     totalAmountHp: 30000,
     status: 'PAID',
@@ -79,7 +78,7 @@ function seedPurchasedOrder(): Order {
         lectureId: 7,
         lectureTitle: '첫 방송 세팅',
         priceHp: 30000,
-        status: 'PURCHASED',
+        status,
         purchasedAt: '2026-10-14T10:00:00',
         confirmedAt: null,
         confirmationType: null,
@@ -91,8 +90,6 @@ function seedPurchasedOrder(): Order {
       },
     ],
   }
-  lectureDb.orders.push(order)
-  return order
 }
 
 function mockLectureDetail() {
@@ -101,6 +98,7 @@ function mockLectureDetail() {
     http.get('*/api/v1/lectures/cart', () =>
       rs({ items: [], purchasableTotalHp: 0 }),
     ),
+    http.get('*/api/v1/lectures/7/reviews', () => rs(emptyPage)),
   )
 }
 
@@ -168,8 +166,9 @@ describe('바로 구매', () => {
       http.post('*/api/v1/lectures/orders', async ({ request }) => {
         ordered = ((await request.json()) as { lectureIds: number[] })
           .lectureIds
-        const order = seedPurchasedOrder()
-        return rs(order, 201)
+        // 주문한 뒤부터 구매 목록·주문 상세에 나온다.
+        mockOrders(purchasedOrder())
+        return rs(purchasedOrder(), 201)
       }),
     )
     document.cookie = 'XSRF-TOKEN=t'
@@ -300,7 +299,7 @@ describe('바로 구매', () => {
 
 describe('내 강의', () => {
   it('구매 확정 전 강의를 구매 취소하면 목록에서 빠진다', async () => {
-    seedPurchasedOrder()
+    const orders = mockOrders(purchasedOrder())
     document.cookie = 'XSRF-TOKEN=t'
     renderApp('/library', 'USER')
 
@@ -315,11 +314,11 @@ describe('내 강의', () => {
     )
 
     expect(await screen.findByText('아직 산 강의가 없어요')).toBeInTheDocument()
-    expect(lectureDb.orders[0].items[0].status).toBe('CANCELED')
+    expect(orders.item(501)?.status).toBe('CANCELED')
   })
 
   it('구매 확정 전에는 재생 동의를 받은 뒤에 시청 URL을 받는다', async () => {
-    seedPurchasedOrder()
+    const orders = mockOrders(purchasedOrder())
     mockLectureDetail()
     let accessCalls = 0
     server.use(
@@ -347,7 +346,7 @@ describe('내 강의', () => {
     await userEvent.click(agree)
 
     await waitFor(() => expect(accessCalls).toBe(1))
-    expect(lectureDb.orders[0].items[0].confirmationType).toBe('FIRST_PLAY')
+    expect(orders.item(501)?.confirmationType).toBe('FIRST_PLAY')
     expect(document.querySelector('video')).toHaveAttribute(
       'src',
       'https://example.test/v.mp4',
@@ -422,8 +421,7 @@ describe('구매자 흐름 회귀', () => {
   })
 
   it('첫 페이지 밖의 내 리뷰를 찾아 내용 없이 별점만 수정한다', async () => {
-    const order = seedPurchasedOrder()
-    order.items[0].status = 'CONFIRMED'
+    mockOrders(purchasedOrder('CONFIRMED'))
     let saved: unknown
     let creates = 0
     server.use(
@@ -475,8 +473,7 @@ describe('구매자 흐름 회귀', () => {
   })
 
   it('자료 다운로드 시 만료된 주소 대신 새 주소를 발급받는다', async () => {
-    const order = seedPurchasedOrder()
-    order.items[0].status = 'CONFIRMED'
+    mockOrders(purchasedOrder('CONFIRMED'))
     let calls = 0
     server.use(
       http.get('*/api/v1/lectures/7', () =>
@@ -508,53 +505,6 @@ describe('구매자 흐름 회귀', () => {
       expect(calls).toBe(2)
     } finally {
       click.mockRestore()
-    }
-  })
-})
-
-describe('모의 주문 격리', () => {
-  it('모의 주문은 메모리 장바구니만 비우고 서버에 삭제를 보내지 않는다', async () => {
-    lectureDb.cart = {
-      items: [
-        {
-          lectureId: 7,
-          title: detail.title,
-          priceHp: 30000,
-          thumbnailUrl: null,
-          purchasable: true,
-        },
-      ],
-      purchasableTotalHp: 30000,
-    }
-    const originalFetch = globalThis.fetch
-    const backendWrites: string[] = []
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(async (input, init) => {
-        const request =
-          input instanceof Request
-            ? input
-            : new Request(new URL(String(input), window.location.origin), init)
-        const path = new URL(request.url).pathname
-        if (path === '/api/v1/lectures/7') return rs(detail)
-        if (
-          path.startsWith('/api/v1/lectures/cart') &&
-          request.method !== 'GET'
-        ) {
-          backendWrites.push(path)
-          return new HttpResponse(null, { status: 204 })
-        }
-        return originalFetch(input, init)
-      })
-    document.cookie = 'XSRF-TOKEN=t'
-    try {
-      const order = await createOrder([7])
-      expect(order.items[0].lectureId).toBe(7)
-      expect(lectureDb.cart.items).toEqual([])
-      expect(lectureDb.cart.purchasableTotalHp).toBe(0)
-      expect(backendWrites).toEqual([])
-    } finally {
-      fetchSpy.mockRestore()
     }
   })
 })

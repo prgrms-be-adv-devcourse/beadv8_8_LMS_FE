@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
-import { resetLectureDb } from '@/mocks/lecture'
 import { resetMemberDb } from '@/mocks/member'
 import { FakeStompClient } from './fakeStomp'
 import { server } from './server'
@@ -19,7 +18,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   server.resetHandlers()
-  resetLectureDb()
   resetMemberDb()
   FakeStompClient.reset()
   cleanup()
