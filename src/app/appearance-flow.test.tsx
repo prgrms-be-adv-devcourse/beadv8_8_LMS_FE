@@ -15,6 +15,7 @@ import {
   expectSubmitOpen,
 } from '@/test/fieldError'
 import { server } from '@/test/server'
+import { expectSuccessToast } from '@/test/toast'
 
 const GUEST_ID = 8
 const HOST_ID = 9
@@ -359,9 +360,11 @@ describe('받은 출연 요청', () => {
         '*/api/v1/appearances/requests/30/reject',
         async ({ request: req }) => {
           rejected = await req.json()
+          // 반환을 처리하지 못한(DEAD) 응답이어도 거절은 성공이다.
           current.value = request({
             status: 'REJECTED',
             rejectReason: '일정이 겹쳐요',
+            hpReleaseStatus: 'DEAD',
           })
           return rs(current.value)
         },
@@ -380,8 +383,10 @@ describe('받은 출연 요청', () => {
     )
     await userEvent.click(within(dialog).getByRole('button', { name: '거절' }))
 
+    await expectSuccessToast('출연 요청을 거절했어요.')
     expect(await screen.findByText('거절됨 · HP 반환')).toBeInTheDocument()
     expect(rejected).toEqual({ reason: '일정이 겹쳐요' })
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 })
 
@@ -414,8 +419,10 @@ describe('보낸 출연 요청', () => {
       within(dialog).getByRole('button', { name: '요청 취소' }),
     )
 
+    await expectSuccessToast('출연 요청을 취소했어요.')
     expect(await screen.findByText('요청 취소 · HP 반환')).toBeInTheDocument()
     expect(screen.getByText('보류 HP 반환 처리 중이에요.')).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 })
 

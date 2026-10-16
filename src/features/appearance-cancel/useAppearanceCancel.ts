@@ -10,7 +10,6 @@ import {
 import type { HostCancelInput } from '@/entities/appearance/types'
 import { walletKeys } from '@/entities/wallet/api'
 import { isApiError } from '@/shared/api/ApiError'
-import { formatNumber } from '@/shared/lib/money'
 import { toast } from '@/shared/ui/toastStore'
 
 /** 처리 중인 게스트 취소 요청이 있어 확인이 필요하다는 응답. 확인 모달을 띄운 뒤 다시 보낸다 */
@@ -100,12 +99,8 @@ export function useHostCancelAppearance(appearanceId: number) {
   return useMutation({
     mutationFn: (input: HostCancelInput) =>
       hostCancelAppearance(appearanceId, input),
-    onSuccess: (appearance) =>
-      toast(
-        appearance.penaltyAmount !== null
-          ? `출연을 취소했어요. 위약금 ${formatNumber(appearance.penaltyAmount)} HP가 게스트에게 지급돼요.`
-          : '출연을 취소했어요.',
-      ),
+    // 위약금 지급·반환은 BE가 따로 처리해 응답 시점에 끝나지 않았을 수 있다. 진행 상태는 상세에서 보여 준다.
+    onSuccess: () => toast('출연을 취소했어요.'),
     onError,
     onSettled: invalidate,
   })
@@ -115,8 +110,7 @@ export function useCancelRecruit(recruitId: number) {
   const invalidate = useInvalidateCancel()
   return useMutation({
     mutationFn: (input: HostCancelInput) => cancelRecruit(recruitId, input),
-    onSuccess: () =>
-      toast('모집을 취소했어요. 보류된 HP는 위약금을 빼고 돌려받아요.'),
+    onSuccess: () => toast('모집을 취소했어요.'),
     onError,
     onSettled: invalidate,
   })

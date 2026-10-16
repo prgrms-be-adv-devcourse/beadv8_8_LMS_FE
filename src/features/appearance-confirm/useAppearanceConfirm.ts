@@ -6,7 +6,6 @@ import {
 } from '@/entities/appearance/api'
 import { walletKeys } from '@/entities/wallet/api'
 import { isApiError } from '@/shared/api/ApiError'
-import { formatNumber } from '@/shared/lib/money'
 import { toast } from '@/shared/ui/toastStore'
 
 /** 이미 응답했거나 기간 밖이라 다시 시도해도 소용없는 응답. 화면은 모달을 닫고 새로 불러온 상세를 보여 준다 */
@@ -50,10 +49,8 @@ export function useConfirmAppearance(appearanceId: number) {
   const invalidate = useInvalidateConfirm()
   return useMutation({
     mutationFn: () => confirmAppearance(appearanceId),
-    onSuccess: (appearance) =>
-      toast(
-        `출연을 확인했어요. 게스트에게 ${formatNumber(appearance.fee)} HP가 지급돼요.`,
-      ),
+    // HP 지급은 BE가 따로 처리해 응답 시점에 끝나지 않았을 수 있다. 진행 상태는 상세에서 보여 준다.
+    onSuccess: () => toast('출연을 확인했어요.'),
     onError,
     onSettled: invalidate,
   })
@@ -63,10 +60,7 @@ export function useMarkAbsent(appearanceId: number) {
   const invalidate = useInvalidateConfirm()
   return useMutation({
     mutationFn: (reason: string) => markAppearanceAbsent(appearanceId, reason),
-    onSuccess: (appearance) =>
-      toast(
-        `불참으로 처리했어요. 출연료 ${formatNumber(appearance.fee)} HP를 돌려받아요.`,
-      ),
+    onSuccess: () => toast('불참으로 처리했어요.'),
     onError,
     onSettled: invalidate,
   })

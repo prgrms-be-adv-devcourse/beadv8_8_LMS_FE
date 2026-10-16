@@ -142,9 +142,10 @@ export function WithdrawApplicationModal({
 export function CloseRecruitModal({ recruit, onClose }: RecruitProps) {
   const close = useCloseRecruit(recruit.id)
   const { feePerPerson: fee, recruitCount, selectedCount } = recruit
-  // 안내용 계산. 실제 반환 금액은 BE가 계산한다.
-  const held = fee * recruitCount
-  const used = fee * selectedCount
+  // 안내용 계산(BE unfilledFee와 같은 식). 실제 반환 금액은 BE가 계산한다.
+  // 지금 보류액(1인 출연료 × 모집 인원)은 마감 전 일방 취소로 이미 정리된 자리까지 들어 있어 보여 주지 않는다.
+  const unfilled = Math.max(0, recruitCount - selectedCount)
+  const refund = fee * unfilled
   return (
     <Modal
       title="모집을 조기 마감할까요?"
@@ -171,19 +172,21 @@ export function CloseRecruitModal({ recruit, onClose }: RecruitProps) {
       </p>
       <div className="breakdown">
         <div className="row sub">
-          <span>보류 중</span>
-          <span className="num">{formatNumber(held)}</span>
-        </div>
-        <div className="row sub">
-          <span>
-            성립 {selectedCount}명 × {formatNumber(fee)}
+          <span>채우지 못한 자리</span>
+          <span className="num">
+            {unfilled}명 × 1인 출연료 {formatNumber(fee)} HP
           </span>
-          <span className="num">−{formatNumber(used)}</span>
         </div>
-        <div className="row total">
-          <span>돌려받는 HP</span>
-          <b className="num">{formatNumber(held - used)}</b>
-        </div>
+        {unfilled > 0 ? (
+          <div className="row total">
+            <span>돌려받는 HP</span>
+            <b className="num">{formatNumber(refund)} HP</b>
+          </div>
+        ) : (
+          <div className="row total">
+            <span>돌려받는 HP 없음</span>
+          </div>
+        )}
       </div>
       <p className="fine">
         성립한 출연은 그대로 유지돼요. 마감한 뒤에는 다시 열 수 없어요.
