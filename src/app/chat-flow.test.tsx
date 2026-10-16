@@ -1636,3 +1636,128 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
     ])
   })
 })
+
+describe('메시지 길이 제한', () => {
+  const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  async function openComposer() {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    return { input, client }
+  }
+
+  it('2,000자까지 입력되고 그 이상은 들어가지 않으며, 1,800자를 넘으면 남은 글자 수를 보여 준다', async () => {
+    const { input } = await openComposer()
+    expect(input).toHaveAttribute('maxLength', '2000')
+
+    await userEvent.click(input)
+    await userEvent.paste('가'.repeat(1800))
+    expect(input).toHaveValue('가'.repeat(1800))
+    expect(screen.queryByText(/\/ 2,000$/)).toBeNull()
+
+    await userEvent.type(input, '나')
+    expect(screen.getByText('1,801 / 2,000')).toBeInTheDocument()
+    expect(input).toHaveAccessibleDescription('1,801 / 2,000')
+
+    await userEvent.paste('다'.repeat(198))
+    await userEvent.type(input, '라마')
+    // 2,000자에서 더 들어가지 않는다.
+    expect((input as HTMLInputElement).value).toHaveLength(2000)
+    expect((input as HTMLInputElement).value.endsWith('라')).toBe(true)
+    expect(screen.getByText('2,000 / 2,000')).toBeInTheDocument()
+    await settle()
+  })
+
+  it('2,000자를 넘게 붙여넣으면 잘라 넣고 알린다', async () => {
+    const { input } = await openComposer()
+    await userEvent.type(input, '앞')
+    await userEvent.paste('붙'.repeat(2500))
+
+    expect((input as HTMLInputElement).value).toBe(`앞${'붙'.repeat(1999)}`)
+    expect(
+      await screen.findByText(
+        '메시지는 2,000자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.',
+      ),
+    ).toBeInTheDocument()
+    await settle()
+  })
+
+  it('여러 줄을 붙여넣으면 줄바꿈을 빼고 센다', async () => {
+    const { input } = await openComposer()
+    await userEvent.click(input)
+    await userEvent.paste(`${'가\n'.repeat(1000)}끝`)
+
+    // 줄바꿈을 빼면 1,001자라 자르지 않는다.
+    expect(input).toHaveValue(`${'가'.repeat(1000)}끝`)
+    expect(
+      screen.queryByText(
+        '메시지는 2,000자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.',
+      ),
+    ).toBeNull()
+    await userEvent.paste(`${'나\r\n'.repeat(1000)}`)
+    expect((input as HTMLInputElement).value).toBe(
+      `${'가'.repeat(1000)}끝${'나'.repeat(999)}`,
+    )
+    expect(screen.getByText('2,000 / 2,000')).toBeInTheDocument()
+    await settle()
+  })
+
+  it('잘라내는 자리가 이모지 가운데면 그 이모지 앞에서 자른다', async () => {
+    const { input } = await openComposer()
+    await userEvent.click(input)
+    await userEvent.paste('가'.repeat(1999))
+    await userEvent.paste('😀')
+
+    expect((input as HTMLInputElement).value).toBe('가'.repeat(1999))
+    expect(
+      await screen.findByText(
+        '메시지는 2,000자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.',
+      ),
+    ).toBeInTheDocument()
+    await settle()
+  })
+
+  it('가운데를 선택해 길게 붙여넣으면 그 자리를 바꾸고 커서를 넣은 글 바로 뒤에 둔다', async () => {
+    const { input } = await openComposer()
+    const el = input as HTMLInputElement
+    await userEvent.click(input)
+    await userEvent.paste('가'.repeat(1990))
+    // 5~15를 선택해 붙여넣는다: 남는 자리는 2,000 − (1,990 − 10) = 20
+    el.setSelectionRange(5, 15)
+    await userEvent.paste('나'.repeat(50))
+
+    expect(el.value).toBe(
+      `${'가'.repeat(5)}${'나'.repeat(20)}${'가'.repeat(1975)}`,
+    )
+    expect(el.selectionStart).toBe(25)
+    expect(el.selectionEnd).toBe(25)
+    await settle()
+  })
+
+  it('서버가 길이 초과(INVALID_REQUEST)로 거절하면 그 메시지를 실패로 표시하고 서버 문구를 그대로 보여 준다', async () => {
+    const { input, client } = await openComposer()
+    await userEvent.type(input, '긴 메시지')
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    const { clientMessageId } = JSON.parse(client.published[0].body)
+
+    act(() =>
+      client.push('/user/queue/chats/errors', {
+        code: 'INVALID_REQUEST',
+        message: '메시지는 2,000자 이하로 보내 주세요.',
+        clientMessageId,
+      }),
+    )
+    const thread = screen.getByRole('region', {
+      name: '편집하는 고래 님과의 대화',
+    })
+    expect(await within(thread).findByRole('alert')).toHaveTextContent(
+      '메시지는 2,000자 이하로 보내 주세요.',
+    )
+    expect(
+      within(thread).getByRole('button', { name: '다시 보내기' }),
+    ).toBeInTheDocument()
+    expect(useChatStore.getState().pending[5]?.[0]?.status).toBe('failed')
+    await settle()
+  })
+})
