@@ -47,5 +47,29 @@ const appShellCartDefault = [
   ),
 ]
 
+/** 관리자 첫 화면(/admin, 운영 대시보드)의 대기 건수: 관리자를 첫 화면으로 보낼 때 부른다. */
+const adminHomeDefaults = [
+  '*/api/v1/members/admin/channels',
+  '*/api/v1/members/admin/upgrade-requests',
+  '*/api/v1/lectures/admin/inspections',
+  '*/api/v1/inquiries/admin',
+  '*/api/v1/lectures/admin/payout-failures',
+].map((path) =>
+  http.get(path, () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        content: [],
+        page: { size: 10, number: 0, totalElements: 0, totalPages: 0 },
+      },
+    }),
+  ),
+)
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
-export const server = setupServer(...appShellCartDefault, ...appShellDefaults)
+export const server = setupServer(
+  ...appShellCartDefault,
+  ...appShellDefaults,
+  ...adminHomeDefaults,
+)
