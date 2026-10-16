@@ -1,15 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { myApplicationsAllQuery } from '@/entities/appearance/api'
-import { findMyApplication, isRecruitOpen } from '@/entities/appearance/recruit'
+import { isRecruitOpen } from '@/entities/appearance/recruit'
 import { APPLY_MESSAGE_MAX } from '@/entities/appearance/rules'
 import type { Application, Recruit } from '@/entities/appearance/types'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { INFLUENCER, type Viewer } from '@/shared/auth/role'
 import { formatDateTime } from '@/shared/lib/date'
 import { Field } from '@/shared/ui/Field'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { WithdrawApplicationModal } from './RecruitModals'
 import { useApplyRecruit } from './useRecruitActions'
 
@@ -46,12 +43,8 @@ export function ApplyPanel({
 }
 
 function MyApplication({ recruit }: { recruit: Recruit }) {
-  // 상세 응답에 내 지원이 없어 내 지원 전체에서 찾는다(BE 개선 전).
-  const { data, error, isPending, refetch } = useQuery(myApplicationsAllQuery)
-  if (isPending) return <Loading />
-  if (error) return <LoadError error={error} retry={refetch} />
-  const mine = findMyApplication(data.content, recruit.id)
-  if (mine) return <ApplicationStatus application={mine} />
+  if (recruit.myApplication)
+    return <ApplicationStatus application={recruit.myApplication} />
   return <ApplyForm recruit={recruit} />
 }
 

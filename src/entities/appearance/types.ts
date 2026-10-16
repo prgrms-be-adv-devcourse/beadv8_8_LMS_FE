@@ -114,6 +114,8 @@ export type Recruit = RecruitSummary & {
   canceledAt: string | null
   /** 마감 반환 진행 상태. 호스트에게만 있고, 반환할 금액이 없거나 마감 전이면 null */
   hpReleaseStatus: HpReleaseStatus | null
+  /** 조회한 회원의 이 모집글 지원 (상태 그대로). 지원한 적이 없거나 호스트 본인이면 null */
+  myApplication: Application | null
   version: number
   updatedAt: string
 }
@@ -150,6 +152,11 @@ export type ApplicationStatus =
 export type Application = {
   id: number
   recruitId: number
+  /** 모집글 제목 (현재 값, 모집글을 고치면 따라 바뀐다) */
+  recruitTitle: string
+  /** 모집글 방송 예정 일시 (KST) */
+  recruitScheduledAt: string
+  recruitStatus: RecruitStatus
   guestId: number
   message: string | null
   status: ApplicationStatus

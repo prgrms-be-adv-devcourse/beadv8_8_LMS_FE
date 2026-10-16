@@ -53,6 +53,7 @@ const recruit = (patch: Partial<Recruit> = {}): Recruit => ({
   closedAt: null,
   canceledAt: null,
   hpReleaseStatus: null,
+  myApplication: null,
   version: 0,
   updatedAt: '2026-10-14T10:00:00',
   ...patch,
@@ -61,6 +62,9 @@ const recruit = (patch: Partial<Recruit> = {}): Recruit => ({
 const application = (patch: Partial<Application> = {}): Application => ({
   id: 50,
   recruitId: 7,
+  recruitTitle: '주말 게임 합방 게스트 모집',
+  recruitScheduledAt: '2999-10-20T21:00:00',
+  recruitStatus: 'RECRUITING',
   guestId: ME_ID,
   message: '같은 장르로 방송해요',
   status: 'APPLIED',
@@ -217,36 +221,64 @@ describe('출연 모집 목록', () => {
     const panel = await screen.findByRole('tabpanel', { name: '내 지원' })
     expect(router.state.location.search).toBe('?tab=applications')
     expect(
-      await within(panel).findByRole('link', { name: '모집글 #7' }),
+      await within(panel).findByRole('link', {
+        name: '주말 게임 합방 게스트 모집',
+      }),
     ).toBeInTheDocument()
     expect(tab('내 지원')).toHaveFocus()
   })
 
-  it('내 지원 탭은 모집글 링크·지원 상태·지원일을 보여 준다', async () => {
+  it('내 지원 탭은 모집 제목 링크·방송 일시·모집 상태·지원 상태·지원일을 보여 준다', async () => {
+    let detailRequested = false
     server.use(
       http.get('*/api/v1/appearances/applications/mine', () =>
         rs(
           page([
             application(),
-            application({ id: 51, recruitId: 9, status: 'SELECTED' }),
+            application({
+              id: 51,
+              recruitId: 9,
+              recruitTitle: '공포 게임 합방',
+              recruitScheduledAt: '2026-10-12T20:00:00',
+              recruitStatus: 'CLOSED',
+              status: 'SELECTED',
+              createdAt: '2026-10-01T11:00:00',
+            }),
           ]),
         ),
       ),
+      http.get('*/api/v1/appearances/recruits/:id', () => {
+        detailRequested = true
+        return rs(recruit())
+      }),
     )
     renderApp('/recruits?tab=applications', 'INFLUENCER')
 
-    const first = (
-      await screen.findByRole('link', { name: '모집글 #7' })
-    ).closest('.row-item') as HTMLElement
-    expect(first.querySelector('a')).toHaveAttribute('href', '/recruits/7')
-    expect(within(first).getByText('대기')).toHaveClass('pill', 'info')
+    const firstLink = await screen.findByRole('link', {
+      name: '주말 게임 합방 게스트 모집',
+    })
+    expect(firstLink).toHaveAttribute('href', '/recruits/7')
+    const first = firstLink.closest('.row-item') as HTMLElement
     expect(
-      within(first).getByText(/10\/15\(.\) 09:00 지원/),
+      within(first).getByText(
+        /^방송 10\/20\(.\) 21:00 · 10\/15\(.\) 09:00 지원$/,
+      ),
     ).toBeInTheDocument()
-    const second = screen
-      .getByRole('link', { name: '모집글 #9' })
-      .closest('.row-item') as HTMLElement
+    expect(within(first).getByText('모집 중')).toHaveClass('pill', 'warn')
+    expect(within(first).getByText('대기')).toHaveClass('pill', 'info')
+
+    const secondLink = screen.getByRole('link', { name: '공포 게임 합방' })
+    expect(secondLink).toHaveAttribute('href', '/recruits/9')
+    const second = secondLink.closest('.row-item') as HTMLElement
+    expect(
+      within(second).getByText(
+        /^방송 10\/12\(.\) 20:00 · 10\/1\(.\) 11:00 지원$/,
+      ),
+    ).toBeInTheDocument()
+    expect(within(second).getByText('마감')).toHaveClass('pill', 'mute')
     expect(within(second).getByText('출연 성립')).toHaveClass('pill', 'ok')
+    // 제목을 얻으려고 행마다 모집 상세를 부르지 않는다.
+    expect(detailRequested).toBe(false)
   })
 
   it('목록이 비면 빈 상태를 보여 준다', async () => {
@@ -482,20 +514,9 @@ function mockRecruit(current: { value: Recruit }) {
   )
 }
 
-/** 내 지원 전체 (페이지별) */
-function mockMyApplications(pages: Application[][]) {
-  server.use(
-    http.get('*/api/v1/appearances/applications/mine', ({ request }) => {
-      const p = Number(new URL(request.url).searchParams.get('page'))
-      return rs(page(pages[p] ?? [], p, pages.length))
-    }),
-  )
-}
-
 describe('모집 상세 공통', () => {
   it('상태·kv 패널·채널 링크를 보여 준다', async () => {
     mockRecruit({ value: recruit() })
-    mockMyApplications([[]])
     renderApp('/recruits/7', 'INFLUENCER')
 
     expect(
@@ -526,7 +547,6 @@ describe('모집 상세 공통', () => {
       }),
     }
     mockRecruit(current)
-    mockMyApplications([[]])
     renderApp('/recruits/7', 'INFLUENCER')
     expect(await screen.findByText('기한 마감')).toHaveClass('pill', 'mute')
   })
@@ -568,16 +588,15 @@ describe('모집 상세 공통', () => {
 
 describe('모집 상세 · 게스트', () => {
   it('지원하지 않은 모집글에 메시지와 함께 지원한다', async () => {
-    mockRecruit({ value: recruit() })
-    const mine: Application[][] = [[]]
-    mockMyApplications(mine)
+    const current = { value: recruit() }
+    mockRecruit(current)
     let body: unknown
     server.use(
       http.post(
         '*/api/v1/appearances/recruits/7/applications',
         async ({ request }) => {
           body = await request.json()
-          mine[0] = [application()]
+          current.value = recruit({ myApplication: application() })
           return rs(application(), 201)
         },
       ),
@@ -600,7 +619,6 @@ describe('모집 상세 · 게스트', () => {
 
   it('정원이 찼어도 지원할 수 있다고 안내한다', async () => {
     mockRecruit({ value: recruit({ selectedCount: 3 }) })
-    mockMyApplications([[]])
     renderApp('/recruits/7', 'INFLUENCER')
     expect(
       await screen.findByText(/정원이 찼어도 지원할 수 있어요/),
@@ -608,12 +626,13 @@ describe('모집 상세 · 게스트', () => {
   })
 
   it('이미 지원했으면(409 DUPLICATE_APPLICATION) 알리고 다시 불러온다', async () => {
-    mockRecruit({ value: recruit() })
-    const mine: Application[][] = [[]]
-    mockMyApplications(mine)
+    const current = { value: recruit() }
+    mockRecruit(current)
     server.use(
       http.post('*/api/v1/appearances/recruits/7/applications', () => {
-        mine[0] = [application({ status: 'WITHDRAWN' })]
+        current.value = recruit({
+          myApplication: application({ status: 'WITHDRAWN' }),
+        })
         return problem(409, 'DUPLICATE_APPLICATION')
       }),
     )
@@ -633,28 +652,35 @@ describe('모집 상세 · 게스트', () => {
     ).toBeInTheDocument()
   })
 
-  it('두 번째 페이지에 있는 지원도 찾아 지원 완료로 보여 준다', async () => {
-    mockRecruit({ value: recruit() })
-    mockMyApplications([
-      [application({ id: 60, recruitId: 100 })],
-      [application()],
-    ])
+  it('모집 상세를 열 때 내 지원 목록 API를 부르지 않는다', async () => {
+    mockRecruit({ value: recruit({ myApplication: application() }) })
+    let listed = 0
+    server.use(
+      http.get('*/api/v1/appearances/applications/mine', () => {
+        listed += 1
+        return rs(page([]))
+      }),
+    )
     renderApp('/recruits/7', 'INFLUENCER')
 
     expect(await screen.findByText('지원 완료')).toBeInTheDocument()
+    expect(
+      screen.getByText('내 메시지: 같은 장르로 방송해요'),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '지원하기' })).toBeNull()
+    expect(listed).toBe(0)
   })
 
   it('지원 취소를 확인하면 다시 지원할 수 없다고 안내한다', async () => {
-    mockRecruit({ value: recruit() })
-    const mine = [[application()]]
-    mockMyApplications(mine)
+    const current = { value: recruit({ myApplication: application() }) }
+    mockRecruit(current)
     let withdrawn = false
     server.use(
       http.post('*/api/v1/appearances/applications/50/withdraw', () => {
         withdrawn = true
-        mine[0] = [application({ status: 'WITHDRAWN' })]
-        return rs(mine[0][0])
+        const mine = application({ status: 'WITHDRAWN' })
+        current.value = recruit({ myApplication: mine })
+        return rs(mine)
       }),
     )
     document.cookie = 'XSRF-TOKEN=t'
@@ -682,11 +708,54 @@ describe('모집 상세 · 게스트', () => {
     expect(screen.queryByRole('button', { name: '지원하기' })).toBeNull()
   })
 
+  it('내 지원 탭에서 연 모집글의 지원을 취소하면 내 지원 탭에 지원 취소로 보인다', async () => {
+    const mine = { value: application() }
+    mockProfiles()
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7', () =>
+        rs(recruit({ myApplication: mine.value })),
+      ),
+      http.get('*/api/v1/appearances/applications/mine', () =>
+        rs(page([mine.value])),
+      ),
+      http.post('*/api/v1/appearances/applications/50/withdraw', () => {
+        mine.value = application({ status: 'WITHDRAWN' })
+        return rs(mine.value)
+      }),
+    )
+    document.cookie = 'XSRF-TOKEN=t'
+    const router = renderApp('/recruits?tab=applications', 'INFLUENCER')
+
+    await userEvent.click(
+      await screen.findByRole('link', { name: '주말 게임 합방 게스트 모집' }),
+    )
+    await userEvent.click(
+      await screen.findByRole('button', { name: '지원 취소' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: '지원을 취소할까요?',
+    })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '지원 취소' }),
+    )
+    expect(
+      await screen.findByText(/지원을 취소했어요. 이 모집글에는/),
+    ).toBeInTheDocument()
+
+    await router.navigate('/recruits?tab=applications')
+    const row = (
+      await screen.findByRole('link', { name: '주말 게임 합방 게스트 모집' })
+    ).closest('.row-item') as HTMLElement
+    expect(await within(row).findByText('지원 취소')).toHaveClass('pill')
+    expect(within(row).queryByText('대기')).toBeNull()
+  })
+
   it('SELECTED는 출연 성립 안내만 보여 준다', async () => {
-    mockRecruit({ value: recruit() })
-    mockMyApplications([
-      [application({ status: 'SELECTED', appearanceId: 300 })],
-    ])
+    mockRecruit({
+      value: recruit({
+        myApplication: application({ status: 'SELECTED', appearanceId: 300 }),
+      }),
+    })
     renderApp('/recruits/7', 'INFLUENCER')
 
     expect(
@@ -696,8 +765,11 @@ describe('모집 상세 · 게스트', () => {
   })
 
   it('NOT_SELECTED는 미선정 안내만 보이고 다시 지원할 수 없다', async () => {
-    mockRecruit({ value: recruit() })
-    mockMyApplications([[application({ status: 'NOT_SELECTED' })]])
+    mockRecruit({
+      value: recruit({
+        myApplication: application({ status: 'NOT_SELECTED' }),
+      }),
+    })
     renderApp('/recruits/7', 'INFLUENCER')
 
     expect(await screen.findByText(/선정되지 않았어요/)).toBeInTheDocument()

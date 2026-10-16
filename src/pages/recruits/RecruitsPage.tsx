@@ -12,7 +12,10 @@ import type {
   RecruitSummary,
 } from '@/entities/appearance/types'
 import { ApplicationStatusPill } from '@/entities/appearance/ui/ApplicationStatusPill'
-import { RecruitDeadlinePill } from '@/entities/appearance/ui/RecruitStatusPill'
+import {
+  RecruitDeadlinePill,
+  RecruitStatusOnlyPill,
+} from '@/entities/appearance/ui/RecruitStatusPill'
 import { RecruitSeats } from '@/entities/appearance/ui/RecruitSeats'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { RecruitFormModal } from '@/features/recruit/RecruitFormModal'
@@ -250,13 +253,17 @@ function ApplicationRow({ application }: { application: Application }) {
           className="row-title link"
           to={`/recruits/${application.recruitId}`}
         >
-          모집글 #{application.recruitId}
+          {application.recruitTitle}
         </Link>
         <span className="fine">
+          방송 {formatDateTime(application.recruitScheduledAt)} ·{' '}
           {formatDateTime(application.createdAt)} 지원
         </span>
       </div>
-      <ApplicationStatusPill status={application.status} />
+      <div className="row-actions">
+        <RecruitStatusOnlyPill status={application.recruitStatus} />
+        <ApplicationStatusPill status={application.status} />
+      </div>
     </div>
   )
 }
