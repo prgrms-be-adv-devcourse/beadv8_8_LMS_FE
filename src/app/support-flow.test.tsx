@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { inquiryKeys } from '@/entities/inquiry/api'
 import type { Inquiry, InquirySummary } from '@/entities/inquiry/types'
 import type { PurchasedLecture } from '@/entities/order/types'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
@@ -45,6 +46,32 @@ const page = <T,>(content: T[]) => ({
   content,
   page: { size: 10, number: 0, totalElements: content.length, totalPages: 1 },
 })
+
+/**
+ * 페이지마다 "N페이지 문의" 한 건을 준다. Spring Page처럼 범위를 넘는 페이지에는 빈 content와 실제 totalPages를 준다.
+ * totalPages()는 응답할 때마다 읽으므로 테스트 도중 목록을 줄일 수 있다.
+ */
+const pageOf = (request: Request, totalPages: () => number) => {
+  const p = Number(new URL(request.url).searchParams.get('page'))
+  return rs({
+    content:
+      p < totalPages()
+        ? [
+            summary({
+              inquiryId: p + 1,
+              userId: 7,
+              title: `${p + 1}페이지 문의`,
+            }),
+          ]
+        : [],
+    page: {
+      size: 10,
+      number: p,
+      totalElements: totalPages(),
+      totalPages: totalPages(),
+    },
+  })
+}
 
 afterEach(() => queryClient.clear())
 
@@ -199,6 +226,24 @@ describe('고객센터 (회원)', () => {
     expect(screen.getByText('2 / 2')).toBeInTheDocument()
   })
 
+  it('내 문의 페이지를 마지막 페이지로 옮겨도 검색어·정렬·미리 채우기 값은 남는다', async () => {
+    server.use(
+      http.get('*/api/v1/inquiries', ({ request }) => pageOf(request, () => 2)),
+    )
+    const router = renderApp(
+      '/support?category=OTHER&q=%EB%AC%B8%EC%9D%98&sort=OLDEST&page=9',
+      'USER',
+    )
+
+    expect(
+      await screen.findByRole('link', { name: /2페이지 문의/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.search).toBe(
+      '?category=OTHER&q=%EB%AC%B8%EC%9D%98&sort=OLDEST&page=2',
+    )
+    expect(screen.queryByText('찾는 문의가 없어요')).not.toBeInTheDocument()
+  })
+
   it('문의 상세는 답변을 보여 주고, 답변이 달리면 삭제할 수 없다', async () => {
     server.use(
       http.get('*/api/v1/inquiries/5', () =>
@@ -251,6 +296,12 @@ describe('고객센터 (회원)', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: '삭제' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/support'))
     expect(deleted).toBe(true)
+    // 돌아간 고객센터가 목록을 다 받아 그려야 다음 테스트로 요청이 새지 않는다.
+    // 주소는 화면보다 먼저 바뀌므로 주소만 보고 끝내면 목록 요청이 아직 나가지 않았을 수 있다.
+    expect(
+      await screen.findByText('아직 남긴 문의가 없어요'),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('이의 제기 판단 결과를 보여 준다', async () => {
@@ -409,6 +460,50 @@ describe('문의 답변 (관리자)', () => {
     expect(
       screen.getByRole('button', { name: '답변 달기' }),
     ).toBeInTheDocument()
+  })
+
+  it('상태·정렬 필터가 있어도 URL의 페이지가 마지막 페이지를 넘으면 마지막 페이지로 옮긴다', async () => {
+    server.use(
+      http.get('*/api/v1/inquiries/admin', ({ request }) =>
+        pageOf(request, () => 2),
+      ),
+    )
+    const router = renderApp(
+      '/admin/inquiries?status=ALL&sort=LATEST&page=9',
+      'ADMIN',
+    )
+
+    expect(
+      await screen.findByRole('link', { name: /2페이지 문의/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?status=ALL&sort=LATEST&page=2')
+    expect(screen.queryByText('문의가 없어요')).not.toBeInTheDocument()
+  })
+
+  it('다시 불렀더니 보던 마지막 페이지가 사라지면 앞 페이지로 옮긴다', async () => {
+    let totalPages = 2
+    server.use(
+      http.get('*/api/v1/inquiries/admin', ({ request }) =>
+        pageOf(request, () => totalPages),
+      ),
+    )
+    const router = renderApp('/admin/inquiries?sort=LATEST&page=2', 'ADMIN')
+    expect(
+      await screen.findByRole('link', { name: /2페이지 문의/ }),
+    ).toBeInTheDocument()
+
+    // 다른 관리자가 2페이지의 마지막 문의에 답해 답변 대기 목록이 한 페이지로 줄었다.
+    totalPages = 1
+    void queryClient.invalidateQueries({ queryKey: inquiryKeys.all })
+
+    expect(
+      await screen.findByRole('link', { name: /1페이지 문의/ }),
+    ).toBeInTheDocument()
+    expect(router.state.location.search).toBe('?sort=LATEST')
+    expect(
+      screen.queryByText('답변 대기 문의가 없어요'),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('관리자 문의 화면은 회원에게 열리지 않는다', async () => {

@@ -13,6 +13,7 @@ import {
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
 import { useViewer } from '@/shared/auth/session'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -22,39 +23,36 @@ import styles from './LecturesPage.module.css'
 
 const SORTS = Object.keys(LECTURE_SORT_LABEL) as LectureSort[]
 
-/** 검색어·정렬·페이지는 URL에 둔다(?keyword=&sort=&page=, page는 1부터). */
+/** 검색어·정렬은 URL에 둔다(?keyword=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다. */
 function useListParams() {
   const [params, setParams] = useSearchParams()
   const sortParam = params.get('sort') as LectureSort | null
   const sort = sortParam && SORTS.includes(sortParam) ? sortParam : 'LATEST'
-  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
   const keyword = params.get('keyword') ?? ''
 
-  const update = (
-    next: Partial<{ keyword: string; sort: LectureSort; page: number }>,
-  ) => {
-    const merged = { keyword, sort, page, ...next }
+  const update = (next: Partial<{ keyword: string; sort: LectureSort }>) => {
+    const merged = { keyword, sort, ...next }
     const search = new URLSearchParams()
     if (merged.keyword) search.set('keyword', merged.keyword)
     if (merged.sort !== 'LATEST') search.set('sort', merged.sort)
-    if (merged.page > 0) search.set('page', String(merged.page + 1))
     setParams(search)
   }
-  return { keyword, sort, page, update }
+  return { keyword, sort, update }
 }
 
 export function LecturesPage() {
   const viewer = useViewer()
   const buyer = useBuyerState()
-  const { keyword, sort, page, update } = useListParams()
+  const { keyword, sort, update } = useListParams()
+  const [page, setPage] = usePageParam('page')
   const [draft, setDraft] = useState(keyword)
-  const { data, error, isPending, refetch } = useQuery(
-    lecturesQuery({ keyword, sort, page }),
-  )
+  const query = useQuery(lecturesQuery({ keyword, sort, page }))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
 
   const search = (e: FormEvent) => {
     e.preventDefault()
-    update({ keyword: draft.trim(), page: 0 })
+    update({ keyword: draft.trim() })
   }
 
   return (
@@ -92,9 +90,7 @@ export function LecturesPage() {
         <select
           className="select sm"
           value={sort}
-          onChange={(e) =>
-            update({ sort: e.target.value as LectureSort, page: 0 })
-          }
+          onChange={(e) => update({ sort: e.target.value as LectureSort })}
           aria-label="정렬"
         >
           {SORTS.map((s) => (
@@ -105,7 +101,7 @@ export function LecturesPage() {
         </select>
       </div>
 
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -132,7 +128,7 @@ export function LecturesPage() {
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={(p) => update({ page: p })}
+            onChange={setPage}
           />
         </>
       )}

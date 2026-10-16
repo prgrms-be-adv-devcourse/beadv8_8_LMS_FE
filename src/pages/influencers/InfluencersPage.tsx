@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { influencersQuery } from '@/entities/member/api'
 import { useViewer } from '@/shared/auth/session'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -11,9 +12,10 @@ import styles from './InfluencersPage.module.css'
 
 export function InfluencersPage() {
   const viewer = useViewer()
-  const [params, setParams] = useSearchParams()
-  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
-  const { data, error, isPending, refetch } = useQuery(influencersQuery(page))
+  const [page, setPage] = usePageParam('page')
+  const query = useQuery(influencersQuery(page))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
 
   return (
     <div className="page">
@@ -29,7 +31,7 @@ export function InfluencersPage() {
           </Link>
         </div>
       )}
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -65,7 +67,7 @@ export function InfluencersPage() {
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={(p) => setParams(p > 0 ? { page: String(p + 1) } : {})}
+            onChange={setPage}
           />
         </>
       )}

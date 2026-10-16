@@ -19,6 +19,7 @@ import {
   useLimitedPolling,
 } from '@/shared/lib/useLimitedPolling'
 import { formatNumber } from '@/shared/lib/money'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
@@ -34,35 +35,26 @@ const TABS: { value: RequestSide; label: string }[] = [
 export function AppearancesPage() {
   const [params, setParams] = useSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
-  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
-  // 성립한 출연 목록의 페이지 (요청 목록 page와 따로)
-  const appearancePage =
-    Math.max(0, Number(params.get('apage') ?? '1') - 1) || 0
+  // 요청 목록 페이지. 성립한 출연 목록은 apage로 따로 넘긴다. 한쪽을 넘겨도 다른 쪽 페이지와 처리 중 안내는 남는다.
+  const [page, setPage] = usePageParam('page')
   const holdPending = side === 'host' && params.get(HOLD_PENDING_PARAM) === '1'
   const polling = useLimitedPolling(holdPending)
-  const { data, error, isPending, refetch, isFetching } = useQuery({
+  const query = useQuery({
     ...appearanceRequestsQuery(side, page),
     refetchInterval: polling ? HOLD_POLL_INTERVAL_MS : false,
   })
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch, isFetching } = query
 
-  const go = (next: {
-    tab?: RequestSide
-    page?: number
-    appearancePage?: number
-    keepHoldPending?: boolean
-  }) => {
-    const search = new URLSearchParams()
-    const tab = next.tab ?? side
-    if (tab === 'guest') search.set('tab', 'guest')
-    const p = next.page ?? 0
-    if (p > 0) search.set('page', String(p + 1))
-    // 역할을 바꾸면 처음부터, 같은 역할 안에서는 한쪽 목록을 넘겨도 다른 쪽 페이지를 지킨다.
-    const ap = next.appearancePage ?? (next.tab ? 0 : appearancePage)
-    if (ap > 0) search.set('apage', String(ap + 1))
-    // 보낸 요청 안에서 페이지를 넘길 때는 처리 중 안내를 유지한다.
-    if (next.keepHoldPending && holdPending) search.set(HOLD_PENDING_PARAM, '1')
-    setParams(search)
-  }
+  // 역할을 바꾸면 두 목록 모두 첫 페이지부터 보고, 처리 중 안내는 닫는다.
+  const selectTab = (tab: RequestSide) =>
+    setParams(tab === 'guest' ? { tab: 'guest' } : {})
+  const dismissHoldPending = () =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete(HOLD_PENDING_PARAM)
+      return next
+    })
 
   return (
     <div className="page">
@@ -75,17 +67,8 @@ export function AppearancesPage() {
           </Link>
         }
       />
-      <Tabs
-        label="내 역할"
-        items={TABS}
-        value={side}
-        onChange={(tab) => go({ tab })}
-      >
-        <AppearanceList
-          side={side}
-          page={appearancePage}
-          onPage={(p) => go({ page, appearancePage: p, keepHoldPending: true })}
-        />
+      <Tabs label="내 역할" items={TABS} value={side} onChange={selectTab}>
+        <AppearanceList side={side} />
         <h2 className={styles.sectionTitle}>
           {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
         </h2>
@@ -108,13 +91,13 @@ export function AppearancesPage() {
             <button
               type="button"
               className="btn ghost sm"
-              onClick={() => go({ page })}
+              onClick={dismissHoldPending}
             >
               닫기
             </button>
           </div>
         )}
-        {isPending ? (
+        {isPending || moving ? (
           <Loading />
         ) : error ? (
           <LoadError error={error} retry={refetch} />
@@ -145,9 +128,7 @@ export function AppearancesPage() {
             <Pager
               page={data.page.number}
               totalPages={data.page.totalPages}
-              onChange={(p) =>
-                go({ page: p, appearancePage, keepHoldPending: true })
-              }
+              onChange={setPage}
             />
           </>
         )}
@@ -205,22 +186,17 @@ function RequestCard({
 }
 
 /** 성립한 출연 (요청·모집에서 성립한 건). 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다 */
-function AppearanceList({
-  side,
-  page,
-  onPage,
-}: {
-  side: RequestSide
-  page: number
-  onPage: (page: number) => void
-}) {
-  const { data, error, isPending, refetch } = useQuery(
+function AppearanceList({ side }: { side: RequestSide }) {
+  const [page, setPage] = usePageParam('apage')
+  const query = useQuery(
     appearancesQuery(side === 'host' ? 'HOST' : 'GUEST', page),
   )
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
   return (
     <section aria-label="성립한 출연" className={styles.section}>
       <h2 className={styles.sectionTitle}>성립한 출연</h2>
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -240,7 +216,7 @@ function AppearanceList({
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={onPage}
+            onChange={setPage}
           />
         </>
       )}

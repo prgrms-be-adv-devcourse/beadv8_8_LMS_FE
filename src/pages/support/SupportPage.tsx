@@ -6,6 +6,7 @@ import { isInquiryCategory } from '@/entities/inquiry/category'
 import type { InquirySort } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
 import { NewInquiryForm } from '@/features/inquiry/NewInquiryForm'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
@@ -37,7 +38,7 @@ export function SupportPage() {
 }
 
 /**
- * 내 문의 검색어·정렬·페이지는 URL에 둔다(?q=&sort=&page=, page는 1부터).
+ * 내 문의 검색어·정렬은 URL에 둔다(?q=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다.
  * 상세에서 돌아와도 보던 목록이 남는다. 새 문의 미리 채우기 값(category·orderItemId)은 건드리지 않는다.
  */
 function useListParams() {
@@ -45,36 +46,33 @@ function useListParams() {
   const keyword = params.get('q') ?? ''
   const sort: InquirySort =
     params.get('sort') === 'OLDEST' ? 'OLDEST' : 'LATEST'
-  const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
 
-  const update = (
-    next: Partial<{ keyword: string; sort: InquirySort; page: number }>,
-  ) => {
-    const merged = { keyword, sort, page, ...next }
+  const update = (next: Partial<{ keyword: string; sort: InquirySort }>) => {
+    const merged = { keyword, sort, ...next }
     setParams((prev) => {
       const search = new URLSearchParams(prev)
       if (merged.keyword) search.set('q', merged.keyword)
       else search.delete('q')
       if (merged.sort !== 'LATEST') search.set('sort', merged.sort)
       else search.delete('sort')
-      if (merged.page > 0) search.set('page', String(merged.page + 1))
-      else search.delete('page')
+      search.delete('page')
       return search
     })
   }
-  return { keyword, sort, page, update }
+  return { keyword, sort, update }
 }
 
 function MyInquiries() {
-  const { keyword, sort, page, update } = useListParams()
+  const { keyword, sort, update } = useListParams()
+  const [page, setPage] = usePageParam('page')
   const [draft, setDraft] = useState(keyword)
-  const { data, error, isPending, refetch } = useQuery(
-    myInquiriesQuery({ keyword, sort, page }),
-  )
+  const query = useQuery(myInquiriesQuery({ keyword, sort, page }))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
 
   const search = (e: FormEvent) => {
     e.preventDefault()
-    update({ keyword: draft.trim(), page: 0 })
+    update({ keyword: draft.trim() })
   }
 
   return (
@@ -101,16 +99,14 @@ function MyInquiries() {
         <select
           className="select sm"
           value={sort}
-          onChange={(e) =>
-            update({ sort: e.target.value as InquirySort, page: 0 })
-          }
+          onChange={(e) => update({ sort: e.target.value as InquirySort })}
           aria-label="정렬"
         >
           <option value="LATEST">최신순</option>
           <option value="OLDEST">오래된 순</option>
         </select>
       </div>
-      {isPending ? (
+      {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
@@ -131,7 +127,7 @@ function MyInquiries() {
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
-            onChange={(p) => update({ page: p })}
+            onChange={setPage}
           />
         </>
       )}
