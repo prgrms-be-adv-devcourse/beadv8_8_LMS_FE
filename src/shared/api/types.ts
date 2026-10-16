@@ -24,4 +24,6 @@ export type ProblemDetail = {
   code?: string
   /** 요청 값 오류일 때만 */
   errors?: { field: string; message: string }[]
+  /** HP 충전 승인 거절(CHARGE_PAYMENT_REJECTED)일 때 PG 오류 코드 또는 PG 결제 상태 */
+  pgCode?: string | null
 }

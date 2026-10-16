@@ -185,7 +185,10 @@ describe('출연 요청 보내기', () => {
     expect(await within(dialog).findByText('10,000 HP')).toBeInTheDocument()
     expect(
       within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toBeInTheDocument()
+    ).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/wallet\?charge=\d+000$/),
+    )
   })
 
   it('잔액이 부족하면(409 INSUFFICIENT_BALANCE) 충전 안내를 보여 준다', async () => {

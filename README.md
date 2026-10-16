@@ -24,6 +24,7 @@ import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/clie
 
 - **역할 전환 스트립**: 개발 서버 화면 맨 위의 `DEV 역할` 버튼으로 로컬 BE 테스트 계정에 로그인한다(`POST /api/v1/members/local-login`). 로컬 BE에 local-login이 켜져 있어야 한다. 운영 번들에는 들어가지 않는다.
 - **MSW 목**: BE에 아직 없는 API는 `src/mocks/`에 핸들러를 만들고, `.env.example`을 `.env.local`로 복사해 `VITE_ENABLE_MSW=true`로 켠다. 목이 없는 요청은 로컬 BE로 간다.
+- **HP 충전(토스페이먼츠 테스트 결제)**: `.env.local`에 `VITE_TOSS_PAYMENTS_CLIENT_KEY=test_ck_…`를 넣는다. 비워 두면 충전 버튼이 꺼진다. 배포 값은 [배포](docs/deploy.md#환경변수) 참고.
 
 ### 폴더
 

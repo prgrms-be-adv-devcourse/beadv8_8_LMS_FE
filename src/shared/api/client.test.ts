@@ -97,6 +97,29 @@ describe('api', () => {
     })
   })
 
+  it('오류 본문의 추가 속성(pgCode)을 ApiError에서 읽을 수 있다', async () => {
+    document.cookie = 'XSRF-TOKEN=t'
+    server.use(
+      http.post(url('/wallets/charges/confirm'), () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'CHARGE_PAYMENT_REJECTED',
+            detail: '한도 초과',
+            pgCode: 'REJECT_CARD_PAYMENT',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    const error = await api('/wallets/charges/confirm', {
+      method: 'POST',
+      body: {},
+    }).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).body?.pgCode).toBe('REJECT_CARD_PAYMENT')
+  })
+
   it('변경 요청에 CSRF 헤더와 JSON 본문을 붙인다', async () => {
     document.cookie = 'XSRF-TOKEN=abc'
     let seen:

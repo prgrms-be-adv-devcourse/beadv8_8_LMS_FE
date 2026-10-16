@@ -18,6 +18,7 @@ import {
 } from '@/entities/appearance/rules'
 import { myChannelsQuery } from '@/entities/member/api'
 import { walletKeys } from '@/entities/wallet/api'
+import { chargeHref } from '@/entities/wallet/charge'
 import { useHpSpend } from '@/entities/wallet/useHpSpend'
 import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { isApiError } from '@/shared/api/ApiError'
@@ -141,7 +142,10 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
             취소
           </button>
           {blockedByHp ? (
-            <Link className="btn primary" to="/wallet">
+            <Link
+              className="btn primary"
+              to={spend.short > 0 ? chargeHref(spend.short) : '/wallet'}
+            >
               HP 충전하러 가기
             </Link>
           ) : (

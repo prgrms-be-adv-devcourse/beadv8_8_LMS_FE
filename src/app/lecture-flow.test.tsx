@@ -280,7 +280,7 @@ describe('바로 구매', () => {
     expect(await within(dialog).findByText('25,000 HP')).toBeInTheDocument()
     expect(
       within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toBeInTheDocument()
+    ).toHaveAttribute('href', '/wallet?charge=25000')
     expect(
       within(dialog).queryByRole('button', { name: /결제/ }),
     ).not.toBeInTheDocument()

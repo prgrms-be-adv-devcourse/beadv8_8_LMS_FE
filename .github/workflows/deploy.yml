@@ -4,6 +4,7 @@
 #         GHCR이 private이므로 이 job의 읽기 전용 GITHUB_TOKEN(job 종료 시 만료)을 stdin으로 넘겨 pull에만 쓴다.
 # 서버 쪽 구성(compose, edge nginx, deploy.sh)은 BE 레포 docker/에 있다.
 # 필요한 Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+# 필요한 Variables: TOSS_PAYMENTS_CLIENT_KEY(토스페이먼츠 테스트 클라이언트 키, 공개 값. 없으면 HP 충전이 꺼진다)
 name: Deploy
 
 on:
@@ -59,6 +60,9 @@ jobs:
         with:
           context: .
           push: true
+          # 번들에 들어가는 공개 값만 넘긴다(dev·운영 같은 값). docs/deploy.md 환경변수 절 참고
+          build-args: |
+            VITE_TOSS_PAYMENTS_CLIENT_KEY=${{ vars.TOSS_PAYMENTS_CLIENT_KEY }}
           tags: |
             ${{ env.IMAGE }}:${{ steps.target.outputs.tag }}
             ${{ env.IMAGE }}:sha-${{ github.sha }}

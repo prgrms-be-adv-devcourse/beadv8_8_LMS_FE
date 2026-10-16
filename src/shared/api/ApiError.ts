@@ -14,6 +14,8 @@ export class ApiError extends Error {
   readonly status: number
   readonly code: string
   readonly errors: { field: string; message: string }[]
+  /** 받은 오류 본문 그대로. 오류별 추가 속성(pgCode 등)을 읽을 때 쓴다. */
+  readonly body: ProblemDetail | null
 
   constructor(status: number, body: ProblemDetail | null) {
     super(
@@ -25,6 +27,7 @@ export class ApiError extends Error {
     this.status = status
     this.code = body?.code ?? statusCode(status)
     this.errors = body?.errors ?? []
+    this.body = body
   }
 }
 

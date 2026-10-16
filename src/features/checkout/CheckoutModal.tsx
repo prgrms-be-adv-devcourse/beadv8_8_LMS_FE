@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { cartKeys } from '@/entities/cart/api'
 import { createOrder, orderKeys } from '@/entities/order/api'
 import { walletKeys } from '@/entities/wallet/api'
+import { chargeHref } from '@/entities/wallet/charge'
 import { useHpSpend } from '@/entities/wallet/useHpSpend'
 import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { formatNumber } from '@/shared/lib/money'
@@ -56,7 +57,7 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
               {spend.error ? '잔액을 확인하지 못했어요' : '잔액 확인 중…'}
             </button>
           ) : spend.short > 0 ? (
-            <Link className="btn primary" to="/wallet">
+            <Link className="btn primary" to={chargeHref(spend.short)}>
               HP 충전하러 가기
             </Link>
           ) : (

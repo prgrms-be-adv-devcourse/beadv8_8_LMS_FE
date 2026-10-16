@@ -43,6 +43,11 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 - 비밀값(API 키, 토큰 등)을 넣지 않는다. 비밀이 필요한 기능은 BE를 통한다.
 - `.env`, `.env.*`는 커밋하지 않는다.
 - 이미지 빌드에는 환경별 값을 넣지 않는다. 환경마다 꼭 달라야 하는 공개 값이 생기면 `deploy.yml` 빌드 단계에 build-arg를 추가해야 하므로 팀과 먼저 상의한다.
+- 지금 빌드 인자로 넣는 값은 하나다(dev·운영 같은 값).
+
+| 변수 | 값 | 넣는 곳 |
+| --- | --- | --- |
+| `VITE_TOSS_PAYMENTS_CLIENT_KEY` | 토스페이먼츠 테스트 클라이언트 키(`test_ck_…`, 공개 값). 비어 있으면 HP 충전 버튼이 꺼진다 | 로컬은 `.env.local`, 배포는 GitHub Variable `TOSS_PAYMENTS_CLIENT_KEY` → `deploy.yml` build-args → `Dockerfile` `ARG` |
 
 ## 파일
 
