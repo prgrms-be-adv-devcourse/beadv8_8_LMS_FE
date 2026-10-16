@@ -38,13 +38,13 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영·개발 모두 edge nginx가 같은 출처에서 `/api`를 BE로 넘기므로 같은 이미지를 두 환경에 쓴다. 로컬은 `vite.config.ts`의 `server.proxy`가 같은 역할을 한다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
 - 명세: https://dev.hapbang.duckdns.org/v3/api-docs (Swagger UI: `/swagger-ui/index.html`). 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN` 테스트 로그인이 있다.
 - 인증은 세션 쿠키(`SESSION`, HttpOnly)다. Spring CSRF가 켜져 있어 변경 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 하고, 없으면 403이 난다.
-- 응답 형식이 아직 통일되지 않았다: 대부분 `{ statusCode, message, data }`로 감싸지만 `/members/me`·`local-login`은 감싸지 않고, 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
+- 응답은 `{ statusCode, message, data }`로 감싼다(`/members/me`·`local-login` 포함). 다만 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
+- 개발 서버는 MSW 없이 모든 `/api`를 로컬 BE로 보낸다. MSW는 테스트(`src/test/server.ts`)에서만 쓴다.
 
-## 강의 구매자 기능과 개발용 목
+## 강의 구매자 기능
 
-- 강의 목록·상세, 장바구니·주문, 내 강의·시청, 구매 확정·취소, 리뷰 화면이 연결되어 있다.
-- 로컬 BE의 주문·구매 목록·리뷰 API는 아직 501 스텁이다. 구매자 콘텐츠 접근 권한과 실제 HP 차감·반환도 BE 구현 후 통합 검증한다.
-- 개발 서버에서 `VITE_ENABLE_MSW=true`일 때 `src/mocks/lecture.ts`의 목을 사용한다. 강의 정보와 최초 장바구니는 실제 BE에서 읽고, 모의 주문·리뷰·장바구니 변경은 메모리에만 보관한다. 새로고침하면 초기화되며 실제 서버 장바구니를 변경하지 않는다.
+- 강의 목록·상세, 장바구니·주문, 내 강의·시청, 구매 확정·취소, 리뷰 화면이 실제 BE API에 연결되어 있다.
+- 주문 상태가 필요한 앱 흐름 테스트는 그 테스트 안에서 `mockOrders(order)`(`src/test/lectureOrders.ts`)로 구매 목록·주문 상세·구매 확정·취소·재생 동의 응답을 켠다.
 - 구매 목록과 내 리뷰는 첫 페이지로만 보유·작성 여부를 판단하지 않는다. 자료 다운로드는 클릭 시 시청 URL을 다시 발급받는다.
 
 ## 배포·환경변수

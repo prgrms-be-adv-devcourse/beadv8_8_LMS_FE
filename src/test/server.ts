@@ -1,6 +1,5 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
-import { handlers } from '@/mocks/handlers'
 
 /**
  * 화면과 상관없이 나가는 요청의 기본 응답. 테스트마다 server.use(...)로 덮어쓴다.
@@ -26,4 +25,4 @@ const appShellDefaults = [
 ]
 
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
-export const server = setupServer(...handlers, ...appShellDefaults)
+export const server = setupServer(...appShellDefaults)
