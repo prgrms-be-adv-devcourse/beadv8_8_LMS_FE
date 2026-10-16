@@ -1,7 +1,7 @@
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { chatKeys } from '@/entities/chat/api'
 import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
@@ -1172,5 +1172,281 @@ describe('이전 메시지 조회 실패 뒤 스크롤', () => {
     )
     await within(thread).findByText('새로 온 메시지')
     expect(box.scrollTop).toBe(box.scrollHeight)
+  })
+})
+
+describe('채팅 참여 바뀜: 보내는 중 표시 정리·탭 간 동기화·재입장', () => {
+  const CHAT_CHANNEL = 'hapbang.chat'
+  /** 다른 탭을 흉내 내는 채널. 테스트가 끝나면 닫는다 */
+  function otherTab() {
+    const channel = new BroadcastChannel(CHAT_CHANNEL)
+    const received: unknown[] = []
+    channel.onmessage = (e) => received.push(e.data)
+    onTestFinished(() => channel.close())
+    return { channel, received }
+  }
+  const failedPending = (content: string) => ({
+    clientMessageId: `c-${content}`,
+    content,
+    status: 'failed' as const,
+    error: '전송하지 못했어요.',
+  })
+  const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  const STALE =
+    '다른 탭에서 이 채팅을 다시 시작해 방에 남아 있어요. 대화 목록에서 다시 열 수 있어요.'
+
+  it('나가면 그 방의 보내는 중·실패 표시를 지우고 다른 탭에 알린다', async () => {
+    let rooms = [room()]
+    mockChat(rooms, [message({ content: '이전 대화', roomSequence: 3 })])
+    server.use(
+      http.get('*/api/v1/chats', () => rs(rooms)),
+      http.delete('*/api/v1/chats/5/members/me', () => {
+        rooms = []
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const tab = otherTab()
+    renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByText('이전 대화')
+    await connectSocket()
+    act(() =>
+      useChatStore.setState({ pending: { 5: [failedPending('못 보낸 말')] } }),
+    )
+    expect(await screen.findByText('못 보낸 말')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '나가기' }))
+    await userEvent.click(screen.getByRole('button', { name: '나가기' }))
+
+    expect(await screen.findByText('채팅방에서 나갔어요.')).toBeInTheDocument()
+    expect(useChatStore.getState().pending[5]).toBeUndefined()
+    await waitFor(() =>
+      expect(tab.received).toEqual([
+        { type: 'chat-room-changed', chatRoomId: 5, userId: ME_ID },
+      ]),
+    )
+    await settle()
+  })
+
+  it('다른 탭에서 나가면 이 탭도 그 방의 이력·보내는 중 표시를 버리고 방 목록을 다시 부른다', async () => {
+    let rooms = [room()]
+    let roomCalls = 0
+    mockChat(rooms, [message({ content: '이전 대화', roomSequence: 3 })])
+    server.use(
+      http.get('*/api/v1/chats', () => {
+        roomCalls++
+        return rs(rooms)
+      }),
+    )
+    const tab = otherTab()
+    renderApp('/chat/5', 'INFLUENCER')
+    await screen.findByText('이전 대화')
+    await connectSocket()
+    act(() =>
+      useChatStore.setState({ pending: { 5: [failedPending('못 보낸 말')] } }),
+    )
+    const before = roomCalls
+
+    // 다른 회원으로 바뀐 탭이 보낸 알림은 무시한다(채널은 보낸 순서대로 전달된다).
+    tab.channel.postMessage({
+      type: 'chat-room-changed',
+      chatRoomId: 5,
+      userId: 999,
+    })
+    rooms = []
+    tab.channel.postMessage({
+      type: 'chat-room-changed',
+      chatRoomId: 5,
+      userId: ME_ID,
+    })
+
+    expect(
+      await screen.findByText(
+        '채팅방을 찾을 수 없어요. 이미 나간 방일 수 있어요.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('이전 대화')).toBeNull()
+    expect(screen.queryByText('못 보낸 말')).toBeNull()
+    expect(useChatStore.getState().pending[5]).toBeUndefined()
+    await settle()
+    expect(roomCalls).toBe(before + 1)
+  })
+
+  it('서버가 나를 재입장시켜 방 목록에 없는 방의 메시지가 오면, 이전 참여의 이력·보내는 중 표시를 버리고 새로 불러온다', async () => {
+    // 다른 탭에서 나가 이 탭의 방 목록에는 없지만, 이전 참여 때의 이력과 실패 표시가 남아 있다.
+    let rooms: ChatRoom[] = []
+    let historyCalls = 0
+    mockChat([])
+    server.use(
+      http.get('*/api/v1/chats', () => rs(rooms)),
+      http.get('*/api/v1/chats/5/messages', () => {
+        historyCalls++
+        return rs({
+          messages: [message({ content: '다시 시작했어요', roomSequence: 12 })],
+          nextCursor: null,
+        })
+      }),
+    )
+    queryClient.setQueryData(chatKeys.messages(5), {
+      pages: [
+        {
+          messages: [message({ content: '이전 참여 대화', roomSequence: 3 })],
+          nextCursor: null,
+        },
+      ],
+      pageParams: [null],
+    })
+    useChatStore.setState({ pending: { 5: [failedPending('못 보낸 말')] } })
+    renderApp('/chat', 'INFLUENCER')
+    expect(await screen.findByText('아직 대화가 없어요')).toBeInTheDocument()
+    const client = await connectSocket()
+
+    // 상대가 채팅을 다시 시작해 서버가 나를 재입장시켰다(재입장 안내는 남아 있던 쪽에만 간다).
+    rooms = [room()]
+    act(() =>
+      client.push(
+        '/user/queue/chats/messages',
+        message({ content: '다시 시작했어요', roomSequence: 12 }),
+      ),
+    )
+    const list = await screen.findByRole('navigation', { name: '대화 목록' })
+    expect(useChatStore.getState().pending[5]).toBeUndefined()
+
+    await userEvent.click(
+      within(list).getByRole('link', { name: /편집하는 고래/ }),
+    )
+    expect(await screen.findByText('다시 시작했어요')).toBeInTheDocument()
+    expect(historyCalls).toBe(1)
+    expect(screen.queryByText('이전 참여 대화')).toBeNull()
+    expect(screen.queryByText('못 보낸 말')).toBeNull()
+    await settle()
+  })
+
+  it('나간 뒤 방 목록을 다시 불러오지 못하면 이 탭만 정리하고 다른 탭에는 알리지 않는다', async () => {
+    let roomsFail = false
+    mockChat([room()])
+    server.use(
+      http.get('*/api/v1/chats', () =>
+        roomsFail
+          ? HttpResponse.json(
+              { status: 500, code: 'INTERNAL_ERROR', detail: '잠시 실패' },
+              { status: 500 },
+            )
+          : rs([room()]),
+      ),
+      http.delete('*/api/v1/chats/5/members/me', () => {
+        roomsFail = true
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const tab = otherTab()
+    renderApp('/chat/5', 'INFLUENCER')
+    await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
+    act(() =>
+      useChatStore.setState({ pending: { 5: [failedPending('못 보낸 말')] } }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: '나가기' }))
+
+    expect(
+      await screen.findByText(
+        '나가기를 처리했어요. 대화 목록을 불러오지 못해 늦게 바뀔 수 있어요.',
+      ),
+    ).toBeInTheDocument()
+    expect(useChatStore.getState().pending[5]).toBeUndefined()
+    await settle()
+    expect(tab.received).toEqual([])
+  })
+
+  it('나가기 응답을 기다리는 동안 이 탭이 새 세대를 알게 되면, 무시된 나가기로 새 참여의 보내는 중 표시를 지우거나 알리지 않는다', async () => {
+    const v3 = room({
+      members: [
+        {
+          userId: ME_ID,
+          nickname: '하늘',
+          active: true,
+          participationVersion: 3,
+        },
+        {
+          userId: PARTNER_ID,
+          nickname: '편집하는 고래',
+          active: true,
+          participationVersion: 1,
+        },
+      ],
+    })
+    let rooms = [room()]
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    mockChat(rooms)
+    server.use(
+      http.get('*/api/v1/chats', () => rs(rooms)),
+      http.delete('*/api/v1/chats/5/members/me', async () => {
+        await gate
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const tab = otherTab()
+    renderApp('/chat/5', 'INFLUENCER')
+    await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
+    await userEvent.click(screen.getByRole('button', { name: '나가기' }))
+
+    // 응답 전에 다른 탭이 다시 시작해(세대 3) 이 탭도 방 목록을 다시 불러왔고, 새 참여에서 보낸 메시지가 실패했다.
+    rooms = [v3]
+    await act(() => queryClient.refetchQueries({ queryKey: chatKeys.rooms() }))
+    act(() =>
+      useChatStore.setState({
+        pending: { 5: [failedPending('새 참여 메시지')] },
+      }),
+    )
+    release()
+
+    expect(await screen.findByText(STALE)).toBeInTheDocument()
+    expect(useChatStore.getState().pending[5]).toHaveLength(1)
+    await settle()
+    expect(tab.received).toEqual([])
+  })
+
+  it('다른 탭에서 다시 시작해 참여 세대가 바뀐 뒤 옛 세대로 나가면, 서버가 무시하므로 방에 남아 있다고 안내한다', async () => {
+    let rooms = [room()]
+    let query: string | undefined
+    mockChat(rooms)
+    server.use(
+      http.get('*/api/v1/chats', () => rs(rooms)),
+      http.delete('*/api/v1/chats/5/members/me', ({ request }) => {
+        query = new URL(request.url).search
+        // 그사이 다른 탭에서 나갔다가 다시 시작해 세대가 3이 됐다. 옛 세대(2)의 나가기는 바꾸지 않는다(204).
+        rooms = [
+          room({
+            members: [
+              {
+                userId: ME_ID,
+                nickname: '하늘',
+                active: true,
+                participationVersion: 3,
+              },
+              {
+                userId: PARTNER_ID,
+                nickname: '편집하는 고래',
+                active: true,
+                participationVersion: 1,
+              },
+            ],
+          }),
+        ]
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderApp('/chat/5', 'INFLUENCER')
+
+    await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
+    await userEvent.click(screen.getByRole('button', { name: '나가기' }))
+
+    expect(await screen.findByText(STALE)).toBeInTheDocument()
+    expect(query).toBe('?participationVersion=2')
+    expect(screen.queryByText('채팅방에서 나갔어요.')).toBeNull()
+    const list = screen.getByRole('navigation', { name: '대화 목록' })
+    expect(
+      within(list).getByRole('link', { name: /편집하는 고래/ }),
+    ).toBeInTheDocument()
+    await settle()
   })
 })

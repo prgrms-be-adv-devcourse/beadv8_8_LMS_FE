@@ -8,6 +8,7 @@ import type {
 } from '@/entities/chat/types'
 import { toast } from '@/shared/ui/toastStore'
 import {
+  clearRoomPending,
   failPending,
   resolvePending,
   resolvePendingByIds,
@@ -188,6 +189,14 @@ export function applyIncomingMessage(
   }
 
   const historyKey = chatKeys.messages(message.chatRoomId)
+  const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
+  const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
+  // 방 목록에 없는 방의 메시지는 상대가 새로 시작했거나 서버가 나를 재입장시킨 것이다(내가 나갔던 방에 상대가
+  // 다시 시작·출연 알림). 남아 있는 이력·보내는 중 표시는 이전 참여 때의 것이라 버리고, 열 때 새 조회 범위로 불러온다.
+  if (rooms && !cached) {
+    queryClient.removeQueries({ queryKey: historyKey })
+    clearRoomPending(message.chatRoomId)
+  }
   if (isFetching(queryClient, historyKey)) {
     const arrived = historyArrivals.get(message.chatRoomId) ?? []
     historyArrivals.set(message.chatRoomId, [...arrived, message])
@@ -203,8 +212,6 @@ export function applyIncomingMessage(
     (viewingRoomId !== message.chatRoomId || !isPageActive())
   if (isFetching(queryClient, chatKeys.rooms()))
     roomArrivals.push({ message, countsAsUnread })
-  const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
-  const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
   // 나간 것으로 알고 있던 회원이 보낸 메시지면 그 회원이 다시 채팅을 시작(재입장)한 것이다.
   const senderRejoined =
     cached?.members.some(
