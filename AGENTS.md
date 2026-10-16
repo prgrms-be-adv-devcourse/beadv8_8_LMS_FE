@@ -18,6 +18,7 @@ pnpm format         # Prettier 적용 / format:check는 검사만
 ```
 
 CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고, 모두 통과해야 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
+Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 
 ## 화면 명세: `docs/mockup-ui.html`
 
@@ -30,6 +31,7 @@ CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순
 - 목업의 `ctx` 전역 상태(지갑, 장부, 장바구니, 출연 등)와 `hold`/`unhold` 같은 잔액 계산은 프로토타입용이다. 실제로는 서버 데이터이므로 TanStack Query로 다루고 계산은 BE가 한다. 라우트·검색어·필터는 URL에 둔다.
 
 라이브러리는 직접 구현보다 성숙한 것을 선호한다(팀 방침). 스타일은 목업 CSS(토큰 + CSS Modules), 서버 상태는 TanStack Query로 정했다.
+탭은 `@/shared/ui/Tabs`(Radix Tabs, 수동 활성화: 화살표는 포커스만, Enter·Space·클릭으로 선택)를 쓴다. 관리자 상태 필터는 탭이 아니라 `aria-pressed` 버튼이다.
 
 ## BE 연동
 
