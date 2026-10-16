@@ -290,7 +290,7 @@ function CancelHistory({ requests }: { requests: AppearanceCancelRequest[] }) {
 const HP_TASK: Record<HpReleaseStatus, string> = {
   PENDING: '처리 중이에요.',
   DONE: '마쳤어요.',
-  DEAD: '늦어지고 있어요. 고객센터로 문의해 주세요.',
+  DEAD: '처리하지 못했어요. 고객센터로 문의해 주세요.',
 }
 
 function TaskNote({
