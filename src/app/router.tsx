@@ -18,6 +18,7 @@ import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
+import { AdminDashboardPage } from '@/pages/admin-dashboard/AdminDashboardPage'
 import { AdminPayoutsPage } from '@/pages/admin-payouts/AdminPayoutsPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
 import { AppearanceDetailPage } from '@/pages/appearance-detail/AppearanceDetailPage'
@@ -145,6 +146,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
   '/studio/lectures/:lectureId/edit': <LectureEditPage />,
+  '/admin': <AdminDashboardPage />,
   '/admin/chats': <AdminChatHistoryPage />,
   '/admin/chats/:chatRoomId': <AdminChatHistoryPage />,
   '/support': <SupportPage />,

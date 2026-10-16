@@ -880,6 +880,13 @@ table.tbl {
 .sum b {
   font: 600 20px var(--f-mono);
 }
+.sum-btn {
+  text-align: left;
+  cursor: pointer;
+}
+.sum-btn:hover {
+  border-color: var(--ink-3);
+}
 .pill.signal {
   background: var(--signal);
   color: var(--signal-ink);

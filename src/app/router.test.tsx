@@ -95,6 +95,35 @@ describe('라우트 가드', () => {
     ).toBeInTheDocument()
   })
 
+  it('관리자가 아닌 회원이 /admin에 들어오면 역할 첫 화면으로 보내고 관리 API를 부르지 않는다', async () => {
+    const adminRequests: string[] = []
+    server.events.on('request:start', ({ request }) => {
+      if (/\/api\/v1\/[a-z]+\/admin/.test(request.url))
+        adminRequests.push(request.url)
+    })
+    try {
+      const router = renderAt('/admin', 'USER')
+      expect(
+        await screen.findByRole('heading', {
+          level: 1,
+          name: /합방 상대를 찾고/,
+        }),
+      ).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/')
+      expect(adminRequests).toEqual([])
+    } finally {
+      server.events.removeAllListeners('request:start')
+    }
+  })
+
+  it('비회원이 /admin에 들어오면 로그인 안내를 보여 준다', async () => {
+    renderAt('/admin', 'GUEST')
+    expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { level: 1, name: '운영 대시보드' }),
+    ).toBeNull()
+  })
+
   it('비회원이 장바구니·알림 주소로 들어오면 로그인 안내를 보여 준다', async () => {
     renderAt('/alerts', 'GUEST')
     expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
