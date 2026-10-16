@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { orderQuery, purchasedQuery } from '@/entities/order/api'
 import type { LectureDetail, LectureSummary } from '@/entities/lecture/types'
 import type { Order, OrderItemStatus } from '@/entities/order/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
@@ -471,8 +472,18 @@ describe('구매자 흐름 회귀', () => {
     await waitFor(() => expect(saved).toEqual({ rating: 4, content: '' }))
     expect(creates).toBe(0)
     // 저장 뒤 내 강의로 이동해 다시 부르는 요청까지 끝나야 다음 테스트로 새지 않는다.
+    // 이동은 비동기라 진행 중 조회 수만 보면 내 강의 화면의 조회가 시작되기 전일 수 있다.
+    // 그 화면이 부르는 구매 목록(모든 페이지)과 주문 상세가 성공한 뒤 진행 중 조회 0을 확인한다.
     expect(await screen.findByText('리뷰를 고쳤어요.')).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'))
+    await waitFor(() => {
+      expect(queryClient.getQueryState(purchasedQuery.queryKey)?.status).toBe(
+        'success',
+      )
+      expect(queryClient.getQueryState(orderQuery(500).queryKey)?.status).toBe(
+        'success',
+      )
+    })
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
