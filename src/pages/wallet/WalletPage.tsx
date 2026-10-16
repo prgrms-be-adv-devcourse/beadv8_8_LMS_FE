@@ -6,8 +6,10 @@ import {
   DEFAULT_CHARGE_AMOUNT,
   parseChargeAmountParam,
 } from '@/entities/wallet/charge'
+import { canRefund } from '@/entities/wallet/refund'
 import type { Wallet } from '@/entities/wallet/types'
 import { ChargeModal } from '@/features/wallet-charge/ChargeModal'
+import { RefundModal } from '@/features/wallet-refund/RefundModal'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
 import { tossClientKey } from '@/shared/lib/tossPayments'
@@ -15,9 +17,9 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 /**
- * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전.
+ * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불.
  * /wallet?charge=N으로 오면(다른 화면의 "HP 충전하러 가기") 충전 모달을 그 금액으로 연다.
- * 환불·환전·거래 내역은 BE API가 생기면 붙인다.
+ * 환전·거래 내역은 BE API가 생기면 붙인다.
  */
 export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
@@ -28,6 +30,7 @@ export function WalletPage() {
     clientKey ? parseChargeAmountParam(params.get('charge')) : null,
   )
   const hasChargeParam = params.has('charge')
+  const [refundOpen, setRefundOpen] = useState(false)
 
   // 모달을 연 뒤 주소에서 지워, 새로고침하거나 돌아와도 다시 열리지 않게 한다.
   useEffect(() => {
@@ -66,6 +69,7 @@ export function WalletPage() {
           earns={earns}
           canCharge={clientKey !== null}
           onCharge={() => setChargeAmount(DEFAULT_CHARGE_AMOUNT)}
+          onRefund={() => setRefundOpen(true)}
         />
       )}
       {clientKey && chargeAmount !== null && (
@@ -73,6 +77,13 @@ export function WalletPage() {
           clientKey={clientKey}
           initialAmount={chargeAmount}
           onClose={() => setChargeAmount(null)}
+        />
+      )}
+      {wallet && refundOpen && (
+        <RefundModal
+          wallet={wallet}
+          earns={earns}
+          onClose={() => setRefundOpen(false)}
         />
       )}
     </div>
@@ -85,9 +96,16 @@ type WalletCardsProps = {
   earns: boolean
   canCharge: boolean
   onCharge: () => void
+  onRefund: () => void
 }
 
-function WalletCards({ wallet, earns, canCharge, onCharge }: WalletCardsProps) {
+function WalletCards({
+  wallet,
+  earns,
+  canCharge,
+  onCharge,
+  onRefund,
+}: WalletCardsProps) {
   return (
     <div className="wallet-grid">
       <section className="bal" aria-label="보유 HP">
@@ -134,6 +152,14 @@ function WalletCards({ wallet, earns, canCharge, onCharge }: WalletCardsProps) {
             onClick={onCharge}
           >
             충전
+          </button>
+          <button
+            type="button"
+            className="btn sm"
+            disabled={!canRefund(wallet.chargeBalanceHp)}
+            onClick={onRefund}
+          >
+            환불
           </button>
         </div>
       </section>

@@ -755,6 +755,13 @@ table.tbl {
   border-width: 2px;
   border-top-color: currentColor;
 }
+.spinner.xs {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+  border-top-color: currentColor;
+  margin-right: 4px;
+}
 @keyframes spin {
   to {
     transform: rotate(360deg);
