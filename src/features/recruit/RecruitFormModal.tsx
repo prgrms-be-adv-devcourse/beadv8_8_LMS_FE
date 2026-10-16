@@ -243,7 +243,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
             id="rn-deadline"
             label="모집 마감 일시"
             error={fields.error('recruitDeadline')}
-            hint="마감하면 성립하지 못한 자리분 HP를 돌려받아요."
+            hint="마감하면 채우지 못한 자리의 출연료를 돌려받아요."
           >
             <input
               {...fieldProps('recruitDeadline')}
@@ -316,7 +316,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
       <HpSpendBreakdown
         spend={spend}
         label={`보류할 HP (${formatNumber(fee)} × ${count}명)`}
-        note={`게스트의 지원을 수락하면 바로 출연이 성립해요. 마감하면 성립하지 못한 자리분 HP를 쓴 종류 그대로 돌려받아요. 성립 후 호스트가 취소하면 1인 출연료의 ${PENALTY_RATE_PERCENT}%를 위약금으로 지급해요.`}
+        note={`게스트의 지원을 수락하면 바로 출연이 성립해요. 마감하면 채우지 못한 자리의 출연료를 쓴 종류 그대로 돌려받아요. 성립 후 호스트가 취소하면 1인 출연료의 ${PENALTY_RATE_PERCENT}%를 위약금으로 지급해요.`}
       />
     </Modal>
   )

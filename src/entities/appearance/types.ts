@@ -73,7 +73,7 @@ export type RequestSide = 'host' | 'guest'
 /**
  * 출연 모집글 상태 (목록·상세에 보이는 것만)
  * - RECRUITING: 모집 중. 1인 출연료 × 모집 인원만큼 HP가 보류돼 있다
- * - CLOSED: 마감. 조기 마감(EARLY)이나 마감 일시 배치(DEADLINE)로 닫히고, 성립하지 못한 자리분 HP를 돌려준다
+ * - CLOSED: 마감. 조기 마감(EARLY)이나 마감 일시 배치(DEADLINE)로 닫히고, 채우지 못한 자리의 출연료를 돌려준다
  * - CANCELED: 모집 전체 취소. 성립한 출연은 출연마다 호스트 일방 취소(위약금)로, 대기 지원은 미선정으로 끝난다
  * 올리기 직후 HP 보류가 끝나기 전(HOLD_PENDING)·실패(HOLD_FAILED)한 글은 목록·상세에 나오지 않는다.
  */
