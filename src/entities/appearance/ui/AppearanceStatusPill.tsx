@@ -1,4 +1,4 @@
-import type { AppearanceStatus } from '../types'
+import type { AppearanceStatus, RequestSide } from '../types'
 
 const LABEL: Record<AppearanceStatus, [tone: string, label: string]> = {
   ESTABLISHED: ['info', '출연 성립'],
@@ -9,7 +9,20 @@ const LABEL: Record<AppearanceStatus, [tone: string, label: string]> = {
   CANCELED_BY_AGREEMENT: ['mute', '합의 취소 · HP 반환'],
 }
 
-export function AppearanceStatusPill({ status }: { status: AppearanceStatus }) {
+const AWAITING: Record<RequestSide, string> = {
+  host: '출연 확인 필요',
+  guest: '확인 대기',
+}
+
+/** awaiting: 방송이 끝나 호스트의 출연 확인을 기다리는 중이면 보는 역할 */
+export function AppearanceStatusPill({
+  status,
+  awaiting,
+}: {
+  status: AppearanceStatus
+  awaiting?: RequestSide
+}) {
+  if (awaiting) return <span className="pill warn">{AWAITING[awaiting]}</span>
   const [tone, label] = LABEL[status]
   return <span className={`pill ${tone}`}>{label}</span>
 }

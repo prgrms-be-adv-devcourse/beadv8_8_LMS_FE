@@ -265,8 +265,9 @@ describe('출연 취소 (게스트)', () => {
     }
     mockAppearance(current)
     renderApp('/appearances/40', 'INFLUENCER')
+    // 확인 기간(방송 + 7일)도 지나 자동 확인을 기다리는 출연이다.
     expect(
-      await screen.findByText(/방송 예정 일시가 지났어요/),
+      await screen.findByText(/확인 기간이 지나 곧 자동으로 출연이 확인돼요/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '출연 취소 요청' })).toBeNull()
     await settleDetail()
