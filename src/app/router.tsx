@@ -52,6 +52,7 @@ import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
 import { OrdersPage } from '@/pages/orders/OrdersPage'
 import { ReviewWritePage } from '@/pages/review-write/ReviewWritePage'
 import { WalletPage } from '@/pages/wallet/WalletPage'
+import { ExchangeRequestPage } from '@/pages/wallet-exchange/ExchangeRequestPage'
 import { WatchPage } from '@/pages/watch/WatchPage'
 
 // /api, /swagger-ui, /v3/api-docs로 시작하는 경로는 BE로 가므로 쓰지 않는다(docs/deploy.md).
@@ -85,6 +86,7 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/library/:lectureId/review', title: '리뷰 작성', roles: MEMBER },
   { path: '/chat/:chatRoomId', title: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
   { path: '/wallet/charge/result', title: '충전 결과', roles: MEMBER },
+  { path: '/wallet/exchange', title: '환전 신청', roles: INFLUENCER },
   { path: '/wallet/account', title: '환전 계좌', roles: INFLUENCER },
   {
     path: '/studio/lectures/new',
@@ -154,6 +156,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/inquiries/:inquiryId': <AdminInquiryPage />,
   '/wallet': <WalletPage />,
   '/wallet/charge/result': <ChargeResultPage />,
+  '/wallet/exchange': <ExchangeRequestPage />,
 }
 
 function toRoute({ path, title, roles }: PageDef): RouteObject {

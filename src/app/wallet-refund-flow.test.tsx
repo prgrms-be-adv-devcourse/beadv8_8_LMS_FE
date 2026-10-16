@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { Refund, Wallet } from '@/entities/wallet/types'
+import { mockExchanges } from '@/test/exchanges'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -117,6 +118,8 @@ async function openRefundModal() {
 
 describe('환불 모달', () => {
   it('충전 HP 전액을 1,000 단위로 채우고 수익·보류 HP는 환불할 수 없다고 안내한다', async () => {
+    // 인플루언서 지갑은 환전 내역도 부른다.
+    mockExchanges()
     renderApp('/wallet', 'INFLUENCER', {
       chargeBalanceHp: 12500,
       revenueBalanceHp: 43000,

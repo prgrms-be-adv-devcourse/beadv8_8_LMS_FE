@@ -505,6 +505,61 @@ table.tbl {
 .tbl .r {
   text-align: right;
 }
+/* 환전 내역: 좁은 화면에서는 예상 수령액·상태를 위, 정산 예정일·상세를 아래 줄로 접는다(목업 .tbl.exch) */
+@media (max-width: 560px) {
+  .tbl.exch {
+    min-width: 0;
+  }
+  .tbl.exch thead {
+    display: none;
+  }
+  .tbl.exch tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tbl.exch tr:last-child {
+    border-bottom: 0;
+  }
+  .tbl.exch td {
+    border: 0;
+    padding: 0;
+  }
+  .tbl.exch td:nth-child(4) {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: left;
+    font-size: 15px;
+  }
+  .tbl.exch td:nth-child(4)::after {
+    content: '원 수령 예정';
+    font-weight: 400;
+    color: var(--ink-3);
+    font-size: 12px;
+    margin-left: 4px;
+  }
+  .tbl.exch td:nth-child(6) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .tbl.exch td:nth-child(5) {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+  }
+  .tbl.exch td:nth-child(7) {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+  }
+  .tbl.exch td:nth-child(1),
+  .tbl.exch td:nth-child(2),
+  .tbl.exch td:nth-child(3) {
+    display: none;
+  }
+}
 
 /* 금액 내역 */
 .breakdown {

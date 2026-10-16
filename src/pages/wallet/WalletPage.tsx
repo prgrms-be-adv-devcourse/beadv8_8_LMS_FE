@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { walletQuery } from '@/entities/wallet/api'
 import {
   DEFAULT_CHARGE_AMOUNT,
   parseChargeAmountParam,
 } from '@/entities/wallet/charge'
+import { canExchange } from '@/entities/wallet/exchange'
 import { canRefund } from '@/entities/wallet/refund'
 import type { Wallet } from '@/entities/wallet/types'
 import { ChargeModal } from '@/features/wallet-charge/ChargeModal'
+import { ExchangeHistory } from '@/features/wallet-exchange/ExchangeHistory'
 import { RefundModal } from '@/features/wallet-refund/RefundModal'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
@@ -17,9 +19,9 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 /**
- * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불.
+ * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, 인플루언서의 환전 신청 진입과 환전 내역.
  * /wallet?charge=N으로 오면(다른 화면의 "HP 충전하러 가기") 충전 모달을 그 금액으로 연다.
- * 환전·거래 내역은 BE API가 생기면 붙인다.
+ * 거래 내역은 BE API가 생기면 붙인다.
  */
 export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
@@ -31,6 +33,7 @@ export function WalletPage() {
   )
   const hasChargeParam = params.has('charge')
   const [refundOpen, setRefundOpen] = useState(false)
+  const navigate = useNavigate()
 
   // 모달을 연 뒤 주소에서 지워, 새로고침하거나 돌아와도 다시 열리지 않게 한다.
   useEffect(() => {
@@ -70,8 +73,10 @@ export function WalletPage() {
           canCharge={clientKey !== null}
           onCharge={() => setChargeAmount(DEFAULT_CHARGE_AMOUNT)}
           onRefund={() => setRefundOpen(true)}
+          onExchange={() => navigate('/wallet/exchange')}
         />
       )}
+      {earns && <ExchangeHistory />}
       {clientKey && chargeAmount !== null && (
         <ChargeModal
           clientKey={clientKey}
@@ -97,6 +102,7 @@ type WalletCardsProps = {
   canCharge: boolean
   onCharge: () => void
   onRefund: () => void
+  onExchange: () => void
 }
 
 function WalletCards({
@@ -105,6 +111,7 @@ function WalletCards({
   canCharge,
   onCharge,
   onRefund,
+  onExchange,
 }: WalletCardsProps) {
   return (
     <div className="wallet-grid">
@@ -161,6 +168,16 @@ function WalletCards({
           >
             환불
           </button>
+          {earns && (
+            <button
+              type="button"
+              className="btn sm"
+              disabled={!canExchange(wallet.revenueBalanceHp)}
+              onClick={onExchange}
+            >
+              환전 신청
+            </button>
+          )}
         </div>
       </section>
       <section className="bal" aria-label="보류 중">

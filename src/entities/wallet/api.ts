@@ -1,12 +1,23 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
-import type { ChargeOrder, Refund, Wallet } from './types'
+import type { PagedModel } from '@/shared/api/types'
+import type {
+  ChargeOrder,
+  Exchange,
+  ExchangeRequest,
+  Refund,
+  Wallet,
+} from './types'
 
 export const walletKeys = {
   /** HP가 움직이는 mutation(결제·취소·충전·환불·환전)은 이 키 전체를 무효화한다. */
   all: ['wallet'] as const,
   me: () => [...walletKeys.all, 'me'] as const,
   charge: (orderId: string) => [...walletKeys.all, 'charge', orderId] as const,
+  /** 환전 목록·상세도 지갑 키 아래에 둬서, 신청·취소 뒤 지갑과 함께 다시 불러온다. */
+  exchanges: (page: number) => [...walletKeys.all, 'exchanges', page] as const,
+  exchange: (exchangeId: number) =>
+    [...walletKeys.all, 'exchange', exchangeId] as const,
 }
 
 /**
@@ -77,6 +88,48 @@ export const refundQuery = (refundRequestId: number) =>
 /** 결제 취소를 시작하기 전(REQUESTED)인 환불 신청을 취소한다. 이미 시작했으면 409 REFUND_NOT_CANCELABLE. */
 export function cancelRefund(refundRequestId: number) {
   return api<Refund>(`/wallets/refunds/${refundRequestId}/cancel`, {
+    method: 'POST',
+  })
+}
+
+export const EXCHANGE_PAGE_SIZE = 10
+
+/** 내 환전 신청 목록(최신 신청부터) */
+export const exchangesQuery = (page: number) =>
+  queryOptions({
+    queryKey: walletKeys.exchanges(page),
+    queryFn: () =>
+      api<PagedModel<Exchange>>('/settlements/exchanges', {
+        query: { page, size: EXCHANGE_PAGE_SIZE },
+      }),
+    placeholderData: keepPreviousData,
+  })
+
+/** 내 환전 신청 하나(상태·수수료·신청 당시 마스킹 계좌) */
+export const exchangeQuery = (exchangeId: number) =>
+  queryOptions({
+    queryKey: walletKeys.exchange(exchangeId),
+    queryFn: () => api<Exchange>(`/settlements/exchanges/${exchangeId}`),
+  })
+
+/**
+ * 수익 HP 환전을 신청한다(201 REQUESTED, 신청 금액만큼 수익 HP 보류).
+ * 같은 Idempotency-Key로 다시 보내면 처음 신청의 현재 결과를 돌려준다(금액·계좌가 다르면 409 IDEMPOTENCY_KEY_CONFLICT).
+ */
+export function requestExchange(
+  request: ExchangeRequest,
+  idempotencyKey: string,
+) {
+  return api<Exchange>('/settlements/exchanges', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: request,
+  })
+}
+
+/** 관리자 승인 전(REQUESTED)인 신청을 취소한다(보류 HP 반환). 그 뒤 단계면 409 EXCHANGE_NOT_CANCELABLE. */
+export function cancelExchange(exchangeId: number) {
+  return api<Exchange>(`/settlements/exchanges/${exchangeId}/cancel`, {
     method: 'POST',
   })
 }
