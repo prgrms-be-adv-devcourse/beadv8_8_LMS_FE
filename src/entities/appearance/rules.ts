@@ -1,6 +1,7 @@
-import { isPast } from '@/shared/lib/date'
+import { isPast, parseServerDate } from '@/shared/lib/date'
 import type {
   Appearance,
+  AppearanceSummary,
   AppearanceRequestInput,
   AppearanceRequestStatus,
   RecruitInput,
@@ -183,4 +184,28 @@ export function canHostCancel(appearance: Appearance, now = new Date()) {
       appearance.status === 'CANCEL_REQUESTED') &&
     !isPast(appearance.scheduledAt, now)
   )
+}
+
+/** 방송 예정 일시부터 호스트가 출연 확인·불참에 응답할 수 있는 기간(일). 지나면 자동 확인 (BE appearance.policy.confirm-period) */
+export const CONFIRM_PERIOD_DAYS = 7
+
+/** 출연 확인 기한 (방송 예정 일시 + 확인 기간). 이 시각부터는 응답할 수 없고 자동 확인된다 */
+export function confirmDeadline(scheduledAt: string) {
+  return new Date(
+    parseServerDate(scheduledAt).getTime() + CONFIRM_PERIOD_DAYS * 86_400_000,
+  ).toISOString()
+}
+
+/**
+ * 성립한 출연의 확인 단계: 방송 전(before) / 응답할 수 있음(open) / 기간 끝나 자동 확인 대기(ended).
+ * 성립 상태가 아니면(취소 요청 처리 중·끝난 출연) null. 최종 판정은 BE가 한다.
+ */
+export function confirmStage(
+  appearance: Pick<AppearanceSummary, 'status' | 'scheduledAt'>,
+  now = new Date(),
+) {
+  if (appearance.status !== 'ESTABLISHED') return null
+  if (!isPast(appearance.scheduledAt, now)) return 'before'
+  if (!isPast(confirmDeadline(appearance.scheduledAt), now)) return 'open'
+  return 'ended'
 }

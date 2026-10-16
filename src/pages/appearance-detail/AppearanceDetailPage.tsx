@@ -6,6 +6,8 @@ import {
   CANCEL_REQUEST_LIMIT,
   canHostCancel,
   canRequestCancel,
+  confirmDeadline,
+  confirmStage,
   PENALTY_RATE_PERCENT,
   pendingCancelRequest,
 } from '@/entities/appearance/rules'
@@ -23,13 +25,18 @@ import {
   RejectCancelModal,
   RequestCancelModal,
 } from '@/features/appearance-cancel/CancelModals'
+import {
+  AbsentModal,
+  ConfirmAppearanceModal,
+} from '@/features/appearance-confirm/ConfirmModals'
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AppearanceDetailPage.module.css'
 
-type ModalType = 'request' | 'accept' | 'reject' | 'hostCancel' | null
+type ModalType =
+  'request' | 'accept' | 'reject' | 'hostCancel' | 'confirm' | 'absent' | null
 
 export function AppearanceDetailPage() {
   const appearanceId = Number(useParams().appearanceId)
@@ -65,6 +72,7 @@ function Detail({
   const partnerId = host ? appearance.guestId : appearance.hostId
   const pending = pendingCancelRequest(appearance)
   const aired = isPast(appearance.scheduledAt)
+  const awaiting = confirmStage(appearance) === 'open'
   const sourceLink =
     appearance.sourceType === 'RECRUIT' && appearance.recruitId
       ? { to: `/recruits/${appearance.recruitId}`, label: '모집글 보기' }
@@ -79,7 +87,10 @@ function Detail({
     <>
       <div className={styles.head}>
         <h1>{appearance.title}</h1>
-        <AppearanceStatusPill status={appearance.status} />
+        <AppearanceStatusPill
+          status={appearance.status}
+          awaiting={awaiting ? (host ? 'host' : 'guest') : undefined}
+        />
       </div>
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
@@ -104,6 +115,23 @@ function Detail({
                 <>
                   <dt>취소</dt>
                   <dd>{formatDateTime(appearance.canceledAt)}</dd>
+                </>
+              )}
+              {appearance.confirmedAt && (
+                <>
+                  <dt>확인</dt>
+                  <dd>
+                    {formatDateTime(appearance.confirmedAt)} ·{' '}
+                    {appearance.confirmType === 'AUTO'
+                      ? '자동 확인'
+                      : '호스트 확인'}
+                  </dd>
+                </>
+              )}
+              {appearance.absentAt && (
+                <>
+                  <dt>불참 처리</dt>
+                  <dd>{formatDateTime(appearance.absentAt)}</dd>
                 </>
               )}
               {appearance.penaltyAmount !== null && (
@@ -161,6 +189,24 @@ function Detail({
               </button>
             </>
           )}
+          {host && awaiting && (
+            <>
+              <button
+                type="button"
+                className="btn primary block"
+                onClick={() => setModal('confirm')}
+              >
+                출연 확인
+              </button>
+              <button
+                type="button"
+                className="btn block"
+                onClick={() => setModal('absent')}
+              >
+                불참
+              </button>
+            </>
+          )}
           {host && canHostCancel(appearance) && (
             <button
               type="button"
@@ -183,6 +229,12 @@ function Detail({
       )}
       {modal === 'hostCancel' && (
         <HostCancelModal appearance={appearance} onClose={close} />
+      )}
+      {modal === 'confirm' && (
+        <ConfirmAppearanceModal appearance={appearance} onClose={close} />
+      )}
+      {modal === 'absent' && (
+        <AbsentModal appearance={appearance} onClose={close} />
       )}
     </>
   )
@@ -264,13 +316,27 @@ function StatusNote({
   host: boolean
 }) {
   const aired = isPast(appearance.scheduledAt)
+  const deadline = formatDateTime(confirmDeadline(appearance.scheduledAt))
   switch (appearance.status) {
     case 'ESTABLISHED':
-      if (aired)
+      if (confirmStage(appearance) === 'ended')
         return (
           <p className="fine">
-            방송 예정 일시가 지났어요. 호스트가 출연을 확인하면(또는 7일 뒤 자동
-            확인) 출연료가 게스트에게 지급돼요.
+            확인 기간이 지나 곧 자동으로 출연이 확인돼요. 출연료는 게스트에게
+            지급돼요.
+          </p>
+        )
+      if (aired)
+        return host ? (
+          <p className="fine">
+            방송 예정 일시가 지났어요. {deadline}까지 출연 확인이나 불참으로
+            응답해 주세요. 응답하지 않으면 그때 자동으로 확인돼 출연료가
+            게스트에게 지급돼요.
+          </p>
+        ) : (
+          <p className="fine">
+            방송 예정 일시가 지났어요. 호스트가 출연을 확인하거나 {deadline}에
+            자동 확인되면 출연료가 지급돼요.
           </p>
         )
       return host ? (
@@ -285,6 +351,13 @@ function StatusNote({
         </p>
       )
     case 'CANCEL_REQUESTED':
+      if (aired)
+        return (
+          <p className="fine">
+            방송 예정 일시가 지나 취소 요청은 곧 자동 거절되고 출연이 유지돼요.
+            {host && ' 그 뒤 출연 확인·불참으로 응답할 수 있어요.'}
+          </p>
+        )
       return host ? (
         <p className="fine">
           게스트가 출연 취소를 요청했어요. 수락하면 위약금 없이 합의 취소되고,
@@ -347,9 +420,20 @@ function StatusNote({
       return (
         <>
           <p className="fine">
-            호스트가 불참으로 처리해 출연료가 호스트에게 돌아가요.
+            {host
+              ? '불참으로 처리해 출연료를 돌려받아요.'
+              : '호스트가 불참으로 처리해 출연료가 호스트에게 돌아가요.'}
             {appearance.absentReason && ` 사유: ${appearance.absentReason}`}
           </p>
+          {!host && (
+            <p className="fine">
+              출연했는데 불참으로 처리됐다면{' '}
+              <Link className="link" to="/support">
+                고객센터 문의
+              </Link>
+              로 알려 주세요.
+            </p>
+          )}
           {host && appearance.hpReleaseStatus && (
             <TaskNote
               label="출연료 반환을"

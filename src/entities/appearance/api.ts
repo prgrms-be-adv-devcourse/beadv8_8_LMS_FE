@@ -275,3 +275,18 @@ export function cancelRecruit(recruitId: number, input: HostCancelInput) {
 
 const confirmBody = ({ confirmPendingCancelRequest }: HostCancelInput) =>
   confirmPendingCancelRequest ? { confirmPendingCancelRequest: true } : {}
+
+/** 출연 확인 (호스트). 방송 예정 일시부터 7일 안에 한 번, 게스트에게 출연료를 지급한다(진행은 hpPayoutStatus) */
+export function confirmAppearance(appearanceId: number) {
+  return api<Appearance>(`/appearances/${appearanceId}/confirm`, {
+    method: 'POST',
+  })
+}
+
+/** 불참 (호스트). 사유 선택, 기간은 출연 확인과 같고 출연료를 호스트에게 돌려준다(진행은 hpReleaseStatus) */
+export function markAppearanceAbsent(appearanceId: number, reason?: string) {
+  return api<Appearance>(`/appearances/${appearanceId}/absent`, {
+    method: 'POST',
+    body: { reason: reason || null },
+  })
+}

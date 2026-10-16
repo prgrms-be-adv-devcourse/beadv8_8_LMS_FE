@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   canHostCancel,
   canRequestCancel,
+  confirmDeadline,
+  confirmStage,
   penaltyOf,
   type RecruitFormValues,
   validateRecruitForm,
@@ -115,5 +117,32 @@ describe('출연 취소 규칙', () => {
     expect(
       canHostCancel({ ...base, scheduledAt: '2026-10-16T11:00:00' }, now),
     ).toBe(false)
+  })
+})
+
+describe('출연 확인 기간', () => {
+  const base = {
+    status: 'ESTABLISHED',
+    scheduledAt: '2026-10-20T21:00:00',
+  } as const
+  const at = (kst: string) => new Date(`${kst}+09:00`)
+
+  it('확인 기한은 방송 예정 일시 + 7일이다', () => {
+    expect(confirmDeadline(base.scheduledAt)).toBe('2026-10-27T12:00:00.000Z')
+  })
+
+  it('방송 예정 일시 정각부터 + 7일 직전까지만 응답할 수 있다', () => {
+    expect(confirmStage(base, at('2026-10-20T20:59:59'))).toBe('before')
+    expect(confirmStage(base, at('2026-10-20T21:00:00'))).toBe('open')
+    expect(confirmStage(base, at('2026-10-27T20:59:59'))).toBe('open')
+    expect(confirmStage(base, at('2026-10-27T21:00:00'))).toBe('ended')
+  })
+
+  it('성립 상태가 아니면 확인 단계가 없다', () => {
+    const now = at('2026-10-21T12:00:00')
+    expect(confirmStage({ ...base, status: 'CANCEL_REQUESTED' }, now)).toBe(
+      null,
+    )
+    expect(confirmStage({ ...base, status: 'CONFIRMED' }, now)).toBe(null)
   })
 })

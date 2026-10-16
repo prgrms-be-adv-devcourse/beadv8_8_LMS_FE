@@ -10,6 +10,7 @@ import type {
   AppearanceSummary,
   RequestSide,
 } from '@/entities/appearance/types'
+import { confirmStage } from '@/entities/appearance/rules'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
@@ -232,8 +233,11 @@ function AppearanceCard({
   side: RequestSide
 }) {
   const partnerId = side === 'host' ? appearance.guestId : appearance.hostId
-  // 호스트가 답해야 하는 취소 요청은 눈에 띄게 한다.
-  const attn = side === 'host' && appearance.status === 'CANCEL_REQUESTED'
+  // 방송이 끝나 호스트의 출연 확인을 기다린다
+  const awaiting = confirmStage(appearance) === 'open'
+  // 호스트가 답해야 하는 취소 요청·출연 확인은 눈에 띄게 한다.
+  const attn =
+    side === 'host' && (appearance.status === 'CANCEL_REQUESTED' || awaiting)
   return (
     <Link
       to={`/appearances/${appearance.id}`}
@@ -246,7 +250,10 @@ function AppearanceCard({
           {appearance.sourceType === 'RECRUIT' ? '출연 모집' : '출연 요청'}
         </span>
         <span className={styles.spacer} />
-        <AppearanceStatusPill status={appearance.status} />
+        <AppearanceStatusPill
+          status={appearance.status}
+          awaiting={awaiting ? side : undefined}
+        />
       </div>
       <span className={styles.title}>{appearance.title}</span>
       <div className={styles.grid}>
