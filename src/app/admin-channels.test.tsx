@@ -275,6 +275,41 @@ describe('관리자 채널 인증 심사', () => {
     expect(await item('노을')).toBeInTheDocument()
   })
 
+  it('처리 중에 다른 메뉴로 갔다 돌아와도 같은 채널을 또 보내지 못한다', async () => {
+    document.cookie = 'XSRF-TOKEN=t'
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    let approveCalls = 0
+    server.use(
+      http.post('*/api/v1/members/admin/channels/101/approve', async () => {
+        approveCalls++
+        await gate
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const router = renderApp('/admin/channels', 'ADMIN')
+    const row = await item('새벽기타')
+    await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+    const dialog = screen.getByRole('dialog', { name: '이 채널을 승인할까요?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: '승인' }))
+    await waitFor(() => expect(approveCalls).toBe(1))
+
+    // 응답 전에 다른 화면으로 갔다가 돌아온다. 이동은 비동기라 다른 화면이 실제로 그려진 것
+    // (채널 심사 화면이 내려간 것)을 확인해야 화면이 새로 만들어진다.
+    await router.navigate('/admin/promotions')
+    await screen.findByRole('heading', { name: '승급 심사' })
+    expect(screen.queryByRole('heading', { name: '채널 인증 심사' })).toBeNull()
+    await router.navigate('/admin/channels')
+    const again = await item('새벽기타')
+    expect(within(again).getByRole('button', { name: '승인' })).toBeDisabled()
+    expect(within(again).getByRole('button', { name: '반려' })).toBeDisabled()
+
+    release()
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0))
+    expect(approveCalls).toBe(1)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
   it('관리자가 아니면 열 수 없다', async () => {
     renderApp('/admin/channels', 'VERIFIED_INFLUENCER')
     expect(await screen.findByText(/권한|볼 수 없/)).toBeInTheDocument()

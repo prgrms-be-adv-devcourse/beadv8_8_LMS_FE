@@ -32,6 +32,7 @@ export const NAV: NavGroup[] = [
       { path: '/admin/channels', label: '채널 인증 심사', roles: ADMIN },
       { path: '/admin/promotions', label: '승급 심사', roles: ADMIN },
       { path: '/admin/lectures', label: '강의 검수', roles: ADMIN },
+      { path: '/admin/payouts', label: '지급 실패', roles: ADMIN },
       { path: '/admin/disputes', label: '이의 제기', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },

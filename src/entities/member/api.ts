@@ -27,6 +27,8 @@ export const memberKeys = {
     [...memberKeys.all, 'upgrade-reviews', status, page] as const,
   channelReviews: (status: ChannelReviewStatus, page: number) =>
     [...memberKeys.all, 'channel-reviews', status, page] as const,
+  /** 채널 승인·반려 mutation. 화면을 다시 열어도 진행 중인 심사를 알 수 있게 키를 고정한다 */
+  channelReview: () => [...memberKeys.all, 'channel-review'] as const,
 }
 
 export const INFLUENCER_PAGE_SIZE = 12

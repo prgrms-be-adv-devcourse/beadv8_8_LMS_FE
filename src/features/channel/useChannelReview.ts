@@ -1,4 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsMutating,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query'
 import {
   approveChannel,
   memberKeys,
@@ -38,6 +42,7 @@ function errorMessage(error: Error) {
 export function useApproveChannel() {
   const invalidate = useInvalidateReviews()
   return useMutation({
+    mutationKey: memberKeys.channelReview(),
     mutationFn: (channelId: number) => approveChannel(channelId),
     onSuccess: () => toast('채널을 승인했어요. 유저였다면 인플루언서가 돼요.'),
     onError: (error) => toast(errorMessage(error)),
@@ -48,6 +53,7 @@ export function useApproveChannel() {
 export function useRejectChannel() {
   const invalidate = useInvalidateReviews()
   return useMutation({
+    mutationKey: memberKeys.channelReview(),
     mutationFn: ({
       channelId,
       reason,
@@ -59,4 +65,12 @@ export function useRejectChannel() {
     onError: (error) => toast(errorMessage(error)),
     onSettled: invalidate,
   })
+}
+
+/**
+ * 채널 승인·반려가 진행 중인지. 화면 상태가 아니라 mutation 캐시로 본다. 요청 중에 다른 메뉴로 갔다 돌아와도
+ * 이전 요청이 끝날 때까지 다시 보내지 못한다(승인·반려 겹침 방지).
+ */
+export function useReviewingChannel() {
+  return useIsMutating({ mutationKey: memberKeys.channelReview() }) > 0
 }
