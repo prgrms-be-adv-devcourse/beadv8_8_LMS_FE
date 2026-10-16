@@ -924,6 +924,13 @@ table.tbl {
   color: var(--ink);
   border-bottom-color: var(--ink);
 }
+/* 공용 Tabs의 묶음과 패널. .page 안에서처럼 세로로 쌓는다 */
+.tab-group,
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
 /* 출연 모집 (목업 RecruitsScreen·RecruitDetail) */
 .seller-row {

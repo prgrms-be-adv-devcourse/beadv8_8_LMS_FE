@@ -20,11 +20,12 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { Tabs } from '@/shared/ui/Tabs'
 import styles from './AppearancesPage.module.css'
 
-const TABS: { side: RequestSide; label: string }[] = [
-  { side: 'host', label: '호스트로 (보낸 요청)' },
-  { side: 'guest', label: '게스트로 (받은 요청)' },
+const TABS: { value: RequestSide; label: string }[] = [
+  { value: 'host', label: '호스트로 (보낸 요청)' },
+  { value: 'guest', label: '게스트로 (받은 요청)' },
 ]
 
 export function AppearancesPage() {
@@ -64,82 +65,73 @@ export function AppearancesPage() {
           </Link>
         }
       />
-      <div className={styles.tabs} role="tablist" aria-label="내 역할">
-        {TABS.map((t) => (
-          <button
-            key={t.side}
-            type="button"
-            role="tab"
-            aria-selected={side === t.side}
-            className={
-              side === t.side ? `${styles.tab} ${styles.on}` : styles.tab
-            }
-            onClick={() => go({ tab: t.side })}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {holdPending && (
-        <div className="notice warn" role="status">
-          <span>
-            요청은 접수됐고 HP 보류 결과를 확인하고 있어요.
-            {polling
-              ? ' 보류가 끝나면 아래 목록에 나타나요.'
-              : ' 아직 목록에 없으면 새로고침해 보세요. 잔액이 부족했다면 요청이 등록되지 않아요.'}
-          </span>
-          <button
-            type="button"
-            className="btn sm"
-            disabled={isFetching}
-            onClick={() => refetch()}
-          >
-            새로고침
-          </button>
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => go({ page })}
-          >
-            닫기
-          </button>
-        </div>
-      )}
-      {isPending ? (
-        <Loading />
-      ) : error ? (
-        <LoadError error={error} retry={refetch} />
-      ) : data.content.length === 0 ? (
-        side === 'host' ? (
-          <EmptyState
-            title="아직 보낸 출연 요청이 없어요"
-            action={
-              <Link className="btn primary" to="/influencers">
-                게스트 찾기
-              </Link>
-            }
-          >
-            인플루언서 프로필에서 출연 요청을 보낼 수 있어요.
-          </EmptyState>
-        ) : (
-          <EmptyState title="아직 받은 출연 요청이 없어요">
-            다른 인플루언서가 출연을 요청하면 여기에 보여요.
-          </EmptyState>
-        )
-      ) : (
-        <>
-          <div className="page" style={{ gap: 12 }}>
-            {data.content.map((request) => (
-              <RequestCard key={request.id} request={request} side={side} />
-            ))}
+      <Tabs
+        label="내 역할"
+        items={TABS}
+        value={side}
+        onChange={(tab) => go({ tab })}
+      >
+        {holdPending && (
+          <div className="notice warn" role="status">
+            <span>
+              요청은 접수됐고 HP 보류 결과를 확인하고 있어요.
+              {polling
+                ? ' 보류가 끝나면 아래 목록에 나타나요.'
+                : ' 아직 목록에 없으면 새로고침해 보세요. 잔액이 부족했다면 요청이 등록되지 않아요.'}
+            </span>
+            <button
+              type="button"
+              className="btn sm"
+              disabled={isFetching}
+              onClick={() => refetch()}
+            >
+              새로고침
+            </button>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => go({ page })}
+            >
+              닫기
+            </button>
           </div>
-          <Pager
-            page={data.page.number}
-            totalPages={data.page.totalPages}
-            onChange={(p) => go({ page: p, keepHoldPending: true })}
-          />
-        </>
-      )}
+        )}
+        {isPending ? (
+          <Loading />
+        ) : error ? (
+          <LoadError error={error} retry={refetch} />
+        ) : data.content.length === 0 ? (
+          side === 'host' ? (
+            <EmptyState
+              title="아직 보낸 출연 요청이 없어요"
+              action={
+                <Link className="btn primary" to="/influencers">
+                  게스트 찾기
+                </Link>
+              }
+            >
+              인플루언서 프로필에서 출연 요청을 보낼 수 있어요.
+            </EmptyState>
+          ) : (
+            <EmptyState title="아직 받은 출연 요청이 없어요">
+              다른 인플루언서가 출연을 요청하면 여기에 보여요.
+            </EmptyState>
+          )
+        ) : (
+          <>
+            <div className="page" style={{ gap: 12 }}>
+              {data.content.map((request) => (
+                <RequestCard key={request.id} request={request} side={side} />
+              ))}
+            </div>
+            <Pager
+              page={data.page.number}
+              totalPages={data.page.totalPages}
+              onChange={(p) => go({ page: p, keepHoldPending: true })}
+            />
+          </>
+        )}
+      </Tabs>
     </div>
   )
 }

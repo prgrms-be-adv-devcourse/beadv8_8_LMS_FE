@@ -522,3 +522,61 @@ describe('리뷰 반영', () => {
     expect(screen.getByText('응답 필요')).toBeInTheDocument()
   })
 })
+
+describe('역할 탭', () => {
+  it('Tab 키로 들어오면 선택된 탭에 가고, Space로 고르면 page가 초기화되며 패널이 바뀐다', async () => {
+    server.use(
+      http.get('*/api/v1/appearances/requests/received', () =>
+        rs({
+          content: [request({ title: '내가 받은 요청' })],
+          page: { size: 10, number: 1, totalElements: 11, totalPages: 2 },
+        }),
+      ),
+      http.get('*/api/v1/appearances/requests/sent', () =>
+        rs({
+          content: [
+            request({
+              hostId: ME_ID,
+              guestId: HOST_ID,
+              title: '내가 보낸 요청',
+            }),
+          ],
+          page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
+        }),
+      ),
+      http.get(`*/api/v1/members/${HOST_ID}`, () =>
+        rs(profile(HOST_ID, '밤새는곰')),
+      ),
+    )
+    const router = renderApp('/appearances?tab=guest&page=2', 'INFLUENCER')
+
+    const guestPanel = await screen.findByRole('tabpanel', {
+      name: '게스트로 (받은 요청)',
+    })
+    expect(
+      await within(guestPanel).findByText('내가 받은 요청'),
+    ).toBeInTheDocument()
+    const host = screen.getByRole('tab', { name: '호스트로 (보낸 요청)' })
+    const guest = screen.getByRole('tab', { name: '게스트로 (받은 요청)' })
+    expect(guest).toHaveAttribute('aria-controls', guestPanel.id)
+
+    // 탭 목록 바로 앞의 링크에서 Tab을 누르면 선택된 탭으로 들어온다.
+    screen.getByRole('link', { name: '게스트 찾기' }).focus()
+    await userEvent.tab()
+    expect(guest).toHaveFocus()
+
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(host).toHaveFocus()
+    expect(router.state.location.search).toBe('?tab=guest&page=2')
+
+    await userEvent.keyboard(' ')
+    const hostPanel = await screen.findByRole('tabpanel', {
+      name: '호스트로 (보낸 요청)',
+    })
+    expect(router.state.location.search).toBe('')
+    expect(
+      await within(hostPanel).findByText('내가 보낸 요청'),
+    ).toBeInTheDocument()
+    expect(host).toHaveAttribute('aria-selected', 'true')
+  })
+})

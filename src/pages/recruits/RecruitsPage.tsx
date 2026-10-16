@@ -30,13 +30,14 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { Tabs } from '@/shared/ui/Tabs'
 
 type Tab = RecruitListTab | 'applications'
 
-const TABS: { tab: Tab; label: string }[] = [
-  { tab: 'open', label: '모집 중' },
-  { tab: 'mine', label: '내 모집글' },
-  { tab: 'applications', label: '내 지원' },
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'open', label: '모집 중' },
+  { value: 'mine', label: '내 모집글' },
+  { value: 'applications', label: '내 지원' },
 ]
 
 export function RecruitsPage() {
@@ -53,6 +54,12 @@ export function RecruitsPage() {
 
   const selectTab = (next: Tab) =>
     setParams(next === 'open' ? {} : { tab: next })
+  const list =
+    tab === 'applications' ? (
+      <MyApplications />
+    ) : (
+      <Recruits key={tab} tab={tab} />
+    )
 
   return (
     <div className="page">
@@ -71,26 +78,12 @@ export function RecruitsPage() {
           )
         }
       />
-      {influencer && (
-        <div className="tabs" role="tablist" aria-label="모집 목록">
-          {TABS.map((t) => (
-            <button
-              key={t.tab}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.tab}
-              className={tab === t.tab ? 'tab on' : 'tab'}
-              onClick={() => selectTab(t.tab)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {tab === 'applications' ? (
-        <MyApplications />
+      {influencer ? (
+        <Tabs label="모집 목록" items={TABS} value={tab} onChange={selectTab}>
+          {list}
+        </Tabs>
       ) : (
-        <Recruits key={tab} tab={tab} />
+        list
       )}
       {writing && <RecruitFormModal onClose={() => setWriting(false)} />}
     </div>

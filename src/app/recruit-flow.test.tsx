@@ -157,7 +157,69 @@ describe('출연 모집 목록', () => {
       await screen.findByRole('link', { name: /주말 게임 합방 게스트 모집/ }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: '내 모집글' })).toBeNull()
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByRole('tabpanel')).toBeNull()
     expect(screen.queryByRole('button', { name: '모집글 올리기' })).toBeNull()
+  })
+
+  it('탭과 선택된 탭의 패널이 aria로 연결된다', async () => {
+    mockProfiles()
+    server.use(
+      http.get('*/api/v1/appearances/recruits/mine', () =>
+        rs(page([summary({ id: 8, hostId: ME_ID, title: '내가 올린 모집' })])),
+      ),
+    )
+    renderApp('/recruits?tab=mine', 'INFLUENCER')
+
+    const panel = await screen.findByRole('tabpanel', { name: '내 모집글' })
+    expect(
+      await within(panel).findByRole('link', { name: /내가 올린 모집/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('tablist', { name: '모집 목록' }),
+    ).toBeInTheDocument()
+    const tab = screen.getByRole('tab', { name: '내 모집글' })
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    expect(tab).toHaveAttribute('aria-controls', panel.id)
+    expect(screen.getByRole('tab', { name: '모집 중' })).toHaveAttribute(
+      'aria-selected',
+      'false',
+    )
+  })
+
+  it('화살표·Home·End 키는 포커스만 옮기고 Enter로 고르면 URL tab이 바뀐다', async () => {
+    mockProfiles()
+    server.use(
+      http.get('*/api/v1/appearances/recruits', () => rs(page([summary()]))),
+      http.get('*/api/v1/appearances/applications/mine', () =>
+        rs(page([application()])),
+      ),
+    )
+    const router = renderApp('/recruits', 'INFLUENCER')
+    await screen.findByRole('link', { name: /주말 게임 합방 게스트 모집/ })
+    const tab = (name: string) => screen.getByRole('tab', { name })
+
+    tab('모집 중').focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(tab('내 모집글')).toHaveFocus()
+    await userEvent.keyboard('{End}')
+    expect(tab('내 지원')).toHaveFocus()
+    await userEvent.keyboard('{Home}')
+    expect(tab('모집 중')).toHaveFocus()
+    // 처음에서 ←를 누르면 끝으로 돈다.
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(tab('내 지원')).toHaveFocus()
+    // 수동 활성화: 포커스만 옮겨서는 탭이 바뀌지 않는다.
+    expect(router.state.location.search).toBe('')
+    expect(tab('모집 중')).toHaveAttribute('aria-selected', 'true')
+
+    await userEvent.keyboard('{Enter}')
+    const panel = await screen.findByRole('tabpanel', { name: '내 지원' })
+    expect(router.state.location.search).toBe('?tab=applications')
+    expect(
+      await within(panel).findByRole('link', { name: '모집글 #7' }),
+    ).toBeInTheDocument()
+    expect(tab('내 지원')).toHaveFocus()
   })
 
   it('내 지원 탭은 모집글 링크·지원 상태·지원일을 보여 준다', async () => {
