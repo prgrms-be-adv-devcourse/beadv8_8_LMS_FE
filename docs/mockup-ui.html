@@ -677,11 +677,11 @@ function nextSettlement(from) {
   return { nominal: iso(nominal), pay: iso(pay), deadline: iso(new Date(y, m, 9)) };
 }
 const fee10 = amt => Math.floor(amt * 0.1);
-// 지난 정산일 (k=1 가장 최근). 예시 환전 데이터는 실제 정산 규칙(매월 10일, 주말이면 다음 영업일)에 맞춰 계산
+// 지난 정산일 (k=1 가장 최근). 예시 환전 데이터는 BE 정산 회차 규칙(매월 10일, 토·일이면 다음 월요일, 공휴일 미반영)에 맞춰 계산
 function settlementOf(y, m) { const nominal = new Date(y, m, 10), pay = new Date(y, m, 10); while (!isBizDay(pay)) pay.setDate(pay.getDate() + 1); return { nominal: iso(nominal), pay: iso(pay), deadline: iso(new Date(y, m, 9)) }; }
 function pastSettlement(k = 1) { const d = toD(TODAY); let y = d.getFullYear(), m = d.getMonth(); if (settlementOf(y, m).pay > TODAY) m -= 1; return settlementOf(y, m - (k - 1)); }
 const S1 = pastSettlement(1), S2 = pastSettlement(2);
-const payNote = S => S.pay !== S.nominal ? `10일 ${WD[toD(S.nominal).getDay()]}요일 → 다음 영업일` : '';
+const payNote = S => S.pay !== S.nominal ? `10일 ${WD[toD(S.nominal).getDay()]}요일 → 월요일` : '';
 // 예시 데이터 날짜 이동: BASE_DAY로 쓴 날짜를 오늘 기준으로 같은 간격만큼 옮김
 const DELTA = Math.round((toD(TODAY) - toD(BASE_DAY)) / 864e5);
 const moved = (y, m, d) => new Date(+y, +m - 1, +d + DELTA);
@@ -760,7 +760,7 @@ const LIB0 = [
 ];
 const APPS0 = [
   { id: 'a1', side: 'host', type: '요청', partner: '밤새는곰', fee: 50000, airAt: '2026-10-18 21:00', acceptBy: '2026-10-15', status: 'pending' },
-  { id: 'a2', side: 'host', type: '요청', partner: '롤하는 수달', fee: 30000, airAt: '2026-10-10 20:00', status: 'aired', dispute: { kind: '노쇼 신고', at: '2026-10-11' } },
+  { id: 'a2', side: 'host', type: '요청', partner: '롤하는 수달', fee: 30000, airAt: '2026-10-10 20:00', status: 'aired' },
   { id: 'a3', side: 'host', type: '모집', recruit: '금요일 노래 릴레이', partner: '칩튠 소년', fee: 25000, airAt: '2026-10-16 22:00', status: 'established', cancelReq: '학교 행사 일정과 겹쳐서 출연이 어려워요. 죄송합니다.' },
   { id: 'a4', side: 'guest', type: '요청', partner: '보드게임 반장', fee: 40000, airAt: '2026-10-22 20:00', acceptBy: '2026-10-16', status: 'pending', memo: '6인 마피아 합방, 2시간 예정' },
   { id: 'a5', side: 'guest', type: '요청', partner: '새벽라디오 윤', fee: 35000, airAt: '2026-10-19 23:00', status: 'established' },
@@ -803,13 +803,13 @@ const ROOMS0 = [
   ] },
 ];
 const INQ0 = [
-  { id: 'q1', thread: [{ who: 'me', at: '10/08 14:20', text: '환전 계좌를 바꾸려고 실명 확인을 누르면 오류가 나요.' }, { who: 'admin', at: '10/08 16:02', text: '계좌 실명 확인 API 점검 시간이었어요. 지금 다시 시도해 주세요.' }, { who: 'me', at: '10/08 16:30', text: '다시 해 보니 됐어요. 그런데 이미 신청한 환전도 새 계좌로 가나요?' }, { who: 'admin', at: '10/08 17:05', text: '네, 정산일에 그때 등록된 계좌로 송금해요.' }], type: '서비스 불만', title: '환전 계좌 변경이 저장되지 않아요', at: '10/08', status: '답변 완료', reply: '계좌 실명 확인 API 점검 시간이었어요. 지금 다시 시도해 주세요.' },
+  { id: 'q1', thread: [{ who: 'me', at: '10/08 14:20', text: '환전 신청 때 계좌번호를 잘못 넣었어요. 신청한 환전의 계좌를 바꿀 수 있나요?' }, { who: 'admin', at: '10/08 16:02', text: '신청한 환전의 계좌는 바꿀 수 없어요. 승인 전이면 지갑에서 신청을 취소하고 새 계좌로 다시 신청해 주세요.' }, { who: 'me', at: '10/08 16:30', text: '취소하면 HP는 바로 돌아오나요?' }, { who: 'admin', at: '10/08 17:05', text: '네, 보류했던 수익 HP를 전부 돌려드려요.' }], type: '서비스 불만', title: '환전 계좌를 잘못 입력했어요', at: '10/08', status: '답변 완료', reply: '승인 전이면 신청을 취소하고 다시 신청해 주세요.' },
   { id: 'q2', type: '기타', title: '모집 글 수정 가능한가요?', at: '10/11', status: '답변 대기' },
-  { id: 'q5', type: '노쇼 신고', title: '10/10 방송에 게스트가 오지 않았어요', at: '10/11', status: '처리 중', target: '롤하는 수달 · 10/10(토) 20:00 방송' },
+  { id: 'q5', type: '노쇼 신고', title: '10/10 방송에 게스트가 오지 않았어요', at: '10/11', status: '답변 대기' },
 ];
 const ADMIN0 = {
   channel: [
-    { id: 'v1', name: '고양이집사 민', url: 'chzzk.naver.com/catmin', followers: 214, hours: 8, at: '10/11' },
+    { id: 'v1', name: '고양이집사 민', url: 'chzzk.naver.com/catmin', followers: 8, hours: 14, at: '10/11' },
     { id: 'v2', name: '코딩하는 펭귄', url: 'chzzk.naver.com/pengdev', followers: 6, hours: 22.5, at: '10/11' },
     { id: 'v3', name: '야식왕 덕배', url: 'chzzk.naver.com/yasik', followers: 4, hours: 3, at: '10/12' },
   ],
@@ -821,17 +821,17 @@ const ADMIN0 = {
     { id: 'k1', title: '노래방송 저작권 기초', seller: ME, kind: '신규 등록', at: '10/11' },
     { id: 'k2', title: '썸네일 30분 컷', seller: '새벽라디오 윤', kind: '영상 수정 재검수', at: '10/12' },
   ],
+  // 강의 내용 다름 이의 제기. 관리자 문의 상세(adminInquiryDetail)에서 판단한다.
   disputes: [
-    { id: 'd1', kind: '노쇼 신고', target: '출연 요청 · 롤하는 수달 (10/10 방송)', from: ME, amount: 30000, at: '10/11', detail: '방송 시작 시간에 접속하지 않았고 연락도 없었어요.' },
     { id: 'd2', kind: '강의 내용 다름', target: '합방 섭외 메시지 쓰는 법', from: '유저 ****3', amount: 22000, at: '10/09', detail: '소개에 있던 메시지 템플릿 자료가 강의에 없어요.' },
   ],
   log: [
     { id: 'lg1', at: '10/12 09:40', who: '운영자 박서준', kind: '채널 인증', target: '도트장인 하루', result: '승인', reason: '' },
     { id: 'lg2', at: '10/11 18:02', who: '운영자 이수민', kind: '강의 검수', target: '클립 편집 루틴', result: '승인·공개', reason: '4개 항목 확인' },
-    { id: 'lg3', at: '10/11 11:15', who: '운영자 박서준', kind: '이의 제기', target: '노쇼 신고 · 보드게임 반장 → 칩튠 소년', result: '기각 · 지급', reason: '게스트가 방송 10분 뒤 접속한 기록이 채팅에 있어요.' },
+    { id: 'lg3', at: '10/11 11:15', who: '운영자 박서준', kind: '이의 제기', target: '강의 내용 다름 · 클립 편집 루틴', result: '기각 · 예정대로 지급', reason: '소개에 적힌 예제 파일이 3강 첨부 자료에 있어요.' },
     { id: 'lg4', at: '10/10 16:30', who: '운영자 이수민', kind: '문의 답변', target: '모집 마감일을 늦출 수 있나요?', result: '답변', reason: '' },
     { id: 'lg5', at: '10/09 14:05', who: '운영자 박서준', kind: '승급 심사', target: '편집하는 고래', result: '승인', reason: '' },
-    { id: 'lg6', at: '10/08 10:20', who: '운영자 이수민', kind: '채널 인증', target: '야식왕 덕배(이전 신청)', result: '반려', reason: '팔로워 10명·한 달 방송 10시간 기준에 모두 못 미쳐요' },
+    { id: 'lg6', at: '10/08 10:20', who: '운영자 이수민', kind: '채널 인증', target: '야식왕 덕배(이전 신청)', result: '반려', reason: '팔로워 10명 미만이고, 채널에서 한 달 누적 방송 10시간을 확인하지 못했어요' },
   ],
 };
 const STUDIO0 = [
@@ -855,29 +855,29 @@ const ALL = ['guest', 'user', 'inf', 'vinf', 'admin'];
 const MEMBER = ['user', 'inf', 'vinf'];
 const INF = ['inf', 'vinf'];
 const ADMIN = ['admin'];
+const SIGNED_IN = [...MEMBER, 'admin'];
+// 실제 앱 내비(src/app/nav.ts)와 맞춘다. 알림·검색·이의 제기·회원·거래 조회·처리 이력은 BE API가 없어 진입점을 숨긴다(#101). 화면은 프레임으로만 남긴다.
 const NAV = [
   { group: '운영', items: [
     { id: 'adminHome', label: '대시보드', roles: ADMIN },
     { id: 'adminChannel', label: '채널 인증 심사', roles: ADMIN },
     { id: 'adminPromo', label: '승급 심사', roles: ADMIN },
     { id: 'adminLectures', label: '강의 검수', roles: ADMIN },
-    { id: 'adminDisputes', label: '이의 제기', roles: ADMIN },
+    { id: 'adminPayouts', label: '지급 실패', roles: ADMIN },
     { id: 'adminInquiries', label: '문의 답변', roles: ADMIN },
-    { id: 'adminSearch', label: '회원·거래 조회', roles: ADMIN },
-    { id: 'adminLog', label: '처리 이력', roles: ADMIN },
+    { id: 'adminChats', label: '채팅 기록', roles: ADMIN },
   ] },
   { group: '둘러보기', items: [
     { id: 'home', label: '홈', roles: MEMBER },
     { id: 'lectures', label: '강의', roles: ALL },
-    { id: 'recruits', label: '출연 모집', roles: ALL },
-    { id: 'influencers', label: '인플루언서', roles: ['user', 'inf', 'vinf', 'admin'] },
+    { id: 'recruits', label: '출연 모집', roles: SIGNED_IN },
+    { id: 'influencers', label: '인플루언서', roles: SIGNED_IN },
   ] },
   { group: '내 활동', items: [
     { id: 'appearances', label: '내 출연', roles: INF },
     { id: 'library', label: '내 강의', roles: MEMBER },
     { id: 'cart', label: '장바구니', roles: MEMBER },
     { id: 'chat', label: '채팅', roles: ['inf', 'vinf', 'admin'] },
-    { id: 'alerts', label: '알림', roles: MEMBER },
     { id: 'wallet', label: '지갑', roles: MEMBER },
     { id: 'profileEdit', label: '내 프로필', roles: INF },
   ] },
@@ -891,7 +891,8 @@ const NAV = [
     { id: 'settings', label: '계정 설정', roles: MEMBER },
   ] },
 ];
-const EXTRA_ROUTES = { lecture: ['user', 'inf', 'vinf', 'admin'], recruit: ['user', 'inf', 'vinf', 'admin'], profile: ['user', 'inf', 'vinf', 'admin'], watch: MEMBER, reviewWrite: MEMBER, chargeResult: MEMBER, account: INF, lectureEdit: ['vinf'], orders: MEMBER, orderDone: MEMBER, inquiry: MEMBER, withdraw: MEMBER, adminLectureDetail: ADMIN, adminDisputeDetail: ADMIN, adminMember: ADMIN, adminDeal: ADMIN, search: ['guest', 'user', 'inf', 'vinf'] };
+// 내비에 없는 화면의 접근 역할. 계정 설정은 관리자도 상단 프로필로 들어온다(#96). alerts·search·adminSearch·adminLog·adminMember·adminDeal은 미구현 프레임용이다.
+const EXTRA_ROUTES = { lecture: SIGNED_IN, recruit: SIGNED_IN, profile: SIGNED_IN, watch: MEMBER, reviewWrite: MEMBER, chargeResult: MEMBER, lectureEdit: ['vinf'], orders: MEMBER, orderDone: MEMBER, inquiry: MEMBER, withdraw: MEMBER, settings: SIGNED_IN, alerts: MEMBER, adminLectureDetail: ADMIN, adminInquiryDetail: ADMIN, adminSearch: ADMIN, adminLog: ADMIN, adminMember: ADMIN, adminDeal: ADMIN, search: ['guest', 'user', 'inf', 'vinf'] };
 const homeOf = r => r === 'admin' ? 'adminHome' : r === 'guest' ? 'lectures' : 'home';
 const allowed = (id, role) => {
   if (EXTRA_ROUTES[id]) return EXTRA_ROUTES[id].includes(role);
@@ -1530,7 +1531,7 @@ function RecruitDetail({ rec, confirm: initConfirm }) {
               <div className="seller-row"><${Avatar} name=${r.host} /><div><b>${r.host}</b><div className="fine">호스트</div></div></div>
               ${!INF.includes(role) ? html`<div className="notice">출연 지원은 채널 인증을 마친 인플루언서만 할 수 있어요.</div>`
               : my === 'applied' ? html`
-                <div className="notice"><${Pill} tone="info">지원 완료<//> 호스트가 선정하면 알림으로 알려 드려요.</div>
+                <div className="notice"><${Pill} tone="info">지원 완료<//> 호스트가 수락하면 바로 출연이 성립되고 내 출연에 나타나요. 수락 전에는 지원을 취소할 수 있어요.</div>
                 <button className="btn sm" style=${{ alignSelf: 'flex-start' }} onClick=${() => { patchRec({ my: null }); toast('지원을 철회했어요.'); }}>지원 철회</button>
                 <p className="fine">선정되기 전에는 언제든 지원을 철회할 수 있어요.</p>`
               : my === 'selected' ? html`
@@ -1637,15 +1638,16 @@ function RecruitNewModal({ onClose }) {
 /* ───────── 화면: 내 출연 ───────── */
 const STEPS = ['요청·지원', '출연 성립', '방송', '출연 확인·지급'];
 const stepOf = s => ({ pending: 0, established: 1, aired: 2, paid: 4 })[s] ?? 0;
-const ENDED = { cancelled: '요청 취소 · HP 반환', refused: '거절됨 · HP 반환', agreed: '합의 취소 · HP 반환', penalty: '호스트 취소 · 위약금 지급', expired: '수락 기한 만료 · HP 반환' };
+const ENDED = { cancelled: '요청 취소 · HP 반환', refused: '거절됨 · HP 반환', agreed: '합의 취소 · HP 반환', penalty: '호스트 취소 · 위약금 지급', expired: '수락 기한 만료 · HP 반환', absent: '불참 · 호스트에게 반환' };
+// 출연 확인·불참 응답 기간: 방송 예정 시각부터 7일(7×24시간) 전까지. 지나면 자동 확인(AUTO)된다.
+const confirmEndOf = a => `${addDays(a.airAt.slice(0, 10), 7)}${a.airAt.slice(10)}`;
 
 function AppearanceCard({ a }) {
   const { setApps, unhold, openModal, toast, go } = useApp();
   const upd = patch => setApps(x => x.map(i => i.id === a.id ? { ...i, ...patch } : i));
   const host = a.side === 'host';
   const ended = ENDED[a.status];
-  const airDay = a.airAt.slice(0, 10);
-  const disputeEnd = addDays(airDay, 7), noshowEnd = addDays(airDay, 3);
+  const confirmEnd = confirmEndOf(a);
   let pill, note, actions = [], attn = false;
   if (ended) {
     pill = html`<${Pill}>${ended}<//>`;
@@ -1676,24 +1678,18 @@ function AppearanceCard({ a }) {
         ? [html`<button key="hc" className="btn danger sm" onClick=${() => openModal('hostCancel', { a })}>출연 취소</button>`, html`<button key="ch" className="btn sm" onClick=${() => go('chat', { with: a.partner })}>채팅</button>`]
         : [html`<button key="gr" className="btn sm" onClick=${() => openModal('guestCancel', { a })}>출연 취소 요청</button>`, html`<button key="ch" className="btn sm" onClick=${() => go('chat', { with: a.partner })}>채팅</button>`];
     }
-  } else if (a.status === 'aired' && a.dispute) {
-    pill = html`<${Pill} tone="warn">${a.dispute.kind} 접수 · 지급 중단<//>`;
-    note = host
-      ? `${md(a.dispute.at)}에 접수했어요. 관리자가 판단할 때까지 출연료 지급이 멈추고 보류가 유지돼요. 인정되면 ${fmt(a.fee)} HP를 돌려받고, 기각되면 게스트에게 지급돼요.`
-      : `호스트가 ${a.dispute.kind}를 접수해서 관리자 판단 전까지 지급이 멈췄어요. 고객센터나 운영팀 채팅으로 소명할 수 있어요.`;
-    actions = [html`<button key="sp" className="btn sm" onClick=${() => go('support')}>접수 내역 보기</button>`];
   } else if (a.status === 'aired') {
     attn = host;
     pill = host ? html`<${Pill} tone="warn">출연 확인 필요<//>` : html`<${Pill} tone="warn">확인 대기<//>`;
     note = host
-      ? `확인하면 게스트에게 출연료가 지급돼요. ${mdw(disputeEnd)}까지 확인하지 않으면 ${mdw(addDays(disputeEnd, 1))}에 자동 확인돼요. 노쇼 신고는 ${mdw(noshowEnd)}까지.`
-      : `호스트가 확인하거나 ${mdw(addDays(disputeEnd, 1))}에 자동 확인되면 출연료가 지급돼요.`;
+      ? `출연했으면 출연 확인, 출연하지 않았으면 불참을 골라 주세요. 한 번 고르면 바꿀 수 없어요. ${when(confirmEnd)}까지 고르지 않으면 자동 확인돼서 게스트에게 지급돼요.`
+      : `호스트가 확인하거나 ${when(confirmEnd)}에 자동 확인되면 출연료가 지급돼요. 호스트가 불참으로 처리하면 출연료는 호스트에게 돌아가요.`;
     if (host) actions = [
-      ...(TODAY <= noshowEnd ? [html`<button key="ns" className="btn ghost sm" onClick=${() => go('support', { preset: { type: '노쇼 신고', target: a.id } })}>노쇼 신고</button>`] : []),
-      html`<button key="cf" className="btn primary sm" onClick=${() => { unhold(a.fee, { e: 0, c: 0 }, `출연료 지급 · ${a.partner}`); upd({ status: 'paid' }); toast(`출연을 확인했어요. ${a.partner}에게 ${fmt(a.fee)} HP가 지급돼요.`); }}>출연 확인</button>`];
+      html`<button key="ab" className="btn ghost sm" onClick=${() => openModal('absent', { a })}>불참</button>`,
+      html`<button key="cf" className="btn primary sm" onClick=${() => { unhold(a.fee, { e: 0, c: 0 }, `출연료 지급 · ${a.partner}`); upd({ status: 'paid', confirmType: 'HOST' }); toast(`출연을 확인했어요. ${a.partner}에게 ${fmt(a.fee)} HP가 지급돼요.`); }}>출연 확인</button>`];
   } else if (a.status === 'paid') {
-    pill = html`<${Pill} tone="ok">지급 완료<//>`;
-    note = host ? '게스트에게 출연료가 지급됐어요.' : `출연료 ${fmt(a.fee)} HP가 지급됐어요. 지갑에서 환전 신청할 수 있어요.`;
+    pill = html`<${Pill} tone="ok">${a.confirmType === 'AUTO' ? '자동 확인 · 지급 완료' : '지급 완료'}<//>`;
+    note = host ? '게스트에게 출연료가 지급됐어요.' : `출연료 ${fmt(a.fee)} HP가 수익 HP로 지급됐어요. 지갑에서 환전 신청할 수 있어요.`;
     if (!host) actions = [html`<button key="w" className="btn sm" onClick=${() => go('wallet')}>지갑으로</button>`];
   }
   const at = ended ? (a.status === 'penalty' ? 1 : 0) : stepOf(a.status);
@@ -1708,7 +1704,7 @@ function AppearanceCard({ a }) {
         <div className="cell"><span>출연료</span><b className="num">${fmt(a.fee)} HP</b></div>
         <div className="cell"><span>방송 예정</span><b>${when(a.airAt)}</b></div>
         ${a.status === 'pending' && html`<div className="cell"><span>수락 기한</span><b>${mdw(a.acceptBy)} · D-${dday(a.acceptBy)}</b></div>`}
-        ${a.status === 'aired' && html`<div className="cell"><span>이의 제기 기간</span><b>${md(addDays(airDay, 1))} ~ ${md(disputeEnd)}</b></div>`}
+        ${a.status === 'aired' && html`<div className="cell"><span>확인 기한</span><b>${when(confirmEnd)}</b></div>`}
         ${a.status === 'penalty' && html`<div className="cell"><span>위약금</span><b className="num">${fmt(a.fee * 0.3)} HP</b></div>`}
       </div>
       ${!ended && html`<${Stepper} steps=${STEPS} at=${at} />`}
@@ -1724,7 +1720,7 @@ function AppearancesScreen({ tab: initTab }) {
   const live = list.filter(a => !ENDED[a.status]);
   const done = list.filter(a => ENDED[a.status]);
   const sum = s => apps.filter(a => a.side === tab && s(a)).reduce((x, a) => x + a.fee, 0);
-  const needs = s => apps.filter(a => a.side === s && ((s === 'guest' && a.status === 'pending') || (s === 'host' && ((a.status === 'aired' && !a.dispute) || a.cancelReq) && !ENDED[a.status]))).length;
+  const needs = s => apps.filter(a => a.side === s && ((s === 'guest' && a.status === 'pending') || (s === 'host' && (a.status === 'aired' || a.cancelReq) && !ENDED[a.status]))).length;
   return html`
     <div className="page">
       <${Head} title="내 출연" lede="호스트로 보낸 요청과 게스트로 받은 출연을 함께 관리해요. 출연료는 방송 예정일 이후 출연 확인 때 지급돼요.">
@@ -1735,7 +1731,7 @@ function AppearancesScreen({ tab: initTab }) {
       <div className="summary">
         ${tab === 'host' ? html`
           <div className="sum"><span><i className="dot hold"></i>보류 중 출연료</span><b>${fmt(sum(a => ['pending', 'established', 'aired'].includes(a.status)))}</b></div>
-          <div className="sum"><span>확인 필요</span><b>${apps.filter(a => a.side === 'host' && a.status === 'aired' && !a.dispute).length}건</b></div>
+          <div className="sum"><span>확인 필요</span><b>${apps.filter(a => a.side === 'host' && a.status === 'aired').length}건</b></div>
           <div className="sum"><span>이번 달 지급한 출연료</span><b>${fmt(sum(a => a.status === 'paid' || a.status === 'penalty'))}</b></div>`
         : html`
           <div className="sum"><span>응답 필요</span><b>${apps.filter(a => a.side === 'guest' && a.status === 'pending').length}건</b></div>
@@ -1768,6 +1764,19 @@ function HostCancelModal({ a, onClose }) {
     <//>`;
 }
 
+function AbsentModal({ a, onClose }) {
+  const { setApps, unhold, toast } = useApp();
+  const [why, setWhy] = useState('');
+  return html`
+    <${Modal} title="불참으로 처리할까요?" onClose=${onClose} footer=${html`
+      <button className="btn ghost" onClick=${onClose}>닫기</button>
+      <button className="btn danger" disabled=${why.length > 500} onClick=${() => { unhold(a.fee, { e: 0, c: a.fee }, `출연 불참 · ${a.partner}`); setApps(x => x.map(i => i.id === a.id ? { ...i, status: 'absent' } : i)); onClose(); toast(`불참으로 처리했어요. ${fmt(a.fee)} HP를 돌려받아요.`); }}>불참 처리</button>`}>
+      <p><b>${a.partner}</b> 님이 ${when(a.airAt)} 방송에 출연하지 않았다고 처리해요. 출연료 <b className="num">${fmt(a.fee)} HP</b>는 전액 나에게 돌아와요.</p>
+      <${Field} id="ab-why" label="사유 (선택)" hint="500자까지 적을 수 있어요." err=${why.length > 500 ? '500자 이하로 적어 주세요.' : null}><textarea id="ab-why" className="textarea" value=${why} onChange=${e => setWhy(e.target.value)}></textarea><//>
+      <p className="fine">출연 확인과 불참 중 한 번만 고를 수 있고, 고른 뒤에는 바꿀 수 없어요. 게스트 제재가 필요하면 고객센터에 따로 문의해 주세요.</p>
+    <//>`;
+}
+
 function GuestCancelModal({ a, onClose }) {
   const { setApps, toast } = useApp();
   const [why, setWhy] = useState('');
@@ -1775,14 +1784,16 @@ function GuestCancelModal({ a, onClose }) {
     <${Modal} title="출연 취소 요청" onClose=${onClose} footer=${html`
       <button className="btn ghost" onClick=${onClose}>닫기</button>
       <button className="btn primary" disabled=${!why.trim()} onClick=${() => { setApps(x => x.map(i => i.id === a.id ? { ...i, myReq: why } : i)); onClose(); toast('호스트에게 취소 요청을 보냈어요.'); }}>요청 보내기</button>`}>
-      <p><b>${a.partner}</b> 님에게 ${when(a.airAt)} 방송 출연 취소를 요청해요. 호스트가 승인하면 위약금 없이 취소돼요.</p>
-      <${Field} id="gc-why" label="취소 사유" hint="호스트에게 그대로 전달돼요."><textarea id="gc-why" className="textarea" value=${why} onChange=${e => setWhy(e.target.value)}></textarea><//>
+      <p><b>${a.partner}</b> 님에게 ${when(a.airAt)} 방송 출연 취소를 요청해요. 호스트가 승인하면 위약금 없이 취소되고, 거절하거나 방송 시각까지 응답하지 않으면 출연이 유지돼요.</p>
+      <${Field} id="gc-why" label="취소 사유" hint="호스트에게 그대로 전달돼요. 보낸 요청은 철회할 수 없고, 출연 1건당 2번까지(거절된 뒤 1번 더) 요청할 수 있어요."><textarea id="gc-why" className="textarea" value=${why} onChange=${e => setWhy(e.target.value)}></textarea><//>
     <//>`;
 }
 
 /* ───────── 화면: 지갑 ───────── */
+// 환전 상태(BE ExchangeStatus). 실제 BE에는 REQUESTED→CANCELED 전이만 있고, 승인·송금(PROCESSING 이후)은 BE #294 이후에 생긴다.
+const EX_STATUS = { requested: ['warn', '승인 대기'], processing: ['warn', '송금 중'], done: ['ok', '송금 완료'], failed: ['bad', '송금 실패 · HP 복원'], unknown: ['warn', '확인 중'], canceled: ['mute', '신청 취소'] };
 function WalletScreen() {
-  const { role, wallet, ledger, holdSum, exchanges, refunds, openModal, account, go } = useApp();
+  const { role, wallet, ledger, holdSum, exchanges, refunds, openModal, go } = useApp();
   const refundHold = refunds.filter(r => r.status === 'processing').reduce((a, r) => a + r.amt, 0);
   const failedEx = exchanges.find(x => x.status === 'failed');
   const failedRf = refunds.find(r => r.status === 'failed');
@@ -1794,7 +1805,7 @@ function WalletScreen() {
   return html`
     <div className="page">
       <${Head} title="지갑" lede="1 HP = 1원. 보유 HP로 강의를 사고 출연료를 내요. 거래 중인 HP는 끝날 때까지 보류돼요." />
-      ${canEx && failedEx && html`<div className="notice warn alert-bar"><span><b>${md(failedEx.pay)} 정산일 환전 송금이 실패했어요.</b> ${failedEx.reason}. 신청한 ${fmt(failedEx.amt)} HP는 다시 쓸 수 있게 돌려놨어요. 계좌를 확인하고 다시 신청해 주세요.</span><button className="btn sm" onClick=${() => go('account')}>계좌 확인</button></div>`}
+      ${canEx && failedEx && html`<div className="notice warn alert-bar"><span><b>${md(failedEx.pay)} 정산일 환전 송금이 실패했어요.</b> ${failedEx.reason}. 신청한 ${fmt(failedEx.amt)} HP는 다시 쓸 수 있게 돌려놨어요. 계좌 정보를 확인하고 다시 신청해 주세요.</span><button className="btn sm" onClick=${() => openModal('exchange')}>다시 신청</button></div>`}
       ${failedRf && html`<div className="notice warn alert-bar"><span><b>${failedRf.at} 환불이 처리되지 않았어요.</b> 결제 취소가 실패해서 ${fmt(failedRf.amt)} HP를 다시 쓸 수 있게 돌려놨어요. 다시 신청하거나 고객센터로 문의해 주세요.</span><button className="btn sm" onClick=${() => go('support')}>문의하기</button></div>`}
       <div className="wallet-grid">
         <div className="bal">
@@ -1825,15 +1836,14 @@ function WalletScreen() {
           <div className="settle">
             <div className="cal"><div>${toD(st.pay).getMonth() + 1}월</div><div>${toD(st.pay).getDate()}</div><div>${WD[toD(st.pay).getDay()]}요일</div></div>
             <div style=${{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-              <h2>다음 정산일</h2>
-              <p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>${mdw(st.deadline)} 23:59:59까지 신청한 환전을 모아 수수료 10%를 빼고 ${mdw(st.pay)}에 자동 송금해요. 그 뒤 신청분은 다음 달 정산일에 보내요.</p>
-              <p className="fine">10일이 주말·공휴일이면 다음 영업일에 송금하고, 신청 마감은 그대로 9일이에요.</p>
-              <div className="acct-line"><span className="muted">받을 계좌</span>${account ? html`<b>${account.bank} ****${account.last4}</b><span className="fine">${account.holder}</span><button className="link" onClick=${() => go('account')}>변경</button>` : html`<span className="c-bad">등록된 계좌가 없어요</span><button className="link" onClick=${() => go('account')}>계좌 등록</button>`}</div>
+              <h2>다음 정산 예정일</h2>
+              <p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>${mdw(st.deadline)}까지 신청한 환전은 ${mdw(st.pay)} 정산 회차에 들어가요. 그 뒤 신청분은 다음 달 회차예요. 수수료 10%(원 미만 버림)는 신청할 때 확정돼요.</p>
+              <p className="fine">10일이 주말이면 다음 월요일로 잡아요. 공휴일은 반영하지 않아서 실제 송금일과 다를 수 있어요. 받을 계좌는 신청할 때마다 입력해요.</p>
             </div>
           </div>
           <div className="tbl-wrap"><table className="tbl exch">
-            <thead><tr><th>신청일</th><th className="r">신청 HP</th><th className="r">수수료</th><th className="r">송금액(원)</th><th>송금일</th><th>상태</th></tr></thead>
-            <tbody>${exchanges.map(x => html`<tr key=${x.id}><td>${x.at}</td><td className="r num">${fmt(x.amt)}</td><td className="r num">−${fmt(x.fee)}</td><td className="r num"><b>${fmt(x.amt - x.fee)}</b></td><td>${mdw(x.pay)}${x.note ? html` <span className="fine">${x.note}</span>` : null}</td><td>${x.status === 'done' ? html`<${Pill} tone="ok">송금 완료<//>` : x.status === 'failed' ? html`<${Pill} tone="bad">송금 실패 · HP 복원<//>` : html`<${Pill} tone="warn">송금 대기<//>`}</td></tr>`)}</tbody>
+            <thead><tr><th>신청일</th><th className="r">신청 HP</th><th className="r">수수료</th><th className="r">예상 수령액(원)</th><th>정산 예정일 · 계좌</th><th>상태</th></tr></thead>
+            <tbody>${exchanges.map(x => { const [tone, label] = EX_STATUS[x.status || 'requested']; return html`<tr key=${x.id}><td>${x.at}</td><td className="r num">${fmt(x.amt)}</td><td className="r num">−${fmt(x.fee)}</td><td className="r num"><b>${fmt(x.amt - x.fee)}</b></td><td>${mdw(x.pay)}${x.note ? html` <span className="fine">${x.note}</span>` : null}${x.acct ? html` <span className="fine">${x.acct}</span>` : null}</td><td><${Pill} tone=${tone}>${label}<//>${(x.status || 'requested') === 'requested' && html` <button className="link" onClick=${() => openModal('exchangeCancel', { id: x.id })}>취소</button>`}</td></tr>`; })}</tbody>
           </table></div>
         </section>`}
 
@@ -1869,9 +1879,9 @@ function WalletScreen() {
 
 function RefundModal({ onClose }) {
   const { wallet, setWallet, addLedger, setRefunds, toast } = useApp();
-  const [v, setV] = useState(String(wallet.charge));
+  const [v, setV] = useState(String(Math.floor(wallet.charge / 1000) * 1000));
   const n = Number(v) || 0;
-  const err = n <= 0 ? '환불할 금액을 입력해 주세요.' : n > wallet.charge ? `충전 HP(${fmt(wallet.charge)})까지만 환불할 수 있어요.` : null;
+  const err = n < 1000 ? '1,000원 이상부터 환불할 수 있어요.' : n % 1000 ? '1,000원 단위로 입력해 주세요.' : n > wallet.charge ? `충전 HP(${fmt(wallet.charge)})까지만 환불할 수 있어요.` : null;
   return html`
     <${Modal} title="HP 환불" onClose=${onClose} footer=${html`
       <button className="btn ghost" onClick=${onClose}>취소</button>
@@ -1881,7 +1891,7 @@ function RefundModal({ onClose }) {
         <div className="row sub"><span><i className="dot charge"></i>충전 HP · 환불 가능</span><span className="num">${fmt(wallet.charge)}</span></div>
         ${wallet.earn > 0 && html`<div className="row sub"><span><i className="dot earn"></i>수익 HP · 환불 불가, 환전으로 현금화</span><span className="num">${fmt(wallet.earn)}</span></div>`}
       </div>
-      <${Field} id="rf-amt" label="환불 금액" err=${err} hint="충전 HP 안에서 원하는 만큼 부분 환불할 수 있어요."><input id="rf-amt" className="input num" inputMode="numeric" value=${v} onChange=${e => setV(e.target.value.replace(/\D/g, ''))} /><//>
+      <${Field} id="rf-amt" label="환불 금액" err=${err} hint="충전 HP 안에서 1,000원 단위로 부분 환불할 수 있어요."><input id="rf-amt" className="input num" inputMode="numeric" value=${v} onChange=${e => setV(e.target.value.replace(/\D/g, ''))} /><//>
       <p className="fine">먼저 충전한 건부터 결제 취소돼요. 거래에 보류된 HP는 환불 대상이 아니에요.</p>
     <//>`;
 }
@@ -1951,32 +1961,30 @@ function ChatScreen({ with: withName }) {
 
 /* ───────── 화면: 고객센터 ───────── */
 function SupportScreen({ preset }) {
-  const { apps, setApps, library, inquiries, setInquiries, toast, go } = useApp();
+  const { library, inquiries, setInquiries, toast, go } = useApp();
+  // 문의 유형은 BE 카테고리(NO_SHOW_REPORT, LECTURE_CONTENT_DISPUTE, SERVICE_COMPLAINT, OTHER). 대상 거래는 강의 내용 다름에만 붙는다.
   const TYPES = {
-    '노쇼 신고': { hint: '방송 예정일 다음 날부터 3일 안에 신고할 수 있어요. 접수되면 해당 출연료 지급이 멈추고 보류가 유지돼요.', targets: apps.filter(a => a.side === 'host' && a.status === 'aired' && !a.dispute && TODAY <= addDays(a.airAt.slice(0, 10), 3)).map(a => [a.id, `${a.partner} · ${when(a.airAt)} 방송`]) },
-    '강의 내용 다름': { hint: '구매일 다음 날부터 30일 안에 접수할 수 있어요. 접수되면 판매자 지급이 멈추고, 관리자 판단에 따라 반환 또는 지급돼요.', targets: library.filter(b => b.state !== 'cancelled' && TODAY <= addDays(b.at, 30)).map(b => [b.id, `${lecById(b.lec).title} · ${md(b.at)} 구매`]) },
-    '출연 이의 제기': { hint: '방송 예정일 다음 날부터 7일 안에 접수할 수 있어요.', targets: apps.filter(a => a.status === 'aired' && !a.dispute).map(a => [a.id, `${a.partner} · ${when(a.airAt)} 방송`]) },
+    '노쇼 신고': { hint: '일반 문의로 접수돼요. 출연료 지급·반환에는 영향이 없어요. 출연료를 돌려받으려면 출연 상세에서 불참으로 처리해 주세요.', targets: [] },
+    '강의 내용 다름': { hint: '판매자 지급 전(구매일 다음 날부터 30일 경과 전)까지 접수할 수 있어요. 접수되면 판매자 지급과 구매 취소가 멈추고, 시청은 계속할 수 있어요. 답변 전에 문의를 지우면 이의 제기도 철회돼요.', targets: library.filter(b => b.state !== 'cancelled' && TODAY <= addDays(b.at, 30)).map(b => [b.id, `${lecById(b.lec).title} · ${md(b.at)} 구매`]) },
     '서비스 불만': { hint: '불편했던 점을 자세히 적어 주세요.', targets: [] },
     '기타': { hint: '', targets: [] },
   };
-  const [type, setType] = useState(preset?.type || '노쇼 신고');
+  const [type, setType] = useState(preset?.type || '서비스 불만');
   const [target, setTarget] = useState(preset?.target || '');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const t = TYPES[type];
   const tg = target && t.targets.find(x => x[0] === target) ? target : (t.targets[0]?.[0] || '');
-  const needTarget = t.targets.length > 0 || ['노쇼 신고', '강의 내용 다름', '출연 이의 제기'].includes(type);
+  const needTarget = type === '강의 내용 다름';
   const submit = e => {
     e.preventDefault();
-    const isDeal = needTarget && tg;
-    setInquiries(q => [{ id: uid(), type, title: title || type, at: md(TODAY), status: isDeal ? '처리 중' : '답변 대기', target: tg && t.targets.find(x => x[0] === tg)[1], body }, ...q]);
-    if (isDeal && type !== '강의 내용 다름') setApps(xs => xs.map(a => a.id === tg ? { ...a, dispute: { kind: type, at: TODAY } } : a));
+    setInquiries(q => [{ id: uid(), type, title: title || type, at: md(TODAY), status: '답변 대기', target: needTarget && tg ? t.targets.find(x => x[0] === tg)[1] : undefined, body }, ...q]);
     setTitle(''); setBody('');
-    toast(needTarget ? '접수했어요. 처리 결과가 나올 때까지 해당 건의 지급이 멈춰요.' : '문의를 접수했어요.');
+    toast(needTarget ? '접수했어요. 관리자가 판단할 때까지 판매자 지급과 구매 취소가 멈춰요.' : '문의를 접수했어요.');
   };
   return html`
     <div className="page">
-      <${Head} title="고객센터" lede="노쇼 신고, 강의 내용 다름 이의 제기, 서비스 문의를 받아요. 관리자가 확인한 뒤 답변해요." />
+      <${Head} title="고객센터" lede="강의 내용 다름 이의 제기와 노쇼 신고, 서비스 문의를 받아요. 관리자가 확인한 뒤 답변해요." />
       <div className="split">
         <form className="panel form" onSubmit=${submit}>
           <h2>새 문의</h2>
@@ -1985,7 +1993,7 @@ function SupportScreen({ preset }) {
           <//>
           ${needTarget && (t.targets.length ? html`
             <${Field} id="sp-target" label="대상 거래"><select id="sp-target" className="select" value=${tg} onChange=${e => setTarget(e.target.value)}>${t.targets.map(([id, l]) => html`<option key=${id} value=${id}>${l}</option>`)}</select><//>`
-            : html`<div className="notice warn">지금 접수할 수 있는 거래가 없어요. 신고 기한이 지났는지 확인해 주세요.</div>`)}
+            : html`<div className="notice warn">지금 이의 제기할 수 있는 구매가 없어요. 판매자 지급이 끝났거나 취소된 구매는 접수할 수 없어요.</div>`)}
           <${Field} id="sp-title" label="제목"><input id="sp-title" className="input" value=${title} onChange=${e => setTitle(e.target.value)} /><//>
           <${Field} id="sp-body" label="내용"><textarea id="sp-body" className="textarea" value=${body} onChange=${e => setBody(e.target.value)} placeholder="언제, 무슨 일이 있었는지 적어 주세요. 채팅 기록은 관리자가 함께 확인해요."></textarea><//>
           <button className="btn primary" type="submit" style=${{ alignSelf: 'flex-start' }} disabled=${!body.trim() || (needTarget && !tg)}>접수하기</button>
@@ -2009,42 +2017,33 @@ function SupportScreen({ preset }) {
 }
 
 /* ───────── 화면: 채널 인증 / 승급 ───────── */
+// 채널 인증: 치지직 OAuth 연동 → 팔로워 10명 이상이면 자동 승인(인플루언서 전환), 미만이면 승인 요청 → 관리자 심사.
 function VerifyScreen() {
   const { toast } = useApp();
-  const [url, setUrl] = useState('');
   const [step, setStep] = useState(0);
-  const ch = { name: '새벽기타', followers: 37, hours: 12.5 };
-  const met = ch.followers >= 10 || ch.hours >= 10;
+  const ch = { name: '새벽기타', url: 'chzzk.naver.com/dawnguitar', followers: 7 };
+  const met = ch.followers >= 10;
   return html`
     <div className="page">
-      <${Head} title="채널 인증" lede="치지직 채널을 인증하면 인플루언서가 되어 출연 요청·지원, 채팅, 환전을 쓸 수 있어요." />
+      <${Head} title="채널 인증" lede="치지직 채널을 연동하면 인플루언서가 되어 출연 요청·지원, 채팅, 환전을 쓸 수 있어요." />
       <div className="split">
         <section className="panel form">
-          <${Field} id="vf-url" label="치지직 채널 주소" hint="채널 소유 확인을 위해 채널 소개란에 인증 코드를 넣어 주세요.">
-            <div style=${{ display: 'flex', gap: 8 }}>
-              <input id="vf-url" className="input" value=${url} onChange=${e => setUrl(e.target.value)} placeholder="chzzk.naver.com/채널ID" />
-              <button className="btn" disabled=${!url.trim()} onClick=${() => setStep(1)}>불러오기</button>
-            </div>
-          <//>
+          <p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>치지직 로그인으로 내 채널을 연동해요. 팔로워가 10명 이상이면 바로 승인되고, 모자라면 관리자에게 승인을 요청할 수 있어요.</p>
+          <button className="btn primary" style=${{ alignSelf: 'flex-start' }} disabled=${step > 0} onClick=${() => setStep(1)}>${step > 0 ? '연동 완료' : '치지직 연동하기'}</button>
           ${step >= 1 && html`
-            <div className="notice" style=${{ justifyContent: 'space-between' }}><span>인증 코드</span><b className="num">HB-7Q2K-91</b></div>
-            <div className="seller-row"><${Avatar} name=${ch.name} size=${44} /><div style=${{ flex: 1 }}><b>${ch.name}</b><div className="fine">${url}</div></div></div>
+            <div className="seller-row"><${Avatar} name=${ch.name} size=${44} /><div style=${{ flex: 1 }}><b>${ch.name}</b><div className="fine">${ch.url}</div></div></div>
             <div className="stats">
               <div className="stat"><b>${ch.followers}</b><span>팔로워</span></div>
-              <div className="stat"><b>${ch.hours}h</b><span>최근 한 달 방송</span></div>
-              <div className="stat"><b>${met ? '충족' : '미달'}</b><span>심사 기준</span></div>
+              <div className="stat"><b>${met ? '자동 승인' : '심사 필요'}</b><span>결과</span></div>
             </div>
-            <div className="crit">
-              <${Pill} tone=${ch.followers >= 10 ? 'ok' : 'mute'}>팔로워 10명 이상<//>
-              <span className="fine">또는</span>
-              <${Pill} tone=${ch.hours >= 10 ? 'ok' : 'mute'}>한 달 누적 방송 10시간 이상<//>
-            </div>
-            <button className="btn primary" style=${{ alignSelf: 'flex-start' }} disabled=${step > 1 || !met} onClick=${() => { setStep(2); toast('채널 인증 심사를 신청했어요.'); }}>${step > 1 ? '심사 신청 완료' : '심사 신청'}</button>`}
+            <div className="crit"><${Pill} tone=${met ? 'ok' : 'mute'}>팔로워 10명 이상이면 자동 승인<//></div>
+            ${!met && html`<p className="fine">승인을 요청하면 팔로워 수를 다시 확인하고, 그래도 모자라면 관리자가 채널의 한 달 누적 방송 시간을 보고 심사해요.</p>
+            <button className="btn primary" style=${{ alignSelf: 'flex-start' }} disabled=${step > 1} onClick=${() => { setStep(2); toast('채널 승인을 요청했어요.'); }}>${step > 1 ? '승인 요청 완료' : '승인 요청'}</button>`}`}
         </section>
         <aside className="panel">
           <h2>진행 상황</h2>
           <ol className="steps-v">
-            ${['채널 주소 입력', '기준 확인과 소유 인증', '관리자 심사', '인플루언서 전환'].map((s, i) => html`<li key=${s} className=${i < step + 1 ? 'done' : i === step + 1 ? 'now' : ''}><span className="n">${i + 1}</span><div><b style=${{ fontSize: 14 }}>${s}</b>${i === 2 && html`<div className="fine">보통 1~2 영업일 걸려요.</div>`}</div></li>`)}
+            ${['치지직 연동', '팔로워 확인', '관리자 심사 (10명 미만일 때)', '인플루언서 전환'].map((s, i) => html`<li key=${s} className=${i < step + 1 ? 'done' : i === step + 1 ? 'now' : ''}><span className="n">${i + 1}</span><div><b style=${{ fontSize: 14 }}>${s}</b>${i === 2 && html`<div className="fine">보통 1~2 영업일 걸려요.</div>`}</div></li>`)}
           </ol>
         </aside>
       </div>
@@ -2059,10 +2058,9 @@ function PromoteScreen() {
     <div className="page">
       <${Head} title="승급 신청" lede="인증된 인플루언서가 되면 강의를 등록하고 판매할 수 있어요." />
       <section className="panel form" style=${{ maxWidth: 680 }}>
-        ${done ? html`<div className="notice"><${Pill} tone="warn">심사 중<//> 승급 심사를 신청했어요. 결과는 알림으로 알려 드려요.</div>` : html`
-          <${Field} id="pm-plan" label="만들고 싶은 강의" hint="강의 주제, 대상, 목차 초안을 적어 주세요."><textarea id="pm-plan" className="textarea" style=${{ minHeight: 140 }} value=${plan} onChange=${e => setPlan(e.target.value)} placeholder="예: 통기타 라이브 세팅 5강 — 픽업과 마이크를 함께 쓰는 법"></textarea><//>
-          <${Field} id="pm-link" label="참고할 방송 다시보기 (선택)"><input id="pm-link" className="input" placeholder="chzzk.naver.com/video/..." /><//>
-          <button className="btn primary" style=${{ alignSelf: 'flex-start' }} disabled=${!plan.trim()} onClick=${() => { setDone(true); toast('승급 심사를 신청했어요.'); }}>승급 신청</button>`}
+        ${done ? html`<div className="notice"><${Pill} tone="warn">심사 중<//> 승급 심사를 신청했어요. 결과와 반려 사유는 이 화면의 신청 내역에서 볼 수 있어요.</div>` : html`
+          <${Field} id="pm-plan" label="신청 사유" hint="만들고 싶은 강의 주제, 대상, 목차 초안을 적어 주세요. 500자까지 쓸 수 있고, 심사 중인 신청은 1건만 둘 수 있어요." err=${plan.length > 500 ? '500자 이하로 적어 주세요.' : null}><textarea id="pm-plan" className="textarea" style=${{ minHeight: 140 }} value=${plan} onChange=${e => setPlan(e.target.value)} placeholder="예: 통기타 라이브 세팅 5강 — 픽업과 마이크를 함께 쓰는 법"></textarea><//>
+          <button className="btn primary" style=${{ alignSelf: 'flex-start' }} disabled=${!plan.trim() || plan.length > 500} onClick=${() => { setDone(true); toast('승급 심사를 신청했어요.'); }}>승급 신청</button>`}
       </section>
     </div>`;
 }
@@ -2174,7 +2172,7 @@ function InfHome() {
   const H = { tab: 'host' }, G = { tab: 'guest' };
   const todo = [
     ...apps.filter(a => a.side === 'guest' && a.status === 'pending').map(a => ({ id: a.id, tone: 'signal', tag: '응답 필요', text: `${a.partner} 님의 출연 요청 · ${fmt(a.fee)} HP`, sub: `${mdw(a.acceptBy)}까지 수락하지 않으면 만료돼요`, to: ['appearances', G] })),
-    ...apps.filter(a => a.side === 'host' && a.status === 'aired' && !a.dispute).map(a => ({ id: a.id, tone: 'warn', tag: '출연 확인', text: `${a.partner} 님 출연을 확인해 주세요`, sub: `${mdw(addDays(a.airAt.slice(0, 10), 7))}까지 확인하지 않으면 자동 확인 · 노쇼 신고 ${mdw(addDays(a.airAt.slice(0, 10), 3))}까지`, to: ['appearances', H] })),
+    ...apps.filter(a => a.side === 'host' && a.status === 'aired').map(a => ({ id: a.id, tone: 'warn', tag: '출연 확인', text: `${a.partner} 님 출연을 확인하거나 불참으로 처리해 주세요`, sub: `${when(confirmEndOf(a))}까지 고르지 않으면 자동 확인`, to: ['appearances', H] })),
     ...apps.filter(a => a.side === 'host' && a.cancelReq && !ENDED[a.status]).map(a => ({ id: a.id + 'c', tone: 'warn', tag: '취소 요청', text: `${a.partner} 님이 출연 취소를 요청했어요`, sub: `${when(a.airAt)} 방송 · 승인하면 위약금 없이 반환`, to: ['appearances', H] })),
     ...recruits.filter(r => r.mine && r.status === 'open').map(r => ({ id: r.id, tone: 'line', tag: `모집 마감 D-${dday(r.deadline)}`, text: `${r.title} · 지원 ${r.applicants.length}명`, sub: `선정 ${r.applicants.filter(p => p.selected).length}/${r.seats}명 · ${mdw(r.deadline)}까지 성립시켜야 해요`, to: ['recruit', { rec: r.id }] })),
   ];
@@ -2341,23 +2339,14 @@ const ADMIN_LEC = {
   k2: { price: 9000, intro: lecById('l3').sub, curr: lecById('l3').curr, changed: [3], seller: '새벽라디오 윤', buyers: 203 },
 };
 const ADMIN_DISPUTE = {
-  d1: {
-    deal: 'APP-20261003-0031',
-    timeline: [['10/03', '출연 요청 · 30,000 HP 보류'], ['10/04', '게스트 수락 · 출연 성립'], ['10/10 20:00', '방송 예정'], ['10/11', '노쇼 신고 접수 · 지급 중단']],
-    period: '노쇼 신고 기한 10/11~10/13 · 기한 안에 접수됨',
-    claim: { who: ME, role: '호스트', text: '방송 시작 시간에 접속하지 않았고, 방송이 끝날 때까지 연락이 없었어요.' },
-    counter: { who: '롤하는 수달', role: '게스트', text: '방송 30분 전에 집 인터넷이 끊겼어요. 휴대폰으로 연락하려 했는데 채팅이 열리지 않았어요. 통신사 장애 문자를 첨부했어요.' },
-    log: [[ME, '10/10 19:50', '10분 뒤 시작이에요! 디스코드 들어와 주세요.'], [ME, '10/10 20:15', '혹시 무슨 일 있으세요?'], ['롤하는 수달', '10/11 01:02', '정말 죄송합니다. 인터넷이 끊겨서 이제야 봤어요.']],
-    payer: ME, payee: '롤하는 수달', accept: '호스트에게 30,000 HP 반환', reject: '게스트에게 30,000 HP 지급',
-  },
   d2: {
     deal: 'ORD-20261002-0003',
-    timeline: [['10/02', '강의 구매 · 22,000 HP 보류'], ['10/03', '첫 재생 · 구매 확정'], ['10/09', '내용 다름 이의 제기 접수 · 지급 중단'], ['11/01', '이의 제기 기간 종료 예정']],
-    period: '내용 다름 이의 제기 기간 10/03~11/01 · 기한 안에 접수됨',
+    timeline: [['10/02', '강의 구매 · 22,000 HP 보류'], ['10/03', '첫 재생 · 구매 확정'], ['10/09', '내용 다름 이의 제기 접수 · 지급 중단'], ['11/02', '판매자 지급 예정 (판단 전까지 멈춤)']],
+    period: '이의 제기는 판매자 지급 예정 시각(구매일 다음 날부터 30일 경과) 전까지 접수할 수 있어요 · 기한 안에 접수됨',
     claim: { who: '유저 ****3', role: '구매자', text: '소개에 "바로 쓰는 섭외 메시지 템플릿 10종"이 있는데 강의 어디에도 템플릿이 없어요.' },
     counter: { who: '보드게임 반장', role: '판매자', text: '템플릿은 5강 첨부 자료에 있어요. 다운로드 위치를 소개에 더 잘 보이게 적을게요.' },
     log: [['검수 기록', '9/12', '5강 첨부 자료 template.pdf (3쪽, 템플릿 4종)'], ['강의 소개', '9/12', '바로 쓰는 섭외 메시지 템플릿 10종 제공']],
-    payer: '유저 ****3', payee: '보드게임 반장', accept: '구매자에게 22,000 HP 반환', reject: '판매자에게 22,000 HP 지급',
+    payer: '유저 ****3', payee: '보드게임 반장', accept: '구매자에게 22,000 HP 반환', reject: '판매자에게 22,000 HP 예정대로 지급',
   },
 };
 const Res = ({ x }) => x.result ? html`<${Pill} tone=${/승인|인정|공개/.test(x.result) ? 'ok' : 'mute'}>${x.result}<//>` : null;
@@ -2371,11 +2360,11 @@ const ADMIN_MEMBERS = [
   { id: 'M-20877', name: '라면먹는 판다', role: '유저', joined: '2026-09-02', email: 'ra****@gmail.com', channel: null, followers: 0, status: '정상', hp: { charge: 30000, earn: 0, hold: 16000 }, deals: ['ORD-20261011-0031'], reports: [] },
 ];
 const ADMIN_DEALS = {
-  'APP-20261003-0031': { type: '출연 요청', title: `${ME} → 롤하는 수달`, amount: 30000, status: ['warn', '노쇼 신고 · 지급 중단'], parties: [['호스트', 'M-10012'], ['게스트', 'M-10231']], dispute: 'd1',
-    timeline: [['10/03 18:40', '출연 요청 · 30,000 HP 보류'], ['10/04 11:02', '게스트 수락 · 출연 성립'], ['10/10 20:00', '방송 예정 시각'], ['10/11 09:15', '노쇼 신고 접수 · 지급 중단']],
+  'APP-20261003-0031': { type: '출연 요청', title: `${ME} → 롤하는 수달`, amount: 30000, status: ['warn', '출연 확인 대기'], parties: [['호스트', 'M-10012'], ['게스트', 'M-10231']],
+    timeline: [['10/03 18:40', '출연 요청 · 30,000 HP 보류'], ['10/04 11:02', '게스트 수락 · 출연 성립'], ['10/10 20:00', '방송 예정 시각 · 확인 기간 시작'], ['10/17 20:00', '확인 기한 · 지나면 자동 확인']],
     ledger: [['10/03 18:40', 'M-10012', '결제 보류', '충전 HP', -30000]] },
   'ORD-20261002-0003': { type: '강의 주문', title: '합방 섭외 메시지 쓰는 법', amount: 22000, status: ['warn', '이의 제기 · 지급 중단'], parties: [['구매자', 'M-21003'], ['판매자', 'M-10457']], dispute: 'd2',
-    timeline: [['10/02 22:31', '결제 · 22,000 HP 보류'], ['10/03 08:10', '첫 재생 · 구매 확정'], ['10/09 13:20', '내용 다름 이의 제기 접수 · 지급 중단'], ['11/01', '이의 제기 기간 종료 예정']],
+    timeline: [['10/02 22:31', '결제 · 22,000 HP 보류'], ['10/03 08:10', '첫 재생 · 구매 확정'], ['10/09 13:20', '내용 다름 이의 제기 접수 · 지급 중단'], ['11/02', '판매자 지급 예정 (판단 전까지 멈춤)']],
     ledger: [['10/02 22:31', 'M-21003', '결제 보류', '충전 HP', -22000]] },
   'EXC-20260928-0004': { _noShift: true, type: '환전', title: `${ME} · ${toD(S1.pay).getMonth() + 1}월 정산`, amount: 100000, status: ['ok', '송금 완료'], parties: [['신청자', 'M-10012']],
     timeline: [[`${md(addDays(S1.deadline, -11))} 11:20`, '환전 신청 · 100,000 HP 보류'], [`${md(S1.deadline)} 23:59`, '정산 신청 마감'], [`${md(S1.pay)} 10:00`, `송금 완료 · 90,000원 (수수료 10,000)${payNote(S1) ? ' · ' + payNote(S1) : ''}`]],
@@ -2489,7 +2478,7 @@ function AdminDeal({ did }) {
           <dl className="kv">${d.parties.map(([r, id]) => html`<dt key=${r}>${r}</dt><dd key=${r + 'v'}><${MemberLink} id=${id} /></dd>`)}</dl>
           ${dispute && html`
             <div className="notice warn">${dispute.kind}가 접수된 거래예요.${dispute.result ? ` 결과: ${dispute.result}` : ' 판단 전까지 지급이 멈춰 있어요.'}</div>
-            <button className="btn primary block" onClick=${() => go('adminDisputeDetail', { target: dispute.id })}>${dispute.result ? '판단 내용 보기' : '이의 제기 판단하기'}</button>`}
+            <button className="btn primary block" onClick=${() => go('adminInquiryDetail', { target: dispute.id })}>${dispute.result ? '판단 내용 보기' : '이의 제기 판단하기'}</button>`}
         </aside>
       </div>
     </div>`;
@@ -2543,50 +2532,32 @@ function useAdminDone() {
   };
 }
 
+// 운영 대시보드(#100): 각 관리 목록 API의 대기 건수를 카드로 모은다. 통합 요약 API와 "오래 기다린 순"·"최근 처리"는 BE API가 없어 두지 않는다.
+const PAYOUT_FAILURES = 1;
 function AdminHome() {
   const { admin, inquiries, go } = useApp();
   const open = k => admin[k].filter(x => !x.result);
   const openInq = inquiries.filter(q => q.status !== '답변 완료');
-  const frozen = open('disputes').reduce((x, d) => x + d.amount, 0);
   const tiles = [
     ['adminChannel', '채널 인증 대기', open('channel').length + '건'],
     ['adminPromo', '승급 심사 대기', open('promo').length + '건'],
     ['adminLectures', '강의 검수 대기', open('lectures').length + '건'],
-    ['adminDisputes', '이의 제기 · 지급 중단', fmt(frozen) + ' HP'],
     ['adminInquiries', '답변 대기 문의', openInq.length + '건'],
+    ['adminPayouts', '지급 실패', PAYOUT_FAILURES + '건'],
   ];
-  const waiting = [
-    ...open('disputes').map(d => ({ id: d.id, at: d.at, tag: d.kind, tone: 'warn', text: d.target, to: ['adminDisputeDetail', { target: d.id }] })),
-    ...open('lectures').map(l => ({ id: l.id, at: l.at, tag: l.kind, tone: 'line', text: `${l.title} · ${l.seller}`, to: ['adminLectureDetail', { target: l.id }] })),
-    ...open('channel').map(c => ({ id: c.id, at: c.at, tag: '채널 인증', tone: 'line', text: c.name, to: ['adminChannel'] })),
-    ...open('promo').map(c => ({ id: c.id, at: c.at, tag: '승급', tone: 'line', text: c.name, to: ['adminPromo'] })),
-  ].sort((a, b) => (+a.at.split('/')[1]) - (+b.at.split('/')[1]));
   return html`
     <div className="page">
       <${Head} title="운영 대시보드" lede="관리자는 거래 당사자가 되지 않아요. 심사와 판단 결과만 남기고, HP 이동은 지갑이 처리해요." />
       <div className="summary">${tiles.map(([id, l, v]) => html`<button key=${id} className="sum sum-btn" onClick=${() => go(id)}><span>${l}</span><b>${v}</b></button>`)}</div>
-      <div className="split">
-        <section className="panel">
-          <div className="panel-head"><h2>오래 기다린 순</h2><span className="fine">접수일 기준</span></div>
-          <div className="rows">${waiting.map(w => html`<button key=${w.id} className="todo" onClick=${() => go(...w.to)}>
-            <${Pill} tone=${w.tone}>${w.tag}<//><span className="todo-main"><b>${w.text}</b><span className="fine">${w.at} 접수 · ${dday(TODAY) - dday('2026-' + w.at.replace('/', '-').padStart(5, '0')) || 0}일째 대기</span></span><span className="muted">›</span>
-          </button>`)}</div>
-        </section>
-        <aside className="panel">
-          <div className="panel-head"><h2>최근 처리</h2></div>
-          <div className="rows">${admin.log.slice(0, 5).map(r => html`<div key=${r.id} className="row-item" style=${{ padding: '10px 0' }}><div className="row-main"><b style=${{ fontSize: 14 }}>${r.kind} · ${r.result}</b><span className="fine">${r.target} · ${r.who}</span></div><span className="fine num">${r.at}</span></div>`)}</div>
-          <button className="btn ghost sm" style=${{ alignSelf: 'flex-start' }} onClick=${() => go('adminLog')}>전체 이력</button>
-        </aside>
-      </div>
+      <p className="fine">강의 내용 다름 이의 제기는 답변 대기 문의에 함께 들어 있어요.</p>
     </div>`;
 }
 
 const QUEUE_META = {
-  channel: ['채널 인증 심사', '치지직 채널 기준: 팔로워 10명 이상 또는 한 달 누적 방송 10시간 이상. 승인하면 인플루언서로 전환돼요.'],
+  channel: ['채널 인증 심사', '팔로워 10명 이상인 치지직 채널은 자동 승인돼요. 여기에는 팔로워가 모자라 승인을 요청한 채널이 와요. 채널에 들어가 한 달 누적 방송 10시간을 확인하고, 승인하면 인플루언서로 전환돼요.'],
   promo: ['승급 심사', '승인하면 인증된 인플루언서가 되어 강의를 등록할 수 있어요.'],
   lectures: ['강의 검수', '승인하면 공개·판매가 시작돼요. 반려하면 사유를 남기고, 판매자가 고쳐서 다시 신청해요.'],
-  disputes: ['이의 제기', '접수된 건은 판단 전까지 지급이 멈추고 보류가 유지돼요. 자동 판정은 하지 않아요.'],
-  inquiries: ['문의 답변', '서비스 불만과 기타 문의에 답해요. 답변은 문의한 회원의 고객센터에 표시돼요.'],
+  inquiries: ['문의 답변', '모든 문의에 답하고, 강의 내용 다름 이의 제기는 문의 상세에서 인정·기각을 판단해요. 답변은 문의한 회원의 고객센터에 표시돼요.'],
 };
 function AdminQueue({ kind, openReject }) {
   const { admin, setAdmin, inquiries, setInquiries, go, toast } = useApp();
@@ -2602,7 +2573,7 @@ function AdminQueue({ kind, openReject }) {
         ${kind === 'channel' && list.map(x => html`<div key=${x.id} className="q-item">
           <${Avatar} name=${x.name} />
           <div className="row-main"><b>${x.name}</b><span className="fine">${x.url} · ${x.at} 신청</span>
-            <div className="crit"><${Pill} tone=${x.followers >= 10 ? 'ok' : 'bad'}>팔로워 ${fmt(x.followers)}<//><${Pill} tone=${x.hours >= 10 ? 'ok' : 'bad'}>한 달 ${x.hours}시간<//>${x.followers < 10 && x.hours < 10 && html`<span className="fine c-bad">두 기준 모두 미달</span>`}</div></div>
+            <div className="crit"><${Pill} tone=${x.followers >= 10 ? 'ok' : 'bad'}>팔로워 ${fmt(x.followers)}<//><span className="fine">한 달 누적 방송 시간은 채널에서 직접 확인</span></div></div>
           ${x.result ? html`<${Res} x=${x} />` : html`<${Decide} onApprove=${() => done('channel', x.id, '승인')} onReject=${w => done('channel', x.id, '반려', w)} templates=${REJECT_TEMPLATES.channel} initOpen=${openReject === x.id} />`}
         </div>`)}
         ${kind === 'promo' && list.map(x => html`<div key=${x.id} className="q-item">
@@ -2614,14 +2585,6 @@ function AdminQueue({ kind, openReject }) {
           <div className="row-main"><div style=${{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><b>${x.title}</b><${Pill} tone="line">${x.kind}<//></div><span className="fine">${x.seller} · ${x.at} 신청 · ${fmt(ADMIN_LEC[x.id].price)} HP</span></div>
           ${x.result ? html`<${Res} x=${x} />` : html`<button className="btn primary sm" onClick=${() => go('adminLectureDetail', { target: x.id })}>검수하기</button>`}
         </div>`)}
-        ${kind === 'disputes' && list.map(x => html`<div key=${x.id} className="q-item">
-          <div className="row-main">
-            <div style=${{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><${Pill} tone="warn">${x.kind}<//><b>${x.target}</b></div>
-            <span className="fine">신청 ${x.from} · ${x.at} · 지급 중단 <span className="num">${fmt(x.amount)} HP</span></span>
-            <p className="app-note">${x.detail}</p>
-          </div>
-          ${x.result ? html`<${Res} x=${x} />` : html`<button className="btn primary sm" onClick=${() => go('adminDisputeDetail', { target: x.id })}>판단하기</button>`}
-        </div>`)}
         ${kind === 'inquiries' && list.map(q => html`<div key=${q.id} className="q-item">
           <div className="row-main">
             <div style=${{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}><${Pill} tone="line">${q.type}<//><b>${q.title}</b></div>
@@ -2629,7 +2592,7 @@ function AdminQueue({ kind, openReject }) {
             ${q.body && html`<p className="app-note">${q.body}</p>`}
             ${q.reply && html`<p className="fine">답변: ${q.reply}</p>`}
           </div>
-          ${q.status === '답변 완료' ? html`<${Pill} tone="ok">답변 완료<//>` : html`<div className="reject-box">
+          ${q.status === '답변 완료' ? html`<${Pill} tone="ok">답변 완료<//>` : q.objection ? html`<button className="btn primary sm" onClick=${() => go('adminInquiryDetail', { target: q.objection })}>판단하기</button>` : html`<div className="reject-box">
             <input className="input" value=${reply[q.id] || ''} onChange=${e => setReply(r => ({ ...r, [q.id]: e.target.value }))} placeholder="답변 입력" aria-label="답변" />
             <button className="btn primary sm" disabled=${!(reply[q.id] || '').trim()} onClick=${() => { setInquiries(xs => xs.map(i => i.id === q.id ? { ...i, status: '답변 완료', reply: reply[q.id], thread: [...threadOf(i), { who: 'admin', at: stamp(), text: reply[q.id] }] } : i)); setAdmin(a => ({ ...a, log: [{ id: uid(), at: stamp(), who: ADMIN_ME, kind: '문의 답변', target: q.title, result: '답변', reason: '' }, ...a.log] })); toast('답변을 보냈어요.'); }}>답변</button>
           </div>`}
@@ -2683,19 +2646,24 @@ function AdminLectureDetail({ target }) {
     </div>`;
 }
 
-function AdminDisputeDetail({ target }) {
-  const { admin, go } = useApp();
+// 관리자 문의 상세 · 강의 내용 다름 이의 제기 판단(/admin/inquiries/{id}). 판단 안내는 답변으로 달리고, 한 번 판단하면 바꿀 수 없다.
+function AdminInquiryDetail({ target }) {
+  const { admin, setInquiries, go } = useApp();
   const done = useAdminDone();
   const asideRef = useRef(null);
   const x = admin.disputes.find(d => d.id === target) || admin.disputes[0];
   const d = ADMIN_DISPUTE[x.id];
   const [memo, setMemo] = useState('');
   const [pick, setPick] = useState(null);
-  const decide = label => { done('disputes', x.id, label, memo); go('adminDisputes'); };
+  const decide = label => {
+    done('disputes', x.id, label, memo);
+    setInquiries(xs => xs.map(q => q.objection === x.id ? { ...q, status: '답변 완료', reply: memo } : q));
+    go('adminInquiries');
+  };
   return html`
     <div className="page">
-      <button className="back" onClick=${() => go('adminDisputes')}><${Icon} n="back" s=${14} />이의 제기</button>
-      <${Head} title=${x.target} lede=${d.period}><${Pill} tone="warn">${x.kind}<//>${x.result && html`<${Res} x=${x} />`}<button className="btn sm" onClick=${() => go('adminDeal', { did: d.deal })}>거래 상세</button><//>
+      <button className="back" onClick=${() => go('adminInquiries')}><${Icon} n="back" s=${14} />문의 답변</button>
+      <${Head} title=${x.target} lede=${d.period}><${Pill} tone="warn">${x.kind}<//>${x.result && html`<${Res} x=${x} />`}<//>
       <div className="split">
         <div className="page" style=${{ gap: 16 }}>
           <section className="panel">
@@ -2703,23 +2671,23 @@ function AdminDisputeDetail({ target }) {
             <ol className="steps-v">${d.timeline.map(([t, l], i) => html`<li key=${t} className=${i < d.timeline.length - 1 ? 'done' : 'now'}><span className="n">${i + 1}</span><div><b style=${{ fontSize: 14 }}>${l}</b><div className="fine num">${t}</div></div></li>`)}</ol>
           </section>
           <div className="claims">
-            ${[d.claim, d.counter].map(c => html`<section key=${c.who} className="panel"><div className="seller-row"><${Avatar} name=${c.who} size=${32} /><div><b style=${{ fontSize: 14 }}>${c.who}</b><div className="fine">${c.role} · ${c === d.claim ? '신청' : '소명'}</div></div></div><p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>${c.text}</p></section>`)}
+            ${[d.claim, d.counter].map(c => html`<section key=${c.who} className="panel"><div className="seller-row"><${Avatar} name=${c.who} size=${32} /><div><b style=${{ fontSize: 14 }}>${c.who}</b><div className="fine">${c.role} · ${c === d.claim ? '문의 내용' : '채팅으로 받은 소명'}</div></div></div><p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>${c.text}</p></section>`)}
           </div>
           <section className="panel">
-            <h2>${x.kind === '노쇼 신고' ? '채팅 기록' : '검수 기록과 소개 문구'}</h2>
+            <h2>검수 기록과 소개 문구</h2>
             <div className="rows">${d.log.map(([w, t, m]) => html`<div key=${t + m} className="row-item" style=${{ padding: '10px 0', alignItems: 'flex-start' }}><div className="row-main"><span className="fine">${w} · ${t}</span><span style=${{ fontSize: 14 }}>${m}</span></div></div>`)}</div>
           </section>
         </div>
         <aside className="panel sticky" ref=${asideRef}>
-          <span className="fine">지급 중단 · 보류 유지 중</span>
+          <span className="fine">판매자 지급 · 구매 취소 중단</span>
           <div className="big-price c-hold">${fmt(x.amount)} <span style=${{ fontSize: 16 }}>HP</span></div>
           <div className="outcomes">
-            <button className=${'outcome' + (pick === 'a' ? ' on' : '')} onClick=${() => setPick('a')} aria-pressed=${pick === 'a'}><b>인정</b><span>${d.accept}</span><span className="fine">결제한 ${d.payer}에게 그대로</span></button>
-            <button className=${'outcome' + (pick === 'r' ? ' on' : '')} onClick=${() => setPick('r')} aria-pressed=${pick === 'r'}><b>기각</b><span>${d.reject}</span><span className="fine">${d.payee}에게 바로 지급</span></button>
+            <button className=${'outcome' + (pick === 'a' ? ' on' : '')} onClick=${() => setPick('a')} aria-pressed=${pick === 'a'}><b>인정</b><span>${d.accept}</span><span className="fine">결제한 HP 종류 그대로 ${d.payer}에게</span></button>
+            <button className=${'outcome' + (pick === 'r' ? ' on' : '')} onClick=${() => setPick('r')} aria-pressed=${pick === 'r'}><b>기각</b><span>${d.reject}</span><span className="fine">지급 예정 시각에 ${d.payee}에게</span></button>
           </div>
-          ${x.result ? html`<div className="notice">${x.result} 처리한 건이에요.</div>` : html`
-            <${Field} id="dp-memo" label="판단 근거" hint="양쪽 회원에게 결과와 함께 전달돼요."><textarea id="dp-memo" className="textarea" value=${memo} onChange=${e => setMemo(e.target.value)}></textarea><//>
-            <button className="btn primary block" disabled=${!pick || !memo.trim()} onClick=${() => decide(pick === 'a' ? '인정 · 반환' : '기각 · 지급')}>${pick === 'r' ? '기각하고 지급' : pick === 'a' ? '인정하고 반환' : '결과를 골라 주세요'}</button>`}
+          ${x.result ? html`<div className="notice">${x.result} 처리한 건이에요. 판단은 바꿀 수 없어요.</div>` : html`
+            <${Field} id="dp-memo" label="판단 안내" hint="문의한 회원에게 답변으로 달려요. 한 번 판단하면 바꿀 수 없어요."><textarea id="dp-memo" className="textarea" value=${memo} onChange=${e => setMemo(e.target.value)}></textarea><//>
+            <button className="btn primary block" disabled=${!pick || !memo.trim()} onClick=${() => decide(pick === 'a' ? '인정 · 구매자 반환' : '기각 · 예정대로 지급')}>${pick === 'r' ? '기각하기' : pick === 'a' ? '인정하고 반환' : '결과를 골라 주세요'}</button>`}
         </aside>
       </div>
       <div className="m-cta"><span><b className="num">${fmt(x.amount)} HP</b> <span className="fine">지급 중단</span></span><button className="btn primary" onClick=${() => asideRef.current && asideRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })}>${x.result ? '결과 보기' : '판단하기'}</button></div>
@@ -2823,97 +2791,57 @@ function ChargeResultScreen({ amount = 30000, result = 'success', stage }) {
 }
 
 function ExchangeModal({ onClose }) {
-  const { wallet, setWallet, addLedger, setExchanges, account, go, toast } = useApp();
+  const { wallet, setWallet, addLedger, setExchanges, toast } = useApp();
   const [v, setV] = useState(String(Math.floor(wallet.earn / 1000) * 1000));
+  const [bank, setBank] = useState('');
+  const [num, setNum] = useState('');
+  const [holder, setHolder] = useState('');
   const n = Number(v) || 0;
   const st = nextSettlement(TODAY);
   const err = n < 1000 ? '1,000 HP 이상부터 환전할 수 있어요.' : n % 1000 ? '1,000 HP 단위로 입력해 주세요.' : n > wallet.earn ? `환전할 수 있는 HP(${fmt(wallet.earn)})를 넘었어요.` : null;
+  const bankErr = bank && !/^\d{3}$/.test(bank) ? '은행 코드는 숫자 3자리예요.' : null;
+  const numErr = num && (num.length < 8 || num.length > 20) ? '계좌번호는 숫자 8~20자리예요.' : null;
+  const holderErr = holder.length > 50 ? '예금주는 50자까지 입력할 수 있어요.' : null;
+  const ok = !err && bank && num && holder.trim() && !bankErr && !numErr && !holderErr;
   const f = fee10(n);
   return html`
     <${Modal} title="환전 신청" onClose=${onClose} footer=${html`
       <button className="btn ghost" onClick=${onClose}>취소</button>
-      ${account ? html`<button className="btn primary" disabled=${!!err} onClick=${() => {
+      <button className="btn primary" disabled=${!ok} onClick=${() => {
         setWallet(w => ({ ...w, earn: w.earn - n, exch: w.exch + n }));
         addLedger([{ desc: `환전 신청 · ${toD(st.pay).getMonth() + 1}월 정산`, type: '환전 신청', kind: 'earn', amt: -n }]);
-        setExchanges(x => [{ id: uid(), at: md(TODAY), amt: n, fee: f, pay: st.pay }, ...x]);
-        onClose(); toast(`환전을 신청했어요. ${mdw(st.pay)}에 송금돼요.`);
-      }}>환전 신청</button>` : html`<button className="btn primary" onClick=${() => go('account')}>계좌 등록하기</button>`}`}>
-      ${!account && html`<div className="notice warn">환전한 금액을 받을 계좌가 없어요. 본인 명의 계좌를 먼저 등록해 주세요.</div>`}
-      <${Field} id="ex-amt" label="환전할 HP" err=${err} hint=${`환전 가능 ${fmt(wallet.earn)} HP (출연료·강의 판매로 받은 HP) · 1,000 HP 단위`}><input id="ex-amt" className="input num" inputMode="numeric" value=${v} onChange=${e => setV(e.target.value.replace(/\D/g, ''))} /><//>
+        setExchanges(x => [{ id: uid(), at: md(TODAY), amt: n, fee: f, pay: st.pay, status: 'requested', acct: `${bank} ${'*'.repeat(Math.max(num.length - 4, 0))}${num.slice(-4)}` }, ...x]);
+        onClose(); toast(`환전을 신청했어요. ${mdw(st.pay)} 정산 회차에 들어가요.`);
+      }}>환전 신청</button>`}>
+      <${Field} id="ex-amt" label="환전할 HP" err=${err} hint=${`환전 가능 ${fmt(wallet.earn)} HP (출연료·강의 판매로 받은 수익 HP) · 1,000 HP 단위`}><input id="ex-amt" className="input num" inputMode="numeric" value=${v} onChange=${e => setV(e.target.value.replace(/\D/g, ''))} /><//>
       <div className="breakdown">
         <div className="row sub"><span>신청 HP</span><span className="num">${fmt(n)}</span></div>
         <div className="row sub"><span>플랫폼 수수료 10% (원 미만 버림)</span><span className="num">−${fmt(f)}</span></div>
-        <div className="row total"><span>송금액</span><b className="num">${fmt(n - f)}원</b></div>
+        <div className="row total"><span>예상 수령액</span><b className="num">${fmt(n - f)}원</b></div>
       </div>
-      <dl className="kv">
-        <dt>받을 계좌</dt><dd>${account ? html`${account.bank} ****${account.last4} · ${account.holder} <button className="link" style=${{ marginLeft: 6, fontSize: 13 }} onClick=${() => go('account')}>변경</button>` : html`<span className="c-bad">등록된 계좌 없음</span>`}</dd>
-        <dt>송금일</dt><dd>${mdw(st.pay)} 정산일 자동 송금</dd>
-      </dl>
-      <p className="fine">신청한 HP는 바로 보류돼서 송금 전까지 결제에 쓸 수 없어요. 송금에 실패하면 다시 쓸 수 있게 돌려놔요.</p>
+      <${Field} id="ex-bank" label="은행 코드" err=${bankErr} hint="숫자 3자리 (예: 004)"><input id="ex-bank" className="input num" inputMode="numeric" maxLength=${3} value=${bank} onChange=${e => setBank(e.target.value.replace(/\D/g, ''))} /><//>
+      <${Field} id="ex-num" label="계좌번호" err=${numErr} hint="- 없이 숫자 8~20자리"><input id="ex-num" className="input num" inputMode="numeric" maxLength=${20} value=${num} onChange=${e => setNum(e.target.value.replace(/\D/g, ''))} /><//>
+      <${Field} id="ex-holder" label="예금주" err=${holderErr}><input id="ex-holder" className="input" value=${holder} onChange=${e => setHolder(e.target.value)} /><//>
+      <dl className="kv"><dt>정산 예정일</dt><dd>${mdw(st.pay)} (잠정)</dd></dl>
+      <p className="fine">입력한 계좌는 이 신청에만 저장되고 신청 뒤에는 바꿀 수 없어요. 실명·계좌 확인은 하지 않아요. 신청한 HP는 바로 보류되고, 승인 전에는 취소해서 돌려받을 수 있어요.</p>
     <//>`;
 }
 
-/* 환전 계좌: 계좌 실명 확인 API로 회원 실명과 예금주가 같은지 확인한 뒤 등록 */
-const BANKS = ['국민은행', '신한은행', '우리은행', '하나은행', 'NH농협은행', 'IBK기업은행', '카카오뱅크', '토스뱅크'];
-const REAL_NAME = '김하늘';
-const maskName = s => s[0] + '*' + s.slice(2);
-function AccountScreen() {
-  const { account, setAccount, go, toast } = useApp();
-  const [editing, setEditing] = useState(!account);
-  const [bank, setBank] = useState('');
-  const [num, setNum] = useState('');
-  const [check, setCheck] = useState(null); // null | 'checking' | 'ok' | 'mismatch'
-  const numErr = num && (num.length < 10 || num.length > 14) ? '계좌번호는 10~14자리 숫자예요.' : null;
-  const canCheck = bank && num && !numErr;
-  const runCheck = () => {
-    setCheck('checking');
-    setTimeout(() => setCheck(num.endsWith('0000') ? 'mismatch' : 'ok'), 900);
-  };
-  const save = () => {
-    setAccount({ bank, last4: num.slice(-4), holder: maskName(REAL_NAME), at: TODAY });
-    toast(account ? '환전 계좌를 바꿨어요.' : '환전 계좌를 등록했어요.');
-    go('wallet');
-  };
-  const reset = () => { setCheck(null); };
+function ExchangeCancelModal({ id, onClose }) {
+  const { exchanges, setExchanges, setWallet, addLedger, toast } = useApp();
+  const x = exchanges.find(e => e.id === id) || exchanges[0];
   return html`
-    <div className="page narrow">
-      <button className="back" onClick=${() => go('wallet')}><${Icon} n="back" s=${14} />지갑</button>
-      <${Head} title="환전 계좌" lede="환전한 금액을 받을 계좌예요. 회원 본인 명의 계좌만 등록할 수 있어요." />
-      ${account && html`
-        <section className="panel">
-          <div className="acct">
-            <span className="acct-bank">${account.bank.slice(0, 2)}</span>
-            <div className="row-main"><b>${account.bank} ****${account.last4}</b><span className="fine">예금주 ${account.holder} · ${md(account.at)} 등록</span></div>
-            <${Pill} tone="ok">실명 확인 완료<//>
-          </div>
-          ${!editing && html`<button className="btn" style=${{ alignSelf: 'flex-start' }} onClick=${() => setEditing(true)}>다른 계좌로 변경</button>`}
-        </section>`}
-      ${editing && html`
-        <section className="panel form">
-          <h2>${account ? '새 계좌' : '계좌 등록'}</h2>
-          <${Field} id="ac-bank" label="은행">
-            <select id="ac-bank" className="select" value=${bank} onChange=${e => { setBank(e.target.value); reset(); }}>
-              <option value="">은행을 골라 주세요</option>
-              ${BANKS.map(b => html`<option key=${b}>${b}</option>`)}
-            </select>
-          <//>
-          <${Field} id="ac-num" label="계좌번호" err=${numErr} hint="- 없이 숫자만 입력해 주세요. 끝자리가 0000이면 실명 불일치 예시가 나와요.">
-            <input id="ac-num" className="input num" inputMode="numeric" value=${num} onChange=${e => { setNum(e.target.value.replace(/\D/g, '')); reset(); }} placeholder="예: 12345678901234" />
-          <//>
-          <${Field} id="ac-holder" label="예금주" hint="회원 실명으로 자동 입력돼요. 실명이 다르면 등록할 수 없어요.">
-            <input id="ac-holder" className="input" value=${maskName(REAL_NAME)} readOnly />
-          <//>
-          ${check === 'ok' && html`<div className="notice"><${Pill} tone="ok">확인됨<//> ${bank} 계좌의 예금주가 회원 실명과 같아요.</div>`}
-          ${check === 'mismatch' && html`<div className="notice warn">예금주가 회원 실명과 달라요. 본인 명의 계좌인지 확인해 주세요.</div>`}
-          <div className="row-actions" style=${{ justifyContent: 'flex-end' }}>
-            ${account && html`<button className="btn ghost" onClick=${() => { setEditing(false); reset(); }}>취소</button>`}
-            ${check === 'ok'
-              ? html`<button className="btn primary" onClick=${save}>${account ? '이 계좌로 변경' : '이 계좌 등록'}</button>`
-              : html`<button className="btn primary" disabled=${!canCheck || check === 'checking'} onClick=${runCheck}>${check === 'checking' ? '확인하는 중…' : '실명 확인'}</button>`}
-          </div>
-        </section>`}
-      <p className="fine">계좌번호는 암호화해서 저장해요. 정산일에는 그때 등록된 계좌로 송금하고, 송금에 실패하면 신청한 HP를 다시 쓸 수 있게 돌려놔요.</p>
-    </div>`;
+    <${Modal} title="환전 신청을 취소할까요?" onClose=${onClose} footer=${html`
+      <button className="btn ghost" onClick=${onClose}>닫기</button>
+      <button className="btn danger" onClick=${() => {
+        setExchanges(xs => xs.map(e => e.id === x.id ? { ...e, status: 'canceled' } : e));
+        setWallet(w => ({ ...w, earn: w.earn + x.amt, exch: Math.max(w.exch - x.amt, 0) }));
+        addLedger([{ desc: '환전 신청 취소 · 보류 해제', type: '반환', kind: 'earn', amt: x.amt }]);
+        onClose(); toast(`${fmt(x.amt)} HP를 돌려받았어요.`);
+      }}>신청 취소</button>`}>
+      <p>${x.at}에 신청한 <b className="num">${fmt(x.amt)} HP</b> 환전을 취소해요. 보류했던 수익 HP를 전부 돌려받아요.</p>
+      <p className="fine">승인 대기 중인 신청만 취소할 수 있어요. 송금이 시작된 뒤에는 취소할 수 없어요.</p>
+    <//>`;
 }
 
 /* 강의 등록·수정 페이지: 기본 정보는 바로 반영, 영상·자료(강의 내용)가 바뀌면 재검수 */
@@ -3092,14 +3020,14 @@ const threadOf = q => q.thread || [
 function InquiryScreen({ q: qid }) {
   const { inquiries, setInquiries, go, toast } = useApp();
   const q = inquiries.find(x => x.id === qid) || inquiries[0];
-  const [text, setText] = useState('');
   const th = threadOf(q);
-  const deal = ['노쇼 신고', '강의 내용 다름', '출연 이의 제기'].includes(q.type);
+  const deal = q.type === '강의 내용 다름';
   const steps = deal ? ['접수', '지급 중단 · 검토', '판단 완료'] : ['접수', '답변'];
   const at = deal ? (q.status === '답변 완료' ? 2 : 1) : (q.status === '답변 완료' ? 1 : 0);
-  const send = () => {
-    setInquiries(xs => xs.map(i => i.id === q.id ? { ...i, status: deal ? i.status : '답변 대기', thread: [...threadOf(i), { who: 'me', at: stamp(), text }] } : i));
-    setText(''); toast('추가 문의를 보냈어요.');
+  // 답변이 달리기 전(WAITING)에만 삭제할 수 있다. 이의 제기 문의를 지우면 이의 제기도 철회된다. 추가 문의 API는 없다.
+  const remove = () => {
+    setInquiries(xs => xs.filter(i => i.id !== q.id));
+    go('support'); toast(deal ? '문의를 삭제했어요. 이의 제기가 철회돼서 판매자 지급이 다시 진행돼요.' : '문의를 삭제했어요.');
   };
   return html`
     <div className="page narrow">
@@ -3108,18 +3036,18 @@ function InquiryScreen({ q: qid }) {
       <h1 style=${{ fontSize: 24, fontWeight: 700 }}>${q.title}</h1>
       ${q.target && html`<div className="notice">대상 거래 · ${q.target}</div>`}
       <${Stepper} steps=${steps} at=${at} />
-      ${deal && q.status !== '답변 완료' && html`<p className="app-note">처리 결과가 나올 때까지 이 거래의 지급이 멈추고 보류가 유지돼요. 관리자가 상대방 소명과 채팅 기록을 함께 확인해요.</p>`}
+      ${deal && q.status !== '답변 완료' && html`<p className="app-note">관리자가 판단할 때까지 이 강의의 판매자 지급과 구매 취소가 멈추고 보류가 유지돼요. 시청은 계속할 수 있어요.</p>`}
       <section className="panel thread">
         ${th.map((m, i) => html`<div key=${i} className=${'tmsg' + (m.who === 'admin' ? ' admin' : '')}>
           <div className="tmsg-head">${m.who === 'admin' ? html`<span className="avatar" style=${{ width: 24, height: 24, fontSize: 11, background: 'var(--ink)', color: 'var(--surface)' }}>운</span><b>합방 운영팀</b>` : html`<${Avatar} name=${ME} size=${24} /><b>나</b>`}<span className="fine num">${m.at}</span></div>
           <p>${m.text}</p>
         </div>`)}
-        ${th.every(m => m.who !== 'admin') && html`<p className="fine">운영팀이 확인하고 있어요. 답변이 달리면 알림으로 알려 드려요.</p>`}
+        ${th.every(m => m.who !== 'admin') && html`<p className="fine">운영팀이 확인하고 있어요. 답변이 달리면 이 화면에 보여요.</p>`}
       </section>
-      <section className="panel form">
-        <${Field} id="iq-more" label="추가 문의" hint="같은 문의에 이어서 남기면 운영팀이 앞의 내용과 함께 봐요."><textarea id="iq-more" className="textarea" value=${text} onChange=${e => setText(e.target.value)}></textarea><//>
-        <button className="btn primary" style=${{ alignSelf: 'flex-end' }} disabled=${!text.trim()} onClick=${send}>보내기</button>
-      </section>
+      ${q.status !== '답변 완료' && html`<section className="panel">
+        <p className="fine">답변이 달리기 전에는 문의를 삭제할 수 있어요.${deal ? ' 삭제하면 이의 제기도 철회돼요.' : ''}</p>
+        <button className="btn danger" style=${{ alignSelf: 'flex-start' }} onClick=${remove}>문의 삭제</button>
+      </section>`}
     </div>`;
 }
 
@@ -3178,9 +3106,12 @@ function ProfileEditScreen() {
 }
 
 /* ───────── 계정 설정·회원 탈퇴 ───────── */
+// 알림 설정·회원 탈퇴는 BE API가 없다(미구현). 관리자는 닉네임·프로필 사진만 바꾸고 탈퇴·알림 섹션은 보지 않는다(#96).
 function SettingsScreen() {
   const { role, go, toast } = useApp();
-  const [nick, setNick] = useState(ME);
+  const admin = role === 'admin';
+  const nick0 = admin ? '운영팀' : ME;
+  const [nick, setNick] = useState(nick0);
   const [noti, setNoti] = useState({ deal: true, money: true, chat: true });
   return html`
     <div className="page narrow">
@@ -3190,22 +3121,22 @@ function SettingsScreen() {
         <dl className="kv">
           <dt>로그인</dt><dd>Google · ha****@gmail.com</dd>
           <dt>가입일</dt><dd>${shiftStr('2026-08-30').replace(/-/g, '.')}</dd>
-          <dt>회원 등급</dt><dd>${ROLES.find(r => r.id === role).label}</dd>
+          <dt>${admin ? '관리자 등급' : '회원 등급'}</dt><dd>${ROLES.find(r => r.id === role).label}</dd>
         </dl>
-        <${Field} id="st-nick" label="닉네임" hint="채팅, 리뷰, 모집 글에 보여요.">
-          <div style=${{ display: 'flex', gap: 8 }}><input id="st-nick" className="input" value=${nick} onChange=${e => setNick(e.target.value)} /><button className="btn" disabled=${!nick.trim() || nick === ME} onClick=${() => toast('닉네임을 바꿨어요.')}>저장</button></div>
+        <${Field} id="st-nick" label="닉네임" hint=${admin ? '2~12자. 상단 프로필과 채팅에 보여요.' : '2~12자. 채팅, 리뷰, 모집 글에 보여요.'} err=${nick && (nick.trim().length < 2 || nick.trim().length > 12) ? '닉네임은 2~12자로 입력해 주세요.' : null}>
+          <div style=${{ display: 'flex', gap: 8 }}><input id="st-nick" className="input" value=${nick} onChange=${e => setNick(e.target.value)} /><button className="btn" disabled=${nick.trim().length < 2 || nick.trim().length > 12 || nick === nick0} onClick=${() => toast('닉네임을 바꿨어요.')}>저장</button></div>
         <//>
       </section>
-      <section className="panel">
+      ${!admin && html`<section className="panel">
         <h2>알림</h2>
         ${[['deal', INF.includes(role) ? '출연 요청·취소 요청·출연 확인' : '구매 확정 예정'], ['money', '충전·지급·송금 결과'], ['chat', '새 채팅 메시지']].filter(([k]) => k !== 'chat' || INF.includes(role)).map(([k, l]) => html`
           <label key=${k} className="chk-row" htmlFor=${'nt-' + k}><input id=${'nt-' + k} type="checkbox" checked=${noti[k]} onChange=${e => setNoti(n => ({ ...n, [k]: e.target.checked }))} />${l}</label>`)}
-      </section>
-      <section className="panel">
+      </section>`}
+      ${!admin && html`<section className="panel">
         <h2>회원 탈퇴</h2>
         <p style=${{ fontSize: 14, color: 'var(--ink-2)' }}>탈퇴하면 30일 뒤 이메일·닉네임 같은 개인정보가 파기돼요. 거래 기록은 남아요.</p>
         <button className="btn danger" style=${{ alignSelf: 'flex-start' }} onClick=${() => go('withdraw')}>탈퇴 절차 보기</button>
-      </section>
+      </section>`}
     </div>`;
 }
 
@@ -3300,16 +3231,24 @@ function SearchScreen({ q: q0 = '' }) {
 }
 
 /* ───────── 앱 ───────── */
-const MODALS = { lectureDelete: LectureDeleteModal, login: LoginModal, checkout: CheckoutModal, consent: ConsentModal, cancelPurchase: CancelPurchaseModal, confirmPurchase: ConfirmPurchaseModal, request: RequestModal, recruitNew: RecruitNewModal, hostCancel: HostCancelModal, guestCancel: GuestCancelModal, charge: ChargeModal, refund: RefundModal, exchange: ExchangeModal };
+// 구현됐지만 목업 프레임이 없는 화면. 내비 이동이 깨지지 않게 실제 앱 경로만 안내한다.
+const NoFrameScreen = ({ title, route, text }) => html`
+  <div className="page">
+    <${Head} title=${title} lede=${text} />
+    <${Empty} icon="check" title="목업 프레임이 없는 화면이에요" text=${`실제 앱의 ${route} 화면을 기준으로 봐 주세요.`} />
+  </div>`;
+const MODALS = { lectureDelete: LectureDeleteModal, login: LoginModal, checkout: CheckoutModal, consent: ConsentModal, cancelPurchase: CancelPurchaseModal, confirmPurchase: ConfirmPurchaseModal, request: RequestModal, recruitNew: RecruitNewModal, hostCancel: HostCancelModal, guestCancel: GuestCancelModal, charge: ChargeModal, refund: RefundModal, exchange: ExchangeModal, exchangeCancel: ExchangeCancelModal, absent: AbsentModal };
 const SCREENS = {
-  home: HomeScreen, alerts: AlertsScreen, profile: ProfileScreen, watch: WatchScreen, reviewWrite: ReviewScreen, chargeResult: ChargeResultScreen, account: AccountScreen, lectureEdit: LectureEditScreen, orders: OrdersScreen, orderDone: OrderDoneScreen, inquiry: InquiryScreen, profileEdit: ProfileEditScreen, settings: SettingsScreen, withdraw: WithdrawScreen,
+  home: HomeScreen, alerts: AlertsScreen, profile: ProfileScreen, watch: WatchScreen, reviewWrite: ReviewScreen, chargeResult: ChargeResultScreen, lectureEdit: LectureEditScreen, orders: OrdersScreen, orderDone: OrderDoneScreen, inquiry: InquiryScreen, profileEdit: ProfileEditScreen, settings: SettingsScreen, withdraw: WithdrawScreen,
   lectures: LecturesScreen, lecture: LectureDetail, cart: CartScreen, library: LibraryScreen, influencers: InfluencersScreen, recruits: RecruitsScreen, recruit: RecruitDetail, appearances: AppearancesScreen, wallet: WalletScreen, chat: ChatScreen, support: SupportScreen, verify: VerifyScreen, promote: PromoteScreen, studio: StudioScreen,
-  adminHome: AdminHome, adminLectureDetail: AdminLectureDetail, adminDisputeDetail: AdminDisputeDetail,
+  adminHome: AdminHome, adminLectureDetail: AdminLectureDetail, adminInquiryDetail: AdminInquiryDetail,
+  adminPayouts: () => html`<${NoFrameScreen} title="지급 실패" route="/admin/payouts" text="강의 판매자 지급이 실패해 격리된 건을 확인하고 격리를 해제해요(#72)." />`,
+  adminChats: () => html`<${NoFrameScreen} title="채팅 기록" route="/admin/chats" text="채팅방을 골라 회원 간 대화 기록을 읽기 전용으로 확인해요(#40)." />`,
   search: SearchScreen, adminSearch: AdminSearch, adminMember: AdminMember, adminDeal: AdminDeal, adminLog: AdminLog,
   adminChannel: p => html`<${AdminQueue} ...${p} kind="channel" />`, adminPromo: () => html`<${AdminQueue} kind="promo" />`, adminLectures: () => html`<${AdminQueue} kind="lectures" />`,
-  adminDisputes: () => html`<${AdminQueue} kind="disputes" />`, adminInquiries: () => html`<${AdminQueue} kind="inquiries" />`,
+  adminInquiries: () => html`<${AdminQueue} kind="inquiries" />`,
 };
-const NAV_PARENT = { adminMember: 'adminSearch', adminDeal: 'adminSearch', orders: 'library', orderDone: 'library', inquiry: 'support', withdraw: 'settings', chargeResult: 'wallet', account: 'wallet', lectureEdit: 'studio', watch: 'library', reviewWrite: 'library', lecture: 'lectures', recruit: 'recruits', profile: 'influencers', adminLectureDetail: 'adminLectures', adminDisputeDetail: 'adminDisputes' };
+const NAV_PARENT = { adminMember: 'adminSearch', adminDeal: 'adminSearch', orders: 'library', orderDone: 'library', inquiry: 'support', withdraw: 'settings', chargeResult: 'wallet', lectureEdit: 'studio', watch: 'library', reviewWrite: 'library', lecture: 'lectures', recruit: 'recruits', profile: 'influencers', adminLectureDetail: 'adminLectures', adminInquiryDetail: 'adminInquiries' };
 
 function App({ frame, scrollRef, onScreen }) {
   const st0 = frame.state || {};
@@ -3326,8 +3265,7 @@ function App({ frame, scrollRef, onScreen }) {
   const [admin, setAdmin] = useState(ADMIN0);
   const [studio, setStudio] = useState(STUDIO0);
   const [profile, setProfile] = useState(MY_PROFILE);
-  const [account, setAccount] = useState(st0.account !== undefined ? st0.account : { bank: '국민은행', last4: '1234', holder: '김*늘', at: shiftStr('2026-09-20') });
-  const [exchanges, setExchanges] = useState(st0.exchanges || [{ id: 'e1', at: md(addDays(S1.deadline, -11)), amt: 100000, fee: 10000, pay: S1.pay, status: 'done', note: payNote(S1) }]);
+  const [exchanges, setExchanges] = useState(st0.exchanges || [{ id: 'e1', at: md(addDays(S1.deadline, -11)), amt: 100000, fee: 10000, pay: S1.pay, status: 'done', note: payNote(S1), acct: '004 ******5678' }]);
   const [refunds, setRefunds] = useState(st0.refunds || [{ id: 'rf1', at: shiftStr('9/20'), amt: 20000, status: 'done' }]);
   const [alerts] = useState(st0.alerts || null);
   const [modal, setModal] = useState(frame.modal || null);
@@ -3361,17 +3299,17 @@ function App({ frame, scrollRef, onScreen }) {
     return { app, rec, lec, total: app + rec + lec };
   })();
 
-  const ctx = { refunds, setRefunds, alerts, profile, setProfile, account, setAccount, role, setRole, go, screen, wallet, setWallet, ledger, addLedger, cart, setCart, library, setLibrary, apps, setApps, recruits, setRecruits, rooms, setRooms, inquiries, setInquiries, admin, setAdmin, studio, setStudio, exchanges, setExchanges, hold, unhold, holdSum, openModal, toast };
+  const ctx = { refunds, setRefunds, alerts, profile, setProfile, role, setRole, go, screen, wallet, setWallet, ledger, addLedger, cart, setCart, library, setLibrary, apps, setApps, recruits, setRecruits, rooms, setRooms, inquiries, setInquiries, admin, setAdmin, studio, setStudio, exchanges, setExchanges, hold, unhold, holdSum, openModal, toast };
 
   const Screen = SCREENS[screen.id] || LecturesScreen;
   const M = modal && MODALS[modal.type];
   const pend = k => admin[k].filter(i => !i.result).length;
   const hot = MEMBER.includes(role) ? (alerts || alertsOf(role)).filter(n => n.hot).length : 0;
   const counts = {
-    appearances: apps.filter(a => (a.side === 'guest' && a.status === 'pending') || (a.side === 'host' && !ENDED[a.status] && ((a.status === 'aired' && !a.dispute) || a.cancelReq))).length,
+    appearances: apps.filter(a => (a.side === 'guest' && a.status === 'pending') || (a.side === 'host' && !ENDED[a.status] && (a.status === 'aired' || a.cancelReq))).length,
     chat: rooms.reduce((x, r) => x + r.unread, 0),
     alerts: hot,
-    adminChannel: pend('channel'), adminPromo: pend('promo'), adminLectures: pend('lectures'), adminDisputes: pend('disputes'),
+    adminChannel: pend('channel'), adminPromo: pend('promo'), adminLectures: pend('lectures'),
     adminInquiries: inquiries.filter(q => q.status !== '답변 완료').length,
   };
   const roleLabel = ROLES.find(r => r.id === role).label;
@@ -3382,14 +3320,12 @@ function App({ frame, scrollRef, onScreen }) {
       <div className="app-root">
       <header className="top">
         <button className="logo" onClick=${() => go(homeOf(role))} aria-label="합방 홈">합방<span className="onair">ON AIR</span>${role === 'admin' && html`<span className="admin-tag">운영</span>`}</button>
-        <form className="search" role="search" onSubmit=${e => { e.preventDefault(); const q = e.target.elements['top-search'].value.trim(); if (!q) return; go(role === 'admin' ? 'adminSearch' : 'search', { q }); }}><${Icon} n="search" s=${16} /><input id="top-search" aria-label="검색" placeholder=${role === 'admin' ? '회원, 거래 ID 검색' : '강의, 인플루언서, 모집 글 검색'} /></form>
         <div className="top-right">
           ${role === 'guest' ? html`<button className="btn primary sm" onClick=${() => openModal('login')}>로그인</button>` : html`
             ${MEMBER.includes(role) && html`
               <button className="hp-pill" onClick=${() => go('wallet')} aria-label="지갑 열기"><span className="coin">HP</span><span className="num">${fmt(wallet.charge + wallet.earn)}</span></button>
-              <button className="icon-btn" onClick=${() => go('alerts')} aria-label="알림"><${Icon} n="bell" />${hot > 0 && html`<span className="badge">${hot}</span>`}</button>
               <button className="icon-btn" onClick=${() => go('cart')} aria-label="장바구니"><${Icon} n="cart" />${cart.length > 0 && html`<span className="badge">${cart.length}</span>`}</button>`}
-            <span className="me"><${Avatar} name=${role === 'admin' ? '운영' : ME} size=${34} /><span>${role === 'admin' ? '운영팀' : ME}<small>${roleLabel}</small></span></span>`}
+            <button className="me" style=${{ border: 0, background: 'none', padding: 0, color: 'inherit', textAlign: 'left' }} onClick=${() => go('settings')} aria-label="계정 설정"><${Avatar} name=${role === 'admin' ? '운영' : ME} size=${34} /><span>${role === 'admin' ? '운영팀' : ME}<small>${roleLabel}</small></span></button>`}
         </div>
       </header>
       <div className="shell">
@@ -3432,177 +3368,187 @@ const ADMIN_ROOMS = [
   ] },
 ];
 const INQ_ADMIN = [
+  { id: 'q6', type: '강의 내용 다름', title: '소개에 있던 템플릿이 강의에 없어요', who: '유저 ****3', at: '10/09', status: '답변 대기', body: '소개에 "바로 쓰는 섭외 메시지 템플릿 10종"이 있는데 강의 어디에도 템플릿이 없어요.', objection: 'd2' },
   { id: 'q3', type: '서비스 불만', title: '충전했는데 HP가 바로 안 들어와요', who: '라면먹는 판다', at: '10/12', status: '답변 대기', body: '토스로 30,000원 결제했는데 지갑에 10분째 반영이 안 돼요.' },
   { id: 'q4', type: '기타', title: '강의 가격을 500 HP로 정할 수 있나요?', who: '편집하는 고래', at: '10/11', status: '답변 대기', body: '짧은 팁 강의라서 낮게 팔고 싶어요.' },
   { id: 'q2', type: '기타', title: '모집 글 수정 가능한가요?', who: ME, at: '10/11', status: '답변 대기', body: '방송 시간을 30분 앞당기고 싶어요.' },
-  { id: 'q1', type: '서비스 불만', title: '환전 계좌 변경이 저장되지 않아요', who: ME, at: '10/08', status: '답변 완료', reply: '계좌 실명 확인 API 점검 시간이었어요. 지금 다시 시도해 주세요.' },
+  { id: 'q1', type: '서비스 불만', title: '환전 계좌를 잘못 입력했어요', who: ME, at: '10/08', status: '답변 완료', reply: '승인 전이면 신청을 취소하고 다시 신청해 주세요.' },
 ];
-const APPS_NO_DISPUTE = APPS0.map(a => a.id === 'a2' ? { ...a, dispute: null } : a);
 const RECRUITS_NO_REQ = RECRUITS0.map(r => r.id === 'r1' ? { ...r, applicants: r.applicants.map(p => ({ ...p, cancelReq: null })) } : r);
 const USER_STATE = { wallet: { charge: 120000, earn: 0, exch: 0 }, ledger: LEDGER_USER, library: LIB0.map(b => ({ ...b, c: b.c + b.e, e: 0 })), apps: [], recruits: RECRUITS0.filter(r => !r.mine) };
+// 환전 송금 실패·취소 프레임용 예시 내역
+const EXCH_REQUESTED = [{ id: 'e2', at: md(TODAY), amt: 30000, fee: 3000, pay: nextSettlement(TODAY).pay, status: 'requested', acct: '088 ********1234', _noShift: true }, { id: 'e1', at: md(addDays(S1.deadline, -11)), amt: 100000, fee: 10000, pay: S1.pay, status: 'done', note: payNote(S1), acct: '004 ******5678', _noShift: true }];
 
+/*
+ * 프레임 정의. route는 실제 FE 라우트(src/app/router.tsx·nav.ts), api는 dev Swagger(/v3/api-docs) 경로다.
+ * 모달 프레임의 route는 모달을 띄우는 화면의 라우트다. BE에 없는 API는 '(BE API 없음) …'으로 적는다.
+ * '미구현' 그룹은 BE API가 없어 실제 앱에서 진입점을 숨긴 화면(#101)이다. 나중에 구현할 때 화면 근거로 남겨 둔다.
+ * 프레임 안의 잔액·보류 계산과 상태 변화는 프로토타입이다. 실제 계산과 상태 전이는 BE가 한다.
+ */
+const NOT_BUILT = '미구현 · BE API 없음, 실제 앱에서 진입점 숨김(#101)';
 const PAGES = [
   { id: 'user', code: 'U', label: '유저', sub: '강의를 사는 일반 회원',
     desc: '비회원으로 둘러보다 로그인하고, HP를 충전해 강의를 사고, 구매 확정과 환불까지 가는 흐름이에요.',
     flow: ['HP 충전', '강의 구매', '구매 확정', '판매자 지급', '남은 충전 HP 환불'],
-    can: ['강의·모집글·인플루언서 조회', 'HP 충전·환불', '장바구니·강의 구매·구매 취소', '리뷰·이의 제기', '채널 인증 신청'],
+    can: ['강의·모집글·인플루언서 조회', 'HP 충전·환불', '장바구니·강의 구매·구매 취소', '리뷰·강의 내용 다름 이의 제기', '치지직 채널 인증'],
     cannot: ['출연 요청·모집·지원', '채팅', '환전', '강의 등록'],
     state: USER_STATE,
     groups: [
       { group: '가입 전', items: [
-        { id: 'u-guest', name: '강의 목록 · 비회원', role: 'guest', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures'], rules: ['비회원은 강의·모집글 목록만 조회', '상세·구매를 누르면 로그인 유도'] },
-        { id: 'u-login', name: '로그인', role: 'guest', screen: { id: 'lectures' }, modal: { type: 'login', props: { reason: '강의 상세와 구매는 로그인 후 이용할 수 있어요.' } }, route: '/login', api: ['GET /api/v1/members/oauth/{provider}', 'GET /api/v1/members/me'], rules: ['OAuth 소셜 로그인, 인증 유지는 세션', '첫 로그인 시 유저로 가입'] },
+        { id: 'u-guest', name: '강의 목록 · 비회원', role: 'guest', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures'], rules: ['비회원은 강의 목록만 조회', '강의 상세·담기를 누르면 로그인 유도'] },
+        { id: 'u-login', name: '로그인', role: 'guest', screen: { id: 'lectures' }, modal: { type: 'login', props: { reason: '강의 상세와 구매는 로그인 후 이용할 수 있어요.' } }, route: '/lectures', api: ['(Spring OAuth2) GET /api/v1/members/oauth2/authorization/google', 'GET /api/v1/members/me'], rules: ['로그인 모달에서 Google 로그인, 인증 유지는 세션 쿠키(SESSION)', '첫 로그인 시 유저로 가입', '변경 요청에는 X-XSRF-TOKEN 헤더 필요'] },
       ] },
       { group: '탐색', items: [
-        { id: 'u-home', name: '홈', role: 'user', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/wallets/me', 'GET /api/v1/lectures?recommended=true'], rules: ['유저 홈은 HP 잔액, 이어 보기, 채널 인증 안내 중심'] },
-        { id: 'u-lectures', name: '강의 목록', role: 'user', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures?category=&sort='], rules: ['검수 승인된 강의만 노출', '판매자가 삭제한 강의는 목록에서 빠지고 기존 구매자는 계속 시청'] },
-        { id: 'u-lecture', name: '강의 상세', role: 'user', screen: { id: 'lecture', lec: 'l4' }, route: '/lectures/{id}', api: ['GET /api/v1/lectures/{id}', 'GET /api/v1/lectures/{id}/reviews', 'POST /api/v1/lectures/cart/items'], rules: ['이미 보유한 강의는 다시 살 수 없음', '리뷰는 구매 확정 후 작성'] },
+        { id: 'u-home', name: '홈', role: 'user', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/lectures?sort=LATEST', 'GET /api/v1/wallets/me'], rules: ['실제 홈은 최신 강의 목록 중심', '추천·이어 보기·채널 인증 안내 카드는 BE API 없음'] },
+        { id: 'u-lectures', name: '강의 목록', role: 'user', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures?keyword=&sort=&page='], rules: ['검수 승인된 강의만 노출', '판매자가 삭제한 강의는 목록에서 빠지고 기존 구매자는 계속 시청', '검색어·정렬·페이지는 URL에 둠'] },
+        { id: 'u-lecture', name: '강의 상세', role: 'user', screen: { id: 'lecture', lec: 'l4' }, route: '/lectures/{lectureId}', api: ['GET /api/v1/lectures/{lectureId}', 'GET /api/v1/lectures/{lectureId}/reviews', 'POST /api/v1/lectures/cart/items'], rules: ['이미 보유한 강의는 다시 살 수 없음', '리뷰는 구매 확정 후 작성'] },
         { id: 'u-influencers', name: '인플루언서 목록', role: 'user', screen: { id: 'influencers' }, route: '/influencers', api: ['GET /api/v1/members/influencers'], rules: ['유저도 목록·프로필 조회 가능', '출연 요청·채팅은 채널 인증 후'] },
-        { id: 'u-profile', name: '인플루언서 프로필', role: 'user', screen: { id: 'profile', inf: 'i3' }, route: '/influencers/{id}', api: ['GET /api/v1/members/influencers/{id}'], rules: ['유저에게는 출연 요청 대신 채널 인증 안내'] },
+        { id: 'u-profile', name: '인플루언서 프로필', role: 'user', screen: { id: 'profile', inf: 'i3' }, route: '/influencers/{memberId}', api: ['GET /api/v1/members/{memberId}'], rules: ['유저에게는 출연 요청 대신 채널 인증 안내'] },
       ] },
       { group: '구매', items: [
-        { id: 'u-cart', name: '장바구니', role: 'user', screen: { id: 'cart' }, route: '/cart', api: ['GET /api/v1/lectures/cart', 'DELETE /api/v1/lectures/cart/items/{id}'], rules: ['장바구니는 서버에 저장', '강의만 담을 수 있음'] },
-        { id: 'u-checkout', name: '주문 확인', role: 'user', screen: { id: 'cart' }, modal: { type: 'checkout', props: { items: ['l3', 'l5'] } }, route: '/orders/new', api: ['POST /api/v1/lectures/orders'], rules: ['결제 시 판매자 몫 HP 보류', '수익 HP 먼저, 부족분은 충전 HP. 순서 변경 불가'] },
-        { id: 'u-short', name: '주문 확인 · HP 부족', role: 'user', screen: { id: 'cart' }, modal: { type: 'checkout', props: { items: ['l3', 'l5'] } }, state: { wallet: { charge: 5000, earn: 0, exch: 0 } }, route: '/orders/new', api: ['POST /api/v1/lectures/orders'], rules: ['잔액이 모자라면 결제 대신 부족분만큼 충전 유도', '충전은 1,000원 단위로 올림'] },
+        { id: 'u-cart', name: '장바구니', role: 'user', screen: { id: 'cart' }, route: '/cart', api: ['GET /api/v1/lectures/cart', 'DELETE /api/v1/lectures/cart/items/{lectureId}'], rules: ['장바구니는 서버에 저장', '강의만 담을 수 있음'] },
+        { id: 'u-checkout', name: '주문 확인', role: 'user', screen: { id: 'cart' }, modal: { type: 'checkout', props: { items: ['l3', 'l5'] } }, route: '/cart', api: ['POST /api/v1/lectures/orders'], rules: ['결제 시 판매자 몫 HP 보류', '수익 HP 먼저, 부족분은 충전 HP. 순서 변경 불가', '결제하면 /library/orders/{orderId}/done으로 이동'] },
+        { id: 'u-short', name: '주문 확인 · HP 부족', role: 'user', screen: { id: 'cart' }, modal: { type: 'checkout', props: { items: ['l3', 'l5'] } }, state: { wallet: { charge: 5000, earn: 0, exch: 0 } }, route: '/cart', api: ['POST /api/v1/lectures/orders'], rules: ['잔액이 모자라면 결제 대신 부족분만큼 충전 유도', '충전은 1,000원 단위로 올림'] },
       ] },
       { group: '내 강의', items: [
-        { id: 'u-library', name: '내 강의', role: 'user', screen: { id: 'library' }, route: '/library', api: ['GET /api/v1/lectures/orders/items', 'POST /api/v1/lectures/orders/items/{id}/confirm'], rules: ['구매 확정: 직접 확정·첫 재생·구매일 다음 날부터 7일 경과 중 먼저', '판매자 지급은 구매일 다음 날부터 30일 경과 후'] },
-        { id: 'u-consent', name: '재생 동의', role: 'user', screen: { id: 'library' }, modal: { type: 'consent', props: { b: USER_STATE.library[0] } }, route: '/library/{id}/play', api: ['POST /api/v1/lectures/orders/items/{id}/play-consent'], rules: ['확정 전 재생·다운로드 전에 재생 동의 필요', '동의한 시점이 첫 재생이며 구매 확정', '동의 전에는 영상·자료 제공 안 함'] },
-        { id: 'u-player', name: '강의 재생', role: 'user', screen: { id: 'watch', lec: 'l2' }, route: '/library/{id}/watch', api: ['GET /api/v1/lectures/{id}/contents', 'GET /api/v1/lectures/{id}/contents/{contentId}/stream', 'PUT /api/v1/lectures/orders/items/{id}/progress'], rules: ['구매 확정 후이거나 재생 동의를 한 강의만 재생', '재검수 중이면 마지막으로 승인된 영상 제공', '자료 내려받기도 재생과 같은 조건'] },
-        { id: 'u-cancel', name: '구매 취소', role: 'user', screen: { id: 'library' }, modal: { type: 'cancelPurchase', props: { b: USER_STATE.library[0] } }, route: '/library/{id}/cancel', api: ['POST /api/v1/lectures/orders/items/{id}/cancel'], rules: ['구매 확정 전에만 가능', '차감했던 HP 종류대로 반환', '현금화하는 환불과 다름'] },
-        { id: 'u-review', name: '리뷰 쓰기', role: 'user', screen: { id: 'reviewWrite', b: 'b2' }, route: '/library/{id}/review', api: ['POST /api/v1/lectures/{id}/reviews'], rules: ['구매 확정 후에만 작성', '별점 1~5와 10자 이상 본문', '이의 제기로 반환된 구매의 리뷰는 평균 평점에서 제외'] },
+        { id: 'u-library', name: '내 강의', role: 'user', screen: { id: 'library' }, route: '/library', api: ['GET /api/v1/lectures/purchased', 'POST /api/v1/lectures/orders/{orderId}/items/{orderItemId}/confirm'], rules: ['구매 확정: 직접 확정·재생 동의·구매일 다음 날부터 7일 경과 중 먼저', '판매자 지급은 구매일 다음 날부터 30일 경과 후(이의 제기 중이면 판단 뒤)'] },
+        { id: 'u-consent', name: '재생 동의', role: 'user', screen: { id: 'library' }, modal: { type: 'consent', props: { b: USER_STATE.library[0] } }, route: '/library', api: ['POST /api/v1/lectures/orders/{orderId}/items/{orderItemId}/play-consent'], rules: ['확정 전 재생·다운로드 전에 재생 동의 필요', '동의하면 바로 구매 확정, 단순 변심 취소 불가', '동의 전에는 영상·자료 URL을 주지 않음(403 PLAY_CONSENT_REQUIRED)'] },
+        { id: 'u-player', name: '강의 재생', role: 'user', screen: { id: 'watch', lec: 'l2' }, route: '/library/{lectureId}/watch', api: ['GET /api/v1/lectures/{lectureId}/contents/{contentId}/access'], rules: ['구매 확정 후이거나 재생 동의를 한 강의만 재생', '재검수 중이면 마지막으로 승인된 영상 제공', '자료 내려받기도 같은 조건, 누를 때마다 URL을 다시 발급', '시청 진도 저장 API는 없음'] },
+        { id: 'u-cancel', name: '구매 취소', role: 'user', screen: { id: 'library' }, modal: { type: 'cancelPurchase', props: { b: USER_STATE.library[0] } }, route: '/library', api: ['POST /api/v1/lectures/orders/{orderId}/items/{orderItemId}/cancel'], rules: ['구매 확정 전, 이의 제기가 없을 때만 가능', '차감했던 HP 종류대로 반환', '현금화하는 환불과 다름'] },
+        { id: 'u-review', name: '리뷰 쓰기', role: 'user', screen: { id: 'reviewWrite', b: 'b2' }, route: '/library/{lectureId}/review', api: ['POST /api/v1/lectures/{lectureId}/reviews', 'PATCH /api/v1/lectures/reviews/{reviewId}', 'DELETE /api/v1/lectures/reviews/{reviewId}'], rules: ['구매 확정 후에만 작성', '별점 1~5와 10자 이상 본문', '이의 제기로 반환된 구매의 리뷰는 평균 평점에서 제외'] },
       ] },
       { group: '지갑', items: [
-        { id: 'u-wallet', name: '지갑', role: 'user', screen: { id: 'wallet' }, route: '/wallet', api: ['GET /api/v1/wallets/me', 'GET /api/v1/wallets/me/ledger'], rules: ['유저는 충전·환불만 가능', '잔액은 원장의 합, 정정은 역분개'] },
-        { id: 'u-charge', name: 'HP 충전', role: 'user', screen: { id: 'wallet' }, modal: { type: 'charge', props: {} }, route: '/wallet/charge', api: ['POST /api/v1/wallets/charges'], rules: ['1,000원 단위, 최소 1,000원', '결제하기를 누르면 주문을 만들고 토스페이먼츠 결제창을 엶'] },
-        { id: 'u-charge-pg', name: '충전 · 결제창 (테스트)', role: 'user', screen: { id: 'wallet' }, modal: { type: 'charge', props: { preset: 30000, step: 'pg' } }, route: '(토스페이먼츠 결제창)', api: ['토스 결제창 → successUrl / failUrl 리다이렉트'], rules: ['실제로는 PG 결제창이 뜨는 자리', '목업에서는 승인·실패·닫기 결과를 골라 다음 화면으로'] },
-        { id: 'u-charge-wait', name: '충전 · 결제 확인 중', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'success', stage: 'processing' }, route: '/wallet/charge/success?paymentKey=&orderId=&amount=', api: ['POST /api/v1/wallets/charges/{id}/confirm'], rules: ['리다이렉트로 돌아오면 서버가 PG 승인 API를 호출', '승인 전까지 처리 중 상태 노출, 화면을 닫지 않게 안내', '결제키는 암호화 저장'] },
-        { id: 'u-charge-done', name: '충전 완료', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'success', stage: 'success' }, route: '/wallet/charge/success', api: ['GET /api/v1/wallets/me'], rules: ['승인되면 충전 원장 기록 후 보유 HP 반영', '장바구니에 강의가 있으면 장바구니로 돌아가기 제공'] },
-        { id: 'u-charge-fail', name: '충전 실패', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'fail' }, route: '/wallet/charge/fail?code=&message=', api: ['(PG 실패 코드 표시)'], rules: ['HP 충전 없음, 청구 없음', 'PG 실패 코드를 함께 보여 문의에 활용', '같은 금액으로 다시 결제'] },
-        { id: 'u-charge-cancel', name: '충전 · 결제 취소', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'cancel' }, route: '/wallet/charge/fail?code=PAY_PROCESS_CANCELED', api: ['(PG 사용자 취소)'], rules: ['사용자가 결제창을 닫은 경우', 'HP 충전 없음, 청구 없음'] },
-        { id: 'u-refund', name: 'HP 환불', role: 'user', screen: { id: 'wallet' }, modal: { type: 'refund', props: {} }, route: '/wallet/refund', api: ['POST /api/v1/wallets/refunds'], rules: ['충전 HP 잔액만큼 언제든 부분 환불', '충전 건 FIFO로 PG 결제 취소', '보류 중인 HP는 환불 불가'] },
+        { id: 'u-wallet', name: '지갑', role: 'user', screen: { id: 'wallet' }, route: '/wallet', api: ['GET /api/v1/wallets/me', '(BE API 없음) 거래 원장 조회'], rules: ['유저는 충전·환불만 가능', '실제 지갑 화면은 보유·보류 HP만 보여 줌. 거래 원장은 BE API가 생기면 붙임'] },
+        { id: 'u-charge', name: 'HP 충전', role: 'user', screen: { id: 'wallet' }, modal: { type: 'charge', props: {} }, route: '/wallet', api: ['POST /api/v1/wallets/charges'], rules: ['1,000원 단위, 최소 1,000원', '결제하기를 누르면 충전 주문을 만들고 토스페이먼츠 결제창을 엶'] },
+        { id: 'u-charge-pg', name: '충전 · 결제창 (테스트)', role: 'user', screen: { id: 'wallet' }, modal: { type: 'charge', props: { preset: 30000, step: 'pg' } }, route: '(토스페이먼츠 결제창)', api: ['(토스 결제창) successUrl·failUrl = /wallet/charge/result로 리다이렉트'], rules: ['실제로는 PG 결제창이 뜨는 자리', '목업에서는 승인·실패·닫기 결과를 골라 다음 화면으로'] },
+        { id: 'u-charge-wait', name: '충전 · 결제 확인 중', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'success', stage: 'processing' }, route: '/wallet/charge/result?paymentKey=&orderId=&amount=', api: ['POST /api/v1/wallets/charges/confirm', 'GET /api/v1/wallets/charges/{orderId}'], rules: ['리다이렉트로 돌아오면 서버가 PG 승인 API를 호출', '승인 전까지 처리 중 상태 노출, 화면을 닫지 않게 안내'] },
+        { id: 'u-charge-done', name: '충전 완료', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'success', stage: 'success' }, route: '/wallet/charge/result', api: ['GET /api/v1/wallets/me'], rules: ['승인되면 보유 HP 반영', '장바구니에 강의가 있으면 장바구니로 돌아가기 제공'] },
+        { id: 'u-charge-fail', name: '충전 실패', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'fail' }, route: '/wallet/charge/result?code=&message=&orderId=&amount=', api: ['(PG 실패 코드 표시)'], rules: ['HP 충전 없음, 청구 없음', 'PG 실패 코드를 함께 보여 문의에 활용', '같은 금액으로 다시 결제'] },
+        { id: 'u-charge-cancel', name: '충전 · 결제 취소', role: 'user', screen: { id: 'chargeResult', amount: 30000, result: 'cancel' }, route: '/wallet/charge/result?code=PAY_PROCESS_CANCELED', api: ['(PG 사용자 취소)'], rules: ['사용자가 결제창을 닫은 경우(PC는 리다이렉트 없이 USER_CANCEL)', 'HP 충전 없음, 청구 없음'] },
+        { id: 'u-refund', name: 'HP 환불', role: 'user', screen: { id: 'wallet' }, modal: { type: 'refund', props: {} }, route: '/wallet', api: ['POST /api/v1/wallets/refunds', 'GET /api/v1/wallets/refunds/{refundRequestId}', 'POST /api/v1/wallets/refunds/{refundRequestId}/cancel'], rules: ['충전 HP만, 1,000원 이상 1,000원 단위로 부분 환불', '먼저 충전한 건부터(FIFO) PG 결제 취소', '보류 중이거나 사용한 HP는 환불 불가', 'PG에 요청하기 전(REQUESTED)에만 환불 요청 취소 가능'] },
       ] },
       { group: '성장·지원', items: [
-        { id: 'u-verify', name: '채널 인증', role: 'user', screen: { id: 'verify' }, route: '/verify', api: ['POST /api/v1/members/channels'], rules: ['치지직 채널만 지원', '팔로워 10명 이상 또는 한 달 누적 방송 10시간 이상'] },
-        { id: 'u-dispute', name: '고객센터 · 내용 다름 이의 제기', role: 'user', screen: { id: 'support', preset: { type: '강의 내용 다름', target: 'b2' } }, route: '/support/new', api: ['POST /api/v1/inquiries'], rules: ['구매일 다음 날부터 30일 이내', '접수되면 판매자 지급 중단', '관리자가 인정하면 반환, 기각하면 판매자에게 지급'] },
-        { id: 'u-alerts', name: '알림', role: 'user', screen: { id: 'alerts' }, route: '/alerts', api: ['GET /api/v1/members/me/notifications'], rules: ['충전 완료, 자동 구매 확정 예정, 문의 답변을 알림'] },
+        { id: 'u-verify', name: '채널 인증', role: 'user', screen: { id: 'verify' }, route: '/verify', api: ['GET /api/v1/members/channels/chzzk/connect', 'GET /api/v1/members/channels/chzzk/callback', 'GET /api/v1/members/channels/me', 'POST /api/v1/members/channels/{channelId}/approval-request'], rules: ['치지직 OAuth로 채널 연동, 콜백 뒤 /mypage로 돌아와 결과 표시', '팔로워 10명 이상이면 자동 승인되어 인플루언서로 전환', '미만이면 승인 요청 → 팔로워를 다시 확인하고 그래도 미만이면 관리자 심사', '유저만 신청 가능'] },
+        { id: 'u-dispute', name: '고객센터 · 내용 다름 이의 제기', role: 'user', screen: { id: 'support', preset: { type: '강의 내용 다름', target: 'b2' } }, route: '/support?category=LECTURE_CONTENT_DISPUTE&orderItemId=', api: ['POST /api/v1/inquiries'], rules: ['강의 주문 항목에만 걸 수 있음(LECTURE_CONTENT_DISPUTE + orderItemId)', '판매자 지급 예정 시각(구매일 다음 날부터 30일 경과) 전까지 접수', '접수되면 판매자 지급과 구매 취소가 멈춤, 시청은 계속', '관리자가 인정하면 원래 HP 종류대로 반환, 기각하면 예정대로 판매자 지급'] },
       ] },
       { group: '주문·문의·계정', items: [
-        { id: 'u-order-done', name: '주문 완료', role: 'user', screen: { id: 'orderDone', order: 'ORD-20261011-0007' }, route: '/orders/{id}/complete', api: ['GET /api/v1/lectures/orders/{id}'], rules: ['결제 후 주문 번호와 결제 HP를 보여 줌', '구매 취소 가능 기한 안내'] },
-        { id: 'u-orders', name: '주문 내역', role: 'user', screen: { id: 'orders' }, route: '/orders', api: ['GET /api/v1/lectures/orders'], rules: ['주문 단위로 묶어 보여 주고 항목별 상태 표시', '구매 확정·취소는 항목 단위'] },
-        { id: 'u-inquiry', name: '문의 상세', role: 'user', screen: { id: 'inquiry', q: 'q1' }, route: '/support/{id}', api: ['GET /api/v1/inquiries/{id}', 'POST /api/v1/inquiries/{id}/replies'], rules: ['문의 1건에 답변 여러 개 (Inquiry 1:N InquiryReply)', '추가 문의를 남기면 다시 답변 대기'] },
-        { id: 'u-settings', name: '계정 설정', role: 'user', screen: { id: 'settings' }, route: '/settings', api: ['GET /api/v1/members/me', 'PATCH /api/v1/members/me'], rules: ['로그인 계정, 닉네임, 알림 설정', '탈퇴 절차로 연결'] },
-        { id: 'u-withdraw', name: '회원 탈퇴', role: 'user', screen: { id: 'withdraw' }, route: '/settings/withdraw', api: ['DELETE /api/v1/members/me'], rules: ['Soft delete, 30일 뒤 식별 정보만 파기', '금액·상태·일시, 채팅·문의 본문은 남김', '남은 HP는 탈퇴 전 환불·환전 안내'] },
+        { id: 'u-order-done', name: '주문 완료', role: 'user', screen: { id: 'orderDone', order: 'ORD-20261011-0007' }, route: '/library/orders/{orderId}/done', api: ['GET /api/v1/lectures/orders/{orderId}'], rules: ['결제 후 주문 번호와 결제 HP를 보여 줌', '구매 취소 가능 기한 안내'] },
+        { id: 'u-orders', name: '주문 내역', role: 'user', screen: { id: 'orders' }, route: '/library/orders', api: ['GET /api/v1/lectures/orders', 'GET /api/v1/lectures/orders/{orderId}'], rules: ['주문 단위로 묶어 보여 주고 항목별 상태 표시', '구매 확정·취소는 항목 단위'] },
+        { id: 'u-inquiry', name: '문의 상세', role: 'user', screen: { id: 'inquiry', q: 'q1' }, route: '/support/inquiries/{inquiryId}', api: ['GET /api/v1/inquiries/{inquiryId}', 'DELETE /api/v1/inquiries/{inquiryId}'], rules: ['문의 1건에 관리자 답변 여러 개', '회원이 이어서 쓰는 추가 문의 API는 없음', '답변 대기(WAITING)일 때만 삭제 가능, 이의 제기 문의를 지우면 이의 제기도 철회'] },
+        { id: 'u-settings', name: '계정 설정', role: 'user', screen: { id: 'settings' }, route: '/settings', api: ['GET /api/v1/members/me', 'PATCH /api/v1/members/me', 'PUT /api/v1/members/files/{memberId}/content', 'DELETE /api/v1/members/me/profile-image'], rules: ['닉네임(2~12자)과 프로필 사진 변경', '알림 설정·회원 탈퇴는 BE API 없음(미구현)'] },
       ] },
       { group: '빈·예외 상태', items: [
         { id: 'u-empty-cart', name: '빈 장바구니', role: 'user', screen: { id: 'cart' }, state: { cart: [] }, route: '/cart', api: ['GET /api/v1/lectures/cart'], rules: ['빈 상태에서 강의 둘러보기로 안내'] },
-        { id: 'u-empty-library', name: '빈 내 강의', role: 'user', screen: { id: 'library' }, state: { library: [] }, route: '/library', api: ['GET /api/v1/lectures/orders/items'], rules: ['구매 취소 기간을 함께 안내'] },
-        { id: 'u-empty-alerts', name: '빈 알림', role: 'user', screen: { id: 'alerts' }, state: { alerts: [] }, route: '/alerts', api: ['GET /api/v1/members/me/notifications'], rules: ['역할에 맞는 알림 종류를 안내'] },
-        { id: 'u-refund-processing', name: '환불 처리 중', role: 'user', screen: { id: 'wallet' }, state: { wallet: { charge: 70000, earn: 0, exch: 0 }, refunds: [{ id: 'rf2', at: '10/12', amt: 50000, status: 'processing' }, { id: 'rf1', at: '9/20', amt: 20000, status: 'done' }] }, route: '/wallet', api: ['GET /api/v1/wallets/me/refunds'], rules: ['환불 신청 즉시 충전 HP에서 빼고 처리 중으로 표시', 'PG 결제 취소 결과가 오면 완료 또는 실패로 바뀜', '처리 중 금액은 보류 중에 포함'] },
-        { id: 'u-refund-failed', name: '환불 실패 · HP 복원', role: 'user', screen: { id: 'wallet' }, state: { refunds: [{ id: 'rf3', at: '10/11', amt: 30000, status: 'failed', note: '결제 취소에 실패해 10/11에 30,000 HP를 돌려놨어요.' }, { id: 'rf1', at: '9/20', amt: 20000, status: 'done' }] }, route: '/wallet', api: ['GET /api/v1/wallets/me/refunds'], rules: ['PG 취소 실패 시 원장에 역분개로 HP 복원', '지갑 상단에 실패 안내와 문의 연결'] },
-        { id: 'u-search', name: '통합 검색', role: 'user', screen: { id: 'search', q: '세팅' }, route: '/search?q=', api: ['GET /api/v1/lectures?q=', 'GET /api/v1/members/influencers?q=', 'GET /api/v1/appearances/recruits?q='], rules: ['상단 검색창에서 Enter로 이동', '강의·인플루언서·모집 글을 한 번에 검색', '비회원은 인플루언서 검색 제외'] },
-    ] },
+        { id: 'u-empty-library', name: '빈 내 강의', role: 'user', screen: { id: 'library' }, state: { library: [] }, route: '/library', api: ['GET /api/v1/lectures/purchased'], rules: ['구매 취소 기간을 함께 안내'] },
+      ] },
+      { group: '미구현 (BE API 없음)', items: [
+        { id: 'u-alerts', name: '알림', role: 'user', screen: { id: 'alerts' }, route: '/alerts', api: ['(BE API 없음) 알림 목록'], rules: [NOT_BUILT, '충전 완료, 자동 구매 확정 예정, 문의 답변을 알림'] },
+        { id: 'u-empty-alerts', name: '빈 알림', role: 'user', screen: { id: 'alerts' }, state: { alerts: [] }, route: '/alerts', api: ['(BE API 없음) 알림 목록'], rules: [NOT_BUILT, '역할에 맞는 알림 종류를 안내'] },
+        { id: 'u-search', name: '통합 검색', role: 'user', screen: { id: 'search', q: '세팅' }, route: '/search?q=', api: ['(BE API 없음) 강의·인플루언서·모집 글 통합 검색'], rules: [NOT_BUILT, '강의는 강의 목록의 keyword 검색으로 대신함'] },
+        { id: 'u-withdraw', name: '회원 탈퇴', role: 'user', screen: { id: 'withdraw' }, route: '/settings/withdraw', api: ['(BE API 없음) 회원 탈퇴'], rules: [NOT_BUILT, 'Soft delete, 30일 뒤 식별 정보만 파기(안)', '남은 HP는 탈퇴 전 환불·환전 안내(탈퇴 환불도 BE 미구현)'] },
+        { id: 'u-refund-processing', name: '환불 처리 중', role: 'user', screen: { id: 'wallet' }, state: { wallet: { charge: 70000, earn: 0, exch: 0 }, refunds: [{ id: 'rf2', at: '10/12', amt: 50000, status: 'processing' }, { id: 'rf1', at: '9/20', amt: 20000, status: 'done' }] }, route: '/wallet', api: ['(BE API 없음) 환불 내역 목록', 'GET /api/v1/wallets/refunds/{refundRequestId}'], rules: ['미구현 · 환불 내역 목록 API가 없어 실제 지갑에는 목록이 없음', '환불 요청 상태: REQUESTED → PROCESSING → COMPLETED/PARTIALLY_COMPLETED/FAILED, 그 밖에 MANUAL_REVIEW_REQUIRED·CANCELED'] },
+        { id: 'u-refund-failed', name: '환불 실패 · HP 복원', role: 'user', screen: { id: 'wallet' }, state: { refunds: [{ id: 'rf3', at: '10/11', amt: 30000, status: 'failed', note: '결제 취소에 실패해 10/11에 30,000 HP를 돌려놨어요.' }, { id: 'rf1', at: '9/20', amt: 20000, status: 'done' }] }, route: '/wallet', api: ['(BE API 없음) 환불 내역 목록'], rules: ['미구현 · 환불 내역 목록 API 없음', 'PG 취소 실패 시 HP 복원, 지갑 상단에 실패 안내와 문의 연결(안)'] },
+      ] },
     ] },
   { id: 'inf', code: 'I', label: '인플루언서', sub: '호스트·게스트로 출연 거래하는 회원',
     desc: '게스트를 찾아 출연 요청·모집을 올리고, 게스트로 출연해 출연료를 받아 환전하는 흐름이에요. 마지막 섹션은 강의를 파는 인증된 인플루언서예요.',
     flow: ['HP 충전', '출연 요청·모집', '출연 성립', '출연 확인', '지급', '환전'],
-    can: ['출연 요청·모집 (호스트)', '출연 수락·지원 (게스트)', '출연 취소 요청과 승인·거절', '채팅', '환전', '승급 신청', '인증된 인플루언서: 강의 등록·판매'],
+    can: ['출연 요청·모집 (호스트)', '출연 수락·지원 (게스트)', '출연 취소 요청과 수락·거절', '출연 확인·불참 (호스트)', '채팅', '환전 신청·취소', '승급 신청', '인증된 인플루언서: 강의 등록·판매'],
     cannot: ['채널 인증 재신청', '심사·검수'],
     state: {},
     groups: [
       { group: '홈', items: [
-        { id: 'i-home', name: '홈 · 오늘 할 일', role: 'inf', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/appearances/todo', 'GET /api/v1/wallets/me'], rules: ['응답 필요·출연 확인·취소 요청·모집 마감을 한곳에 모음', '자동 확인·노쇼 신고 기한을 함께 표시'] },
-        { id: 'i-alerts', name: '알림', role: 'inf', screen: { id: 'alerts' }, route: '/alerts', api: ['GET /api/v1/members/me/notifications'], rules: ['출연 요청, 취소 요청, 출연 확인 요청, 지급·송금 완료를 알림'] },
+        { id: 'i-home', name: '홈 · 오늘 할 일', role: 'inf', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/lectures?sort=LATEST', '(BE API 없음) 오늘 할 일 통합 조회'], rules: ['실제 홈은 최신 강의 목록 중심', '응답 필요·출연 확인·취소 요청을 모으는 통합 API는 없음. 각 목록은 내 출연에서 확인'] },
       ] },
       { group: '게스트 찾기', items: [
-        { id: 'i-influencers', name: '인플루언서 목록', role: 'inf', screen: { id: 'influencers' }, route: '/influencers', api: ['GET /api/v1/members/influencers?category='], rules: ['최저 출연료 1인당 20,000 HP'] },
-        { id: 'i-profile', name: '인플루언서 프로필', role: 'inf', screen: { id: 'profile', inf: 'i1' }, route: '/influencers/{id}', api: ['GET /api/v1/members/influencers/{id}'], rules: ['채팅으로 일정을 맞춘 뒤 출연 요청'] },
-        { id: 'i-chat', name: '채팅', role: 'inf', screen: { id: 'chat', with: '밤새는곰' }, route: '/chat/{roomId}', api: ['GET /api/v1/chatRooms', 'WS /ws/chat'], rules: ['1:1 대화', '출연 요청을 보내면 대화방에 요청 카드가 남음', '메시지는 분쟁 확인용으로 보관'] },
-        { id: 'i-request', name: '출연 요청 보내기', role: 'inf', screen: { id: 'profile', inf: 'i1' }, modal: { type: 'request', props: { guest: INFLUENCERS[0] } }, route: '/influencers/{id}/request', api: ['POST /api/v1/appearances/requests'], rules: ['요청 시 출연료만큼 HP 보류', '수락 기한은 방송 예정일 전', '최저 출연료 20,000 HP'] },
+        { id: 'i-influencers', name: '인플루언서 목록', role: 'inf', screen: { id: 'influencers' }, route: '/influencers', api: ['GET /api/v1/members/influencers'], rules: ['최저 출연료 1인당 20,000 HP'] },
+        { id: 'i-profile', name: '인플루언서 프로필', role: 'inf', screen: { id: 'profile', inf: 'i1' }, route: '/influencers/{memberId}', api: ['GET /api/v1/members/{memberId}', 'POST /api/v1/chats'], rules: ['채팅으로 일정을 맞춘 뒤 출연 요청'] },
+        { id: 'i-chat', name: '채팅', role: 'inf', screen: { id: 'chat', with: '밤새는곰' }, route: '/chat/{chatRoomId}', api: ['GET /api/v1/chats', 'GET /api/v1/chats/{chatRoomId}/messages', 'PUT /api/v1/chats/{chatRoomId}/read', 'DELETE /api/v1/chats/{chatRoomId}/members/me', 'WS /api/v1/chats/ws (STOMP)'], rules: ['1:1 대화', '출연 요청을 보내면 대화방에 요청 카드가 남음', '메시지는 관리자 채팅 기록으로 확인 가능'] },
+        { id: 'i-request', name: '출연 요청 보내기', role: 'inf', screen: { id: 'profile', inf: 'i1' }, modal: { type: 'request', props: { guest: INFLUENCERS[0] } }, route: '/influencers/{memberId}', api: ['POST /api/v1/appearances/requests'], rules: ['요청 시 출연료만큼 HP 보류', '현재 < 수락 기한 < 방송 예정 일시', '최저 출연료 20,000 HP', '같은 게스트에게 응답 대기 중인 요청이 있으면 다시 보낼 수 없음'] },
       ] },
       { group: '호스트로', items: [
-        { id: 'i-host', name: '내 출연 · 호스트', role: 'inf', screen: { id: 'appearances', tab: 'host' }, route: '/appearances?side=host', api: ['GET /api/v1/appearances?side=host', 'POST /api/v1/appearances/{id}/confirm', 'POST /api/v1/appearances/{id}/cancel-requests/{reqId}/approve'], rules: ['방송 예정일 이후 출연 확인 → 게스트 수익 HP 지급', '방송 예정일 다음 날부터 7일 경과 시 자동 확인', '취소 요청 승인 = 합의 취소, 위약금 없음'] },
-        { id: 'i-penalty', name: '호스트 출연 취소 · 위약금', role: 'inf', screen: { id: 'appearances', tab: 'host' }, modal: { type: 'hostCancel', props: { a: { ...APPS0[2], cancelReq: null } } }, route: '/appearances/{id}/cancel', api: ['POST /api/v1/appearances/{id}/cancel'], rules: ['성립 후 방송 예정일 전 호스트 취소 시 위약금', '30%는 즉시 게스트 수익 HP, 70%는 호스트 반환'] },
-        { id: 'i-noshow', name: '노쇼 신고', role: 'inf', screen: { id: 'support', preset: { type: '노쇼 신고', target: 'a2' } }, state: { apps: APPS_NO_DISPUTE }, route: '/support/new', api: ['POST /api/v1/inquiries'], rules: ['방송 예정일 다음 날부터 3일 이내', '접수하면 해당 출연 카드가 "노쇼 신고 접수 · 지급 중단"으로 바뀜', '이미 접수한 건은 다시 신고할 수 없음'] },
+        { id: 'i-host', name: '내 출연 · 호스트', role: 'inf', screen: { id: 'appearances', tab: 'host' }, route: '/appearances?tab=host', api: ['GET /api/v1/appearances/requests/sent', 'GET /api/v1/appearances?role=HOST', 'GET /api/v1/appearances/{appearanceId}', 'POST /api/v1/appearances/{appearanceId}/confirm', 'POST /api/v1/appearances/{appearanceId}/cancel-requests/accept', 'POST /api/v1/appearances/{appearanceId}/cancel-requests/reject'], rules: ['방송 예정 시각부터 7일(7×24시간) 안에 출연 확인 또는 불참 중 하나, 번복 불가', '출연 확인 → 게스트 수익 HP로 지급(confirmType HOST)', '기간 안에 응답하지 않으면 자동 확인(confirmType AUTO)', '취소 요청 수락 = 합의 취소, 위약금 없음. 방송 시각까지 응답이 없으면 자동 거절되어 출연 유지'] },
+        { id: 'i-absent', name: '출연 불참 처리', role: 'inf', screen: { id: 'appearances', tab: 'host' }, modal: { type: 'absent', props: { a: APPS0[1] } }, route: '/appearances/{appearanceId}', api: ['POST /api/v1/appearances/{appearanceId}/absent'], rules: ['방송 예정 시각부터 7일 안에 호스트만', '불참(ABSENT) 처리하면 출연료 전액을 호스트에게 반환', '사유는 선택, 500자 이하', '게스트 제재가 필요하면 고객센터 노쇼 신고(일반 문의)로 따로 접수'] },
+        { id: 'i-penalty', name: '호스트 출연 취소 · 위약금', role: 'inf', screen: { id: 'appearances', tab: 'host' }, modal: { type: 'hostCancel', props: { a: { ...APPS0[2], cancelReq: null } } }, route: '/appearances/{appearanceId}', api: ['POST /api/v1/appearances/{appearanceId}/host-cancel'], rules: ['성립 후 방송 예정 일시 전 호스트 취소 시 위약금', '출연료의 30%(원 미만 버림)는 게스트 수익 HP, 나머지는 호스트 반환', '처리 중인 게스트 취소 요청이 있으면 확인 후 취소(confirmPendingCancelRequest)'] },
       ] },
       { group: '출연 모집', items: [
-        { id: 'i-recruits', name: '출연 모집 목록', role: 'inf', screen: { id: 'recruits' }, route: '/recruits', api: ['GET /api/v1/appearances/recruits?status=open'], rules: ['게시 시 1인 출연료 × 모집 인원 보류'] },
-        { id: 'i-recruit-new', name: '모집 글 올리기', role: 'inf', screen: { id: 'recruits' }, modal: { type: 'recruitNew', props: {} }, route: '/recruits/new', api: ['POST /api/v1/appearances/recruits'], rules: ['1인 최저 출연료 20,000 HP', '마감 기한은 방송 예정일 전'] },
-        { id: 'i-recruit-mine', name: '모집 상세 · 선정과 취소 요청', role: 'inf', screen: { id: 'recruit', rec: 'r1' }, route: '/recruits/{id}', api: ['PUT /api/v1/appearances/recruits/{id}/selections', 'POST /api/v1/appearances/recruits/{id}/cancel-requests/{reqId}/approve', 'POST /api/v1/appearances/recruits/{id}/cancel-requests/{reqId}/reject'], rules: ['성립 전 선정 취소는 위약금 없음', '마감 전 게스트 취소 요청을 승인하면 선정에서 빼고 모집 유지', '답하지 않은 취소 요청이 있으면 모집 성립 불가'] },
-        { id: 'i-establish', name: '모집 성립 확인', role: 'inf', screen: { id: 'recruit', rec: 'r1', confirm: 'est' }, state: { recruits: RECRUITS_NO_REQ }, route: '/recruits/{id}/establish', api: ['POST /api/v1/appearances/recruits/{id}/establish'], rules: ['선정 1명 이상 필요', '성립 즉시 모집이 닫히고 미선정 자리분 반환', '기한까지 미성립 시 자동 취소, 전액 반환'] },
-        { id: 'i-recruit-cancel', name: '모집 취소 · 위약금', role: 'inf', screen: { id: 'recruit', rec: 'r1', confirm: 'cancel' }, route: '/recruits/{id}/cancel', api: ['POST /api/v1/appearances/recruits/{id}/cancel'], rules: ['성립 전 모집 취소 시 선정된 게스트마다 1인 출연료의 30%를 위약금으로 지급', '취소 요청을 보낸 게스트가 있으면 수락 여부를 먼저 묻고, 수락한 게스트는 위약금 대상에서 제외', '선정자가 없으면 전액 반환'] },
+        { id: 'i-recruits', name: '출연 모집 목록', role: 'inf', screen: { id: 'recruits' }, route: '/recruits', api: ['GET /api/v1/appearances/recruits', 'GET /api/v1/appearances/recruits/mine'], rules: ['모집 중이고 마감 일시 전인 글만 노출', '게시 시 1인 출연료 × 모집 인원 보류'] },
+        { id: 'i-recruit-new', name: '모집 글 올리기', role: 'inf', screen: { id: 'recruits' }, modal: { type: 'recruitNew', props: {} }, route: '/recruits?tab=mine', api: ['POST /api/v1/appearances/recruits'], rules: ['1인 최저 출연료 20,000 HP, 모집 인원 1~10명', '현재 < 모집 마감 일시 < 방송 예정 일시'] },
+        { id: 'i-recruit-mine', name: '모집 상세 · 지원 수락과 거절', role: 'inf', screen: { id: 'recruit', rec: 'r1' }, route: '/recruits/{recruitId}', api: ['GET /api/v1/appearances/recruits/{recruitId}/applications', 'POST /api/v1/appearances/applications/{applicationId}/accept', 'POST /api/v1/appearances/applications/{applicationId}/reject'], rules: ['지원을 수락하면 그 게스트와 바로 출연 성립(보류 유지)', '정원이 차면 더 수락할 수 없음(409 RECRUIT_FULL)', '성립한 출연의 취소 요청은 출연 상세에서 수락·거절', '프레임 안 "선정→성립" 동작은 이전 안. 실제는 수락 즉시 성립'] },
+        { id: 'i-establish', name: '모집 조기 마감', role: 'inf', screen: { id: 'recruit', rec: 'r1', confirm: 'est' }, state: { recruits: RECRUITS_NO_REQ }, route: '/recruits/{recruitId}', api: ['POST /api/v1/appearances/recruits/{recruitId}/close'], rules: ['마감 일시 전에 모집을 닫음, 성립 0명이어도 가능', '대기 중인 지원은 모두 미선정, 빈자리분 보류는 호스트에게 반환', '마감 일시가 지나면 배치가 같은 방식으로 자동 마감', '프레임 안 "모집 성립" 문구는 이전 안'] },
+        { id: 'i-recruit-cancel', name: '모집 취소 · 위약금', role: 'inf', screen: { id: 'recruit', rec: 'r1', confirm: 'cancel' }, route: '/recruits/{recruitId}', api: ['POST /api/v1/appearances/recruits/{recruitId}/cancel'], rules: ['모집 중이거나 마감된 모집글을 방송 예정 일시 전에 취소', '성립한 출연마다 호스트 일방 취소(게스트마다 위약금 30%)', '대기 중인 지원은 미선정, 빈자리 보류는 반환', '처리 중인 게스트 취소 요청이 있으면 확인 후 취소'] },
       ] },
       { group: '게스트로', items: [
-        { id: 'i-guest', name: '내 출연 · 게스트', role: 'inf', screen: { id: 'appearances', tab: 'guest' }, route: '/appearances?side=guest', api: ['POST /api/v1/appearances/{id}/accept', 'POST /api/v1/appearances/{id}/reject'], rules: ['수락하면 출연 성립', '수락 기한 내 미수락 시 호스트에게 반환'] },
-        { id: 'i-guest-cancel', name: '출연 취소 요청', role: 'inf', screen: { id: 'appearances', tab: 'guest' }, modal: { type: 'guestCancel', props: { a: APPS0[4] } }, route: '/appearances/{id}/cancel-requests', api: ['POST /api/v1/appearances/{id}/cancel-requests'], rules: ['성립 후 방송 예정일 전까지 요청 가능', '호스트 승인 시 위약금 없이 취소', '거절·무응답이면 출연 유지'] },
-        { id: 'i-apply', name: '모집 지원하기', role: 'inf', screen: { id: 'recruit', rec: 'r2' }, route: '/recruits/{id}', api: ['POST /api/v1/appearances/recruits/{id}/applications', 'DELETE /api/v1/appearances/recruits/{id}/applications/me'], rules: ['인플루언서 이상만 지원 가능', '선정 전에는 위약금 없이 지원 철회'] },
-        { id: 'i-selected', name: '선정 후 출연 취소 요청', role: 'inf', screen: { id: 'recruit', rec: 'r3' }, route: '/recruits/{id}', api: ['POST /api/v1/appearances/recruits/{id}/cancel-requests'], rules: ['선정됐지만 성립 전이면 호스트에게 취소 요청', '성립 전 게스트 취소는 위약금 없음', '호스트가 승인하면 선정에서 빠지고 모집 유지'] },
+        { id: 'i-guest', name: '내 출연 · 게스트', role: 'inf', screen: { id: 'appearances', tab: 'guest' }, route: '/appearances?tab=guest', api: ['GET /api/v1/appearances/requests/received', 'GET /api/v1/appearances?role=GUEST', 'POST /api/v1/appearances/requests/{requestId}/accept', 'POST /api/v1/appearances/requests/{requestId}/reject'], rules: ['수락하면 출연 성립(보류 유지)', '수락 기한이 지나면 요청 만료, 보류 HP는 호스트에게 반환'] },
+        { id: 'i-guest-cancel', name: '출연 취소 요청', role: 'inf', screen: { id: 'appearances', tab: 'guest' }, modal: { type: 'guestCancel', props: { a: APPS0[4] } }, route: '/appearances/{appearanceId}', api: ['POST /api/v1/appearances/{appearanceId}/cancel-requests'], rules: ['성립 후 방송 예정 일시 전까지, 사유 필수(500자 이하)', '출연 1건당 2번까지(거절된 뒤 1번 더), 보낸 요청은 철회 불가', '호스트 수락 시 위약금 없이 취소, 거절·무응답이면 출연 유지'] },
+        { id: 'i-apply', name: '모집 지원하기', role: 'inf', screen: { id: 'recruit', rec: 'r2' }, route: '/recruits/{recruitId}', api: ['POST /api/v1/appearances/recruits/{recruitId}/applications', 'GET /api/v1/appearances/applications/mine', 'POST /api/v1/appearances/applications/{applicationId}/withdraw'], rules: ['인플루언서 이상만 지원, 한 모집글에 한 번', '호스트가 응답하기 전(APPLIED)까지만 지원 취소, 취소 뒤 재지원 불가', '정원이 찼어도 지원 가능(빈자리가 생기면 수락될 수 있음)'] },
+        { id: 'i-selected', name: '수락 후 출연 취소 요청', role: 'inf', screen: { id: 'recruit', rec: 'r3' }, route: '/appearances/{appearanceId}', api: ['POST /api/v1/appearances/{appearanceId}/cancel-requests'], rules: ['지원이 수락되면 바로 출연 성립, 이후 취소는 출연 상세의 취소 요청으로', '마감 전 합의 취소면 성립 인원만 줄고 빈자리에 다른 지원자 수락 가능', '마감 뒤 합의 취소면 그 자리 출연료를 호스트에게 반환', '프레임 안 "선정 후 취소 요청" 동작은 이전 안'] },
       ] },
       { group: '수익', items: [
-        { id: 'i-wallet', name: '지갑', role: 'inf', screen: { id: 'wallet' }, route: '/wallet', api: ['GET /api/v1/wallets/me', 'GET /api/v1/wallets/me/exchanges'], rules: ['충전 HP ↔ 수익 HP 전환 불가', '정산일 매월 10일, 주말·공휴일이면 다음 영업일'] },
-        { id: 'i-exchange', name: '환전 신청', role: 'inf', screen: { id: 'wallet' }, modal: { type: 'exchange', props: {} }, route: '/wallet/exchange', api: ['POST /api/v1/wallets/exchanges'], rules: ['수익 HP 1,000 이상, 1,000 단위', '수수료 10%, 원 미만 버림', '9일 23:59:59까지 신청분을 10일에 송금'] },
-        { id: 'i-exchange-noacct', name: '환전 신청 · 계좌 없음', role: 'inf', screen: { id: 'wallet' }, modal: { type: 'exchange', props: {} }, state: { account: null }, route: '/wallet/exchange', api: ['GET /api/v1/wallets/me/account'], rules: ['환전 계좌가 없으면 신청 대신 계좌 등록으로 안내'] },
-        { id: 'i-account-new', name: '환전 계좌 등록', role: 'inf', screen: { id: 'account' }, state: { account: null }, route: '/wallet/account', api: ['POST /api/v1/wallets/me/account/verify', 'PUT /api/v1/wallets/me/account'], rules: ['계좌 실명 확인 API로 예금주와 회원 실명 대조', '본인 명의 계좌만 등록', '계좌번호·예금주는 암호화 저장'] },
-        { id: 'i-account', name: '환전 계좌 변경', role: 'inf', screen: { id: 'account' }, route: '/wallet/account', api: ['GET /api/v1/wallets/me/account', 'PUT /api/v1/wallets/me/account'], rules: ['변경할 때도 실명 확인을 다시 거침', '정산일에는 그때 등록된 계좌로 송금'] },
-        { id: 'i-promote', name: '승급 신청', role: 'inf', screen: { id: 'promote' }, route: '/promote', api: ['POST /api/v1/members/promotions'], rules: ['인플루언서만 신청 가능', '승급하면 강의 등록 가능'] },
+        { id: 'i-wallet', name: '지갑', role: 'inf', screen: { id: 'wallet' }, route: '/wallet', api: ['GET /api/v1/wallets/me', 'GET /api/v1/settlements/exchanges'], rules: ['충전 HP ↔ 수익 HP 전환 불가', '정산 예정일은 매월 10일, 토·일이면 다음 월요일. 공휴일은 반영하지 않아 잠정값', '거래 원장은 BE API 없음'] },
+        { id: 'i-exchange', name: '환전 신청', role: 'inf', screen: { id: 'wallet' }, modal: { type: 'exchange', props: {} }, route: '/wallet/exchange', api: ['POST /api/v1/settlements/exchanges'], rules: ['수익 HP 1,000 이상, 1,000 단위. 인플루언서·인증된 인플루언서만', '수수료 10%, 원 미만 버림. 신청할 때 확정', '계좌는 신청마다 입력(은행 코드 3자리, 계좌번호 8~20자리, 예금주 1~50자)해 그 신청에 스냅샷으로 저장, 실명·계좌 확인 없음', '1~9일 신청은 그달 10일, 10일 이후 신청은 다음 달 10일 회차', '재시도는 같은 Idempotency-Key, 새 신청은 새 키'] },
+        { id: 'i-exchange-cancel', name: '환전 신청 취소', role: 'inf', screen: { id: 'wallet' }, modal: { type: 'exchangeCancel', props: { id: 'e2' } }, state: { exchanges: EXCH_REQUESTED, wallet: { charge: 120000, earn: 13000, exch: 30000 } }, route: '/wallet', api: ['GET /api/v1/settlements/exchanges/{exchangeId}', 'POST /api/v1/settlements/exchanges/{exchangeId}/cancel'], rules: ['승인 대기(REQUESTED)인 신청만 취소', '취소하면 보류한 수익 HP 전액 반환(CANCELED)', '상세에는 신청 당시 은행 코드와 끝 4자리만 남긴 계좌번호 표시'] },
+        { id: 'i-promote', name: '승급 신청', role: 'inf', screen: { id: 'promote' }, route: '/promote', api: ['POST /api/v1/members/upgrade-requests', 'GET /api/v1/members/upgrade-requests/me'], rules: ['인플루언서만 신청, 사유 필수(500자 이하)', '심사 중인 신청은 1건만', '승급하면 강의 등록 가능'] },
       ] },
       { group: '인증된 인플루언서', items: [
-        { id: 'v-home', name: '홈 · 인증된 인플루언서', role: 'vinf', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/lectures?seller=me'], rules: ['출연 할 일에 강의 검수 상태를 더해 보여 줌'] },
-        { id: 'v-studio', name: '강의 판매', role: 'vinf', screen: { id: 'studio' }, route: '/studio', api: ['GET /api/v1/lectures?seller=me', 'GET /api/v1/lectures/sales'], rules: ['영상·자료 수정 시 재검수, 신규 판매 중지', '판매 수익은 구매일 다음 날부터 30일 경과 후 지급'] },
-        { id: 'v-new', name: '강의 등록', role: 'vinf', screen: { id: 'lectureEdit' }, route: '/studio/lectures/new', api: ['POST /api/v1/lectures', 'POST /api/v1/lectures/{id}/contents', 'POST /api/v1/files (S3 업로드)'], rules: ['1,000 HP 이상, 1,000 HP 단위, 무료 없음', '모든 강에 제목과 영상이 있어야 검수 신청 가능', '등록하면 검수 대기(비공개)'] },
-        { id: 'v-own', name: '내 강의 상세 · 판매자 시점', role: 'vinf', screen: { id: 'lecture', lec: 'l7' }, route: '/lectures/{id}', api: ['GET /api/v1/lectures/{id}'], rules: ['판매자는 자기 강의를 담거나 살 수 없음'] },
-        { id: 'v-edit', name: '강의 수정 · 기본 정보', role: 'vinf', screen: { id: 'lectureEdit', sid: 'l7' }, route: '/studio/lectures/{id}/edit', api: ['PATCH /api/v1/lectures/{id}'], rules: ['제목·소개·가격·썸네일 수정은 재검수 없이 바로 반영'] },
-        { id: 'v-edit-video', name: '강의 수정 · 영상 교체', role: 'vinf', screen: { id: 'lectureEdit', sid: 'l7', demo: 'video' }, route: '/studio/lectures/{id}/edit', api: ['PUT /api/v1/lectures/{id}/contents/{contentId}', 'POST /api/v1/lectures/{id}/review'], rules: ['영상·자료가 바뀌면 재검수 대기, 신규 판매 중지', '기존 구매자는 마지막으로 승인된 내용을 시청'] },
-        { id: 'v-rejected', name: '반려 강의 수정', role: 'vinf', screen: { id: 'lectureEdit', sid: 's3' }, route: '/studio/lectures/{id}/edit', api: ['GET /api/v1/lectures/{id}/review', 'POST /api/v1/lectures/{id}/review'], rules: ['반려 사유와 해당 강을 표시', '고친 뒤 다시 검수 신청'] },
-        { id: 'v-delete', name: '강의 삭제', role: 'vinf', screen: { id: 'studio' }, modal: { type: 'lectureDelete', props: { s: STUDIO0[0] } }, route: '/studio/lectures/{id}', api: ['DELETE /api/v1/lectures/{id}'], rules: ['목록 노출과 신규 판매만 중단 (soft delete)', '기존 구매자는 계속 시청', '지급은 예정대로 진행'] },
+        { id: 'v-home', name: '홈 · 인증된 인플루언서', role: 'vinf', screen: { id: 'home' }, route: '/', api: ['GET /api/v1/lectures?sort=LATEST', 'GET /api/v1/lectures/me'], rules: ['실제 홈은 최신 강의 목록 중심', '검수 상태는 강의 판매 화면에서 확인'] },
+        { id: 'v-studio', name: '강의 판매', role: 'vinf', screen: { id: 'studio' }, route: '/studio', api: ['GET /api/v1/lectures/me', 'GET /api/v1/lectures/sales'], rules: ['영상·자료 수정 시 재검수, 신규 판매 중지', '판매 수익은 구매일 다음 날부터 30일 경과 후 지급'] },
+        { id: 'v-new', name: '강의 등록', role: 'vinf', screen: { id: 'lectureEdit' }, route: '/studio/lectures/new', api: ['POST /api/v1/lectures/files', 'PUT /api/v1/lectures/files/{fileId}/content', 'POST /api/v1/lectures', 'PUT /api/v1/lectures/{lectureId}/contents'], rules: ['1,000 HP 이상, 1,000 HP 단위, 무료 없음', '파일 정보를 등록한 뒤 본문을 올림(업로드 진행률·취소)', '모든 강에 제목과 영상이 있어야 검수 신청 가능', '등록하면 검수 대기(비공개)'] },
+        { id: 'v-own', name: '내 강의 상세 · 판매자 시점', role: 'vinf', screen: { id: 'lecture', lec: 'l7' }, route: '/lectures/{lectureId}', api: ['GET /api/v1/lectures/{lectureId}'], rules: ['판매자는 자기 강의를 담거나 살 수 없음'] },
+        { id: 'v-edit', name: '강의 수정 · 기본 정보', role: 'vinf', screen: { id: 'lectureEdit', sid: 'l7' }, route: '/studio/lectures/{lectureId}/edit', api: ['PATCH /api/v1/lectures/{lectureId}'], rules: ['제목·소개·가격·썸네일 수정은 재검수 없이 바로 반영'] },
+        { id: 'v-edit-video', name: '강의 수정 · 영상 교체', role: 'vinf', screen: { id: 'lectureEdit', sid: 'l7', demo: 'video' }, route: '/studio/lectures/{lectureId}/edit', api: ['PUT /api/v1/lectures/{lectureId}/contents', 'POST /api/v1/lectures/{lectureId}/inspection-requests'], rules: ['영상·자료가 바뀌면 재검수 대기, 신규 판매 중지', '기존 구매자는 마지막으로 승인된 내용을 시청'] },
+        { id: 'v-rejected', name: '반려 강의 수정', role: 'vinf', screen: { id: 'lectureEdit', sid: 's3' }, route: '/studio/lectures/{lectureId}/edit', api: ['GET /api/v1/lectures/{lectureId}', 'POST /api/v1/lectures/{lectureId}/inspection-requests'], rules: ['반려 사유를 표시', '고친 뒤 다시 검수 신청'] },
+        { id: 'v-delete', name: '강의 삭제', role: 'vinf', screen: { id: 'studio' }, modal: { type: 'lectureDelete', props: { s: STUDIO0[0] } }, route: '/studio', api: ['DELETE /api/v1/lectures/{lectureId}'], rules: ['목록 노출과 신규 판매만 중단 (soft delete)', '기존 구매자는 계속 시청', '지급은 예정대로 진행'] },
       ] },
-      { group: '프로필·계정', items: [
-        { id: 'i-profile-edit', name: '내 프로필 편집', role: 'inf', screen: { id: 'profileEdit' }, route: '/me/profile', api: ['GET /api/v1/members/me/influencer-profile', 'PUT /api/v1/members/me/influencer-profile'], rules: ['희망 출연료는 20,000 HP 이상', '팔로워·방송 시간은 채널에서 자동 수집', '바뀐 닉네임·역할은 이벤트로 다른 모듈에 복제'] },
-        { id: 'i-withdraw', name: '회원 탈퇴 · 진행 중 거래 있음', role: 'inf', screen: { id: 'withdraw' }, route: '/settings/withdraw', api: ['GET /api/v1/members/me/withdrawal-check', 'DELETE /api/v1/members/me'], rules: ['진행 중인 출연 거래나 송금 대기 환전이 있으면 탈퇴 불가', '남은 HP는 환불·환전 안내'] },
+      { group: '프로필', items: [
+        { id: 'i-profile-edit', name: '내 프로필', role: 'inf', screen: { id: 'profileEdit' }, route: '/profile/edit', api: ['GET /api/v1/members/me', 'GET /api/v1/members/{memberId}', '(BE API 없음) 인플루언서 프로필 수정'], rules: ['미구현 · 희망 출연료·소개·태그를 고치는 API가 없어 실제 화면은 조회 중심', '닉네임·프로필 사진은 계정 설정에서 변경'] },
       ] },
       { group: '빈·예외 상태', items: [
-        { id: 'i-empty-apps', name: '빈 내 출연', role: 'inf', screen: { id: 'appearances', tab: 'host' }, state: { apps: [] }, route: '/appearances?side=host', api: ['GET /api/v1/appearances'], rules: ['호스트 탭은 게스트 찾기·모집 글 올리기, 게스트 탭은 프로필·모집 보기로 안내'] },
-        { id: 'i-request-expired', name: '출연 요청 만료', role: 'inf', screen: { id: 'appearances', tab: 'host' }, state: { apps: APPS0.filter(a => a.id === 'a7') }, route: '/appearances?side=host', api: ['(배치) 수락 기한 만료 처리'], rules: ['수락 기한까지 수락하지 않으면 요청 만료', '보류 HP를 차감했던 종류대로 호스트에게 반환'] },
-        { id: 'i-recruit-expired', name: '모집 자동 취소', role: 'inf', screen: { id: 'recruit', rec: 'r5' }, route: '/recruits/{id}', api: ['(배치) 모집 마감 기한 처리'], rules: ['마감 기한까지 성립시키지 않으면 자동 취소', '보류 HP 전액 반환'] },
-        { id: 'i-exchange-failed', name: '환전 송금 실패', role: 'inf', screen: { id: 'wallet' }, state: { exchanges: [{ id: 'e0', at: md(addDays(S2.deadline, -13)), amt: 50000, fee: 5000, pay: S2.pay, status: 'failed', reason: '받는 계좌의 예금주가 회원 실명과 달라요', note: `${md(S2.pay)} HP 복원`, _noShift: true }, { id: 'e1', at: md(addDays(S1.deadline, -11)), amt: 100000, fee: 10000, pay: S1.pay, status: 'done', note: payNote(S1), _noShift: true }] }, route: '/wallet', api: ['GET /api/v1/wallets/me/exchanges'], rules: ['송금 실패 시 보류를 풀어 수익 HP로 복원', '지갑 상단에 실패 사유와 계좌 확인 연결'] },
+        { id: 'i-empty-apps', name: '빈 내 출연', role: 'inf', screen: { id: 'appearances', tab: 'host' }, state: { apps: [] }, route: '/appearances?tab=host', api: ['GET /api/v1/appearances/requests/sent', 'GET /api/v1/appearances?role=HOST'], rules: ['호스트 탭은 게스트 찾기·모집 글 올리기, 게스트 탭은 프로필·모집 보기로 안내'] },
+        { id: 'i-request-expired', name: '출연 요청 만료', role: 'inf', screen: { id: 'appearances', tab: 'host' }, state: { apps: APPS0.filter(a => a.id === 'a7') }, route: '/appearances?tab=host', api: ['(배치) 수락 기한 만료 처리 · 매분'], rules: ['수락 기한이 지나면 요청 만료(EXPIRED)', '보류 HP를 호스트에게 반환'] },
+        { id: 'i-recruit-expired', name: '모집 마감 일시 경과', role: 'inf', screen: { id: 'recruit', rec: 'r5' }, route: '/recruits/{recruitId}', api: ['(배치) 모집 마감 일시 처리 · 매분'], rules: ['마감 일시가 지나면 배치가 마감(조기 마감과 같음)', '대기 중인 지원은 미선정, 빈자리분 보류는 반환', '프레임 안 "자동 취소" 문구는 이전 안'] },
+        { id: 'i-exchange-failed', name: '환전 송금 실패', role: 'inf', screen: { id: 'wallet' }, state: { exchanges: [{ id: 'e0', at: md(addDays(S2.deadline, -13)), amt: 50000, fee: 5000, pay: S2.pay, status: 'failed', reason: '받는 계좌의 예금주가 신청 정보와 달라요', note: `${md(S2.pay)} HP 복원`, acct: '004 ******5678', _noShift: true }, { id: 'e1', at: md(addDays(S1.deadline, -11)), amt: 100000, fee: 10000, pay: S1.pay, status: 'done', note: payNote(S1), acct: '004 ******5678', _noShift: true }] }, route: '/wallet', api: ['GET /api/v1/settlements/exchanges'], rules: ['미구현 · 송금 처리(승인·PROCESSING 이후)는 BE #294 이후', '정책: FAILED면 보류를 풀어 수익 HP로 복원, UNKNOWN이면 보류 유지', '다시 신청할 때 계좌를 새로 입력'] },
+      ] },
+      { group: '미구현 (BE API 없음)', items: [
+        { id: 'i-alerts', name: '알림', role: 'inf', screen: { id: 'alerts' }, route: '/alerts', api: ['(BE API 없음) 알림 목록'], rules: [NOT_BUILT, '출연 요청, 취소 요청, 출연 확인 요청, 지급·송금 완료를 알림'] },
+        { id: 'i-withdraw', name: '회원 탈퇴 · 진행 중 거래 있음', role: 'inf', screen: { id: 'withdraw' }, route: '/settings/withdraw', api: ['(BE API 없음) 회원 탈퇴'], rules: [NOT_BUILT, '진행 중인 출연 거래나 송금 대기 환전이 있으면 탈퇴 불가(안)'] },
+      ] },
     ] },
-    ] },
-  { id: 'admin', code: 'A', label: '관리자', sub: '심사·검수·분쟁 판단을 맡는 운영자',
-    desc: '채널 인증과 승급을 심사하고, 강의를 검수하고, 노쇼 신고와 강의 내용 다름 이의 제기를 판단해요. 관리자는 거래 당사자가 되지 않아요.',
+  { id: 'admin', code: 'A', label: '관리자', sub: '심사·검수·이의 제기 판단을 맡는 운영자',
+    desc: '채널 인증과 승급을 심사하고, 강의를 검수하고, 문의에 답하면서 강의 내용 다름 이의 제기를 판단해요. 관리자는 거래 당사자가 되지 않아요.',
     flow: ['접수', '자료 확인', '판단', '결과 통보', '지갑이 반환·지급 처리'],
-    can: ['채널 인증 심사', '승급 심사', '강의 검수', '이의 제기 판단', '문의 답변', '채팅', '강의·모집글·인플루언서 조회'],
-    cannot: ['HP 충전·환불·환전', '강의 구매', '출연 요청·모집'],
+    can: ['채널 인증 심사', '승급 심사', '강의 검수', '지급 실패 확인·격리 해제', '문의 답변과 이의 제기 판단', '채팅·채팅 기록 조회', '강의·모집글·인플루언서 조회', '계정 설정(닉네임·프로필 사진)'],
+    cannot: ['HP 충전·환불·환전', '강의 구매', '출연 요청·모집', '회원 탈퇴'],
     state: { rooms: ADMIN_ROOMS, inquiries: INQ_ADMIN },
     groups: [
-      { group: '대시보드', items: [
-        { id: 'a-home', name: '운영 대시보드', role: 'admin', screen: { id: 'adminHome' }, route: '/admin', api: ['GET /api/v1/admin/queues/summary'], rules: ['대기 건수와 지급 중단 금액을 먼저 보여 줌', '접수일이 오래된 순으로 처리'] },
+      { group: '대시보드·계정', items: [
+        { id: 'a-home', name: '운영 대시보드', role: 'admin', screen: { id: 'adminHome' }, route: '/admin', api: ['GET /api/v1/members/admin/channels?status=PENDING', 'GET /api/v1/members/admin/upgrade-requests?status=PENDING', 'GET /api/v1/lectures/admin/inspections?status=PENDING_INSPECTION', 'GET /api/v1/inquiries/admin?status=WAITING', 'GET /api/v1/lectures/admin/payout-failures'], rules: ['각 목록 API의 페이지 정보(totalElements)로 대기 건수 표시(#100)', '카드마다 로딩·오류를 따로 처리', '통합 요약·오래 기다린 순·최근 처리는 BE API 없음'] },
+        { id: 'a-settings', name: '계정 설정 · 관리자', role: 'admin', screen: { id: 'settings' }, route: '/settings', api: ['GET /api/v1/members/me', 'PATCH /api/v1/members/me', 'PUT /api/v1/members/files/{memberId}/content', 'DELETE /api/v1/members/me/profile-image'], rules: ['상단 프로필 메뉴로만 들어옴, 운영 사이드바에는 없음(#96)', '닉네임(2~12자)·프로필 사진만 변경', '회원 탈퇴(/settings/withdraw)는 관리자에게 막힘'] },
       ] },
       { group: '회원 심사', items: [
-        { id: 'a-channel', name: '채널 인증 심사', role: 'admin', screen: { id: 'adminChannel' }, route: '/admin/channels', api: ['GET /api/v1/members/channels?status=pending', 'POST /api/v1/members/channels/{id}/approve', 'POST /api/v1/members/channels/{id}/reject'], rules: ['팔로워 10명 이상 또는 한 달 누적 방송 10시간 이상', '반려 시 사유 필수'] },
-        { id: 'a-promo', name: '승급 심사', role: 'admin', screen: { id: 'adminPromo' }, route: '/admin/promotions', api: ['GET /api/v1/members/promotions?status=pending', 'POST /api/v1/members/promotions/{id}/approve'], rules: ['승인하면 인증된 인플루언서로 전환', '반려 시 사유 필수'] },
+        { id: 'a-channel', name: '채널 인증 심사', role: 'admin', screen: { id: 'adminChannel' }, route: '/admin/channels', api: ['GET /api/v1/members/admin/channels', 'POST /api/v1/members/admin/channels/{channelId}/approve', 'POST /api/v1/members/admin/channels/{channelId}/reject'], rules: ['팔로워 10명 미만이라 승인을 요청한 채널만 들어옴', '채널에 들어가 한 달 누적 방송 10시간을 직접 확인', '반려 사유 필수(500자 이하), 반려 뒤 회원이 다시 승인 요청 가능'] },
+        { id: 'a-promo', name: '승급 심사', role: 'admin', screen: { id: 'adminPromo' }, route: '/admin/promotions', api: ['GET /api/v1/members/admin/upgrade-requests', 'POST /api/v1/members/admin/upgrade-requests/{requestId}/approve', 'POST /api/v1/members/admin/upgrade-requests/{requestId}/reject'], rules: ['승인하면 인증된 인플루언서로 전환', '반려 사유 필수(500자 이하)'] },
       ] },
       { group: '강의 검수', items: [
-        { id: 'a-lectures', name: '강의 검수 목록', role: 'admin', screen: { id: 'adminLectures' }, route: '/admin/lectures', api: ['GET /api/v1/lectures?status=review'], rules: ['신규 등록과 영상 수정 재검수가 함께 들어옴'] },
-        { id: 'a-lecture-new', name: '신규 강의 검수', role: 'admin', screen: { id: 'adminLectureDetail', target: 'k1' }, route: '/admin/lectures/{id}', api: ['GET /api/v1/lectures/{id}/review', 'POST /api/v1/lectures/{id}/approve', 'POST /api/v1/lectures/{id}/reject'], rules: ['승인하면 공개·판매 시작', '반려하면 사유를 남기고 판매자가 수정 후 재신청'] },
-        { id: 'a-lecture-re', name: '재검수 · 영상 수정', role: 'admin', screen: { id: 'adminLectureDetail', target: 'k2' }, route: '/admin/lectures/{id}', api: ['GET /api/v1/lectures/{id}/review?diff=true'], rules: ['재검수 중 신규 판매 중지', '기존 구매자는 마지막으로 승인된 내용을 시청', '제목·소개·가격·썸네일 수정은 재검수 대상 아님'] },
+        { id: 'a-lectures', name: '강의 검수 목록', role: 'admin', screen: { id: 'adminLectures' }, route: '/admin/lectures', api: ['GET /api/v1/lectures/admin/inspections'], rules: ['신규 등록과 영상 수정 재검수가 함께 들어옴'] },
+        { id: 'a-lecture-new', name: '신규 강의 검수', role: 'admin', screen: { id: 'adminLectureDetail', target: 'k1' }, route: '/admin/lectures/{lectureId}', api: ['GET /api/v1/lectures/admin/{lectureId}', 'POST /api/v1/lectures/admin/{lectureId}/inspection/approve', 'POST /api/v1/lectures/admin/{lectureId}/inspection/reject'], rules: ['승인하면 공개·판매 시작', '반려하면 사유를 남기고 판매자가 수정 후 재신청'] },
+        { id: 'a-lecture-re', name: '재검수 · 영상 수정', role: 'admin', screen: { id: 'adminLectureDetail', target: 'k2' }, route: '/admin/lectures/{lectureId}', api: ['GET /api/v1/lectures/admin/{lectureId}'], rules: ['재검수 중 신규 판매 중지', '기존 구매자는 마지막으로 승인된 내용을 시청', '제목·소개·가격·썸네일 수정은 재검수 대상 아님'] },
       ] },
-      { group: '분쟁 판단', items: [
-        { id: 'a-disputes', name: '이의 제기 목록', role: 'admin', screen: { id: 'adminDisputes' }, route: '/admin/disputes', api: ['GET /api/v1/inquiries?type=dispute&status=open'], rules: ['접수된 건은 판단 전까지 지급 중단', '자동 판정은 MVP 범위 밖'] },
-        { id: 'a-noshow', name: '노쇼 신고 판단', role: 'admin', screen: { id: 'adminDisputeDetail', target: 'd1' }, route: '/admin/disputes/{id}', api: ['GET /api/v1/inquiries/{id}', 'GET /api/v1/chatRooms/{id}/messages', 'POST /api/v1/inquiries/{id}/resolve'], rules: ['인정: 호스트에게 차감했던 종류대로 반환', '기각: 게스트 수익 HP로 지급', '판단 근거는 양쪽에 전달'] },
-        { id: 'a-content', name: '강의 내용 다름 판단', role: 'admin', screen: { id: 'adminDisputeDetail', target: 'd2' }, route: '/admin/disputes/{id}', api: ['GET /api/v1/inquiries/{id}', 'POST /api/v1/inquiries/{id}/resolve'], rules: ['인정: 구매자에게 차감했던 종류대로 반환', '기각: 판매자 수익 HP로 지급', '반환된 구매의 리뷰는 평균 평점에서 제외'] },
+      { group: '문의·이의 제기', items: [
+        { id: 'a-inquiries', name: '문의 답변', role: 'admin', screen: { id: 'adminInquiries' }, route: '/admin/inquiries?status=WAITING&sort=OLDEST', api: ['GET /api/v1/inquiries/admin', 'POST /api/v1/inquiries/admin/{inquiryId}/replies', 'PUT /api/v1/inquiries/admin/{inquiryId}/replies/{replyId}', 'DELETE /api/v1/inquiries/admin/{inquiryId}/replies/{replyId}'], rules: ['상태 필터는 탭이 아니라 aria-pressed 버튼', '답변은 문의한 회원의 고객센터에 표시', '강의 내용 다름 문의는 상세에서 판단', '노쇼 신고는 일반 문의라 답변만 함'] },
+        { id: 'a-content', name: '문의 상세 · 강의 내용 다름 판단', role: 'admin', screen: { id: 'adminInquiryDetail', target: 'd2' }, route: '/admin/inquiries/{inquiryId}', api: ['GET /api/v1/inquiries/admin/{inquiryId}', 'POST /api/v1/inquiries/admin/{inquiryId}/objection-resolution'], rules: ['별도 이의 제기 화면 없이 문의 상세에서 판단', '인정: 구매자에게 원래 HP 종류대로 반환(항목 RETURNED)', '기각: 지급 예정 시각에 판매자에게 예정대로 지급', '판단 안내는 답변으로 달리고 번복 불가', '반환된 구매의 리뷰는 평균 평점에서 제외'] },
       ] },
-      { group: '문의·대화', items: [
-        { id: 'a-inquiries', name: '문의 답변', role: 'admin', screen: { id: 'adminInquiries' }, route: '/admin/inquiries', api: ['GET /api/v1/inquiries?status=open', 'POST /api/v1/inquiries/{id}/replies'], rules: ['답변은 문의한 회원의 고객센터에 표시'] },
-        { id: 'a-chat', name: '채팅 · 분쟁 확인', role: 'admin', screen: { id: 'chat' }, route: '/admin/chat/{roomId}', api: ['GET /api/v1/chatRooms', 'WS /ws/chat'], rules: ['관리자도 채팅 가능', '대화 기록은 판단 근거로 보관'] },
+      { group: '지급·대화', items: [
+        { id: 'a-chat', name: '채팅', role: 'admin', screen: { id: 'chat' }, route: '/chat/{chatRoomId}', api: ['GET /api/v1/chats', 'POST /api/v1/chats', 'WS /api/v1/chats/ws (STOMP)'], rules: ['관리자는 인플루언서 이상 회원과 채팅을 시작할 수 있음', '회원끼리 나눈 대화는 채팅 기록(/admin/chats)에서 읽기 전용으로 확인', '지급 실패(/admin/payouts)·채팅 기록(/admin/chats)은 목업 프레임 없음'] },
         { id: 'a-lectures-view', name: '강의 목록 · 관리자', role: 'admin', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures'], rules: ['관리자는 조회만, 구매 불가'] },
       ] },
-      { group: '조회·이력', items: [
-        { id: 'a-search', name: '회원·거래 조회', role: 'admin', screen: { id: 'adminSearch', q: '수달' }, route: '/admin/search?q=', api: ['GET /api/v1/admin/members?q=', 'GET /api/v1/admin/deals?q='], rules: ['닉네임·이메일·회원 ID·거래 ID로 검색', '조회만 가능, 수정 불가', '상단 검색창에서 Enter로도 이동'] },
-        { id: 'a-member', name: '회원 상세', role: 'admin', screen: { id: 'adminMember', mid: 'M-10231' }, route: '/admin/members/{id}', api: ['GET /api/v1/admin/members/{id}', 'GET /api/v1/wallets/{memberId}'], rules: ['보유·보류 HP, 거래, 신고·이의 제기 이력', '관리자는 HP 종류(충전·수익)까지 확인', '대화하기로 채팅 연결'] },
-        { id: 'a-deal', name: '거래 상세', role: 'admin', screen: { id: 'adminDeal', did: 'APP-20261003-0031' }, route: '/admin/deals/{id}', api: ['GET /api/v1/admin/deals/{id}', 'GET /api/v1/wallets/ledger?refId={id}'], rules: ['상태 변화 기록과 원장(HP 이동)을 함께 보여 줌', '이의 제기가 있으면 판단 화면으로 연결'] },
-        { id: 'a-log', name: '처리 이력', role: 'admin', screen: { id: 'adminLog' }, route: '/admin/audit-logs', api: ['GET /api/v1/admin/audit-logs?type='], rules: ['승인·반려·판단·답변을 처리자·일시·사유와 함께 기록', '기록은 지우거나 고칠 수 없음 (append-only)'] },
-        { id: 'a-reject-template', name: '반려 사유 템플릿', role: 'admin', screen: { id: 'adminChannel', openReject: 'v3' }, route: '/admin/channels', api: ['GET /api/v1/admin/reject-templates?type='], rules: ['심사 종류별 자주 쓰는 사유를 골라 입력', '고른 뒤 문장을 고칠 수 있음', '사유는 사용자에게 그대로 전달되고 이력에 남음'] },
-    ] },
+      { group: '미구현 (BE API 없음)', items: [
+        { id: 'a-search', name: '회원·거래 조회', role: 'admin', screen: { id: 'adminSearch', q: '수달' }, route: '/admin/search?q=', api: ['(BE API 없음) 회원·거래 통합 검색'], rules: [NOT_BUILT, '닉네임·이메일·회원 ID·거래 ID로 검색(안)', '조회만 가능, 수정 불가'] },
+        { id: 'a-member', name: '회원 상세', role: 'admin', screen: { id: 'adminMember', mid: 'M-10231' }, route: '/admin/members/{memberId}', api: ['(BE API 없음) 관리자 회원 상세·지갑 조회'], rules: [NOT_BUILT, '보유·보류 HP, 거래, 신고·이의 제기 이력(안)'] },
+        { id: 'a-deal', name: '거래 상세', role: 'admin', screen: { id: 'adminDeal', did: 'APP-20261003-0031' }, route: '/admin/deals/{dealId}', api: ['(BE API 없음) 관리자 거래·원장 조회'], rules: [NOT_BUILT, '상태 변화 기록과 HP 이동을 함께 보여 줌(안)'] },
+        { id: 'a-log', name: '처리 이력', role: 'admin', screen: { id: 'adminLog' }, route: '/admin/audit-logs', api: ['(BE API 없음) 관리자 처리 이력'], rules: [NOT_BUILT, '승인·반려·판단·답변을 처리자·일시·사유와 함께 기록(안)'] },
+        { id: 'a-reject-template', name: '반려 사유 템플릿', role: 'admin', screen: { id: 'adminChannel', openReject: 'v3' }, route: '/admin/channels', api: ['(BE API 없음) 반려 사유 템플릿'], rules: [NOT_BUILT, '심사 종류별 자주 쓰는 사유를 골라 입력(안)', '반려 사유 자체는 직접 입력해 보냄'] },
+      ] },
     ] },
 ];
 const ALL_FRAMES = [];
@@ -3616,7 +3562,7 @@ PAGES.forEach(p => {
   p.frames = p.groups.flatMap(g => g.items);
 });
 const ROLE_SHORT = { guest: '비회원', user: '유저', inf: '인플', vinf: '인증', admin: '관리자' };
-const SCREEN_LABEL = { search: '검색 결과', adminMember: '회원 상세', adminDeal: '거래 상세', orders: '주문 내역', orderDone: '주문 완료', inquiry: '문의 상세', withdraw: '회원 탈퇴', chargeResult: '충전 결과', account: '환전 계좌', lectureEdit: '강의 등록·수정', watch: '강의 재생', reviewWrite: '리뷰 쓰기', lecture: '강의 상세', recruit: '모집 상세', profile: '인플루언서 프로필', adminLectureDetail: '강의 검수 상세', adminDisputeDetail: '이의 제기 상세' };
+const SCREEN_LABEL = { search: '검색 결과', adminMember: '회원 상세', adminDeal: '거래 상세', orders: '주문 내역', orderDone: '주문 완료', inquiry: '문의 상세', withdraw: '회원 탈퇴', chargeResult: '충전 결과', lectureEdit: '강의 등록·수정', watch: '강의 재생', reviewWrite: '리뷰 쓰기', lecture: '강의 상세', recruit: '모집 상세', profile: '인플루언서 프로필', adminLectureDetail: '강의 검수 상세', adminInquiryDetail: '문의 상세 · 이의 제기 판단', adminPayouts: '지급 실패', adminChats: '채팅 기록' };
 NAV.forEach(g => g.items.forEach(it => { SCREEN_LABEL[it.id] = it.label; }));
 const DEVICES = { desktop: { label: 'Desktop', w: 1440, h: 900, thumb: 300 }, mobile: { label: 'Mobile', w: 390, h: 844, thumb: 150 } };
 const store = {
@@ -3817,9 +3763,10 @@ function Editor() {
             ${moved
               ? html`<div className="fx-moved"><span>프레임 안에서 '${SCREEN_LABEL[cur] || cur}'(으)로 이동했어요</span><button className="fx-btn" onClick=${reset}>초기화</button></div>`
               : html`<p className="fx-note">프레임 안을 누르면 실제 앱처럼 동작해요. 바뀐 상태는 초기화로 되돌려요.</p>`}
+            <p className="fx-note">프레임 안의 잔액·보류 계산과 상태 변화는 프로토타입이에요. 실제 계산과 상태 전이는 BE가 하고, 화면은 서버 응답을 보여 줘요.</p>
           </div>
-          <div className="fx-sec"><h6>라우트 (안)</h6><code className="fx-code">${f.route}</code></div>
-          <div className="fx-sec"><h6>API (안)</h6>${f.api.map(a => html`<${ApiLine} key=${a} s=${a} />`)}</div>
+          <div className="fx-sec"><h6>라우트</h6><code className="fx-code">${f.route}</code></div>
+          <div className="fx-sec"><h6>API (dev Swagger 기준)</h6>${f.api.map(a => html`<${ApiLine} key=${a} s=${a} />`)}</div>
           <div className="fx-sec"><h6>적용 정책</h6><ul className="fx-rules">${f.rules.map(r => html`<li key=${r}>${r}</li>`)}</ul></div>
           <div className="fx-sec"><h6>단축키</h6><p className="fx-note"><span className="fx-kbd">↑</span> <span className="fx-kbd">↓</span> 이전·다음 · <span className="fx-kbd">R</span> 초기화 · <span className="fx-kbd">Esc</span> 전체 보기 · <span className="fx-kbd">1</span>–<span className="fx-kbd">3</span> 역할</p></div>`}
       </aside>
@@ -3827,7 +3774,7 @@ function Editor() {
 }
 
 // 예시 데이터 날짜를 오늘 기준으로 옮긴 뒤 렌더
-{ const seen = new WeakSet(); [REVIEWS, LEDGER0, LIB0, APPS0, RECRUITS0, ROOMS0, INQ0, ADMIN0, SALES, ALERTS, HISTORY, ADMIN_DISPUTE, LEDGER_USER, ADMIN_ROOMS, INQ_ADMIN, ADMIN_MEMBERS, ADMIN_DEALS, USER_STATE, APPS_NO_DISPUTE, RECRUITS_NO_REQ, PAGES].forEach(o => shiftDeep(o, seen)); }
+{ const seen = new WeakSet(); [REVIEWS, LEDGER0, LIB0, APPS0, RECRUITS0, ROOMS0, INQ0, ADMIN0, SALES, ALERTS, HISTORY, ADMIN_DISPUTE, LEDGER_USER, ADMIN_ROOMS, INQ_ADMIN, ADMIN_MEMBERS, ADMIN_DEALS, USER_STATE, RECRUITS_NO_REQ, PAGES].forEach(o => shiftDeep(o, seen)); }
 ReactDOM.createRoot(document.getElementById('root')).render(html`<${Editor} />`);
 </script>
 
