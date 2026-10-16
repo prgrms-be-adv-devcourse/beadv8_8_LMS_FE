@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
@@ -12,13 +13,15 @@ import type {
 } from '@/entities/appearance/types'
 import { confirmStage } from '@/entities/appearance/rules'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
+import { HoldPendingNotice } from '@/entities/appearance/ui/HoldPendingNotice'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
 import {
   HOLD_POLL_INTERVAL_MS,
-  useLimitedPolling,
-} from '@/shared/lib/useLimitedPolling'
+  useHoldPendingFound,
+  useHoldPendingParam,
+} from '@/shared/lib/holdPending'
 import { formatNumber } from '@/shared/lib/money'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -26,6 +29,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
+import { toast } from '@/shared/ui/toastStore'
 import styles from './AppearancesPage.module.css'
 
 const TABS: { value: RequestSide; label: string }[] = [
@@ -38,8 +42,8 @@ export function AppearancesPage() {
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
   // 요청 목록 페이지. 성립한 출연 목록은 apage로 따로 넘긴다. 한쪽을 넘겨도 다른 쪽 페이지와 처리 중 안내는 남는다.
   const [page, setPage] = usePageParam('page')
-  const holdPending = side === 'host' && params.get(HOLD_PENDING_PARAM) === '1'
-  const polling = useLimitedPolling(holdPending)
+  const hold = useHoldPendingParam(HOLD_PENDING_PARAM, side === 'host')
+  const { polling, dismiss } = hold
   const query = useQuery({
     ...appearanceRequestsQuery(side, page),
     refetchInterval: polling ? HOLD_POLL_INTERVAL_MS : false,
@@ -50,12 +54,14 @@ export function AppearancesPage() {
   // 역할을 바꾸면 두 목록 모두 첫 페이지부터 보고, 처리 중 안내는 닫는다.
   const selectTab = (tab: RequestSide) =>
     setParams(tab === 'guest' ? { tab: 'guest' } : {})
-  const dismissHoldPending = () =>
-    setParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.delete(HOLD_PENDING_PARAM)
-      return next
-    })
+  useHoldPendingFound(
+    hold.since,
+    data?.content.map((r) => r.createdAt),
+    useCallback(() => {
+      toast('출연 요청을 보냈어요.')
+      dismiss()
+    }, [dismiss]),
+  )
 
   return (
     <div className="page">
@@ -73,30 +79,13 @@ export function AppearancesPage() {
         <h2 className={styles.sectionTitle}>
           {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
         </h2>
-        {holdPending && (
-          <div className="notice warn" role="status">
-            <span>
-              요청은 접수됐고 HP 보류 결과를 확인하고 있어요.
-              {polling
-                ? ' 보류가 끝나면 아래 목록에 나타나요.'
-                : ' 아직 목록에 없으면 새로고침해 보세요. 잔액이 부족했다면 요청이 등록되지 않아요.'}
-            </span>
-            <button
-              type="button"
-              className="btn sm"
-              disabled={isFetching}
-              onClick={() => refetch()}
-            >
-              새로고침
-            </button>
-            <button
-              type="button"
-              className="btn ghost sm"
-              onClick={dismissHoldPending}
-            >
-              닫기
-            </button>
-          </div>
+        {hold.waiting && (
+          <HoldPendingNotice
+            polling={polling}
+            refreshing={isFetching}
+            onRefresh={() => refetch()}
+            onDismiss={dismiss}
+          />
         )}
         {isPending || moving ? (
           <Loading />

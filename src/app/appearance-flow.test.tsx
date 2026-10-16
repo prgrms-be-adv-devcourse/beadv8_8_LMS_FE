@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { appearanceKeys } from '@/entities/appearance/api'
 import type { AppearanceRequest } from '@/entities/appearance/types'
@@ -99,7 +99,7 @@ afterEach(() => {
 })
 
 describe('출연 요청 보내기', () => {
-  it('프로필에서 요청을 보내면 HP를 보류하고 요청서로 간다', async () => {
+  it('프로필에서 요청을 보내면 HP를 보류하고 보낸 요청 목록으로 간다', async () => {
     mockGuestProfile()
     let body: Record<string, unknown> | undefined
     const created = {
@@ -110,7 +110,12 @@ describe('출연 요청 보내기', () => {
         body = (await req.json()) as Record<string, unknown>
         return rs(created.value, 201)
       }),
-      http.get('*/api/v1/appearances/requests/30', () => rs(created.value)),
+      http.get('*/api/v1/appearances/requests/sent', () =>
+        rs({
+          content: [created.value],
+          page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
+        }),
+      ),
     )
     document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
@@ -138,8 +143,11 @@ describe('출연 요청 보내기', () => {
     )
 
     await waitFor(() =>
-      expect(router.state.location.pathname).toBe('/appearances/requests/30'),
+      expect(router.state.location.pathname).toBe('/appearances'),
     )
+    expect(router.state.location.search).toBe('?tab=host')
+    await expectSuccessToast('편집하는 고래 님에게 출연 요청을 보냈어요.')
+    expect(screen.queryByText(/포인트를 확인하고 있어요/)).toBeNull()
     expect(body).toMatchObject({
       guestId: GUEST_ID,
       title: '주말 게임 합방',
@@ -151,6 +159,7 @@ describe('출연 요청 보내기', () => {
     // datetime-local 값을 BE LocalDateTime(초까지)으로 보낸다
     expect(body?.scheduledAt).toMatch(/^\d{4}-\d{2}-\d{2}T21:00:00$/)
     expect(body?.acceptDeadline).toMatch(/^\d{4}-\d{2}-\d{2}T23:59:00$/)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('수락 기한이 방송 예정 일시보다 늦으면 보내지 않는다', async () => {
@@ -533,21 +542,80 @@ describe('리뷰 반영', () => {
     )
 
     expect(
-      await screen.findByText(/요청은 접수됐고 HP 보류 결과를 확인하고 있어요/),
+      await screen.findByText('포인트를 확인하고 있어요. 보통 1~2분 걸려요.'),
     ).toBeInTheDocument()
+    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
     expect(router.state.location.pathname).toBe('/appearances')
-    expect(router.state.location.search).toContain('holdPending=1')
+    expect(router.state.location.search).toMatch(/holdPending=\d{13}/)
     // 목록이 비어 있어도 안내는 남고, 입력창은 닫힌다.
     expect(
       await screen.findByText('아직 보낸 출연 요청이 없어요'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText(/요청은 접수됐고 HP 보류 결과를 확인하고 있어요/),
+      screen.getByText('포인트를 확인하고 있어요. 보통 1~2분 걸려요.'),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('dialog', { name: '출연 요청 보내기' }),
     ).toBeNull()
     expect(posts).toBe(1)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('보류 확인을 기다리는 동안 60초가 지나도 다시 부르고, 늦게 나타난 요청서가 보이면 멈추고 알린다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const kst = (ms: number) =>
+      new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 19)
+    const state = { calls: 0, appearedAt: null as number | null }
+    server.use(
+      http.get('*/api/v1/appearances/requests/sent', () => {
+        state.calls++
+        const content =
+          state.appearedAt === null
+            ? []
+            : [
+                request({
+                  hostId: ME_ID,
+                  guestId: HOST_ID,
+                  createdAt: kst(state.appearedAt),
+                }),
+              ]
+        return rs({
+          content,
+          page: {
+            size: 10,
+            number: 0,
+            totalElements: content.length,
+            totalPages: content.length,
+          },
+        })
+      }),
+    )
+    const router = renderApp(
+      `/appearances?tab=host&holdPending=${Date.now()}`,
+      'INFLUENCER',
+    )
+    const waiting = '포인트를 확인하고 있어요. 보통 1~2분 걸려요.'
+    expect(await screen.findByText(waiting)).toBeInTheDocument()
+
+    await act(() => vi.advanceTimersByTimeAsync(65_000))
+    expect(state.calls).toBeGreaterThanOrEqual(10)
+    expect(screen.getByText(waiting)).toBeInTheDocument()
+
+    state.appearedAt = Date.now()
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    await expectSuccessToast('출연 요청을 보냈어요.')
+    await waitFor(() => expect(screen.queryByText(waiting)).toBeNull())
+    expect(router.state.location.search).not.toContain('holdPending')
+    // 대기 주소를 기록에 남기지 않는다(뒤로 가기로 끝난 대기가 되살아나지 않게)
+    expect(router.state.historyAction).toBe('REPLACE')
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    const calls = state.calls
+    await act(() => vi.advanceTimersByTimeAsync(30_000))
+    expect(state.calls).toBe(calls)
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('탭을 바꾸는 동안 이전 역할의 목록을 새 역할로 보여 주지 않는다', async () => {
