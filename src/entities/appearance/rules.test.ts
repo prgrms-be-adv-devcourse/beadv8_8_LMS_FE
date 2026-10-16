@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { validateRecruitForm, type RecruitFormValues } from './rules'
+import {
+  canHostCancel,
+  canRequestCancel,
+  penaltyOf,
+  type RecruitFormValues,
+  validateRecruitForm,
+} from './rules'
+import type { Appearance } from './types'
 
 const NOW = '2026-10-15T12:00'
 
@@ -62,5 +69,51 @@ describe('validateRecruitForm', () => {
     expect(Object.keys(errors).sort()).toEqual(
       ['content', 'expectedMinutes', 'hostChannelUrl', 'title'].sort(),
     )
+  })
+})
+
+describe('출연 취소 규칙', () => {
+  const now = new Date('2026-10-16T12:00:00+09:00')
+  const base = {
+    status: 'ESTABLISHED',
+    scheduledAt: '2026-10-20T21:00:00',
+    cancelRequests: [],
+  } as unknown as Appearance
+
+  it('위약금은 출연료의 30%이고 원 단위 미만은 버린다', () => {
+    expect(penaltyOf(25000)).toBe(7500)
+    expect(penaltyOf(20001)).toBe(6000)
+  })
+
+  it('게스트는 성립 상태·방송 전·요청 2번 미만일 때만 취소를 요청할 수 있다', () => {
+    expect(canRequestCancel(base, now)).toBe(true)
+    expect(canRequestCancel({ ...base, status: 'CANCEL_REQUESTED' }, now)).toBe(
+      false,
+    )
+    expect(
+      canRequestCancel({ ...base, scheduledAt: '2026-10-16T11:00:00' }, now),
+    ).toBe(false)
+    expect(
+      canRequestCancel(
+        {
+          ...base,
+          cancelRequests: [{}, {}] as Appearance['cancelRequests'],
+        },
+        now,
+      ),
+    ).toBe(false)
+  })
+
+  it('호스트는 성립·취소 요청 중이고 방송 전이면 일방 취소할 수 있다', () => {
+    expect(canHostCancel(base, now)).toBe(true)
+    expect(canHostCancel({ ...base, status: 'CANCEL_REQUESTED' }, now)).toBe(
+      true,
+    )
+    expect(canHostCancel({ ...base, status: 'CANCELED_BY_HOST' }, now)).toBe(
+      false,
+    )
+    expect(
+      canHostCancel({ ...base, scheduledAt: '2026-10-16T11:00:00' }, now),
+    ).toBe(false)
   })
 })

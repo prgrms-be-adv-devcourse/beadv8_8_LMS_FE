@@ -217,13 +217,20 @@ function StatusNote({
       )
     case 'ACCEPTED':
       return (
-        <p className="fine">
-          {request.respondedAt && `${formatDateTime(request.respondedAt)}에 `}
-          출연이 성립했어요.
-          {host
-            ? ` 방송 예정일 전에 호스트가 취소하면 출연료의 ${PENALTY_RATE_PERCENT}%가 위약금으로 게스트에게 지급돼요.`
-            : ' 방송 예정일 전에 호스트에게 출연 취소를 요청할 수 있어요.'}
-        </p>
+        <>
+          <p className="fine">
+            {request.respondedAt && `${formatDateTime(request.respondedAt)}에 `}
+            출연이 성립했어요.
+            {host
+              ? ` 방송 예정일 전에 호스트가 취소하면 출연료의 ${PENALTY_RATE_PERCENT}%가 위약금으로 게스트에게 지급돼요.`
+              : ' 방송 예정일 전에 호스트에게 출연 취소를 요청할 수 있어요.'}
+          </p>
+          {request.appearanceId !== null && (
+            <Link className="link" to={`/appearances/${request.appearanceId}`}>
+              출연 상세에서 취소하기
+            </Link>
+          )}
+        </>
       )
     case 'REJECTED':
       return (

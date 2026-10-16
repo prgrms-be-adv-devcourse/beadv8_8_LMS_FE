@@ -1,4 +1,6 @@
+import { isPast } from '@/shared/lib/date'
 import type {
+  Appearance,
   AppearanceRequestInput,
   AppearanceRequestStatus,
   RecruitInput,
@@ -148,4 +150,37 @@ export function validateRecruitForm(
 /** 끝난(더 응답할 수 없는) 요청서 */
 export function isRequestEnded(status: AppearanceRequestStatus) {
   return status !== 'REQUESTED' && status !== 'HOLD_PENDING'
+}
+
+/** 출연 취소 요청 사유·거절 사유·일방 취소 사유 최대 길이 (BE REASON_MAX) */
+export const CANCEL_REASON_MAX = 500
+/** 출연 1건당 취소 요청 횟수 (BE) */
+export const CANCEL_REQUEST_LIMIT = 2
+
+/** 호스트 일방 취소 위약금 (출연료의 30%, 원 단위 미만 버림). 안내용 계산이고 실제 금액은 BE가 정한다 */
+export function penaltyOf(fee: number) {
+  return Math.floor((fee * PENALTY_RATE_PERCENT) / 100)
+}
+
+/** 처리 중인 게스트 취소 요청 */
+export function pendingCancelRequest(appearance: Appearance) {
+  return appearance.cancelRequests.find((r) => r.status === 'REQUESTED') ?? null
+}
+
+/** 게스트가 지금 취소 요청을 보낼 수 있는지 (성립 상태, 방송 전, 요청 횟수 남음) */
+export function canRequestCancel(appearance: Appearance, now = new Date()) {
+  return (
+    appearance.status === 'ESTABLISHED' &&
+    !isPast(appearance.scheduledAt, now) &&
+    appearance.cancelRequests.length < CANCEL_REQUEST_LIMIT
+  )
+}
+
+/** 호스트가 지금 일방 취소할 수 있는지 (성립·취소 요청 중, 방송 전) */
+export function canHostCancel(appearance: Appearance, now = new Date()) {
+  return (
+    (appearance.status === 'ESTABLISHED' ||
+      appearance.status === 'CANCEL_REQUESTED') &&
+    !isPast(appearance.scheduledAt, now)
+  )
 }

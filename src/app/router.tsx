@@ -19,6 +19,7 @@ import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
+import { AppearanceDetailPage } from '@/pages/appearance-detail/AppearanceDetailPage'
 import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
 import { AdminInquiriesPage } from '@/pages/admin-inquiries/AdminInquiriesPage'
 import { AdminInquiryPage } from '@/pages/admin-inquiry/AdminInquiryPage'
@@ -77,6 +78,7 @@ const EXTRA_ROUTES: PageDef[] = [
     title: '출연 요청서',
     roles: INFLUENCER,
   },
+  { path: '/appearances/:appearanceId', title: '출연 상세', roles: INFLUENCER },
   { path: '/library/orders', title: '주문 내역', roles: MEMBER },
   { path: '/library/orders/:orderId/done', title: '주문 완료', roles: MEMBER },
   { path: '/library/:lectureId/watch', title: '강의 시청', roles: MEMBER },
@@ -136,6 +138,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/chat': <ChatPage />,
   '/chat/:chatRoomId': <ChatPage />,
   '/appearances/requests/:requestId': <AppearanceRequestPage />,
+  '/appearances/:appearanceId': <AppearanceDetailPage />,
   '/studio': <StudioPage />,
   '/studio/lectures/new': <LectureNewPage />,
   '/studio/lectures/:lectureId/edit': <LectureEditPage />,

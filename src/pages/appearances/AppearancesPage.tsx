@@ -2,12 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
+  appearancesQuery,
   HOLD_PENDING_PARAM,
 } from '@/entities/appearance/api'
 import type {
   AppearanceRequestSummary,
+  AppearanceSummary,
   RequestSide,
 } from '@/entities/appearance/types'
+import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
@@ -32,6 +35,9 @@ export function AppearancesPage() {
   const [params, setParams] = useSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
   const page = Math.max(0, Number(params.get('page') ?? '1') - 1) || 0
+  // 성립한 출연 목록의 페이지 (요청 목록 page와 따로)
+  const appearancePage =
+    Math.max(0, Number(params.get('apage') ?? '1') - 1) || 0
   const holdPending = side === 'host' && params.get(HOLD_PENDING_PARAM) === '1'
   const polling = useLimitedPolling(holdPending)
   const { data, error, isPending, refetch, isFetching } = useQuery({
@@ -42,6 +48,7 @@ export function AppearancesPage() {
   const go = (next: {
     tab?: RequestSide
     page?: number
+    appearancePage?: number
     keepHoldPending?: boolean
   }) => {
     const search = new URLSearchParams()
@@ -49,6 +56,9 @@ export function AppearancesPage() {
     if (tab === 'guest') search.set('tab', 'guest')
     const p = next.page ?? 0
     if (p > 0) search.set('page', String(p + 1))
+    // 역할을 바꾸면 처음부터, 같은 역할 안에서는 한쪽 목록을 넘겨도 다른 쪽 페이지를 지킨다.
+    const ap = next.appearancePage ?? (next.tab ? 0 : appearancePage)
+    if (ap > 0) search.set('apage', String(ap + 1))
     // 보낸 요청 안에서 페이지를 넘길 때는 처리 중 안내를 유지한다.
     if (next.keepHoldPending && holdPending) search.set(HOLD_PENDING_PARAM, '1')
     setParams(search)
@@ -58,7 +68,7 @@ export function AppearancesPage() {
     <div className="page">
       <PageHead
         title="내 출연"
-        lede="호스트로 보낸 출연 요청과 게스트로 받은 요청을 함께 관리해요. 요청을 보내면 출연료만큼 HP가 보류돼요."
+        lede="성립한 출연과 출연 요청을 역할별로 함께 관리해요. 요청을 보내면 출연료만큼 HP가 보류되고, 성립한 출연은 상세에서 취소를 요청하거나 처리할 수 있어요."
         actions={
           <Link className="btn" to="/influencers">
             게스트 찾기
@@ -71,6 +81,14 @@ export function AppearancesPage() {
         value={side}
         onChange={(tab) => go({ tab })}
       >
+        <AppearanceList
+          side={side}
+          page={appearancePage}
+          onPage={(p) => go({ page, appearancePage: p, keepHoldPending: true })}
+        />
+        <h2 className={styles.sectionTitle}>
+          {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
+        </h2>
         {holdPending && (
           <div className="notice warn" role="status">
             <span>
@@ -127,7 +145,9 @@ export function AppearancesPage() {
             <Pager
               page={data.page.number}
               totalPages={data.page.totalPages}
-              onChange={(p) => go({ page: p, keepHoldPending: true })}
+              onChange={(p) =>
+                go({ page: p, appearancePage, keepHoldPending: true })
+              }
             />
           </>
         )}
@@ -179,6 +199,89 @@ function RequestCard({
             </b>
           </div>
         )}
+      </div>
+    </Link>
+  )
+}
+
+/** 성립한 출연 (요청·모집에서 성립한 건). 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다 */
+function AppearanceList({
+  side,
+  page,
+  onPage,
+}: {
+  side: RequestSide
+  page: number
+  onPage: (page: number) => void
+}) {
+  const { data, error, isPending, refetch } = useQuery(
+    appearancesQuery(side === 'host' ? 'HOST' : 'GUEST', page),
+  )
+  return (
+    <section aria-label="성립한 출연" className={styles.section}>
+      <h2 className={styles.sectionTitle}>성립한 출연</h2>
+      {isPending ? (
+        <Loading />
+      ) : error ? (
+        <LoadError error={error} retry={refetch} />
+      ) : data.content.length === 0 ? (
+        <p className="fine">아직 성립한 출연이 없어요.</p>
+      ) : (
+        <>
+          <div className="page" style={{ gap: 12 }}>
+            {data.content.map((appearance) => (
+              <AppearanceCard
+                key={appearance.id}
+                appearance={appearance}
+                side={side}
+              />
+            ))}
+          </div>
+          <Pager
+            page={data.page.number}
+            totalPages={data.page.totalPages}
+            onChange={onPage}
+          />
+        </>
+      )}
+    </section>
+  )
+}
+
+function AppearanceCard({
+  appearance,
+  side,
+}: {
+  appearance: AppearanceSummary
+  side: RequestSide
+}) {
+  const partnerId = side === 'host' ? appearance.guestId : appearance.hostId
+  // 호스트가 답해야 하는 취소 요청은 눈에 띄게 한다.
+  const attn = side === 'host' && appearance.status === 'CANCEL_REQUESTED'
+  return (
+    <Link
+      to={`/appearances/${appearance.id}`}
+      className={attn ? `${styles.card} ${styles.attn}` : styles.card}
+    >
+      <div className={styles.head}>
+        <MemberChip memberId={partnerId} />
+        <span className="fine">
+          {side === 'host' ? '게스트' : '호스트'} ·{' '}
+          {appearance.sourceType === 'RECRUIT' ? '출연 모집' : '출연 요청'}
+        </span>
+        <span className={styles.spacer} />
+        <AppearanceStatusPill status={appearance.status} />
+      </div>
+      <span className={styles.title}>{appearance.title}</span>
+      <div className={styles.grid}>
+        <div>
+          <span>출연료</span>
+          <b className="num">{formatNumber(appearance.fee)} HP</b>
+        </div>
+        <div>
+          <span>방송 예정</span>
+          <b>{formatDateTime(appearance.scheduledAt)}</b>
+        </div>
       </div>
     </Link>
   )
