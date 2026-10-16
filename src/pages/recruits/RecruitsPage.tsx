@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   HOLD_PENDING_PARAM,
@@ -12,6 +12,7 @@ import type {
   RecruitSummary,
 } from '@/entities/appearance/types'
 import { ApplicationStatusPill } from '@/entities/appearance/ui/ApplicationStatusPill'
+import { HoldPendingNotice } from '@/entities/appearance/ui/HoldPendingNotice'
 import {
   RecruitDeadlinePill,
   RecruitStatusOnlyPill,
@@ -26,14 +27,16 @@ import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import {
   HOLD_POLL_INTERVAL_MS,
-  useLimitedPolling,
-} from '@/shared/lib/useLimitedPolling'
+  useHoldPendingFound,
+  useHoldPendingParam,
+} from '@/shared/lib/holdPending'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
+import { toast } from '@/shared/ui/toastStore'
 
 type Tab = RecruitListTab | 'applications'
 
@@ -94,10 +97,9 @@ export function RecruitsPage() {
 }
 
 function Recruits({ tab }: { tab: RecruitListTab }) {
-  const [params, setParams] = useSearchParams()
   const [page, setPage] = usePageParam('page')
-  const holdPending = tab === 'mine' && params.get(HOLD_PENDING_PARAM) === '1'
-  const polling = useLimitedPolling(holdPending)
+  const hold = useHoldPendingParam(HOLD_PENDING_PARAM, tab === 'mine')
+  const { polling } = hold
   const query = useQuery({
     ...recruitsQuery(tab, page),
     refetchInterval: polling ? HOLD_POLL_INTERVAL_MS : false,
@@ -106,39 +108,25 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
   const moving = useClampPage(page, query, setPage)
   const { data: me } = useQuery(meQuery)
 
-  const dismissHoldPending = () =>
-    setParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.delete(HOLD_PENDING_PARAM)
-      return next
-    })
+  const { dismiss } = hold
+  useHoldPendingFound(
+    hold.since,
+    data?.content.map((r) => r.createdAt),
+    useCallback(() => {
+      toast('모집글이 등록됐어요.')
+      dismiss()
+    }, [dismiss]),
+  )
 
   return (
     <>
-      {holdPending && (
-        <div className="notice warn" role="status">
-          <span>
-            HP 보류를 확인하는 중이에요.
-            {polling
-              ? ' 잠시 뒤 내 모집글에 나타나요.'
-              : ' 아직 목록에 없으면 새로고침해 보세요. 잔액이 부족했다면 모집글이 올라가지 않아요.'}
-          </span>
-          <button
-            type="button"
-            className="btn sm"
-            disabled={isFetching}
-            onClick={() => refetch()}
-          >
-            새로고침
-          </button>
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={dismissHoldPending}
-          >
-            닫기
-          </button>
-        </div>
+      {hold.waiting && (
+        <HoldPendingNotice
+          polling={polling}
+          refreshing={isFetching}
+          onRefresh={() => refetch()}
+          onDismiss={dismiss}
+        />
       )}
       {isPending || moving ? (
         <Loading />

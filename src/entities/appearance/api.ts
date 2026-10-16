@@ -20,11 +20,15 @@ import type {
 } from './types'
 
 /**
- * 보낸 요청의 HP 보류 결과를 기다리는 중임을 목록 화면에 알리는 URL 파라미터.
- * BE는 보류가 끝나지 않은 요청서를 목록·상세에서 숨기고 요청 ID도 주지 않아(503 BILLING_UNAVAILABLE),
- * 개별 요청을 추적하지 못하고 목록을 잠시 다시 불러오는 것으로 대신한다.
+ * 보낸 요청서·모집글의 HP 보류 결과를 기다리는 중임을 목록 화면에 알리는 URL 파라미터. 값은 보낸 시각(ms)이다.
+ * BE는 보류가 끝나지 않은 글을 목록·상세에서 숨기고 ID도 주지 않아(503 BILLING_UNAVAILABLE),
+ * 개별 글을 추적하지 못하고 목록을 잠시 다시 불러오는 것으로 대신한다(BE #306 전까지).
  */
 export const HOLD_PENDING_PARAM = 'holdPending'
+
+/** 보류 결과를 기다리는 목록 주소. sentAt은 요청을 보내기 직전의 브라우저 시각(ms) */
+export const holdPendingPath = (path: string, sentAt: number) =>
+  `${path}&${HOLD_PENDING_PARAM}=${sentAt}`
 
 export const appearanceKeys = {
   all: ['appearance'] as const,

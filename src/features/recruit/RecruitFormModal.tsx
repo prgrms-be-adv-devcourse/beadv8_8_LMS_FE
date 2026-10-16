@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import {
   appearanceKeys,
   createRecruit,
-  HOLD_PENDING_PARAM,
+  holdPendingPath,
 } from '@/entities/appearance/api'
 import {
   CONTENT_MAX,
@@ -29,7 +29,7 @@ import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
 
-const HOLD_PENDING_PATH = `/recruits?tab=mine&${HOLD_PENDING_PARAM}=1`
+const MINE_PATH = '/recruits?tab=mine'
 
 /** 화면 순서대로 둔 입력칸. 앞 칸을 건너뛰고 아래 칸에 포커스하면 건너뛴 첫 오류 칸을 보여 준다 */
 const FIELD_ORDER = [
@@ -101,22 +101,27 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
         recruitCount: count,
         recruitDeadline: toServerDateTime(formValues.recruitDeadline),
       }),
-    onSuccess: (created) => {
-      toast('모집글을 올렸어요.')
-      if (created.status === 'RECRUITING') navigate(`/recruits/${created.id}`)
-      else {
-        // 보류가 끝나기 전인 모집글은 상세를 볼 수 없어 내 모집글에서 결과를 기다린다.
-        onClose()
-        navigate(HOLD_PENDING_PATH)
+    // 보낸 시각(브라우저 시계). 보류 확인이 늦어지면 이 시각 이후 만든 글이 목록에 보일 때까지 기다린다.
+    onMutate: () => ({ sentAt: Date.now() }),
+    onSuccess: (created, _, context) => {
+      onClose()
+      if (created.status === 'RECRUITING') {
+        toast('모집글을 올렸어요.')
+        navigate(MINE_PATH)
+      } else {
+        // 보류가 끝나기 전인 모집글은 목록·상세에 없어 내 모집글에서 결과를 기다린다.
+        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        navigate(holdPendingPath(MINE_PATH, context.sentAt))
       }
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
       if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 모집글을 저장했고 HP 보류만 늦어지고 있다.
-        // 다시 올리면 중복 모집글이 되므로 입력창을 닫고, 내 모집글에서 결과를 확인하게 한다.
+        // 다시 올리면 중복 모집글이 되므로 입력창을 닫고, 내 모집글에서 결과를 기다리게 한다.
         onClose()
-        navigate(HOLD_PENDING_PATH)
+        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        navigate(holdPendingPath(MINE_PATH, context?.sentAt ?? Date.now()))
         return
       }
       fields.applyServerErrors(error)

@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router'
 import {
   appearanceKeys,
   createAppearanceRequest,
-  HOLD_PENDING_PARAM,
+  holdPendingPath,
 } from '@/entities/appearance/api'
 import {
   CONTENT_MAX,
@@ -27,6 +27,9 @@ import { Avatar } from '@/shared/ui/Avatar'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
+
+/** 보낸 요청 목록 (내 출연 · 호스트) */
+const SENT_PATH = '/appearances?tab=host'
 
 type RequestFormModalProps = {
   guest: { id: number; nickname: string; profileImageUrl: string | null }
@@ -96,22 +99,27 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         fee,
         acceptDeadline: toServerDateTime(formValues.acceptDeadline),
       }),
-    onSuccess: (created) => {
-      toast(`${guest.nickname} 님에게 출연 요청을 보냈어요.`)
-      // HP 보류가 끝나기 전(HOLD_PENDING)인 요청서는 상세를 볼 수 없어 목록에서 결과를 기다린다.
-      navigate(
-        created.status === 'REQUESTED'
-          ? `/appearances/requests/${created.id}`
-          : `/appearances?tab=host&${HOLD_PENDING_PARAM}=1`,
-      )
+    // 보낸 시각(브라우저 시계). 보류 확인이 늦어지면 이 시각 이후 만든 요청서가 목록에 보일 때까지 기다린다.
+    onMutate: () => ({ sentAt: Date.now() }),
+    onSuccess: (created, _, context) => {
+      onClose()
+      if (created.status === 'REQUESTED') {
+        toast(`${guest.nickname} 님에게 출연 요청을 보냈어요.`)
+        navigate(SENT_PATH)
+      } else {
+        // HP 보류가 끝나기 전(HOLD_PENDING)인 요청서는 목록·상세에 없어 보낸 요청 목록에서 결과를 기다린다.
+        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        navigate(holdPendingPath(SENT_PATH, context.sentAt))
+      }
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
       if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 요청서를 저장했고 HP 보류만 늦어지고 있다.
-        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록에서 결과를 확인하게 한다.
+        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록에서 결과를 기다리게 한다.
         onClose()
-        navigate(`/appearances?tab=host&${HOLD_PENDING_PARAM}=1`)
+        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        navigate(holdPendingPath(SENT_PATH, context?.sentAt ?? Date.now()))
         return
       }
       fields.applyServerErrors(error)
