@@ -111,20 +111,16 @@ describe('상단 헤더 장바구니', () => {
 })
 
 describe('상단 헤더 알림·권한', () => {
-  it('두 헤더 모두 회원에게 알림 링크가 있다', async () => {
+  // 알림은 BE API가 없어 진입점을 숨긴다(#101).
+  it.each([
+    ['상단 바', '/lectures'],
+    ['홈 헤더', '/'],
+  ] as const)('%s에 회원 알림 링크가 없다', async (_, path) => {
     mockCart(0)
-    renderApp('/lectures', 'USER')
-    expect(
-      await within(await header()).findByRole('link', { name: '알림' }),
-    ).toHaveAttribute('href', '/alerts')
-  })
-
-  it('홈 헤더에도 알림 링크가 있다', async () => {
-    mockCart(0)
-    renderApp('/', 'USER')
-    expect(
-      await within(await header()).findByRole('link', { name: '알림' }),
-    ).toHaveAttribute('href', '/alerts')
+    renderApp(path, 'USER')
+    const bar = await header()
+    await within(bar).findByRole('link', { name: '장바구니' })
+    expect(within(bar).queryByRole('link', { name: '알림' })).toBeNull()
   })
 
   it.each([
@@ -145,7 +141,7 @@ describe('상단 헤더 알림·권한', () => {
 })
 
 describe('좁은 화면 드로어', () => {
-  it('헤더 대신 드로어 내 활동 맨 위에 알림·장바구니가 있다', async () => {
+  it('헤더 대신 드로어 내 활동 맨 위에 장바구니가 있다', async () => {
     mockCart(3)
     renderApp('/lectures', 'USER')
     await userEvent.click(
@@ -156,16 +152,16 @@ describe('좁은 화면 드로어', () => {
     const cart = await within(group).findByRole('link', {
       name: '장바구니 3개',
     })
-    const alerts = within(group).getByRole('link', { name: '알림' })
     // 넓은 화면에서는 헤더에 있으므로 좁은 화면에서만 보인다(CSS).
-    expect(cart.closest('[data-narrow-only]')).not.toBeNull()
-    expect(alerts.closest('[data-narrow-only]')).not.toBeNull()
+    const narrow = cart.closest('[data-narrow-only]')
+    expect(narrow).not.toBeNull()
     expect(
-      within(group)
+      within(narrow as HTMLElement)
         .getAllByRole('link')
-        .slice(0, 2)
         .map((a) => a.getAttribute('href')),
-    ).toEqual(['/alerts', '/cart'])
+    ).toEqual(['/cart'])
+    expect(within(group).getAllByRole('link')[0]).toBe(cart)
+    expect(within(group).queryByRole('link', { name: '알림' })).toBeNull()
   })
 })
 

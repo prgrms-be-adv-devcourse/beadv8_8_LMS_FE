@@ -17,12 +17,13 @@ export type NavItem = {
 }
 export type NavGroup = { title: string; items: NavItem[] }
 
-/** 좁은 화면에서 상단 헤더의 알림·장바구니를 대신 보여 줄 그룹 */
+/** 좁은 화면에서 상단 헤더의 장바구니를 대신 보여 줄 그룹 */
 export const MY_ACTIVITY = '내 활동'
 
 /**
  * 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다.
- * 홈은 로고로, 알림·장바구니는 상단 헤더로 들어가므로 여기 두지 않는다(라우트는 router.tsx EXTRA_ROUTES).
+ * 홈은 로고로, 장바구니는 상단 헤더로 들어가므로 여기 두지 않는다(라우트는 router.tsx EXTRA_ROUTES).
+ * 알림·검색·이의 제기·회원·거래 조회·처리 이력은 BE API가 없어 메뉴와 라우트를 두지 않는다(#101).
  */
 export const NAV: NavGroup[] = [
   {
@@ -33,11 +34,8 @@ export const NAV: NavGroup[] = [
       { path: '/admin/promotions', label: '승급 심사', roles: ADMIN },
       { path: '/admin/lectures', label: '강의 검수', roles: ADMIN },
       { path: '/admin/payouts', label: '지급 실패', roles: ADMIN },
-      { path: '/admin/disputes', label: '이의 제기', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },
-      { path: '/admin/search', label: '회원·거래 조회', roles: ADMIN },
-      { path: '/admin/logs', label: '처리 이력', roles: ADMIN },
     ],
   },
   {

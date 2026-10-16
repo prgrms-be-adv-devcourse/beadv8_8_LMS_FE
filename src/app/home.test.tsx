@@ -138,16 +138,19 @@ describe('홈', () => {
     ).not.toBeNull()
   })
 
-  it('홈 헤더 검색은 검색 화면으로 보낸다', async () => {
-    mockLectures(0)
-    const router = renderApp('/', 'GUEST')
-    await userEvent.type(
-      await screen.findByRole('textbox', { name: '검색' }),
-      '썸네일{Enter}',
-    )
-    expect(router.state.location.pathname).toBe('/search')
-    expect(router.state.location.search).toBe('?q=%EC%8D%B8%EB%84%A4%EC%9D%BC')
-  })
+  // 통합 검색은 BE API가 없어 진입점을 숨긴다(#101).
+  it.each(['GUEST', 'USER'] as const)(
+    '홈 헤더에는 검색이 없다(%s)',
+    async (viewer) => {
+      mockLectures(0)
+      renderApp('/', viewer)
+      const bar = await screen.findByRole('banner')
+      await within(bar).findByRole('navigation', { name: '둘러보기' })
+      expect(within(bar).queryByRole('search')).toBeNull()
+      expect(within(bar).queryByRole('textbox', { name: '검색' })).toBeNull()
+      expect(within(bar).queryByRole('link', { name: '검색' })).toBeNull()
+    },
+  )
 
   it('홈이 아닌 화면은 기존 상단 바를 쓴다', async () => {
     mockLectures(0)

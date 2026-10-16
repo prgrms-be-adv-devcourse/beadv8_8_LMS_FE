@@ -284,34 +284,6 @@
   color: var(--ink);
   font-weight: 700;
 }
-.search {
-  flex: 1 1 220px;
-  max-width: 420px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--sunken);
-  border-radius: 999px;
-  padding: 0 14px;
-  min-height: 40px;
-  color: var(--ink-3);
-}
-.search input {
-  border: 0;
-  background: transparent;
-  outline: none;
-  width: 100%;
-  min-width: 0;
-  color: var(--ink);
-}
-.searchIcon {
-  display: none;
-  width: 44px;
-  height: 44px;
-  place-items: center;
-  color: var(--ink-2);
-  margin-left: auto;
-}
 .iconBtn {
   position: relative;
   width: 40px;
@@ -421,7 +393,7 @@
   }
 }
 
-/* 좁은 화면 (모바일 아트보드): 가로 메뉴·검색창 대신 검색 아이콘 */
+/* 좁은 화면 (모바일 아트보드): 가로 메뉴는 숨기고 햄버거 드로어로 대신한다 */
 @media (max-width: 960px) {
   .topnav {
     display: none;
@@ -434,15 +406,6 @@
   }
   .homeTop .onair {
     display: none;
-  }
-  .search {
-    display: none;
-  }
-  .searchIcon {
-    display: grid;
-  }
-  .homeTop .right {
-    margin-left: 0;
   }
 }
 @media (max-width: 480px) {
@@ -461,7 +424,7 @@
   }
 }
 
-/* 좁은 화면: 상단 헤더의 알림·장바구니를 드로어 '내 활동' 맨 위로 옮긴다(NarrowShortcuts).
+/* 좁은 화면: 상단 헤더의 장바구니를 드로어 '내 활동' 맨 위로 옮긴다(NarrowShortcuts).
    .iconBtn·.narrowOnly 기본값보다 뒤에 두어야 덮어쓴다. */
 @media (max-width: 860px) {
   .headerIcon {
