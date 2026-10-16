@@ -75,7 +75,7 @@ afterEach(() => {
 
 describe('강의 판매 화면', () => {
   it('머리글과 강의 등록 버튼을 보여 준다', async () => {
-    serveStudio()
+    const requested = serveStudio()
     renderApp('/studio', 'VERIFIED_INFLUENCER')
 
     expect(
@@ -85,6 +85,12 @@ describe('강의 판매 화면', () => {
       'href',
       '/studio/lectures/new',
     )
+    // 머리글만 보고 끝내면 두 목록 조회가 다음 테스트의 핸들러로 샌다. 조회가 끝날 때까지 기다린다.
+    await waitFor(() => {
+      expect(requested.lectures).not.toHaveLength(0)
+      expect(requested.sales).not.toHaveLength(0)
+    })
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('내 강의를 상태 Pill·가격·반려 사유와 함께 보여 준다', async () => {
