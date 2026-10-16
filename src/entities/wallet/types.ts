@@ -92,3 +92,49 @@ export type Refund = {
   /** 결제 건별 취소(FIFO 순서). 화면에는 쓰지 않는다. */
   items: RefundItem[]
 }
+
+/**
+ * 환전 신청 상태 (BE ExchangeStatus).
+ * REQUESTED 관리자 승인 전(회원이 취소 가능), CANCELED 회원 취소(보류 HP 반환).
+ * PROCESSING·COMPLETED·FAILED·UNKNOWN은 송금 단계(BE 후속 기능)다.
+ */
+export type ExchangeStatus =
+  'REQUESTED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNKNOWN' | 'CANCELED'
+
+/** 신청 당시 입력한 테스트 계좌(이후 바뀌지 않는다). 계좌번호는 끝 4자리만 보인다. */
+export type ExchangeAccount = {
+  bankCode: string
+  /** 예: **********1234 */
+  accountNumberMasked: string
+  accountHolderName: string
+  /** 실제 계좌 확인을 하지 않아 PENDING이다. 화면에는 쓰지 않는다. */
+  verificationStatus: 'PENDING' | 'VERIFIED' | 'FAILED'
+}
+
+/** 환전 신청 (BE ExchangeResponse). 수수료·예상 수령액은 신청 때 BE가 확정한 값을 그대로 표시한다. */
+export type Exchange = {
+  exchangeId: number
+  /** 신청 금액(수익 HP, 보류한 금액) */
+  requestedAmount: number
+  /** 0.1 = 10% */
+  feeRate: number
+  feeAmount: number
+  /** 예상 수령액(원) = 신청 금액 − 수수료 */
+  expectedPayoutAmount: number
+  status: ExchangeStatus
+  /** 잠정 정산 예정일(KST 날짜, 예: 2026-10-12). 공휴일을 반영하지 않아 실제 송금일이 아니다. */
+  settlementRoundDate: string
+  requestedAt: string
+  canceledAt: string | null
+  completedAt: string | null
+  failedAt: string | null
+  account: ExchangeAccount
+}
+
+/** POST /settlements/exchanges 본문 */
+export type ExchangeRequest = {
+  amount: number
+  bankCode: string
+  accountNumber: string
+  accountHolderName: string
+}

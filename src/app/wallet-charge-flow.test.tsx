@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { CartItem } from '@/entities/cart/types'
 import type { ChargeOrder, Wallet } from '@/entities/wallet/types'
+import { mockExchanges } from '@/test/exchanges'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -75,6 +76,8 @@ afterEach(() => {
 
 describe('지갑', () => {
   it('지갑에서 보유 HP와 충전·수익 HP, 보류 HP를 보여 준다', async () => {
+    // 인플루언서 지갑은 환전 내역도 부른다.
+    mockExchanges()
     renderApp('/wallet', 'INFLUENCER', {
       chargeBalanceHp: 120000,
       revenueBalanceHp: 43000,
