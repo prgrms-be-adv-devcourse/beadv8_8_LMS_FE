@@ -122,12 +122,6 @@
   display: grid;
   place-items: center;
 }
-.me {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
 .meText small {
   display: block;
   color: var(--ink-3);
@@ -238,9 +232,6 @@
   .main {
     padding: 20px 16px 56px;
   }
-  .meText {
-    display: none;
-  }
 }
 @media (max-width: 860px) and (prefers-reduced-motion: reduce) {
   .side {
@@ -322,6 +313,7 @@
   margin-left: auto;
 }
 .iconBtn {
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -330,6 +322,23 @@
   display: grid;
   place-items: center;
   color: var(--ink-2);
+}
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--signal);
+  color: var(--signal-ink);
+  font: 600 11px/18px var(--f-mono);
+  padding: 0 5px;
+  text-align: center;
+}
+/* 좁은 화면 드로어에서만 보이는 내비 항목 */
+.narrowOnly {
+  display: none;
 }
 .profile {
   position: relative;
@@ -435,7 +444,30 @@
   .homeTop .right {
     margin-left: 0;
   }
-  .homeTop .iconBtn {
+}
+@media (max-width: 480px) {
+  .top {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .top .onair {
     display: none;
+  }
+  .right {
+    gap: 6px;
+  }
+  .hpPill {
+    padding: 4px 10px 4px 4px;
+  }
+}
+
+/* 좁은 화면: 상단 헤더의 알림·장바구니를 드로어 '내 활동' 맨 위로 옮긴다(NarrowShortcuts).
+   .iconBtn·.narrowOnly 기본값보다 뒤에 두어야 덮어쓴다. */
+@media (max-width: 860px) {
+  .headerIcon {
+    display: none;
+  }
+  .narrowOnly {
+    display: contents;
   }
 }

@@ -129,9 +129,13 @@ describe('홈', () => {
       'true',
     )
     const drawer = screen.getByRole('navigation', { name: '주 메뉴' })
+    // 홈은 로고로 간다. 장바구니는 상단 헤더에 있고, 드로어에는 좁은 화면에서만 보인다.
+    expect(within(drawer).queryByRole('link', { name: '홈' })).toBeNull()
     expect(
-      within(drawer).getByRole('link', { name: '장바구니' }),
-    ).toBeInTheDocument()
+      within(drawer)
+        .getByRole('link', { name: '장바구니' })
+        .closest('[data-narrow-only]'),
+    ).not.toBeNull()
   })
 
   it('홈 헤더 검색은 검색 화면으로 보낸다', async () => {

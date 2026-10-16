@@ -191,7 +191,12 @@ describe('계정 설정', () => {
     await userEvent.click(save)
     expect(await screen.findByText('닉네임을 바꿨어요.')).toBeInTheDocument()
     expect(saved).toEqual({ nickname: '새벽 기타' })
-    expect(screen.getByRole('banner')).toHaveTextContent('새벽 기타')
+    // 상단 바는 닉네임을 아바타 메뉴에 둔다.
+    expect(
+      within(screen.getByRole('banner')).getByRole('button', {
+        name: '새벽 기타 메뉴',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('지원하지 않는 형식의 사진은 올리지 않는다', async () => {

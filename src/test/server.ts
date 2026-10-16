@@ -25,5 +25,23 @@ const appShellDefaults = [
   ),
 ]
 
+/**
+ * 장바구니: 회원 상단 헤더의 배지를 위해 항상 부른다. 강의 목(mocks/lecture.ts)은 실제 BE를 부르므로
+ * 그보다 앞에 둔다.
+ */
+const appShellCartDefault = [
+  http.get('*/api/v1/lectures/cart', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: { items: [], purchasableTotalHp: 0 },
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
-export const server = setupServer(...handlers, ...appShellDefaults)
+export const server = setupServer(
+  ...appShellCartDefault,
+  ...handlers,
+  ...appShellDefaults,
+)

@@ -7,6 +7,7 @@ import type { RouteHandle } from '@/app/routeHandle'
 import { meQuery } from '@/shared/auth/me'
 import {
   ADMIN,
+  ALL,
   INFLUENCER,
   MEMBER,
   SIGNED_IN,
@@ -55,8 +56,11 @@ import { WatchPage } from '@/pages/watch/WatchPage'
 
 type PageDef = { path: string; title: string; roles: readonly Viewer[] }
 
-/** 내비에 없는 상세·하위 화면 (docs/mockup-ui.html의 EXTRA_ROUTES) */
+/** 내비 레일에 없는 화면: 상단 헤더로 들어가는 화면과 상세·하위 화면 (docs/mockup-ui.html의 EXTRA_ROUTES) */
 const EXTRA_ROUTES: PageDef[] = [
+  { path: '/', title: '홈', roles: ALL },
+  { path: '/alerts', title: '알림', roles: MEMBER },
+  { path: '/cart', title: '장바구니', roles: MEMBER },
   { path: '/lectures/:lectureId', title: '강의 상세', roles: SIGNED_IN },
   { path: '/recruits/:recruitId', title: '모집 상세', roles: SIGNED_IN },
   {

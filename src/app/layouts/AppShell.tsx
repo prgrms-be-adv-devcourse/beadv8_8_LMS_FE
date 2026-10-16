@@ -8,10 +8,11 @@ import {
   useNavigate,
   useNavigation,
 } from 'react-router'
-import { navFor } from '@/app/nav'
+import { MY_ACTIVITY, navFor } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import type { RouteHandle } from '@/app/routeHandle'
 import { walletQuery } from '@/entities/wallet/api'
+import { useCartCount } from '@/features/cart/useCartCount'
 import { ChatConnection } from '@/features/chat/ChatConnection'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { LoginModal } from '@/shared/auth/LoginModal'
@@ -29,6 +30,16 @@ const NAV_ID = 'main-nav'
 
 /** 채팅을 쓸 수 있는 역할 (BE ChatRoles: 인플루언서 이상 또는 관리자) */
 const CHAT_VIEWERS: Viewer[] = ['INFLUENCER', 'VERIFIED_INFLUENCER', 'ADMIN']
+
+/** 배지 숫자. 99개를 넘으면 줄여 보인다. */
+function badgeText(count: number) {
+  return count > 99 ? '99+' : String(count)
+}
+
+/** 장바구니 링크의 읽는 이름. 개수를 모르거나 0이면 개수를 붙이지 않는다. */
+function cartLabel(count: number | undefined) {
+  return count ? `장바구니 ${count}개` : '장바구니'
+}
 
 /** 가장 안쪽 라우트의 화면 틀 (RouteHandle.layout) */
 function useLayout() {
@@ -136,18 +147,7 @@ function TopBar({ viewer, navOpen, onToggleNav }: TopBarProps) {
         합방<span className={styles.onair}>ON AIR</span>
       </Link>
       <div className={styles.right}>
-        {MEMBER.includes(viewer) && <HpPill />}
-        {viewer === 'GUEST' ? (
-          <button
-            type="button"
-            className="btn primary sm"
-            onClick={() => openLoginModal()}
-          >
-            로그인
-          </button>
-        ) : (
-          <MeMenu viewer={viewer} />
-        )}
+        <HeaderActions viewer={viewer} loginClassName="btn primary sm" />
       </div>
     </header>
   )
@@ -231,38 +231,104 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
         </svg>
       </Link>
       <div className={styles.right}>
-        {viewer === 'GUEST' ? (
-          <button
-            type="button"
-            className="btn primary"
-            onClick={() => openLoginModal()}
-          >
-            로그인
-          </button>
-        ) : (
-          <>
-            {MEMBER.includes(viewer) && <HpPill />}
-            {MEMBER.includes(viewer) && (
-              <Link to="/alerts" className={styles.iconBtn} aria-label="알림">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden="true"
-                >
-                  <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
-                  <path d="M10 20a2 2 0 0 0 4 0" />
-                </svg>
-              </Link>
-            )}
-            <ProfileMenu viewer={viewer} />
-          </>
-        )}
+        <HeaderActions viewer={viewer} loginClassName="btn primary" />
       </div>
     </header>
+  )
+}
+
+/**
+ * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 알림 · 장바구니 · 프로필 메뉴.
+ * 알림·장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다.
+ */
+function HeaderActions({
+  viewer,
+  loginClassName,
+}: {
+  viewer: Viewer
+  loginClassName: string
+}) {
+  if (viewer === 'GUEST') {
+    return (
+      <button
+        type="button"
+        className={loginClassName}
+        onClick={() => openLoginModal()}
+      >
+        로그인
+      </button>
+    )
+  }
+  const member = MEMBER.includes(viewer)
+  return (
+    <>
+      {member && <HpPill />}
+      {member && (
+        <NavLink
+          to="/alerts"
+          className={`${styles.iconBtn} ${styles.headerIcon}`}
+          aria-label="알림"
+        >
+          <BellIcon />
+        </NavLink>
+      )}
+      {member && <CartLink />}
+      <ProfileMenu viewer={viewer} />
+    </>
+  )
+}
+
+function CartLink() {
+  const count = useCartCount(true)
+  return (
+    <NavLink
+      to="/cart"
+      className={`${styles.iconBtn} ${styles.headerIcon}`}
+      aria-label={cartLabel(count)}
+    >
+      <CartIcon />
+      {!!count && (
+        <span className={styles.badge} aria-hidden="true">
+          {badgeText(count)}
+        </span>
+      )}
+    </NavLink>
+  )
+}
+
+function BellIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+    </svg>
+  )
+}
+
+/** docs/mockup-ui.html ICONS.cart */
+function CartIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 4h2.2l2.3 11h10.3L20 8H6.3M9.5 20h.01M16.5 20h.01" />
+    </svg>
   )
 }
 
@@ -335,22 +401,6 @@ function HpPill() {
   )
 }
 
-function MeMenu({ viewer }: { viewer: Viewer }) {
-  const { data: me } = useQuery(meQuery)
-  const logout = useLogout()
-  return (
-    <div className={styles.me}>
-      <span className={styles.meText}>
-        {me?.nickname}
-        <small>{VIEWER_LABEL[viewer]}</small>
-      </span>
-      <button type="button" className="btn ghost sm" onClick={logout}>
-        로그아웃
-      </button>
-    </div>
-  )
-}
-
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
   const unreadChats = useChatUnreadTotal(CHAT_VIEWERS.includes(viewer))
   return (
@@ -359,15 +409,23 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
       className={open ? `${styles.side} ${styles.sideOpen}` : styles.side}
       aria-label="주 메뉴"
     >
-      {navFor(viewer).map((group) => (
-        <div key={group.title} className={styles.navGroup}>
-          <h4>{group.title}</h4>
+      {navFor(viewer).map((group, i) => (
+        <div
+          key={group.title}
+          className={styles.navGroup}
+          role="group"
+          aria-labelledby={`${NAV_ID}-${i}`}
+        >
+          <h4 id={`${NAV_ID}-${i}`}>{group.title}</h4>
+          {group.title === MY_ACTIVITY && MEMBER.includes(viewer) && (
+            <NarrowShortcuts />
+          )}
           {group.items.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
-              // 홈·운영 대시보드는 하위 경로에서 켜지지 않게 한다.
-              end={item.path === '/' || item.path === '/admin'}
+              // 운영 대시보드는 하위 경로에서 켜지지 않게 한다.
+              end={item.path === '/admin'}
               className={({ isActive }) =>
                 isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
               }
@@ -378,7 +436,7 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
                   className={styles.cnt}
                   aria-label={`안 읽은 메시지 ${unreadChats}개`}
                 >
-                  {unreadChats > 99 ? '99+' : unreadChats}
+                  {badgeText(unreadChats)}
                 </span>
               )}
             </NavLink>
@@ -386,5 +444,27 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
         </div>
       ))}
     </nav>
+  )
+}
+
+/** 좁은 화면(≤860px) 드로어에서만 보이는 알림·장바구니. 넓은 화면에서는 상단 헤더에 있다. */
+function NarrowShortcuts() {
+  const count = useCartCount(true)
+  const className = ({ isActive }: { isActive: boolean }) =>
+    isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
+  return (
+    <div data-narrow-only className={styles.narrowOnly}>
+      <NavLink to="/alerts" className={className}>
+        알림
+      </NavLink>
+      <NavLink to="/cart" className={className} aria-label={cartLabel(count)}>
+        장바구니
+        {!!count && (
+          <span className={styles.cnt} aria-hidden="true">
+            {badgeText(count)}
+          </span>
+        )}
+      </NavLink>
+    </div>
   )
 }

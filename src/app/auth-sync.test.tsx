@@ -71,6 +71,9 @@ describe('탭 간 로그아웃 동기화', () => {
 
     const shell = await screen.findByRole('banner')
     await userEvent.click(
+      within(shell).getByRole('button', { name: '하늘 메뉴' }),
+    )
+    await userEvent.click(
       within(shell).getByRole('button', { name: '로그아웃' }),
     )
 
