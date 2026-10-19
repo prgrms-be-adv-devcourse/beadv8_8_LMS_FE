@@ -22,7 +22,6 @@ import { Avatar } from '@/shared/ui/Avatar'
 import { HpAmount } from '@/shared/ui/HpAmount'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { Toast } from '@/shared/ui/Toast'
-import { DevRoleStrip } from './DevRoleStrip'
 import styles from './AppShell.module.css'
 
 const NAV_ID = 'main-nav'
@@ -83,7 +82,6 @@ export function AppShell() {
       {me && CHAT_VIEWERS.includes(me.role) && (
         <ChatConnection userId={me.id} />
       )}
-      {import.meta.env.DEV && <DevRoleStrip />}
       {topLayout ? (
         <HomeHeader viewer={viewer} navOpen={navOpen} onToggleNav={toggleNav} />
       ) : (

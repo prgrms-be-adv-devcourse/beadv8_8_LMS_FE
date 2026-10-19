@@ -5,42 +5,6 @@
   background: var(--bg);
 }
 
-/* dev 역할 전환 스트립 */
-.proto {
-  background: var(--ink);
-  color: var(--bg);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 8px 16px;
-  font-size: 12px;
-}
-.proto b {
-  font: 600 11px var(--f-mono);
-  letter-spacing: 0.08em;
-  opacity: 0.7;
-}
-.seg {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.seg button {
-  border: 1px solid color-mix(in srgb, var(--bg) 30%, transparent);
-  background: transparent;
-  color: var(--bg);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 12px;
-}
-.seg .segOn {
-  background: var(--bg);
-  color: var(--ink);
-  border-color: var(--bg);
-  font-weight: 600;
-}
-
 /* 상단 바 */
 .top {
   position: sticky;
