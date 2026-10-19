@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { walletKeys } from '@/entities/wallet/api'
@@ -10,6 +11,7 @@ import {
   problem,
 } from '@/test/exchanges'
 import { renderApp, rs } from '@/test/renderApp'
+import { server } from '@/test/server'
 import {
   earning,
   earningSummary,
@@ -332,6 +334,43 @@ describe('지급 예정 수익', () => {
       status: ['COMPLETED'],
     })
     expect(listCalls[0].status).toEqual([])
+  })
+
+  it('필터를 바꾸면 새 목록이 올 때까지 이전 필터의 목록을 보여 주지 않고, 실패하면 필터를 둔 채 목록 자리에 오류를 보여 준다', async () => {
+    mockEarnings()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.get('*/api/v1/settlements/earnings', async ({ request }) => {
+        if (!new URL(request.url).searchParams.has('status'))
+          return rs({
+            content: [earning({ title: '미지급 강의' })],
+            page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
+          })
+        await gate
+        return problem(400, 'INVALID_REQUEST')
+      }),
+    )
+    renderApp('/wallet', 'INFLUENCER')
+    const region = await earnings()
+    expect(await within(region).findByText('미지급 강의')).toBeInTheDocument()
+
+    await userEvent
+      .setup()
+      .click(within(region).getByRole('button', { name: '지급 완료' }))
+
+    expect(await within(region).findByRole('status')).toBeInTheDocument()
+    expect(within(region).queryByText('미지급 강의')).toBeNull()
+    release()
+    expect(
+      await within(region).findByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(
+      within(region).getByRole('button', { name: '지급 완료' }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      within(region).getByRole('list', { name: '수익 요약' }),
+    ).toBeInTheDocument()
   })
 
   it('수익 목록이 비면 빈 상태를 보여 준다', async () => {

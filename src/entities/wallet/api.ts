@@ -169,7 +169,10 @@ export const earningSummaryQuery = queryOptions({
 
 export const EARNING_PAGE_SIZE = 10
 
-/** 지급 예정 수익 목록(상태가 바뀐 최신순). 출처 장애는 요약과 같은 503이다. */
+/**
+ * 지급 예정 수익 목록(상태가 바뀐 최신순). 출처 장애는 요약과 같은 503이다.
+ * 이전 목록은 같은 필터에서 페이지만 바뀔 때 유지한다(필터를 바꾸면 다른 상태의 목록이 잠깐 보이지 않게).
+ */
 export const earningsQuery = (filter: EarningFilter, page: number) =>
   queryOptions({
     queryKey: walletKeys.earningList(filter, page),
@@ -181,5 +184,6 @@ export const earningsQuery = (filter: EarningFilter, page: number) =>
           size: EARNING_PAGE_SIZE,
         },
       }),
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === filter ? previous : undefined,
   })

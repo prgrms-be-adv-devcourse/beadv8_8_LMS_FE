@@ -29,7 +29,7 @@ const EMPTY: Record<EarningFilter, string> = {
 /**
  * 인플루언서 지갑의 지급 예정 수익: 상태별 합계(요약)와 강의 판매·출연 수익 목록.
  * 상태 필터는 ?earning=completed|canceled(없으면 미지급), 페이지는 ?earningPage=N(1부터)에 둔다.
- * 요약·목록 중 하나라도 불러오지 못하면(출처 장애 503 등) 이 패널만 오류로 보여 준다.
+ * 요약을 불러오지 못하면(출처 장애 503 등) 이 패널만 오류로 보여 준다. 목록만 실패하면 목록 자리에 보여 준다.
  */
 export function EarningsPanel() {
   const [params, setParams] = useSearchParams()
@@ -48,19 +48,19 @@ export function EarningsPanel() {
       return params
     })
 
-  const error =
-    (!summary.data && summary.error) || (!list.data && list.error) || null
-  const retry = () => {
-    if (summary.error) void summary.refetch()
-    if (list.error) void list.refetch()
+  const listError = (!list.data && list.error) || null
+  // 출처 장애면 요약·목록이 함께 실패한다. 다시 시도 하나로 둘 다 다시 부른다.
+  const retryAll = () => {
+    void summary.refetch()
+    if (listError) void list.refetch()
   }
 
   return (
     <section className="panel" aria-labelledby="earnings-heading">
       <h2 id="earnings-heading">지급 예정 수익</h2>
-      {error ? (
-        <LoadError error={error} retry={retry} />
-      ) : !summary.data || !list.data || moving ? (
+      {!summary.data && summary.error ? (
+        <LoadError error={summary.error} retry={retryAll} />
+      ) : !summary.data ? (
         <Loading />
       ) : (
         <>
@@ -81,7 +81,11 @@ export function EarningsPanel() {
               ))}
             </div>
           </div>
-          {list.data.content.length === 0 ? (
+          {listError ? (
+            <LoadError error={listError} retry={() => void list.refetch()} />
+          ) : !list.data || moving ? (
+            <Loading />
+          ) : list.data.content.length === 0 ? (
             <EmptyState title={EMPTY[filter]} />
           ) : (
             <>
