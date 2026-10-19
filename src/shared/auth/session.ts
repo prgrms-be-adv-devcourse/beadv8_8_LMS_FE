@@ -1,14 +1,16 @@
 import {
   hashKey,
+  useMutation,
   useQuery,
   useQueryClient,
   type QueryClient,
 } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
+import { closeLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
-import { logout, meQuery } from './me'
-import type { Viewer } from './role'
+import { localLogin, logout, meQuery, type Me } from './me'
+import { VIEWER_LABEL, type Role, type Viewer } from './role'
 
 const GOOGLE_LOGIN_URL = '/api/v1/members/oauth2/authorization/google'
 const RETURN_TO_KEY = 'hapbang.returnTo'
@@ -67,9 +69,32 @@ export function useLogout() {
  * 내 정보까지 clear()로 지우면 화면이 구독하던 쿼리가 끊겨, 다시 그려지기 전까지 로그인 화면이 남는다.
  */
 export function clearSession(queryClient: QueryClient) {
-  queryClient.setQueryData(meQuery.queryKey, null)
+  replaceSession(queryClient, null)
+}
+
+/** 내 정보를 me로 바꾸고 이전 사용자(비회원 포함)의 나머지 캐시를 지운다. 내 정보는 지우지 않는다(clearSession 참고). */
+function replaceSession(queryClient: QueryClient, me: Me | null) {
+  queryClient.setQueryData(meQuery.queryKey, me)
   queryClient.removeQueries({
     predicate: (query) => query.queryHash !== hashKey(meQuery.queryKey),
+  })
+}
+
+/**
+ * 테스트 계정 로그인(local·dev BE). 성공하면 모달을 닫고 지금 화면에 머문다.
+ * 권한이 없는 화면이면 RoleGate가 역할 첫 화면으로 보낸다.
+ */
+export function useLocalLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ role, number }: { role: Role; number: number }) =>
+      localLogin(role, number),
+    onSuccess: (me, { role, number }) => {
+      replaceSession(queryClient, me)
+      closeLoginModal()
+      toast(`${VIEWER_LABEL[role]} ${number} 테스트 계정으로 로그인했어요.`)
+    },
+    onError: () => toast('테스트 계정으로 로그인하지 못했어요.'),
   })
 }
 

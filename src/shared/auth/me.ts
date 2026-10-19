@@ -36,7 +36,7 @@ export function logout() {
   return api<void>('/members/logout', { method: 'POST' })
 }
 
-/** 로컬 BE 전용 테스트 계정 로그인 (서버에는 없어 404) */
+/** local·dev BE 전용 테스트 계정 로그인. number는 같은 역할의 몇 번째 계정(1·2). 운영에는 없어 404 */
 export function localLogin(role: Role, number = 1) {
   return api<Me>('/members/local-login', {
     method: 'POST',
