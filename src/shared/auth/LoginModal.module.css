@@ -1,0 +1,13 @@
+/* 개발용 테스트 계정 로그인 (목업에 없는 영역, 로컬·dev 서버에서만 보인다) */
+.testAccounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+.accounts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}

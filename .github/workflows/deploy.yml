@@ -5,6 +5,7 @@
 # 서버 쪽 구성(compose, edge nginx, deploy.sh)은 BE 레포 docker/에 있다.
 # 필요한 Secrets: DEPLOY_HOST, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
 # 필요한 Variables: TOSS_PAYMENTS_CLIENT_KEY(토스페이먼츠 테스트 클라이언트 키, 공개 값. 없으면 HP 충전이 꺼진다)
+# dev 빌드에만 VITE_LOCAL_LOGIN=true를 넣어 로그인 모달에 테스트 계정 로그인을 켠다(BE도 dev에서만 켠다).
 name: Deploy
 
 on:
@@ -43,8 +44,10 @@ jobs:
         run: |
           if [ "$GITHUB_REF_NAME" = main ]; then
             echo "env=prod" >> "$GITHUB_OUTPUT"; echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "local_login=" >> "$GITHUB_OUTPUT"
           else
             echo "env=dev" >> "$GITHUB_OUTPUT"; echo "tag=dev" >> "$GITHUB_OUTPUT"
+            echo "local_login=true" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: docker/setup-buildx-action@v3
@@ -60,9 +63,10 @@ jobs:
         with:
           context: .
           push: true
-          # 번들에 들어가는 공개 값만 넘긴다(dev·운영 같은 값). docs/deploy.md 환경변수 절 참고
+          # 번들에 들어가는 공개 값만 넘긴다. VITE_LOCAL_LOGIN만 dev·운영이 다르다. docs/deploy.md 환경변수 절 참고
           build-args: |
             VITE_TOSS_PAYMENTS_CLIENT_KEY=${{ vars.TOSS_PAYMENTS_CLIENT_KEY }}
+            VITE_LOCAL_LOGIN=${{ steps.target.outputs.local_login }}
           tags: |
             ${{ env.IMAGE }}:${{ steps.target.outputs.tag }}
             ${{ env.IMAGE }}:sha-${{ github.sha }}

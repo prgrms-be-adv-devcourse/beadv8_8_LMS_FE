@@ -1,6 +1,19 @@
+import { useId } from 'react'
+import { isLocalLoginEnabled } from '@/shared/lib/localLogin'
 import { Modal } from '@/shared/ui/Modal'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { startGoogleLogin } from './session'
+import { VIEWER_LABEL, type Role } from './role'
+import { startGoogleLogin, useLocalLogin } from './session'
+import styles from './LoginModal.module.css'
+
+const TEST_ROLES: Role[] = [
+  'USER',
+  'INFLUENCER',
+  'VERIFIED_INFLUENCER',
+  'ADMIN',
+]
+/** BE MemberDataInit이 역할마다 만드는 테스트 계정 번호 */
+const TEST_NUMBERS = [1, 2]
 
 export function LoginModal() {
   const { open, reason } = useLoginModalStore()
@@ -20,7 +33,36 @@ export function LoginModal() {
         처음 로그인하면 유저로 가입돼요. 치지직 채널을 인증하면 인플루언서가
         돼요.
       </p>
+      {isLocalLoginEnabled() && <TestAccountLogin />}
     </Modal>
+  )
+}
+
+/** 로컬·dev 서버 전용: Google 없이 역할별 테스트 계정으로 로그인한다(POST /members/local-login). */
+function TestAccountLogin() {
+  const labelId = useId()
+  const { mutate, isPending } = useLocalLogin()
+  return (
+    <div className={styles.testAccounts} role="group" aria-labelledby={labelId}>
+      <p id={labelId} className="fine">
+        개발용 테스트 계정
+      </p>
+      <div className={styles.accounts}>
+        {TEST_ROLES.flatMap((role) =>
+          TEST_NUMBERS.map((number) => (
+            <button
+              key={`${role}-${number}`}
+              type="button"
+              className="btn sm"
+              disabled={isPending}
+              onClick={() => mutate({ role, number })}
+            >
+              {VIEWER_LABEL[role]} {number}
+            </button>
+          )),
+        )}
+      </div>
+    </div>
   )
 }
 

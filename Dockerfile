@@ -12,6 +12,9 @@ COPY . .
 # 토스페이먼츠 테스트 클라이언트 키(공개 값). 비어 있으면 HP 충전이 꺼진 채로 빌드된다(docs/deploy.md).
 ARG VITE_TOSS_PAYMENTS_CLIENT_KEY=
 ENV VITE_TOSS_PAYMENTS_CLIENT_KEY=$VITE_TOSS_PAYMENTS_CLIENT_KEY
+# 'true'면 로그인 모달에 테스트 계정 로그인을 넣는다. deploy.yml이 dev 빌드에만 넘긴다(운영은 빈 값).
+ARG VITE_LOCAL_LOGIN=
+ENV VITE_LOCAL_LOGIN=$VITE_LOCAL_LOGIN
 RUN pnpm build
 
 FROM nginx:1.28-alpine
