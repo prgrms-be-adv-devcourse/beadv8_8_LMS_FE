@@ -10,8 +10,10 @@ import { canExchange } from '@/entities/wallet/exchange'
 import { canRefund } from '@/entities/wallet/refund'
 import type { Wallet } from '@/entities/wallet/types'
 import { ChargeModal } from '@/features/wallet-charge/ChargeModal'
+import { EarningsPanel } from '@/features/wallet-earnings/EarningsPanel'
 import { ExchangeHistory } from '@/features/wallet-exchange/ExchangeHistory'
 import { RefundModal } from '@/features/wallet-refund/RefundModal'
+import { TransactionLedger } from '@/features/wallet-transactions/TransactionLedger'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
 import { tossClientKey } from '@/shared/lib/tossPayments'
@@ -19,9 +21,9 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 /**
- * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, 인플루언서의 환전 신청 진입과 환전 내역.
+ * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, HP 거래 원장.
+ * 인플루언서는 지급 예정 수익, 환전 신청 진입과 환전 내역도 본다.
  * /wallet?charge=N으로 오면(다른 화면의 "HP 충전하러 가기") 충전 모달을 그 금액으로 연다.
- * 거래 내역은 BE API가 생기면 붙인다.
  */
 export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
@@ -76,7 +78,9 @@ export function WalletPage() {
           onExchange={() => navigate('/wallet/exchange')}
         />
       )}
+      {earns && <EarningsPanel />}
       {earns && <ExchangeHistory />}
+      <TransactionLedger />
       {clientKey && chargeAmount !== null && (
         <ChargeModal
           clientKey={clientKey}

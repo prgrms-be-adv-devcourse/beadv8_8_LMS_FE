@@ -47,6 +47,42 @@ const appShellCartDefault = [
   ),
 ]
 
+/**
+ * 지갑 화면의 거래 원장·지급 예정 수익: 지갑을 여는 테스트마다 부른다(수익은 인플루언서만).
+ * 화면별 응답은 src/test/walletHistory.ts의 mockTransactions·mockEarnings로 덮어쓴다.
+ */
+const walletHistoryDefaults = [
+  ...['*/api/v1/wallets/me/transactions', '*/api/v1/settlements/earnings'].map(
+    (path) =>
+      http.get(path, () =>
+        HttpResponse.json({
+          statusCode: 200,
+          message: '',
+          data: {
+            content: [],
+            page: { size: 20, number: 0, totalElements: 0, totalPages: 0 },
+          },
+        }),
+      ),
+  ),
+  http.get('*/api/v1/settlements/earnings/summary', () => {
+    const none = { amountHp: 0, count: 0 }
+    return HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        confirmationPending: none,
+        scheduled: none,
+        onHold: none,
+        processing: none,
+        failed: none,
+        total: none,
+        asOf: '2026-10-19T00:00:00Z',
+      },
+    })
+  }),
+]
+
 /** 관리자 첫 화면(/admin, 운영 대시보드)의 대기 건수: 관리자를 첫 화면으로 보낼 때 부른다. */
 const adminHomeDefaults = [
   '*/api/v1/members/admin/channels',
@@ -73,4 +109,5 @@ export const server = setupServer(
   ...appShellCartDefault,
   ...appShellDefaults,
   ...adminHomeDefaults,
+  ...walletHistoryDefaults,
 )

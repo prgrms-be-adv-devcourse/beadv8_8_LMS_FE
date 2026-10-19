@@ -507,6 +507,14 @@ table.tbl {
 .tbl .r {
   text-align: right;
 }
+/* HP 증감: 늘면 수익 색, 줄면 본문 색(목업 .amt-p·.amt-m) */
+.amt-p {
+  color: var(--earn);
+  font-weight: 600;
+}
+.amt-m {
+  color: var(--ink);
+}
 /* 환전 내역: 좁은 화면에서는 예상 수령액·상태를 위, 정산 예정일·상세를 아래 줄로 접는다(목업 .tbl.exch) */
 @media (max-width: 560px) {
   .tbl.exch {
@@ -561,6 +569,47 @@ table.tbl {
   .tbl.exch td:nth-child(3) {
     display: none;
   }
+  /* 거래 원장: 내용·증감을 위, 일시·HP 종류를 아래 줄로 접는다(목업 .tbl.ledger) */
+  .tbl.ledger {
+    min-width: 0;
+  }
+  .tbl.ledger thead {
+    display: none;
+  }
+  .tbl.ledger tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tbl.ledger tr:last-child {
+    border-bottom: 0;
+  }
+  .tbl.ledger td {
+    border: 0;
+    padding: 0;
+  }
+  .tbl.ledger td:nth-child(2) {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 600;
+  }
+  .tbl.ledger td:nth-child(4) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .tbl.ledger td:nth-child(1) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .tbl.ledger td:nth-child(3) {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: right;
+    color: var(--ink-3);
+    font-size: 12px;
+  }
 }
 
 /* 금액 내역 */
@@ -585,6 +634,10 @@ table.tbl {
 .breakdown .row.short {
   color: var(--bad);
   font-weight: 600;
+}
+ul.breakdown {
+  list-style: none;
+  margin: 0;
 }
 .breakdown .total {
   border-top: 1px solid var(--line-2);

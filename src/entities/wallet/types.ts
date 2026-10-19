@@ -185,3 +185,100 @@ export type AdminExchange = {
   /** 복제본이 없으면 null이고 그 신청은 승인할 수 없다(409 EXCHANGE_APPLICANT_NOT_SYNCED). */
   applicant: ExchangeApplicant | null
 }
+
+/**
+ * 내 HP 거래 유형 (BE WalletTransactionType). 화면 문구는 BE displayName을 쓴다.
+ * 보류(가용 → 보류)와 확정(보류 차감)은 서로 다른 거래다.
+ */
+export type WalletTransactionType =
+  | 'CHARGE'
+  | 'PAYMENT_HOLD'
+  | 'PAYMENT_RELEASE'
+  | 'PAYMENT_SETTLED'
+  | 'PENALTY_PAID'
+  | 'EARNING_RECEIVED'
+  | 'PENALTY_RECEIVED'
+  | 'REFUND_HOLD'
+  | 'REFUND_RELEASE'
+  | 'REFUND'
+  | 'EXCHANGE_HOLD'
+  | 'EXCHANGE_RELEASE'
+  | 'EXCHANGE'
+  | 'REVERSAL'
+
+/** 거래가 가리키는 대상 (BE BillingReferenceType) */
+export type BillingReferenceType =
+  | 'LECTURE_ORDER'
+  | 'LECTURE_ORDER_ITEM'
+  | 'APPEARANCE_REQUEST'
+  | 'APPEARANCE_RECRUIT'
+  | 'RECRUIT_APPEARANCE'
+  | 'POINT_CHARGE'
+  | 'POINT_REFUND_REQUEST'
+  | 'EXCHANGE'
+  | 'SETTLEMENT'
+
+/** HP 증감 (부호 그대로). total = available + held */
+export type PointChange = {
+  availableChangeHp: number
+  heldChangeHp: number
+  totalChangeHp: number
+}
+
+/** 내 HP 거래 하나 (BE WalletTransactionResponse). 증감은 충전 HP(charge)와 수익 HP(revenue)를 합친 값이다. */
+export type WalletTransaction = PointChange & {
+  transactionId: number
+  type: WalletTransactionType
+  /** 사용자용 거래 이름 (예: HP 충전, 결제 보류) */
+  displayName: string
+  referenceType: BillingReferenceType
+  referenceId: number
+  /** UTC Instant */
+  occurredAt: string
+  charge: PointChange
+  revenue: PointChange
+}
+
+/**
+ * 수익 상태 (BE EarningStatus). 앞의 다섯은 아직 지급하지 않은 상태다.
+ * CONFIRMATION_PENDING 구매·출연 확인 대기, SCHEDULED 지급 예정, ON_HOLD 보류, PROCESSING 지급 처리 중,
+ * FAILED 지급 실패, COMPLETED 지급 완료, CANCELED 취소.
+ */
+export type EarningStatus =
+  | 'CONFIRMATION_PENDING'
+  | 'SCHEDULED'
+  | 'ON_HOLD'
+  | 'PROCESSING'
+  | 'FAILED'
+  | 'COMPLETED'
+  | 'CANCELED'
+
+export type EarningType =
+  'LECTURE_SALE' | 'APPEARANCE_FEE' | 'APPEARANCE_PENALTY'
+
+/** 지급 예정 수익 하나 (BE EarningItemResponse). 강의 판매·출연 수익을 합친 목록의 항목이다. */
+export type Earning = {
+  sourceType: 'LECTURE' | 'APPEARANCE'
+  sourceId: number
+  earningType: EarningType
+  title: string
+  amountHp: number
+  status: EarningStatus
+  /** 지급 예정 시각(UTC). 정할 수 없으면 null */
+  payoutScheduledAt: string | null
+  statusUpdatedAt: string
+}
+
+export type EarningAmount = { amountHp: number; count: number }
+
+/** 아직 지급하지 않은 수익의 상태별 합계 (BE EarningSummaryResponse). 합계도 BE 값을 그대로 쓴다. */
+export type EarningSummary = {
+  confirmationPending: EarningAmount
+  scheduled: EarningAmount
+  onHold: EarningAmount
+  processing: EarningAmount
+  failed: EarningAmount
+  total: EarningAmount
+  /** 조회 시작 시각(UTC) */
+  asOf: string
+}

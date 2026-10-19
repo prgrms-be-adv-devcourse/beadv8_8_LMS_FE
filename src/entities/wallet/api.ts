@@ -1,12 +1,16 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
+import { earningStatusParam, type EarningFilter } from './earning'
 import type {
   ChargeOrder,
+  Earning,
+  EarningSummary,
   Exchange,
   ExchangeRequest,
   Refund,
   Wallet,
+  WalletTransaction,
 } from './types'
 
 export const walletKeys = {
@@ -18,6 +22,13 @@ export const walletKeys = {
   exchanges: (page: number) => [...walletKeys.all, 'exchanges', page] as const,
   exchange: (exchangeId: number) =>
     [...walletKeys.all, 'exchange', exchangeId] as const,
+  /** 거래 원장·지급 예정 수익도 지갑 키 아래에 둬서, HP가 움직인 뒤 함께 다시 불러온다. */
+  transactions: (page: number) =>
+    [...walletKeys.all, 'transactions', page] as const,
+  earnings: () => [...walletKeys.all, 'earnings'] as const,
+  earningSummary: () => [...walletKeys.earnings(), 'summary'] as const,
+  earningList: (filter: EarningFilter, page: number) =>
+    [...walletKeys.earnings(), 'list', filter, page] as const,
 }
 
 /**
@@ -133,3 +144,42 @@ export function cancelExchange(exchangeId: number) {
     method: 'POST',
   })
 }
+
+export const TRANSACTION_PAGE_SIZE = 20
+
+/** 내 HP 거래 내역(최신 거래부터). 지갑이 없으면 빈 목록이다. */
+export const transactionsQuery = (page: number) =>
+  queryOptions({
+    queryKey: walletKeys.transactions(page),
+    queryFn: () =>
+      api<PagedModel<WalletTransaction>>('/wallets/me/transactions', {
+        query: { page, size: TRANSACTION_PAGE_SIZE },
+      }),
+    placeholderData: keepPreviousData,
+  })
+
+/**
+ * 아직 지급하지 않은 수익의 상태별 합계. 강의·출연 중 한쪽이라도 조회하지 못하면
+ * 부분 결과 없이 503(EARNING_SOURCE_UNAVAILABLE·EARNING_SOURCE_REJECTED)이다.
+ */
+export const earningSummaryQuery = queryOptions({
+  queryKey: walletKeys.earningSummary(),
+  queryFn: () => api<EarningSummary>('/settlements/earnings/summary'),
+})
+
+export const EARNING_PAGE_SIZE = 10
+
+/** 지급 예정 수익 목록(상태가 바뀐 최신순). 출처 장애는 요약과 같은 503이다. */
+export const earningsQuery = (filter: EarningFilter, page: number) =>
+  queryOptions({
+    queryKey: walletKeys.earningList(filter, page),
+    queryFn: () =>
+      api<PagedModel<Earning>>('/settlements/earnings', {
+        query: {
+          status: earningStatusParam(filter),
+          page,
+          size: EARNING_PAGE_SIZE,
+        },
+      }),
+    placeholderData: keepPreviousData,
+  })
