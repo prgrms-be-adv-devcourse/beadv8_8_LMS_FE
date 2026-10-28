@@ -1,0 +1,400 @@
+.root {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* 상단 바 */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+}
+.logo {
+  font-family: var(--f-display);
+  font-size: 26px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--ink);
+}
+.onair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 10px var(--f-mono);
+  letter-spacing: 0.1em;
+  color: var(--signal);
+  border: 1.5px solid var(--signal);
+  border-radius: 4px;
+  padding: 1px 5px 1px 4px;
+}
+.onair::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  animation: blink 1.6s infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onair::before {
+    animation: none;
+  }
+}
+.right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hpPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px 12px 5px 6px;
+  text-decoration: none;
+  color: var(--ink);
+  font-weight: 600;
+}
+.coin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  font: 700 10px var(--f-mono);
+  display: grid;
+  place-items: center;
+}
+.meText small {
+  display: block;
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+/* 셸 */
+.shell {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr);
+  flex: 1;
+}
+.side {
+  border-right: 1px solid var(--line);
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.navGroup h4 {
+  margin: 0 0 4px 10px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.navItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--ink-2);
+  font-weight: 500;
+  text-decoration: none;
+}
+.navItem:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+.navItem.on {
+  background: var(--ink);
+  color: var(--surface);
+}
+.main {
+  padding: 28px 32px 64px;
+  min-width: 0;
+}
+
+/* 메뉴 버튼·드로어 배경은 좁은 화면에서만 보인다 */
+.menuBtn {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 16px;
+  place-items: center;
+  flex: none;
+}
+.navScrim {
+  display: none;
+}
+
+/* 좁은 화면: 내비 레일을 왼쪽에서 열리는 드로어로 바꾼다 */
+@media (max-width: 860px) {
+  .menuBtn {
+    display: grid;
+  }
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(280px, 84vw);
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 0.2s ease-out,
+      visibility 0.2s;
+  }
+  .sideOpen {
+    transform: none;
+    visibility: visible;
+  }
+  .navScrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: rgba(10, 12, 16, 0.5);
+  }
+  .main {
+    padding: 20px 16px 56px;
+  }
+}
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+  .side {
+    transition: none;
+  }
+}
+
+.cnt {
+  font: 600 11px/18px var(--f-mono);
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--signal);
+  color: var(--signal-ink);
+  text-align: center;
+}
+.navItem.on .cnt {
+  background: var(--signal);
+}
+
+/* ── 홈 레이아웃 (RouteHandle.layout = 'top', 디자인: 합방 홈 화면) ── */
+.homeTop {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+}
+.topnav {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.topnavItem {
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.topnavItem:hover {
+  color: var(--ink);
+  background: var(--sunken);
+}
+.topnavItem.on {
+  color: var(--ink);
+  font-weight: 700;
+}
+.iconBtn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+}
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--signal);
+  color: var(--signal-ink);
+  font: 600 11px/18px var(--f-mono);
+  padding: 0 5px;
+  text-align: center;
+}
+/* 좁은 화면 드로어에서만 보이는 내비 항목 */
+.narrowOnly {
+  display: none;
+}
+.profile {
+  position: relative;
+}
+.avatarBtn {
+  border: 0;
+  background: none;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+}
+.profileMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 25;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.profileMenu .meText {
+  display: block;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.profileMenu :global(.btn) {
+  justify-content: flex-start;
+}
+
+/* 홈에서는 내비 레일이 늘 햄버거로 여는 드로어다 */
+.topLayout .menuBtn {
+  display: grid;
+}
+.topLayout .shell {
+  grid-template-columns: minmax(0, 1fr);
+}
+.topLayout .side {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  width: min(280px, 84vw);
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition:
+    transform 0.2s ease-out,
+    visibility 0.2s;
+}
+.topLayout .sideOpen {
+  transform: none;
+  visibility: visible;
+}
+.topLayout .navScrim {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(10, 12, 16, 0.5);
+}
+/* 홈 섹션은 화면 끝까지 꽉 찬 띠라 바깥 여백을 두지 않는다 */
+.topLayout .main {
+  padding: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .topLayout .side {
+    transition: none;
+  }
+}
+
+/* 좁은 화면 (모바일 아트보드): 가로 메뉴는 숨기고 햄버거 드로어로 대신한다 */
+@media (max-width: 960px) {
+  .topnav {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .homeTop {
+    gap: 6px;
+    padding: 8px 8px 8px 12px;
+  }
+  .homeTop .onair {
+    display: none;
+  }
+}
+@media (max-width: 480px) {
+  .top {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+  .top .onair {
+    display: none;
+  }
+  .right {
+    gap: 6px;
+  }
+  .hpPill {
+    padding: 4px 10px 4px 4px;
+  }
+}
+
+/* 좁은 화면: 상단 헤더의 장바구니를 드로어 '내 활동' 맨 위로 옮긴다(NarrowShortcuts).
+   .iconBtn·.narrowOnly 기본값보다 뒤에 두어야 덮어쓴다. */
+@media (max-width: 860px) {
+  .headerIcon {
+    display: none;
+  }
+  .narrowOnly {
+    display: contents;
+  }
+}

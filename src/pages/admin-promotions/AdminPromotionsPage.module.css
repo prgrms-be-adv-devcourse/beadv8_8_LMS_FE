@@ -1,0 +1,39 @@
+.tabs {
+  display: flex;
+  gap: 6px;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.channels {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.channels a {
+  text-decoration: none;
+}
+.reason {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+/* 목업 .reject-box */
+.rejectBox {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.rejectBox :global(.input) {
+  flex: 1;
+  min-width: 180px;
+}

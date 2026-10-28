@@ -1,0 +1,9 @@
+.card {
+  text-decoration: none;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}

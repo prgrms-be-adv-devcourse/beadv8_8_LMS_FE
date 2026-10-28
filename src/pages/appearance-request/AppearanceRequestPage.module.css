@@ -1,0 +1,15 @@
+.head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.head h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+.content {
+  white-space: pre-line;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}

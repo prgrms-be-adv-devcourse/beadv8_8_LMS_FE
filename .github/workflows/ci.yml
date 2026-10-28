@@ -1,4 +1,4 @@
-# main·dev로 가는 PR마다 린트와 빌드(타입 체크 포함)를 실행한다.
+# main·dev로 가는 PR마다 포맷 검사, 린트, 빌드(타입 체크 포함)를 실행한다.
 # deploy.yml도 배포 전에 이 워크플로를 호출해, 병합된 커밋이 통과해야만 배포된다.
 name: CI
 
@@ -21,16 +21,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 버전은 package.json의 packageManager를 따른다. setup-node의 pnpm 캐시보다 먼저 와야 한다.
+      - uses: pnpm/action-setup@v4
+
       # Dockerfile의 node:24와 맞춘다.
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
+
+      - name: 포맷 검사
+        run: pnpm format:check
 
       - name: 린트
-        run: npm run lint
+        run: pnpm lint
+
+      - name: 테스트
+        run: pnpm test
 
       - name: 빌드 (tsc -b 포함)
-        run: npm run build
+        run: pnpm build

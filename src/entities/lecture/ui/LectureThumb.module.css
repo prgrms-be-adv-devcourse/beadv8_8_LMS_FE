@@ -1,0 +1,73 @@
+.thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--sunken);
+  isolation: isolate;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fallback {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px 14px;
+}
+.fallback::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.06) 0 1px,
+    transparent 1px 4px
+  );
+}
+.title {
+  font-family: var(--f-display);
+  font-size: 20px;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.md {
+  width: 100%;
+}
+.big {
+  width: 100%;
+  border-radius: 12px;
+}
+.big.fallback {
+  padding: 20px 24px;
+}
+.big .title {
+  font-size: clamp(28px, 4.2vw, 44px);
+}
+.sm {
+  width: 112px;
+  flex: none;
+  border-radius: 6px;
+}
+.sm.fallback {
+  padding: 6px 8px;
+}
+.sm .title {
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

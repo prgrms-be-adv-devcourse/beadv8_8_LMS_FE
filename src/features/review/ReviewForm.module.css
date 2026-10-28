@@ -1,0 +1,29 @@
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.star {
+  border: 0;
+  background: none;
+  font-size: 34px;
+  line-height: 1;
+  padding: 0 2px;
+  color: var(--line-2);
+}
+.star.on {
+  color: var(--hold);
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.spacer {
+  flex: 1;
+}

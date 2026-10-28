@@ -1,0 +1,11 @@
+.search {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  max-width: 420px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 20px;
+}
