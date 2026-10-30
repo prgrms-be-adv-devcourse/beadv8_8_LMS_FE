@@ -1,0 +1,48 @@
+# main push 때 테스트를 통과한 커밋으로 이미지를 만들어 GHCR에 올린다. 배포는 하지 않는다(deploy.yml을 수동 실행).
+# 태그는 :sha-<커밋> 하나다. :latest 같은 움직이는 태그는 만들지 않는다. dev push는 CI만 돈다(dev 서버 없음).
+# GHCR 패키지는 public이다(k3s가 pull secret 없이 받는다). 번들에는 공개 값만 들어간다.
+# 필요한 Variables: TOSS_PAYMENTS_CLIENT_KEY(토스페이먼츠 테스트 클라이언트 키, 공개 값. 없으면 HP 충전이 꺼진다)
+name: Publish image
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/prgrms-be-adv-devcourse/beadv8_8_lms_fe
+
+jobs:
+  # 테스트를 통과한 커밋만 발행한다(ci.yml 재사용).
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # VITE_LOCAL_LOGIN은 넘기지 않는다(운영에는 local-login API가 없다). docs/deploy.md 환경변수 절 참고
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: |
+            VITE_TOSS_PAYMENTS_CLIENT_KEY=${{ vars.TOSS_PAYMENTS_CLIENT_KEY }}
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

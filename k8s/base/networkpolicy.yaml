@@ -1,0 +1,23 @@
+# Envoy proxy에서 오는 8080만 받고, 밖으로 나가는 연결은 모두 막는다(정적 파일만 서빙한다).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+          podSelector:
+            matchLabels:
+              hapbang.io/gateway-proxy: 'true'
+      ports:
+        - protocol: TCP
+          port: 8080

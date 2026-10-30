@@ -1,0 +1,7 @@
+# EC2 k3s prod. 배포 스크립트(.github/scripts/k3s-deploy.sh)가 이 overlay를 감싸 이미지 web을 GHCR의 :sha-<커밋>으로 바꿔 적용한다.
+# 이미지 이름은 여기서 바꾸지 않는다. 바꾸면 감싸는 쪽 images의 name: web이 매치되지 않아 태그가 빠진다.
+# 이미지는 공개 GHCR 패키지라 pull secret을 두지 않는다.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base

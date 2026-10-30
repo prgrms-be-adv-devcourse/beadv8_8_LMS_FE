@@ -17,7 +17,7 @@ pnpm format:check   # Prettier 검사
 pnpm format         # Prettier 적용 / format:check는 검사만
 ```
 
-CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고, 모두 통과해야 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
+CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 main 커밋만 이미지가 발행된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
 Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 
 ## 화면 명세: `docs/mockup-ui.html`
@@ -35,8 +35,8 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## BE 연동
 
-- **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영·개발 모두 edge nginx가 같은 출처에서 `/api`를 BE로 넘기므로 같은 이미지를 두 환경에 쓴다. 로컬은 `vite.config.ts`의 `server.proxy`가 같은 역할을 한다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
-- 명세: https://dev.hapbang.duckdns.org/v3/api-docs (Swagger UI: `/swagger-ui/index.html`). 로컬·dev BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN&number=1|2` 테스트 로그인이 있다(운영은 404). 로그인 모달의 테스트 계정 버튼은 `pnpm dev`와 dev 서버 빌드(`VITE_LOCAL_LOGIN=true`)에서만 보인다.
+- **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영은 k3s의 Envoy Gateway가 같은 출처에서 `/`는 FE, `/api`는 BE 앱으로 보낸다. 로컬은 `vite.config.ts`의 `server.proxy`가 같은 역할을 한다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
+- 명세: dev 서버는 없다(2026-10-30 제거). 로컬 BE의 `http://localhost:8080/v3/api-docs`(Swagger UI: `/swagger-ui/index.html`)나 BE 레포 코드로 본다. 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN&number=1|2` 테스트 로그인이 있다(운영은 404). 로그인 모달의 테스트 계정 버튼은 `pnpm dev`와 `VITE_LOCAL_LOGIN=true`로 직접 빌드한 이미지에서만 보인다.
 - 인증은 세션 쿠키(`SESSION`, HttpOnly)다. Spring CSRF가 켜져 있어 변경 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 하고, 없으면 403이 난다.
 - 응답은 `{ statusCode, message, data }`로 감싼다(`/members/me`·`local-login` 포함). 다만 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
 - 개발 서버는 `/api` 요청을 모두 로컬 BE로 보낸다(개발용 목 없음). MSW는 테스트(`msw/node`, `src/test/server.ts`)에서만 쓰고, 화면별 BE 흉내는 `src/test/` 아래에 둔다(예: 관리자 채널 심사 `src/test/channelReviewMock.ts`).
@@ -49,9 +49,9 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 배포·환경변수
 
-`docs/deploy.md`가 기준이다. `dev` → dev 서버, `main` → 운영으로 GitHub Actions가 이미지(GHCR)를 빌드해 EC2의 web 컨테이너만 교체한다. `nginx.conf`는 SPA fallback과 `/assets/` 장기 캐시를 담당한다.
+`docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 dev 서버는 없다. `main` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, 운영 반영은 `deploy.yml`을 수동 실행해 k3s의 `web` Deployment만 바꾼다. manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
 
-`VITE_*` 값은 번들에 공개되므로 비밀값을 넣지 않고, 이미지에 환경별 값을 넣지 않는다(필요하면 `deploy.yml` build-arg를 팀과 상의).
+`VITE_*` 값은 번들에 공개되므로 비밀값을 넣지 않고, 이미지에 환경별 값을 넣지 않는다(필요하면 `publish.yml` build-arg를 팀과 상의).
 
 ## 코드 규칙
 

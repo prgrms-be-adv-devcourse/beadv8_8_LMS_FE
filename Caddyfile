@@ -1,0 +1,33 @@
+# React 정적 파일 서버(Caddy). 컨테이너 안에서 8080으로 dist/만 서빙한다.
+# TLS·도메인·/api 라우팅은 k3s의 Envoy Gateway가 맡으므로 여기서는 하지 않는다(k8s/base).
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	# k8s probe용. 파일 서빙과 무관하게 응답한다.
+	handle /health {
+		respond "ok" 200
+	}
+
+	# 파일명에 해시가 붙은 빌드 산출물은 오래 캐시한다.
+	# 없는 파일은 index.html로 바꾸지 않고 404로 둔다(배포 직후 옛 index.html이 지운 파일을 찾는 경우).
+	handle /assets/* {
+		@found file
+		header @found Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# SPA: 없는 경로는 index.html로 보내 클라이언트 라우터가 처리한다.
+	# index.html은 배포 직후 새 버전을 받도록 캐시하지 않는다.
+	handle {
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
