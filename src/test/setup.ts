@@ -9,7 +9,10 @@ import { server } from './server'
 configure({ asyncUtilTimeout: 5000 })
 
 // 채팅 실시간 연결은 가짜 STOMP 클라이언트로 바꾼다(jsdom에서 실제 WebSocket을 열지 않는다).
-vi.mock('@stomp/stompjs', () => ({ Client: FakeStompClient }))
+vi.mock('@stomp/stompjs', () => ({
+  Client: FakeStompClient,
+  ReconnectionTimeMode: { LINEAR: 0, EXPONENTIAL: 1 },
+}))
 
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 // jsdom은 document.hasFocus()가 늘 false다. 사용자가 화면을 보고 있는 것으로 둔다(채팅 읽음 처리 기준).

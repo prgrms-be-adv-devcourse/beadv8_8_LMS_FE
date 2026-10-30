@@ -131,6 +131,47 @@ describe('관리자 채팅 기록', () => {
     expect(screen.getByLabelText('채팅방 번호')).toHaveValue('42')
   })
 
+  it('값(알림 종류별 필드)으로 남긴 알림은 회원 화면과 같은 템플릿으로 문구를 만든다', async () => {
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', () =>
+        rs({
+          ...history,
+          messages: [
+            {
+              messageId: 201,
+              roomSequence: 1,
+              senderUserId: 7,
+              messageType: 'NOTIFICATION',
+              content: '',
+              sentAt: '2026-10-10T10:00:00',
+              deletedAt: null,
+              notificationKind: 'APPEARANCE_REQUEST_SENT',
+              referenceId: 30,
+              parentReferenceId: null,
+              appearanceApplicationSubmitted: null,
+              appearanceRequestSent: {
+                v: 1,
+                hostNickname: '하루',
+                title: '금요일 밤 합방',
+                fee: 50000,
+                scheduledAt: '2026-11-20T21:00:00',
+                acceptDeadline: '2026-11-13T23:59:00',
+              },
+            },
+          ],
+          logs: [],
+        }),
+      ),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    const [item] = within(list).getAllByRole('listitem')
+    expect(item.textContent).toMatch(
+      /하루님이 출연을 요청했습니다\.\s*제목: 금요일 밤 합방\s*출연료: 50,000 HP\s*방송 예정: 11\/20\(금\) 21:00\s*수락 기한: 11\/13\(금\) 23:59.*출연 요청서 #30/s,
+    )
+  })
+
   it('여러 페이지에 나뉜 기록을 이어 받아 빠짐·중복 없이 시간순으로 보여 준다', async () => {
     const at = (minute: number) =>
       `2026-10-10T10:${String(minute).padStart(2, '0')}:00`
