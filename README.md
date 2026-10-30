@@ -8,7 +8,7 @@ Node 24(`.node-version`)와 pnpm(`package.json`의 `packageManager`, corepack으
 ```sh
 corepack enable
 pnpm install
-pnpm dev            # http://localhost:5173, /api는 로컬 BE(localhost:8080)로 프록시
+pnpm dev            # http://localhost:5173, /api는 로컬 BE 앱별 포트(8081~8086)로 프록시
 ```
 
 | 명령 | 설명 |

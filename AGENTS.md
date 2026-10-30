@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 pnpm만 쓴다(`packageManager`로 버전 고정, Node 24는 `.node-version`). npm/yarn lockfile을 만들지 않는다.
 
 ```sh
-pnpm dev            # /api → http://localhost:8080 (로컬 BE) 프록시
+pnpm dev            # /api → 로컬 BE 앱별 포트(8081~8086, vite.config.ts) 프록시
 pnpm build          # tsc -b(타입 체크) 후 vite build
 pnpm lint           # oxlint
 pnpm test           # Vitest + Testing Library + MSW
@@ -36,7 +36,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 ## BE 연동
 
 - **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영은 k3s의 Envoy Gateway가 같은 출처에서 `/`는 FE, `/api`는 BE 앱으로 보낸다. 로컬은 `vite.config.ts`의 `server.proxy`가 같은 역할을 한다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
-- 명세: dev 서버는 없다(2026-10-30 제거). 로컬 BE의 `http://localhost:8080/v3/api-docs`(Swagger UI: `/swagger-ui/index.html`)나 BE 레포 코드로 본다. 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN&number=1|2` 테스트 로그인이 있다(운영은 404). 로그인 모달의 테스트 계정 버튼은 `pnpm dev`와 `VITE_LOCAL_LOGIN=true`로 직접 빌드한 이미지에서만 보인다.
+- 명세: dev 서버는 없다(2026-10-30 제거). 로컬 BE 각 앱의 `http://localhost:<앱 포트>/v3/api-docs`(Swagger UI: `/swagger-ui/index.html`)나 BE 레포 코드로 본다. 로컬 BE에만 `POST /api/v1/members/local-login?role=USER|INFLUENCER|VERIFIED_INFLUENCER|ADMIN&number=1|2` 테스트 로그인이 있다(운영은 404). 로그인 모달의 테스트 계정 버튼은 `pnpm dev`와 `VITE_LOCAL_LOGIN=true`로 직접 빌드한 이미지에서만 보인다.
 - 인증은 세션 쿠키(`SESSION`, HttpOnly)다. Spring CSRF가 켜져 있어 변경 요청은 `XSRF-TOKEN` 쿠키 값을 `X-XSRF-TOKEN` 헤더로 보내야 하고, 없으면 403이 난다.
 - 응답은 `{ statusCode, message, data }`로 감싼다(`/members/me`·`local-login` 포함). 다만 403은 Spring 기본 에러 JSON, 401은 빈 본문이다. 공통 처리 전에 BE와 맞춘다. 목록은 Spring `Page` 형식(`content`, `page`)이다.
 - 개발 서버는 `/api` 요청을 모두 로컬 BE로 보낸다(개발용 목 없음). MSW는 테스트(`msw/node`, `src/test/server.ts`)에서만 쓰고, 화면별 BE 흉내는 `src/test/` 아래에 둔다(예: 관리자 채널 심사 `src/test/channelReviewMock.ts`).
