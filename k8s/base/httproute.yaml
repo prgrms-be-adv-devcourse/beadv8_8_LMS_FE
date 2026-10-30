@@ -1,0 +1,20 @@
+# 공용 Gateway(BE 레포 k8s/gateway)의 https listener에 / 를 연결한다. 이 route는 FE가 소유한다(BE #454).
+# Gateway API는 더 긴 prefix를 먼저 고르므로 /api·/actuator·/swagger-ui·/v3/api-docs(BE의 404 route),
+# /grafana/·/kafka/는 이 route보다 앞선다. hostname은 listener가 정한다.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web
+spec:
+  parentRefs:
+    - name: hapbang
+      namespace: envoy-gateway-system
+      sectionName: https
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: web
+          port: 80

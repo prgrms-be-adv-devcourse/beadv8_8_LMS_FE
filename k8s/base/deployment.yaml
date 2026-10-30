@@ -1,0 +1,72 @@
+# React 정적 서버(Caddy). medium(app-observe)에 둔다(BE docs/deploy/aws-k3s.md 배치표).
+# medium은 surge pod 여유가 적어 기존 pod를 먼저 내린다. 배포 중 짧은 중단(수 초)을 허용한다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    hapbang.io/pool: app-observe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: hapbang.io/pool
+                    operator: In
+                    values: [app-observe]
+      # API를 부르지 않으므로 k8s API 토큰을 넣지 않는다.
+      automountServiceAccountToken: false
+      containers:
+        - name: web
+          image: web
+          ports:
+            - name: http
+              containerPort: 8080
+          # 기존 Compose의 React 예산 64Mi. 로컬에서 Caddy가 약 17MiB를 썼다.
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          # Dockerfile의 USER 10001. Caddy는 /tmp에만 쓴다.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi
