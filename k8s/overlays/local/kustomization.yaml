@@ -1,0 +1,9 @@
+# 로컬 k3d(BE 레포 k8s/local/k3d.yaml, context k3d-hapbang) 확인용. 로컬에서 빌드해 k3d image import로 넣은 이미지를 쓴다(docs/deploy.md).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: web
+    newName: hapbang/web
+    newTag: local
