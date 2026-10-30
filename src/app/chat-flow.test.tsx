@@ -1,14 +1,24 @@
 import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { chatKeys } from '@/entities/chat/api'
 import type { ChatMessage, ChatRoom } from '@/entities/chat/types'
 import { useChatStore } from '@/features/chat/chatStore'
+import { RECEIPT_POLICY } from '@/features/chat/receipt/policy'
 import { READ_RETRY_DELAY_MS } from '@/features/chat/useChatUnread'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { FakeStompClient } from '@/test/fakeStomp'
+import { deliver } from '@/test/chatServer'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -168,8 +178,8 @@ describe('채팅', () => {
     expect(await screen.findByText('보내는 중…')).toBeInTheDocument()
 
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
+      deliver(
+        client,
         message({
           senderUserId: ME_ID,
           content: '안녕하세요',
@@ -250,13 +260,13 @@ describe('채팅', () => {
     await waitFor(() =>
       expect(reads.at(-1)).toEqual({
         chatRoomId: '5',
-        body: { lastReadSequence: 1 },
+        body: { lastReadSequence: 1, participationVersion: 2 },
       }),
     )
     await waitFor(() => expect(queryClient.isMutating()).toBe(0))
   })
 
-  it('연결이 끊기면 보내는 중이던 메시지를 실패로 바꾼다', async () => {
+  it('연결이 끊기면 보내는 중이던 메시지를 결과 미확인으로 바꾼다', async () => {
     mockChat([room()])
     renderApp('/chat/5', 'INFLUENCER')
     const input = await screen.findByRole('textbox', { name: '메시지' })
@@ -267,6 +277,7 @@ describe('채팅', () => {
     expect(
       await screen.findByText(/연결이 끊겨 전송 여부를 확인하지 못했어요/),
     ).toBeInTheDocument()
+    expect(useChatStore.getState().pending[5]?.[0]?.status).toBe('unconfirmed')
   })
 
   it('임시 ID 없이 돌아온 내 메시지(이전 BE)도 같은 내용의 보내는 중 표시를 지운다', async () => {
@@ -277,10 +288,7 @@ describe('채팅', () => {
     await userEvent.type(input, '옛 서버')
     await userEvent.click(screen.getByRole('button', { name: '보내기' }))
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ senderUserId: ME_ID, content: '옛 서버' }),
-      ),
+      deliver(client, message({ senderUserId: ME_ID, content: '옛 서버' })),
     )
     await waitFor(() => expect(screen.queryByText('보내는 중…')).toBeNull())
   })
@@ -332,7 +340,10 @@ describe('채팅', () => {
     await screen.findByRole('textbox', { name: '메시지' })
     await waitFor(() =>
       expect(reads).toEqual([
-        { chatRoomId: '5', body: { lastReadSequence: 12 } },
+        {
+          chatRoomId: '5',
+          body: { lastReadSequence: 12, participationVersion: 2 },
+        },
       ]),
     )
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
@@ -340,19 +351,12 @@ describe('채팅', () => {
 
     const client = await connectSocket()
     // 보고 있는 방은 읽음 처리, 다른 방은 안 읽은 수가 오른다
-    act(() =>
-      client.push('/user/queue/chats/messages', message({ roomSequence: 13 })),
-    )
-    act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ chatRoomId: 6, roomSequence: 4 }),
-      ),
-    )
+    act(() => deliver(client, message({ roomSequence: 13 })))
+    act(() => deliver(client, message({ chatRoomId: 6, roomSequence: 4 })))
     await waitFor(() =>
       expect(reads.at(-1)).toEqual({
         chatRoomId: '5',
-        body: { lastReadSequence: 13 },
+        body: { lastReadSequence: 13, participationVersion: 2 },
       }),
     )
     expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
@@ -410,8 +414,8 @@ describe('채팅', () => {
     // 상대가 다시 채팅을 시작하면 BE가 남은 회원에게 재입장 안내(SYSTEM)를 보낸다.
     partnerActive = true
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
+      deliver(
+        client,
         message({
           messageType: 'SYSTEM',
           content: '편집하는 고래님이 다시 들어왔습니다.',
@@ -441,10 +445,7 @@ describe('채팅', () => {
 
     partnerActive = true
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '다시 왔어요', roomSequence: 9 }),
-      ),
+      deliver(client, message({ content: '다시 왔어요', roomSequence: 9 })),
     )
     expect(await screen.findByText('다시 왔어요')).toBeInTheDocument()
     expect(
@@ -470,9 +471,7 @@ describe('채팅', () => {
     expect(leaves).toBe(0)
 
     // 닫은 방에 온 메시지는 보고 있는 방이 아니므로 안 읽은 수가 된다.
-    act(() =>
-      client.push('/user/queue/chats/messages', message({ roomSequence: 20 })),
-    )
+    act(() => deliver(client, message({ roomSequence: 20 })))
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(
       await within(nav).findByLabelText('안 읽은 메시지 1개'),
@@ -709,6 +708,66 @@ describe('출연 알림', () => {
     ).toHaveAttribute('href', '/recruits/7')
   })
 
+  it('값(알림 종류별 필드)으로 온 알림은 템플릿으로 문구를 만들어 카드와 방 목록 미리보기에 같은 문구로 보이고, 실시간으로 온 알림도 같다', async () => {
+    const notice = requestNotice({
+      content: '',
+      appearanceRequestSent: {
+        v: 1,
+        hostNickname: '편집하는 고래',
+        title: '금요일 밤 합방',
+        fee: 50000,
+        scheduledAt: '2026-11-20T21:00:00',
+        acceptDeadline: '2026-11-13T23:59:00',
+      },
+    })
+    mockChat([room({ lastMessage: notice, unreadCount: 1 })], [notice])
+    renderApp('/chat/5', 'INFLUENCER')
+
+    const card = await screen.findByRole('article', { name: '출연 알림' })
+    expect(
+      within(card).getByText('편집하는 고래님이 출연을 요청했습니다.'),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText(
+        /제목: 금요일 밤 합방\s+출연료: 50,000 HP\s+방송 예정: 11\/20\(금\) 21:00\s+수락 기한: 11\/13\(금\) 23:59/,
+      ),
+    ).toBeInTheDocument()
+    const list = screen.getByRole('navigation', { name: '대화 목록' })
+    expect(
+      within(list).getByText('편집하는 고래님이 출연을 요청했습니다.'),
+    ).toBeInTheDocument()
+
+    const client = await connectSocket()
+    act(() =>
+      deliver(
+        client,
+        message({
+          messageType: 'NOTIFICATION',
+          content: '',
+          notificationKind: 'APPEARANCE_APPLICATION_SUBMITTED',
+          referenceId: 9,
+          parentReferenceId: 7,
+          roomSequence: 3,
+          appearanceApplicationSubmitted: {
+            v: 1,
+            guestNickname: '편집하는 고래',
+            recruitTitle: '주말 게임 합방 모집',
+          },
+        }),
+      ),
+    )
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('article', { name: '출연 알림' }),
+      ).toHaveLength(2),
+    )
+    const cards = screen.getAllByRole('article', { name: '출연 알림' })
+    expect(
+      within(cards[1]).getByText('모집글: 주말 게임 합방 모집'),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
   it('알림을 받으면 방 목록을 다시 불러온다(받는 사람 재입장·새 방)', async () => {
     let roomCalls = 0
     mockChat([room()], [])
@@ -723,12 +782,7 @@ describe('출연 알림', () => {
     await waitFor(() => expect(roomCalls).toBeGreaterThan(0))
     const before = roomCalls
 
-    act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        requestNotice({ roomSequence: 3 }),
-      ),
-    )
+    act(() => deliver(client, requestNotice({ roomSequence: 3 })))
     await waitFor(() => expect(roomCalls).toBe(before + 1))
   })
 })
@@ -764,10 +818,7 @@ describe('누락 방지 (구독과 조회 사이)', () => {
     await waitFor(() => expect(messageCalls).toBe(2))
 
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '조회 중 도착', roomSequence: 2 }),
-      ),
+      deliver(client, message({ content: '조회 중 도착', roomSequence: 2 })),
     )
     gate.release()
 
@@ -830,7 +881,7 @@ describe('누락 방지 (구독과 조회 사이)', () => {
     await waitFor(() => expect(roomCalls).toBe(2))
 
     // 연결 직후 방 목록 조회 중에 도착 → 응답(도착 전 상태)에 덮이지 않는다.
-    act(() => client.push('/user/queue/chats/messages', latest))
+    act(() => deliver(client, latest))
     gate.release()
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
@@ -853,18 +904,8 @@ describe('역순·중복 수신', () => {
     await within(thread).findByText('하나')
     const client = await connectSocket()
 
-    act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '셋', roomSequence: 3 }),
-      ),
-    )
-    act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '둘', roomSequence: 2 }),
-      ),
-    )
+    act(() => deliver(client, message({ content: '셋', roomSequence: 3 })))
+    act(() => deliver(client, message({ content: '둘', roomSequence: 2 })))
 
     await within(thread).findByText('둘')
     const bubbles = within(thread)
@@ -886,10 +927,10 @@ describe('역순·중복 수신', () => {
     const here = message({ content: '두 번 온 메시지', roomSequence: 2 })
     const other = message({ chatRoomId: 6, roomSequence: 4 })
     act(() => {
-      client.push('/user/queue/chats/messages', here)
-      client.push('/user/queue/chats/messages', here)
-      client.push('/user/queue/chats/messages', other)
-      client.push('/user/queue/chats/messages', other)
+      deliver(client, here)
+      deliver(client, here)
+      deliver(client, other)
+      deliver(client, other)
     })
 
     expect(await within(thread).findAllByText('두 번 온 메시지')).toHaveLength(
@@ -935,20 +976,23 @@ describe('읽음 처리', () => {
     // 잠시 뒤 같은 순번으로 다시 보내고, 성공하면 안 읽은 수를 지운다.
     await act(() => vi.advanceTimersByTimeAsync(READ_RETRY_DELAY_MS))
     await waitFor(() => expect(bodies).toHaveLength(2))
-    expect(bodies[1]).toEqual({ lastReadSequence: 7 })
+    expect(bodies[1]).toEqual({ lastReadSequence: 7, participationVersion: 2 })
     await waitFor(() =>
       expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
     )
   })
 
-  it('가려진 동안 이미 읽은 순번의 이전 메시지가 늦게 와도, 다시 보면 안 읽은 수가 남지 않는다', async () => {
+  it('가려진 동안 이미 읽은 순번의 이전 메시지가 늦게 와도 안 읽은 수로 남기지 않는다', async () => {
     const hasFocus = vi.spyOn(document, 'hasFocus')
     mockChat([room()], [message({ content: '읽은 메시지', roomSequence: 7 })])
     renderApp('/chat/5', 'INFLUENCER')
     await screen.findByText('읽은 메시지')
     await waitFor(() =>
       expect(reads).toEqual([
-        { chatRoomId: '5', body: { lastReadSequence: 7 } },
+        {
+          chatRoomId: '5',
+          body: { lastReadSequence: 7, participationVersion: 2 },
+        },
       ]),
     )
     const client = await connectSocket()
@@ -959,15 +1003,17 @@ describe('읽음 처리', () => {
     })
     // 역순 전달로 순번 6이 늦게 왔다(서버는 7까지 읽음 처리함).
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
+      deliver(
+        client,
         message({ content: '늦게 온 이전 메시지', roomSequence: 6 }),
       ),
     )
+    // 서버는 이미 7까지 읽음 처리했으므로 6은 안 읽은 메시지가 아니다.
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(
-      await within(nav).findByLabelText('안 읽은 메시지 1개'),
+      await within(screen.getByRole('main')).findByText('늦게 온 이전 메시지'),
     ).toBeInTheDocument()
+    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
 
     hasFocus.mockReturnValue(true)
     act(() => {
@@ -989,10 +1035,7 @@ describe('읽음 처리', () => {
     await screen.findByText('안 본 메시지')
     const client = await connectSocket()
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '가려진 동안', roomSequence: 4 }),
-      ),
+      deliver(client, message({ content: '가려진 동안', roomSequence: 4 })),
     )
     await screen.findAllByText('가려진 동안')
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
@@ -1006,7 +1049,10 @@ describe('읽음 처리', () => {
     })
     await waitFor(() =>
       expect(reads).toEqual([
-        { chatRoomId: '5', body: { lastReadSequence: 4 } },
+        {
+          chatRoomId: '5',
+          body: { lastReadSequence: 4, participationVersion: 2 },
+        },
       ]),
     )
     expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
@@ -1165,10 +1211,7 @@ describe('이전 메시지 조회 실패 뒤 스크롤', () => {
     await within(thread).findByRole('alert')
 
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
-        message({ content: '새로 온 메시지', roomSequence: 3 }),
-      ),
+      deliver(client, message({ content: '새로 온 메시지', roomSequence: 3 })),
     )
     await within(thread).findByText('새로 온 메시지')
     expect(box.scrollTop).toBe(box.scrollHeight)
@@ -1303,8 +1346,8 @@ describe('채팅 참여 바뀜: 보내는 중 표시 정리·탭 간 동기화·
     // 상대가 채팅을 다시 시작해 서버가 나를 재입장시켰다(재입장 안내는 남아 있던 쪽에만 간다).
     rooms = [room()]
     act(() =>
-      client.push(
-        '/user/queue/chats/messages',
+      deliver(
+        client,
         message({ content: '다시 시작했어요', roomSequence: 12 }),
       ),
     )
@@ -1453,6 +1496,8 @@ describe('채팅 참여 바뀜: 보내는 중 표시 정리·탭 간 동기화·
 
 describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
   const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  const { graceMs } = RECEIPT_POLICY.gap
+  const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
   const msg = (roomSequence: number, patch: Partial<ChatMessage> = {}) =>
     message({
       messageId: 500 + roomSequence,
@@ -1461,18 +1506,15 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
       ...patch,
     })
 
-  /**
-   * 이력·방 목록 조회 수를 센다. history를 바꾸면 다음 조회부터 그 이력을 돌려준다.
-   * hold()를 부르면 다음 이력 조회 하나를 돌려준 함수가 불릴 때까지 붙잡는다(응답 내용은 요청 시점의 history).
-   */
+  // 서버는 한 연결 안에서도 프레임 순서를 보장하지 않아 간격은 유예(graceMs) 뒤에도 비어 있을 때만 다시 맞춘다.
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+  })
+  afterEach(() => vi.useRealTimers())
+
+  /** 이력·방 목록 조회 수를 센다. history를 바꾸면 다음 조회부터 그 이력을 돌려준다 */
   function mockCounted(initial: ChatMessage[]) {
-    const state = {
-      history: initial,
-      historyCalls: 0,
-      roomCalls: 0,
-      held: null as (() => void) | null,
-      holdNext: false,
-    }
+    const state = { history: initial, historyCalls: 0, roomCalls: 0 }
     document.cookie = 'XSRF-TOKEN=t'
     server.use(
       readHandler,
@@ -1480,14 +1522,9 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
         state.roomCalls++
         return rs([room({ lastMessage: state.history[0], unreadCount: 0 })])
       }),
-      http.get('*/api/v1/chats/5/messages', async () => {
+      http.get('*/api/v1/chats/5/messages', () => {
         state.historyCalls++
-        const history = state.history
-        if (state.holdNext) {
-          state.holdNext = false
-          await new Promise<void>((resolve) => (state.held = resolve))
-        }
-        return rs({ messages: history, nextCursor: null })
+        return rs({ messages: state.history, nextCursor: null })
       }),
     )
     return state
@@ -1503,13 +1540,13 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
     return { thread, client }
   }
   const push = (client: FakeStompClient, m: ChatMessage) =>
-    act(() => client.push('/user/queue/chats/messages', m))
+    act(() => deliver(client, m))
   const bubbles = (thread: HTMLElement) =>
     within(thread)
       .getAllByText(/^순번 \d+$/)
       .map((b) => b.textContent)
 
-  it('순번 5 다음에 7이 오면 이력·방 목록을 한 번 다시 불러 빠진 6을 채운다', async () => {
+  it('순번 5 다음에 7이 오고 유예 뒤에도 6이 오지 않으면 방 목록과 이력을 다시 읽어 빠진 6을 채운다', async () => {
     const state = mockCounted([msg(5)])
     const { thread, client } = await openRoom('순번 5')
     const before = { ...state }
@@ -1517,11 +1554,16 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
     // 서버에는 6이 저장됐지만 이 탭은 전달받지 못했다.
     state.history = [msg(7), msg(6), msg(5)]
     push(client, msg(7))
+    // 유예 동안은 순서가 뒤바뀐 것일 수 있어 다시 부르지 않는다.
+    await advance(graceMs - 100)
+    expect(state.historyCalls).toBe(before.historyCalls)
+    expect(state.roomCalls).toBe(before.roomCalls)
 
+    await advance(200)
     expect(await within(thread).findByText('순번 6')).toBeInTheDocument()
     await settle()
-    expect(state.historyCalls).toBe(before.historyCalls + 1)
     expect(state.roomCalls).toBe(before.roomCalls + 1)
+    expect(state.historyCalls).toBeGreaterThan(before.historyCalls)
     expect(bubbles(thread)).toEqual(['순번 5', '순번 6', '순번 7'])
   })
 
@@ -1532,6 +1574,7 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
 
     push(client, msg(6))
     expect(await within(thread).findByText('순번 6')).toBeInTheDocument()
+    await advance(graceMs * 3)
     await settle()
     expect(state.historyCalls).toBe(before.historyCalls)
     expect(state.roomCalls).toBe(before.roomCalls)
@@ -1552,88 +1595,10 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
 
     push(client, msg(9))
     expect(await within(thread).findByText('순번 9')).toBeInTheDocument()
+    await advance(graceMs * 3)
     await settle()
     expect(state.historyCalls).toBe(before.historyCalls)
     expect(state.roomCalls).toBe(before.roomCalls)
-  })
-
-  it('방 목록을 다시 부르는 중에 또 순번이 벌어지면, 끝난 뒤 한 번 더 불러 안 읽은 수를 맞춘다', async () => {
-    // 보고 있지 않은 방: 서버 기준 상태를 돌려주는 방 목록. hold면 다음 조회 하나를 붙잡는다.
-    const server_ = {
-      last: msg(5),
-      unread: 0,
-      calls: 0,
-      holdNext: false,
-      held: null as (() => void) | null,
-    }
-    document.cookie = 'XSRF-TOKEN=t'
-    server.use(
-      readHandler,
-      http.get('*/api/v1/chats', async () => {
-        server_.calls++
-        const snapshot = room({
-          lastMessage: server_.last,
-          unreadCount: server_.unread,
-        })
-        if (server_.holdNext) {
-          server_.holdNext = false
-          await new Promise<void>((resolve) => (server_.held = resolve))
-        }
-        return rs([snapshot])
-      }),
-    )
-    renderApp('/chat', 'INFLUENCER')
-    const list = await screen.findByRole('navigation', { name: '대화 목록' })
-    const client = await connectSocket()
-    await settle()
-    const before = server_.calls
-
-    // 6을 놓치고 7을 받는다 → 방 목록을 다시 부른다(응답은 7까지, 안 읽은 2).
-    server_.last = msg(7)
-    server_.unread = 2
-    server_.holdNext = true
-    push(client, msg(7))
-    await waitFor(() => expect(server_.held).not.toBeNull())
-    // 응답을 기다리는 동안 8을 놓치고 9를 받는다. 서버 기준 안 읽은 수는 4다.
-    server_.last = msg(9)
-    server_.unread = 4
-    push(client, msg(9))
-    act(() => server_.held!())
-
-    expect(
-      await within(list).findByLabelText('안 읽은 메시지 4개'),
-    ).toBeInTheDocument()
-    await settle()
-    expect(server_.calls).toBe(before + 2)
-  })
-
-  it('다시 부르는 중에 또 순번이 벌어지면 겹쳐 부르지 않고, 끝난 뒤에도 빠져 있으면 한 번 더 불러 채운다', async () => {
-    const state = mockCounted([msg(5)])
-    const { thread, client } = await openRoom('순번 5')
-    const before = state.historyCalls
-
-    // 7을 받아 다시 부른다. 이 조회의 응답은 7까지다.
-    state.history = [msg(7), msg(6), msg(5)]
-    state.holdNext = true
-    push(client, msg(7))
-    await waitFor(() => expect(state.held).not.toBeNull())
-    // 응답을 기다리는 동안 8을 놓치고 9가 온다. 이미 부르는 중이라 겹쳐 부르지 않는다.
-    state.history = [msg(9), msg(8), msg(7), msg(6), msg(5)]
-    push(client, msg(9))
-    expect(state.historyCalls).toBe(before + 1)
-    act(() => state.held!())
-
-    // 첫 결과(7까지)에 9를 합치면 8이 빠져 있어 한 번 더 부른다.
-    expect(await within(thread).findByText('순번 8')).toBeInTheDocument()
-    await settle()
-    expect(state.historyCalls).toBe(before + 2)
-    expect(bubbles(thread)).toEqual([
-      '순번 5',
-      '순번 6',
-      '순번 7',
-      '순번 8',
-      '순번 9',
-    ])
   })
 })
 
