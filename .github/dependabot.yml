@@ -1,0 +1,16 @@
+# workflow의 외부 액션은 커밋 SHA로 고정한다(태그가 다른 커밋으로 옮겨져도 영향받지 않게). 이 설정이 고정한 SHA를 새 릴리스로 올리는 PR을 연다.
+# 나온 지 14일이 지난 릴리스만 올린다(갓 나온 릴리스가 문제일 때 바로 받지 않게).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: 'Chore:'
