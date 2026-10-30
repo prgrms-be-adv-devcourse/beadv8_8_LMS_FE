@@ -6,13 +6,11 @@
 # 사용법:
 #   k3s-deploy.sh image             지금 도는 web 이미지를 출력(없으면 빈 줄)
 #   k3s-deploy.sh apply <sha>       <sha> 커밋의 k8s/overlays/prod에 이미지 :sha-<sha>를 넣어 적용하고 rollout을 기다린다
-#                                   rollout이 실패하면 rollout undo로 되돌리고 실패로 끝난다
-#                                   GHCR이 private이라 환경 변수 GHCR_USER·GHCR_TOKEN(read:packages)이 필요하다.
-#                                   그 값으로 pull Secret(ghcr-pull)을 만들고, rollout이 끝나면(성공·실패 모두) 지운다.
-#                                   이미지는 노드에 남으므로 pod가 같은 노드에서 다시 떠도 받지 않는다.
+#                                   rollout이 실패하면 원인(이미지 pull·기동)을 알리고 rollout undo로 되돌린 뒤 실패로 끝난다
 #   k3s-deploy.sh render <sha>      지금 작업 폴더의 k8s/overlays/prod로 apply와 같은 결과를 출력만 한다(CI 검사용)
-# 로컬에서 prod에 직접 적용(첫 배포·SSM 준비 전):
-#   GHCR_USER=<GitHub 아이디> GHCR_TOKEN=<read:packages만 있는 1일 PAT> KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>  (docs/deploy.md)
+# 로컬에서 prod에 직접 적용(SSM 준비 전): KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>  (docs/deploy.md)
+# GHCR은 조직 정책으로 private이다. 이미지는 hapbang-prod의 공유 Secret ghcr-pull(BE 레포 k8s/registry)로 받는다(TKT-460).
+#   BE 앱과 같은 Secret이다. 이 스크립트는 확인만 하고 만들거나 지우지 않는다. 토큰은 SSM 명령으로 넘기지 않는다.
 set -euo pipefail
 
 # SSM은 HOME 없이 실행한다. kubectl이 캐시 디렉터리를 만들 수 있게 둔다.
@@ -49,25 +47,38 @@ check_sha() {
   fi
 }
 
-# 토큰은 명령 인자로 넘기지 않는다(프로세스 목록에 보인다). manifest를 stdin으로 적용한다.
-create_pull_secret() {
-  local auth config
-  auth=$(printf '%s:%s' "$GHCR_USER" "$GHCR_TOKEN" | base64 | tr -d '\n')
-  config=$(printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' "$auth" | base64 | tr -d '\n')
-  kc apply -f - > /dev/null <<YAML
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ghcr-pull
-  namespace: $NS
-type: kubernetes.io/dockerconfigjson
-data:
-  .dockerconfigjson: $config
-YAML
+# Secret이 있고 ghcr.io 인증이 든 dockerconfigjson인지만 본다. 값은 출력하지 않는다.
+# 토큰이 유효한지는 실제 pull로만 알 수 있다(rollout).
+check_pull_secret() {
+  local type
+  type=$(kc -n "$NS" get secret ghcr-pull -o jsonpath='{.type}' --ignore-not-found)
+  if [ -z "$type" ]; then
+    echo "::error::pull Secret ghcr-pull이 ${NS}에 없습니다. BE 레포의 k8s/registry를 먼저 적용하세요(BE docs/deploy/k8s.md GHCR pull 인증)."
+    exit 1
+  fi
+  if [ "$type" != kubernetes.io/dockerconfigjson ] \
+    || ! kc -n "$NS" get secret ghcr-pull -o jsonpath='{.data.\.dockerconfigjson}' | base64 -d | grep -q '"ghcr.io"'; then
+    echo "::error::pull Secret ghcr-pull의 형식이 다릅니다(type $type). ghcr.io 인증이 든 kubernetes.io/dockerconfigjson이어야 합니다."
+    exit 1
+  fi
 }
 
-delete_pull_secret() {
-  kc -n "$NS" delete secret ghcr-pull --ignore-not-found > /dev/null || true
+# rollout이 실패한 원인을 나눈다. 이미지 pull 실패는 코드와 무관하므로 먼저 가린다.
+explain_failure() {
+  local reasons messages
+  reasons=$(kc -n "$NS" get pods -l app.kubernetes.io/name=web \
+    -o jsonpath='{range .items[*]}{range .status.containerStatuses[*]}{.state.waiting.reason}{"\n"}{end}{end}')
+  messages=$(kc -n "$NS" get events --field-selector type=Warning,reason=Failed \
+    -o jsonpath='{range .items[*]}{.involvedObject.name}{" "}{.message}{"\n"}{end}' | grep '^web-' || true)
+  if ! grep -qE 'ErrImagePull|ImagePullBackOff' <<< "$reasons"; then
+    echo "::error::web: 이미지는 받았고 pod가 Ready가 되지 않았습니다(기동·probe 실패). 위 pod 상태와 이벤트를 확인하세요."
+  elif grep -qiE ': not found|manifest unknown' <<< "$messages"; then
+    echo "::error::web: 이미지가 GHCR에 없습니다. 그 커밋의 Publish image run을 확인하세요."
+  elif grep -qiE '401|403|unauthorized|forbidden|denied' <<< "$messages"; then
+    echo "::error::web: GHCR 인증에 실패했습니다(401·403). ghcr-pull 토큰의 만료·권한을 확인하세요(BE docs/deploy/k8s.md GHCR pull 인증)."
+  else
+    echo "::error::web: 이미지를 받지 못했습니다(원인 미분류). 위 이벤트를 확인하세요."
+  fi
 }
 
 image() {
@@ -78,14 +89,10 @@ image() {
 apply_web() {
   local sha=${1:-}
   check_sha "$sha"
-  if [ -z "${GHCR_USER:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
-    echo "GHCR_USER·GHCR_TOKEN이 필요하다(GHCR이 private)." >&2
-    exit 2
-  fi
 
-  # trap이 스크립트 종료 때 지울 수 있게 전역 변수로 둔다. 실패·중단돼도 pull Secret을 남기지 않는다.
+  # trap이 스크립트 종료 때 지울 수 있게 전역 변수로 둔다.
   dir=$(mktemp -d)
-  trap 'rm -rf "$dir"; delete_pull_secret' EXIT
+  trap 'rm -rf "$dir"' EXIT
 
   # 공개 레포에서 배포할 커밋의 manifest를 받는다. 서버에 레포를 두지 않는다.
   curl -sSfL "https://codeload.github.com/$REPO/tar.gz/$sha" | tar xz -C "$dir" --strip-components=1
@@ -93,7 +100,7 @@ apply_web() {
   mkdir "$dir/deploy"
   write_wrapper ../k8s/overlays/prod "$sha" "$dir/deploy"
 
-  create_pull_secret
+  check_pull_secret
   kc apply -k "$dir/deploy"
 
   if kc -n "$NS" rollout status deploy/web --timeout="$ROLLOUT_TIMEOUT"; then
@@ -105,6 +112,7 @@ apply_web() {
   kc -n "$NS" get events --field-selector type=Warning --sort-by=.lastTimestamp \
     -o 'custom-columns=AGE:.lastTimestamp,REASON:.reason,OBJECT:.involvedObject.name,MESSAGE:.message' \
     | grep web | tail -n 10 || true
+  explain_failure || true
   # Service·HTTPRoute·NetworkPolicy는 되돌리지 않는다. Deployment만 이전 revision으로 돌린다.
   # 첫 배포처럼 이전 revision이 없으면 그대로 두고 실패로 끝낸다(복구 절차: docs/deploy.md).
   if kc -n "$NS" rollout undo deploy/web; then
