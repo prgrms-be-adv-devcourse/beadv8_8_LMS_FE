@@ -74,3 +74,11 @@ jobs:
               -schema-location "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRDS_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
             echo "::endgroup::"
           done
+
+      # 배포 스크립트가 prod overlay를 감쌌을 때 이미지에 :sha-<커밋> 태그가 실제로 붙는지 본다.
+      - name: 배포 렌더링 이미지 태그 검사
+        run: |
+          sha=$(printf '0%.0s' {1..40})
+          KUBECTL=kubectl .github/scripts/k3s-deploy.sh render "$sha" > /tmp/deploy.yaml
+          grep -n 'image:' /tmp/deploy.yaml
+          grep -qE "^ *- image: ghcr.io/prgrms-be-adv-devcourse/beadv8_8_lms_fe:sha-$sha\$" /tmp/deploy.yaml

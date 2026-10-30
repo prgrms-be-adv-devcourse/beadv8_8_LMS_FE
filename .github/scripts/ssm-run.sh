@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # GitHub Actions에서 large로 스크립트를 보내 root로 실행하고 결과를 출력한다(SSM Run Command, #374).
-# BE 레포 .github/scripts/ssm-run.sh를 그대로 가져왔다(comment만 다름). 한쪽을 고치면 다른 쪽도 본다.
+# BE 레포 .github/scripts/ssm-run.sh를 그대로 가져왔다(--comment·timeout 주석만 다름). 한쪽을 고치면 다른 쪽도 본다.
 # 사용법: ssm-run.sh <스크립트 파일> [인자...]
 #   환경 변수 INSTANCE_ID와 AWS 자격 증명(configure-aws-credentials)이 필요하다.
 #   스크립트의 종료 코드가 0이 아니면 실패로 끝난다.
@@ -17,7 +17,7 @@ for arg in "$@"; do
   cmd+=" $arg"
 done
 
-# executionTimeout은 서버에서 스크립트가 도는 최대 시간(초)이다. rollout 대기(10분)와 undo를 넘게 잡는다.
+# executionTimeout은 서버에서 스크립트가 도는 최대 시간(초)이다. rollout 대기(k3s-deploy.sh 3분)와 undo를 넘게 잡는다.
 params=$(jq -nc --arg c "$cmd" '{commands: [$c], executionTimeout: ["1500"]}')
 id=$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
