@@ -1,6 +1,6 @@
 # main push 때 테스트를 통과한 커밋으로 이미지를 만들어 GHCR에 올린다. 배포는 하지 않는다(deploy.yml을 수동 실행).
 # 태그는 :sha-<커밋> 하나다. :latest 같은 움직이는 태그는 만들지 않는다. dev push는 CI만 돈다(dev 서버 없음).
-# GHCR 패키지는 조직 정책으로 private이다. k3s는 배포 동안만 pull Secret으로 받는다(deploy.yml). 번들에는 공개 값만 넣는다.
+# GHCR 패키지는 조직 정책으로 private이다. k3s는 hapbang-prod의 공유 Secret ghcr-pull(BE 레포 k8s/registry)로 받는다. 번들에는 공개 값만 넣는다.
 # 필요한 Variables: TOSS_PAYMENTS_CLIENT_KEY(토스페이먼츠 테스트 클라이언트 키, 공개 값. 없으면 HP 충전이 꺼진다)
 name: Publish image
 
