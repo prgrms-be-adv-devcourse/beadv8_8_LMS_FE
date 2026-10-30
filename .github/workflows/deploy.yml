@@ -98,8 +98,9 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
 
-      # SSM은 환경 변수를 따로 받지 않으므로, 토큰을 export하는 줄을 스크립트 앞에 붙여 보낸다(명령 인자에 남기지 않는다).
-      # 토큰은 SSM 명령 기록에 남지만 이 job이 끝나면 만료된다.
+      # SSM은 환경 변수를 따로 받지 않으므로, 토큰을 export하는 줄을 스크립트 앞에 붙여 보낸다.
+      # ssm-run.sh가 스크립트를 base64로 명령에 싣기 때문에 토큰은 SSM 명령 기록과 서버의 실행 명령 인자에 (인코딩된 채로) 남는다.
+      # 이 job의 GITHUB_TOKEN(packages: read)이라 job이 끝나면 만료된다. 장기 토큰은 이 경로로 보내지 않는다.
       - name: 배포
         env:
           INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}

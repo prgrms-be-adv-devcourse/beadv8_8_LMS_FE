@@ -11,8 +11,8 @@
 #                                   그 값으로 pull Secret(ghcr-pull)을 만들고, rollout이 끝나면(성공·실패 모두) 지운다.
 #                                   이미지는 노드에 남으므로 pod가 같은 노드에서 다시 떠도 받지 않는다.
 #   k3s-deploy.sh render <sha>      지금 작업 폴더의 k8s/overlays/prod로 apply와 같은 결과를 출력만 한다(CI 검사용)
-# 로컬에서 prod에 직접 적용(첫 배포·SSM 준비 전, 토큰에 read:packages 필요):
-#   GHCR_USER=<GitHub 아이디> GHCR_TOKEN=$(gh auth token) KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>
+# 로컬에서 prod에 직접 적용(첫 배포·SSM 준비 전):
+#   GHCR_USER=<GitHub 아이디> GHCR_TOKEN=<read:packages만 있는 1일 PAT> KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>  (docs/deploy.md)
 set -euo pipefail
 
 # SSM은 HOME 없이 실행한다. kubectl이 캐시 디렉터리를 만들 수 있게 둔다.

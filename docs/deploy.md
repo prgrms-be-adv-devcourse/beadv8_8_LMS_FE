@@ -42,7 +42,8 @@ dev → main 병합          Publish image: CI → 이미지 GHCR push  :sha-<�
 GHCR 패키지는 조직 정책으로 private이다(public 전환 불가). 클러스터에 장기 토큰을 두지 않는다.
 
 - 배포 스크립트가 `GHCR_USER`·`GHCR_TOKEN`으로 `hapbang-prod`에 `ghcr-pull` Secret을 만들고, rollout이 끝나면(성공·실패·중단 모두) 지운다. prod overlay의 Deployment는 `imagePullSecrets: ghcr-pull`을 가진다.
-- Deploy workflow는 그 job의 `GITHUB_TOKEN`(packages: read, job이 끝나면 만료)을 넘긴다. 토큰은 명령 인자가 아니라 스크립트 앞의 `export`로 보내며, SSM 명령 기록에는 남는다.
+- Deploy workflow는 그 job의 `GITHUB_TOKEN`(packages: read, job이 끝나면 만료)을 스크립트 앞의 `export`로 붙여 보낸다. 스크립트가 base64로 SSM 명령에 실리므로 토큰은 SSM 명령 기록과 서버의 실행 명령 인자에 남는다. 만료되는 job 토큰만 이 경로로 보낸다.
+- 배포하는 동안에는 `hapbang-prod`의 Secret을 읽을 수 있는 주체(클러스터 관리자)가 토큰을 볼 수 있다.
 - 배포 뒤에는 Secret이 없지만, 노드에 이미지가 남아 있으므로 pod가 다시 떠도(노드 재시작 포함) 다시 받지 않는다(`IfNotPresent`).
 - **주의**: 노드 디스크가 차서 이미지가 정리됐거나 pod가 이미지 없는 노드로 옮겨지면 `ImagePullBackOff`가 난다. 같은 sha로 다시 배포하면 복구된다.
 
@@ -56,13 +57,21 @@ GHCR 패키지는 조직 정책으로 private이다(public 전환 불가). 클�
 
 ### SSM 준비 전 직접 배포
 
-prod kubeconfig(context `hapbang-k3s`, 6443이 내 IP로 열려 있어야 함)가 있으면 같은 스크립트를 로컬에서 실행할 수 있다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 하고, pull용 토큰에 `read:packages`가 있어야 한다. 토큰은 배포 동안만 클러스터에 있고 끝나면 지워진다.
+prod kubeconfig(context `hapbang-k3s`, 6443이 내 IP로 열려 있어야 함)가 있으면 같은 스크립트를 로컬에서 실행할 수 있다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 한다.
+
+pull 토큰은 배포 동안 클러스터 Secret에 올라가므로 **권한이 좁고 곧 만료되는 토큰**을 쓴다. `gh auth token`(repo 등 넓은 권한의 장기 토큰)은 쓰지 않는다.
+
+1. GitHub → Settings → Developer settings → Personal access tokens (classic)에서 `read:packages`만 고르고 만료 1일로 만든다(GHCR은 fine-grained 토큰을 받지 않는다).
+2. 셸 기록에 남지 않게 입력받아 실행한다.
 
 ```sh
-gh auth refresh -s read:packages     # 한 번. gh 토큰에 read:packages를 더한다
-GHCR_USER=<GitHub 아이디> GHCR_TOKEN=$(gh auth token) \
-  KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
+read -rs GHCR_TOKEN && export GHCR_TOKEN   # 토큰 붙여넣기(화면에 보이지 않음)
+GHCR_USER=<GitHub 아이디> KUBECTL="kubectl --context hapbang-k3s" \
+  .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
+unset GHCR_TOKEN
 ```
+
+3. 배포가 끝나면 그 PAT를 삭제한다.
 
 `kubectl` 기본 context가 prod일 수 있으니 항상 `--context`를 적는다.
 
@@ -120,7 +129,7 @@ fetch('https://hapbang.duckdns.org/api/...')     // ❌ 같은 출처가 아니�
 
 ## 환경변수
 
-Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.** 
+Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.**
 
 - 비밀값(API 키, 토큰 등)을 넣지 않는다. 비밀이 필요한 기능은 BE를 통한다.
 - `.env`, `.env.*`는 커밋하지 않는다.
