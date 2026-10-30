@@ -7,8 +7,12 @@
 #   k3s-deploy.sh image             지금 도는 web 이미지를 출력(없으면 빈 줄)
 #   k3s-deploy.sh apply <sha>       <sha> 커밋의 k8s/overlays/prod에 이미지 :sha-<sha>를 넣어 적용하고 rollout을 기다린다
 #                                   rollout이 실패하면 rollout undo로 되돌리고 실패로 끝난다
+#                                   GHCR이 private이라 환경 변수 GHCR_USER·GHCR_TOKEN(read:packages)이 필요하다.
+#                                   그 값으로 pull Secret(ghcr-pull)을 만들고, rollout이 끝나면(성공·실패 모두) 지운다.
+#                                   이미지는 노드에 남으므로 pod가 같은 노드에서 다시 떠도 받지 않는다.
 #   k3s-deploy.sh render <sha>      지금 작업 폴더의 k8s/overlays/prod로 apply와 같은 결과를 출력만 한다(CI 검사용)
-# 로컬에서 prod에 직접 적용(첫 배포·SSM 준비 전): KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>
+# 로컬에서 prod에 직접 적용(첫 배포·SSM 준비 전, 토큰에 read:packages 필요):
+#   GHCR_USER=<GitHub 아이디> GHCR_TOKEN=$(gh auth token) KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <sha>
 set -euo pipefail
 
 # SSM은 HOME 없이 실행한다. kubectl이 캐시 디렉터리를 만들 수 있게 둔다.
@@ -45,6 +49,27 @@ check_sha() {
   fi
 }
 
+# 토큰은 명령 인자로 넘기지 않는다(프로세스 목록에 보인다). manifest를 stdin으로 적용한다.
+create_pull_secret() {
+  local auth config
+  auth=$(printf '%s:%s' "$GHCR_USER" "$GHCR_TOKEN" | base64 | tr -d '\n')
+  config=$(printf '{"auths":{"ghcr.io":{"auth":"%s"}}}' "$auth" | base64 | tr -d '\n')
+  kc apply -f - > /dev/null <<YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ghcr-pull
+  namespace: $NS
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: $config
+YAML
+}
+
+delete_pull_secret() {
+  kc -n "$NS" delete secret ghcr-pull --ignore-not-found > /dev/null || true
+}
+
 image() {
   kc -n "$NS" get deploy web -o jsonpath='{.spec.template.spec.containers[0].image}' --ignore-not-found
   echo
@@ -53,10 +78,14 @@ image() {
 apply_web() {
   local sha=${1:-}
   check_sha "$sha"
+  if [ -z "${GHCR_USER:-}" ] || [ -z "${GHCR_TOKEN:-}" ]; then
+    echo "GHCR_USER·GHCR_TOKEN이 필요하다(GHCR이 private)." >&2
+    exit 2
+  fi
 
-  # trap이 스크립트 종료 때 지울 수 있게 전역 변수로 둔다.
+  # trap이 스크립트 종료 때 지울 수 있게 전역 변수로 둔다. 실패·중단돼도 pull Secret을 남기지 않는다.
   dir=$(mktemp -d)
-  trap 'rm -rf "$dir"' EXIT
+  trap 'rm -rf "$dir"; delete_pull_secret' EXIT
 
   # 공개 레포에서 배포할 커밋의 manifest를 받는다. 서버에 레포를 두지 않는다.
   curl -sSfL "https://codeload.github.com/$REPO/tar.gz/$sha" | tar xz -C "$dir" --strip-components=1
@@ -64,6 +93,7 @@ apply_web() {
   mkdir "$dir/deploy"
   write_wrapper ../k8s/overlays/prod "$sha" "$dir/deploy"
 
+  create_pull_secret
   kc apply -k "$dir/deploy"
 
   if kc -n "$NS" rollout status deploy/web --timeout="$ROLLOUT_TIMEOUT"; then

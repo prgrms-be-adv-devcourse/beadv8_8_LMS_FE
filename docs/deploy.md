@@ -37,20 +37,31 @@ dev → main 병합          Publish image: CI → 이미지 GHCR push  :sha-<�
 - **수동 롤백**: 되돌릴 main 커밋 sha를 넣고 Deploy를 실행한다.
 - 이미지 태그는 `:sha-<커밋>` 하나다. `:latest`·`:dev`는 만들지 않는다.
 
+### 이미지 pull (GHCR private)
+
+GHCR 패키지는 조직 정책으로 private이다(public 전환 불가). 클러스터에 장기 토큰을 두지 않는다.
+
+- 배포 스크립트가 `GHCR_USER`·`GHCR_TOKEN`으로 `hapbang-prod`에 `ghcr-pull` Secret을 만들고, rollout이 끝나면(성공·실패·중단 모두) 지운다. prod overlay의 Deployment는 `imagePullSecrets: ghcr-pull`을 가진다.
+- Deploy workflow는 그 job의 `GITHUB_TOKEN`(packages: read, job이 끝나면 만료)을 넘긴다. 토큰은 명령 인자가 아니라 스크립트 앞의 `export`로 보내며, SSM 명령 기록에는 남는다.
+- 배포 뒤에는 Secret이 없지만, 노드에 이미지가 남아 있으므로 pod가 다시 떠도(노드 재시작 포함) 다시 받지 않는다(`IfNotPresent`).
+- **주의**: 노드 디스크가 차서 이미지가 정리됐거나 pod가 이미지 없는 노드로 옮겨지면 `ImagePullBackOff`가 난다. 같은 sha로 다시 배포하면 복구된다.
+
 ### 사전 준비 (한 번)
 
 | 항목 | 내용 |
 | --- | --- |
-| GHCR 패키지 | `beadv8_8_lms_fe`를 public으로 둔다. k3s가 pull secret 없이 받는다(BE 앱 이미지와 같은 정책) |
+| GHCR 패키지 | `beadv8_8_lms_fe`는 private(조직 정책). 이 레포 Actions에 읽기 권한이 있어야 한다(publish.yml이 처음 만들 때 자동 연결) |
 | GitHub Environment `prod` | 배포 브랜치를 `main`으로 제한. Secrets `AWS_DEPLOY_ROLE_ARN`, `DEPLOY_INSTANCE_ID` |
 | IAM role trust | GitHub OIDC의 이 레포 `environment:prod` subject를 허용한다(BE [k8s.md 운영 앱 배포](https://github.com/prgrms-be-adv-devcourse/beadv8_8_LMS_BE/blob/dev/docs/deploy/k8s.md) 참고). BE 레포의 자격 증명을 복사하지 않는다 |
 
 ### SSM 준비 전 직접 배포
 
-prod kubeconfig(context `hapbang-k3s`, 6443이 내 IP로 열려 있어야 함)가 있으면 같은 스크립트를 로컬에서 실행할 수 있다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 한다.
+prod kubeconfig(context `hapbang-k3s`, 6443이 내 IP로 열려 있어야 함)가 있으면 같은 스크립트를 로컬에서 실행할 수 있다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 하고, pull용 토큰에 `read:packages`가 있어야 한다. 토큰은 배포 동안만 클러스터에 있고 끝나면 지워진다.
 
 ```sh
-KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
+gh auth refresh -s read:packages     # 한 번. gh 토큰에 read:packages를 더한다
+GHCR_USER=<GitHub 아이디> GHCR_TOKEN=$(gh auth token) \
+  KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
 ```
 
 `kubectl` 기본 context가 prod일 수 있으니 항상 `--context`를 적는다.
@@ -109,7 +120,7 @@ fetch('https://hapbang.duckdns.org/api/...')     // ❌ 같은 출처가 아니�
 
 ## 환경변수
 
-Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.** GHCR 이미지도 public이다.
+Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.** 
 
 - 비밀값(API 키, 토큰 등)을 넣지 않는다. 비밀이 필요한 기능은 BE를 통한다.
 - `.env`, `.env.*`는 커밋하지 않는다.
