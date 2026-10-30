@@ -1,5 +1,5 @@
-# main·dev로 가는 PR마다 포맷 검사, 린트, 빌드(타입 체크 포함)를 실행한다.
-# deploy.yml도 배포 전에 이 워크플로를 호출해, 병합된 커밋이 통과해야만 배포된다.
+# main·dev로 가는 PR마다 포맷 검사, 린트, 테스트, 빌드(타입 체크 포함)와 k8s manifest 검사를 실행한다.
+# publish.yml도 이미지를 만들기 전에 이 워크플로를 호출해, 병합된 커밋이 통과해야만 이미지가 발행된다.
 name: CI
 
 on:
@@ -7,7 +7,7 @@ on:
     branches: [main, dev]
   workflow_call:
 
-# 같은 PR에 새 커밋이 올라오면 이전 실행을 취소한다. 배포에서 호출된 실행은 run_id로 묶여 취소되지 않는다.
+# 같은 PR에 새 커밋이 올라오면 이전 실행을 취소한다. 발행에서 호출된 실행은 run_id로 묶여 취소되지 않는다.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
@@ -43,3 +43,34 @@ jobs:
 
       - name: 빌드 (tsc -b 포함)
         run: pnpm build
+
+  # k8s/ overlay를 렌더링하고 Kubernetes·Gateway API schema로 검사한다. cluster에 적용하지는 않는다.
+  # 버전·schema 위치는 BE 레포 ci.yml의 manifests job과 맞춘다. 실제 기동은 로컬 k3d로 확인한다(docs/deploy.md).
+  manifests:
+    runs-on: ubuntu-24.04
+    env:
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+      # HTTPRoute 같은 CRD schema. 결과가 바뀌지 않게 커밋을 고정한다.
+      CRDS_CATALOG_REF: 3eb90d47aba8d61919d4419dd38301536e32a94b
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: kubeconform 설치
+        run: |
+          curl -sSfLo kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum -c -
+          tar xzf kubeconform.tar.gz kubeconform
+          sudo install kubeconform /usr/local/bin/
+
+      # -strict는 schema에 없는 필드(오타)를 오류로 본다. Kubernetes 버전은 EC2 k3s(v1.36.5+k3s1)와 맞춘다.
+      - name: 렌더링·schema 검사
+        run: |
+          for dir in k8s/overlays/*; do
+            echo "::group::$dir"
+            kubectl kustomize "$dir" | kubeconform -strict -summary \
+              -kubernetes-version 1.36.5 \
+              -schema-location default \
+              -schema-location "https://raw.githubusercontent.com/datreeio/CRDs-catalog/${CRDS_CATALOG_REF}/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"
+            echo "::endgroup::"
+          done
