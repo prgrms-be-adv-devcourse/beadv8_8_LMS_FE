@@ -77,8 +77,6 @@ function mockChat(
   messages: ChatMessage[] = [],
   nextCursor: number | null = null,
 ) {
-  // 읽음 처리(PUT) 전에 CSRF 토큰을 받으러 내 정보를 부르지 않게 한다.
-  document.cookie = 'XSRF-TOKEN=t'
   server.use(
     readHandler,
     http.get('*/api/v1/chats', () => rs(rooms)),
@@ -141,7 +139,6 @@ describe('채팅', () => {
         message({ content: '첫 번째', roomSequence: 1 }),
       ],
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(`/influencers/${PARTNER_ID}`, 'INFLUENCER')
 
     await userEvent.click(
@@ -491,7 +488,6 @@ describe('채팅', () => {
         return new HttpResponse(null, { status: 204 })
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp('/chat/5', 'INFLUENCER')
 
     await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
@@ -1515,7 +1511,6 @@ describe('연결 중 놓친 메시지 복구 (순번 간격)', () => {
   /** 이력·방 목록 조회 수를 센다. history를 바꾸면 다음 조회부터 그 이력을 돌려준다 */
   function mockCounted(initial: ChatMessage[]) {
     const state = { history: initial, historyCalls: 0, roomCalls: 0 }
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       readHandler,
       http.get('*/api/v1/chats', () => {

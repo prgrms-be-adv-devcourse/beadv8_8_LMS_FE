@@ -100,7 +100,6 @@ describe('상단 헤더 장바구니', () => {
     renderApp('/cart', 'USER')
     const bar = await header()
     await within(bar).findByRole('link', { name: '장바구니 2개' })
-    document.cookie = 'XSRF-TOKEN=t'
     await userEvent.click(
       await screen.findByRole('button', { name: '강의 1 장바구니에서 빼기' }),
     )

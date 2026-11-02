@@ -119,7 +119,6 @@ const problem = (status: number, code: string, detail: string) =>
 const lesson = (n: number) => screen.getByRole('group', { name: `${n}강` })
 
 function openEdit(path = EDIT_PATH) {
-  document.cookie = 'XSRF-TOKEN=t'
   return renderApp(path, 'VERIFIED_INFLUENCER')
 }
 

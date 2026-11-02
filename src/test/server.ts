@@ -89,7 +89,7 @@ const adminHomeDefaults = [
   '*/api/v1/members/admin/upgrade-requests',
   '*/api/v1/lectures/admin/inspections',
   '*/api/v1/inquiries/admin',
-  '*/api/v1/lectures/admin/payout-failures',
+  '*/api/v1/lectures/admin/hp-tasks',
   '*/api/v1/settlements/admin/exchanges',
 ].map((path) =>
   http.get(path, () =>
@@ -104,8 +104,50 @@ const adminHomeDefaults = [
   ),
 )
 
+/**
+ * 토큰 재발급·로그아웃. 기본은 refresh token이 없는 상태(재발급 401)다.
+ * renderApp은 회원이면 메모리에 토큰을 미리 넣고 재발급이 성공하게 바꾼다.
+ */
+const authDefaults = [
+  http.post('*/api/v1/members/auth/refresh', () =>
+    HttpResponse.json(
+      {
+        status: 401,
+        code: 'INVALID_REFRESH_TOKEN',
+        detail: '로그인이 만료됐어요. 다시 로그인해 주세요.',
+      },
+      { status: 401, headers: { 'Content-Type': 'application/problem+json' } },
+    ),
+  ),
+  http.post(
+    '*/api/v1/members/auth/logout',
+    () => new HttpResponse(null, { status: 204 }),
+  ),
+]
+
+/**
+ * 채팅 웹소켓 연결 티켓. 연결할 때마다 받으므로 채팅 연결이 있는 테스트는 늘 부른다.
+ * 연결 만료는 15분 뒤(재인증은 그 60초 전)다.
+ */
+let ticketCount = 0
+const chatTicketDefault = [
+  http.post('*/api/v1/chats/ws-tickets', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        ticket: `ticket-${++ticketCount}`,
+        expiresIn: 30,
+        connectionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      },
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
 export const server = setupServer(
+  ...authDefaults,
+  ...chatTicketDefault,
   ...appShellCartDefault,
   ...appShellDefaults,
   ...adminHomeDefaults,

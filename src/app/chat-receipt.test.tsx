@@ -71,7 +71,6 @@ const msg = (roomSequence: number): ChatMessage => ({
  */
 function mockServer(initial: number[]) {
   const state = { saved: initial, historyCalls: 0, roomCalls: 0 }
-  document.cookie = 'XSRF-TOKEN=t'
   server.use(
     http.put(
       '*/api/v1/chats/:roomId/read',
@@ -1002,14 +1001,22 @@ describe('세대 전환 경합', () => {
   it('최초 연결 시도만 바로 하고, 그 뒤의 재시도(최초 연결 실패 포함)는 무작위로 기다린다', async () => {
     fakeAckTransport()
     mockServer(range(1, 3))
+    // 무작위 대기는 Math.random() × 1초다. 0.5로 두어 500ms 대기만 센다.
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5)
+    const timers = vi.spyOn(globalThis, 'setTimeout')
+    const jitters = () =>
+      timers.mock.calls.filter(([, ms]) => ms === 500).length
     renderApp('/chat/5', 'INFLUENCER')
     await waitFor(() => expect(FakeStompClient.latest()).toBeDefined())
-    const config = FakeStompClient.latest()!.config as {
-      beforeConnect?: () => Promise<void> | undefined
-    }
-    expect(config.beforeConnect?.()).toBeUndefined()
+    const client = FakeStompClient.latest()!
+    // 처음 시도(activate)는 기다리지 않는다.
+    await client.ready
+    expect(jitters()).toBe(0)
     // 연결에 성공하지 못한 채 다시 시도해도 무작위로 기다린다.
-    expect(config.beforeConnect?.()).toBeInstanceOf(Promise)
+    await client.config.beforeConnect!(client)
+    expect(jitters()).toBe(1)
+    random.mockRestore()
+    timers.mockRestore()
     await settle()
   })
 

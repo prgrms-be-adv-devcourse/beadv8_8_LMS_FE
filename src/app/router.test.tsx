@@ -9,7 +9,9 @@ import { queryClient } from '@/app/queryClient'
 import { routes } from '@/app/router'
 import { meQuery, type Me } from '@/shared/auth/me'
 import type { Viewer } from '@/shared/auth/role'
+import { setAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 function renderAt(path: string, viewer: Viewer) {
@@ -25,6 +27,15 @@ function renderAt(path: string, viewer: Viewer) {
           profileImageUrl: null,
         }
   queryClient.setQueryData(meQuery.queryKey, me)
+  // renderApp과 같이 회원이면 토큰을 넣고 재발급이 성공하게 한다.
+  if (me) {
+    setAccessToken(TEST_ACCESS_TOKEN, 15 * 60)
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () =>
+        rs({ accessToken: TEST_ACCESS_TOKEN, expiresIn: 15 * 60 }),
+      ),
+    )
+  }
   server.use(
     http.get('*/api/v1/wallets/me', () =>
       HttpResponse.json({
@@ -139,7 +150,7 @@ describe('라우트 가드', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '계정 설정' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('Google · a@b.c')).toBeInTheDocument()
+    expect(screen.getByText('a@b.c')).toBeInTheDocument()
     expect(screen.getByText('관리자', { selector: 'dd' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/settings')
     expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
@@ -249,7 +260,7 @@ describe('내비 레일', () => {
       '채널 인증 심사',
       '승급 심사',
       '강의 검수',
-      '지급 실패',
+      '강의 HP 작업',
       '환전 승인',
       '문의 답변',
       '채팅 기록',

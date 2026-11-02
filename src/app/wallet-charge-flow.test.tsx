@@ -66,7 +66,6 @@ beforeEach(() => {
   toss.requestPayment.mockReset().mockResolvedValue(undefined)
   toss.payment.mockClear()
   toss.loadTossPayments.mockClear()
-  document.cookie = 'XSRF-TOKEN=t'
 })
 
 afterEach(() => {

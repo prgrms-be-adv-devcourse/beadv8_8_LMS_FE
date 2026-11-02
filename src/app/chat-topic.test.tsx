@@ -77,7 +77,6 @@ function mockChat(
   rooms: () => ChatRoom[],
   history: (chatRoomId: number) => ChatMessage[] = () => [],
 ) {
-  document.cookie = 'XSRF-TOKEN=t'
   const calls = { rooms: 0, history: {} as Record<number, number> }
   server.use(
     http.put(

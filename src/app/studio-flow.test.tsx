@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { MyLecture, Sale } from '@/entities/lecture/types'
 import { formatDate } from '@/shared/lib/date'
-import { renderApp, rs } from '@/test/renderApp'
+import { renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 const myLecture = (overrides: Partial<MyLecture>): MyLecture => ({
@@ -171,7 +171,7 @@ describe('강의 판매 화면', () => {
 
   it('삭제를 확인하면 DELETE를 보내고 내 강의를 다시 불러온다', async () => {
     let deleted = false
-    let csrf: string | null = null
+    let authorization: string | null = null
     serveStudio({
       lectures: () => [
         myLecture({ lectureId: 1, title: '판매 중 강의', deleted }),
@@ -179,12 +179,11 @@ describe('강의 판매 화면', () => {
     })
     server.use(
       http.delete('*/api/v1/lectures/1', ({ request }) => {
-        csrf = request.headers.get('X-XSRF-TOKEN')
+        authorization = request.headers.get('Authorization')
         deleted = true
         return new HttpResponse(null, { status: 204 })
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/studio', 'VERIFIED_INFLUENCER')
 
     const row = await lectureRow('판매 중 강의')
@@ -203,7 +202,7 @@ describe('강의 판매 화면', () => {
     expect(
       await screen.findByText('강의를 삭제했어요. 목록에서 내려갔어요.'),
     ).toBeInTheDocument()
-    expect(csrf).toBe('t')
+    expect(authorization).toBe(`Bearer ${TEST_ACCESS_TOKEN}`)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(
       await within(await lectureRow('판매 중 강의')).findByText('삭제됨'),
@@ -226,7 +225,6 @@ describe('강의 판매 화면', () => {
         ),
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/studio', 'VERIFIED_INFLUENCER')
 
     const row = await lectureRow('판매 중 강의')

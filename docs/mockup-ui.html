@@ -863,7 +863,7 @@ const NAV = [
     { id: 'adminChannel', label: '채널 인증 심사', roles: ADMIN },
     { id: 'adminPromo', label: '승급 심사', roles: ADMIN },
     { id: 'adminLectures', label: '강의 검수', roles: ADMIN },
-    { id: 'adminPayouts', label: '지급 실패', roles: ADMIN },
+    { id: 'adminPayouts', label: '강의 HP 작업', roles: ADMIN },
     { id: 'adminInquiries', label: '문의 답변', roles: ADMIN },
     { id: 'adminChats', label: '채팅 기록', roles: ADMIN },
   ] },
@@ -2543,7 +2543,7 @@ function AdminHome() {
     ['adminPromo', '승급 심사 대기', open('promo').length + '건'],
     ['adminLectures', '강의 검수 대기', open('lectures').length + '건'],
     ['adminInquiries', '답변 대기 문의', openInq.length + '건'],
-    ['adminPayouts', '지급 실패', PAYOUT_FAILURES + '건'],
+    ['adminPayouts', '멈춘 강의 HP 작업', PAYOUT_FAILURES + '건'],
   ];
   return html`
     <div className="page">
@@ -3242,7 +3242,7 @@ const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, profile: ProfileScreen, watch: WatchScreen, reviewWrite: ReviewScreen, chargeResult: ChargeResultScreen, lectureEdit: LectureEditScreen, orders: OrdersScreen, orderDone: OrderDoneScreen, inquiry: InquiryScreen, profileEdit: ProfileEditScreen, settings: SettingsScreen, withdraw: WithdrawScreen,
   lectures: LecturesScreen, lecture: LectureDetail, cart: CartScreen, library: LibraryScreen, influencers: InfluencersScreen, recruits: RecruitsScreen, recruit: RecruitDetail, appearances: AppearancesScreen, wallet: WalletScreen, chat: ChatScreen, support: SupportScreen, verify: VerifyScreen, promote: PromoteScreen, studio: StudioScreen,
   adminHome: AdminHome, adminLectureDetail: AdminLectureDetail, adminInquiryDetail: AdminInquiryDetail,
-  adminPayouts: () => html`<${NoFrameScreen} title="지급 실패" route="/admin/payouts" text="강의 판매자 지급이 실패해 격리된 건을 확인하고 격리를 해제해요(#72)." />`,
+  adminPayouts: () => html`<${NoFrameScreen} title="강의 HP 작업" route="/admin/hp-tasks" text="강의 주문의 HP 보류·반환·지급 작업을 상태·유형으로 확인하고, 자동 처리가 멈춘 작업은 상세(/admin/hp-tasks/{taskId})에서 시도 이력을 보고 재시도해요." />`,
   adminChats: () => html`<${NoFrameScreen} title="채팅 기록" route="/admin/chats" text="채팅방을 골라 회원 간 대화 기록을 읽기 전용으로 확인해요(#40)." />`,
   search: SearchScreen, adminSearch: AdminSearch, adminMember: AdminMember, adminDeal: AdminDeal, adminLog: AdminLog,
   adminChannel: p => html`<${AdminQueue} ...${p} kind="channel" />`, adminPromo: () => html`<${AdminQueue} kind="promo" />`, adminLectures: () => html`<${AdminQueue} kind="lectures" />`,
@@ -3517,12 +3517,12 @@ const PAGES = [
   { id: 'admin', code: 'A', label: '관리자', sub: '심사·검수·이의 제기 판단을 맡는 운영자',
     desc: '채널 인증과 승급을 심사하고, 강의를 검수하고, 문의에 답하면서 강의 내용 다름 이의 제기를 판단해요. 관리자는 거래 당사자가 되지 않아요.',
     flow: ['접수', '자료 확인', '판단', '결과 통보', '지갑이 반환·지급 처리'],
-    can: ['채널 인증 심사', '승급 심사', '강의 검수', '지급 실패 확인·격리 해제', '문의 답변과 이의 제기 판단', '채팅·채팅 기록 조회', '강의·모집글·인플루언서 조회', '계정 설정(닉네임·프로필 사진)'],
+    can: ['채널 인증 심사', '승급 심사', '강의 검수', '강의 HP 작업 확인·멈춘 작업 재시도', '문의 답변과 이의 제기 판단', '채팅·채팅 기록 조회', '강의·모집글·인플루언서 조회', '계정 설정(닉네임·프로필 사진)'],
     cannot: ['HP 충전·환불·환전', '강의 구매', '출연 요청·모집', '회원 탈퇴'],
     state: { rooms: ADMIN_ROOMS, inquiries: INQ_ADMIN },
     groups: [
       { group: '대시보드·계정', items: [
-        { id: 'a-home', name: '운영 대시보드', role: 'admin', screen: { id: 'adminHome' }, route: '/admin', api: ['GET /api/v1/members/admin/channels?status=PENDING', 'GET /api/v1/members/admin/upgrade-requests?status=PENDING', 'GET /api/v1/lectures/admin/inspections?status=PENDING_INSPECTION', 'GET /api/v1/inquiries/admin?status=WAITING', 'GET /api/v1/lectures/admin/payout-failures'], rules: ['각 목록 API의 페이지 정보(totalElements)로 대기 건수 표시(#100)', '카드마다 로딩·오류를 따로 처리', '통합 요약·오래 기다린 순·최근 처리는 BE API 없음'] },
+        { id: 'a-home', name: '운영 대시보드', role: 'admin', screen: { id: 'adminHome' }, route: '/admin', api: ['GET /api/v1/members/admin/channels?status=PENDING', 'GET /api/v1/members/admin/upgrade-requests?status=PENDING', 'GET /api/v1/lectures/admin/inspections?status=PENDING_INSPECTION', 'GET /api/v1/inquiries/admin?status=WAITING', 'GET /api/v1/lectures/admin/hp-tasks?status=DEAD'], rules: ['각 목록 API의 페이지 정보(totalElements)로 대기 건수 표시(#100)', '카드마다 로딩·오류를 따로 처리', '통합 요약·오래 기다린 순·최근 처리는 BE API 없음'] },
         { id: 'a-settings', name: '계정 설정 · 관리자', role: 'admin', screen: { id: 'settings' }, route: '/settings', api: ['GET /api/v1/members/me', 'PATCH /api/v1/members/me', 'PUT /api/v1/members/files/{memberId}/content', 'DELETE /api/v1/members/me/profile-image'], rules: ['상단 프로필 메뉴로만 들어옴, 운영 사이드바에는 없음(#96)', '닉네임(2~12자)·프로필 사진만 변경', '회원 탈퇴(/settings/withdraw)는 관리자에게 막힘'] },
       ] },
       { group: '회원 심사', items: [
@@ -3539,7 +3539,7 @@ const PAGES = [
         { id: 'a-content', name: '문의 상세 · 강의 내용 다름 판단', role: 'admin', screen: { id: 'adminInquiryDetail', target: 'd2' }, route: '/admin/inquiries/{inquiryId}', api: ['GET /api/v1/inquiries/admin/{inquiryId}', 'POST /api/v1/inquiries/admin/{inquiryId}/objection-resolution'], rules: ['별도 이의 제기 화면 없이 문의 상세에서 판단', '인정: 구매자에게 원래 HP 종류대로 반환(항목 RETURNED)', '기각: 지급 예정 시각에 판매자에게 예정대로 지급', '판단 안내는 답변으로 달리고 번복 불가', '반환된 구매의 리뷰는 평균 평점에서 제외'] },
       ] },
       { group: '지급·대화', items: [
-        { id: 'a-chat', name: '채팅', role: 'admin', screen: { id: 'chat' }, route: '/chat/{chatRoomId}', api: ['GET /api/v1/chats', 'POST /api/v1/chats', 'WS /api/v1/chats/ws (STOMP)'], rules: ['관리자는 인플루언서 이상 회원과 채팅을 시작할 수 있음', '회원끼리 나눈 대화는 채팅 기록(/admin/chats)에서 읽기 전용으로 확인', '지급 실패(/admin/payouts)·채팅 기록(/admin/chats)은 목업 프레임 없음'] },
+        { id: 'a-chat', name: '채팅', role: 'admin', screen: { id: 'chat' }, route: '/chat/{chatRoomId}', api: ['GET /api/v1/chats', 'POST /api/v1/chats', 'WS /api/v1/chats/ws (STOMP)'], rules: ['관리자는 인플루언서 이상 회원과 채팅을 시작할 수 있음', '회원끼리 나눈 대화는 채팅 기록(/admin/chats)에서 읽기 전용으로 확인', '강의 HP 작업(/admin/hp-tasks)·채팅 기록(/admin/chats)은 목업 프레임 없음'] },
         { id: 'a-lectures-view', name: '강의 목록 · 관리자', role: 'admin', screen: { id: 'lectures' }, route: '/lectures', api: ['GET /api/v1/lectures'], rules: ['관리자는 조회만, 구매 불가'] },
       ] },
       { group: '미구현 (BE API 없음)', items: [
@@ -3562,7 +3562,7 @@ PAGES.forEach(p => {
   p.frames = p.groups.flatMap(g => g.items);
 });
 const ROLE_SHORT = { guest: '비회원', user: '유저', inf: '인플', vinf: '인증', admin: '관리자' };
-const SCREEN_LABEL = { search: '검색 결과', adminMember: '회원 상세', adminDeal: '거래 상세', orders: '주문 내역', orderDone: '주문 완료', inquiry: '문의 상세', withdraw: '회원 탈퇴', chargeResult: '충전 결과', lectureEdit: '강의 등록·수정', watch: '강의 재생', reviewWrite: '리뷰 쓰기', lecture: '강의 상세', recruit: '모집 상세', profile: '인플루언서 프로필', adminLectureDetail: '강의 검수 상세', adminInquiryDetail: '문의 상세 · 이의 제기 판단', adminPayouts: '지급 실패', adminChats: '채팅 기록' };
+const SCREEN_LABEL = { search: '검색 결과', adminMember: '회원 상세', adminDeal: '거래 상세', orders: '주문 내역', orderDone: '주문 완료', inquiry: '문의 상세', withdraw: '회원 탈퇴', chargeResult: '충전 결과', lectureEdit: '강의 등록·수정', watch: '강의 재생', reviewWrite: '리뷰 쓰기', lecture: '강의 상세', recruit: '모집 상세', profile: '인플루언서 프로필', adminLectureDetail: '강의 검수 상세', adminInquiryDetail: '문의 상세 · 이의 제기 판단', adminPayouts: '강의 HP 작업', adminChats: '채팅 기록' };
 NAV.forEach(g => g.items.forEach(it => { SCREEN_LABEL[it.id] = it.label; }));
 const DEVICES = { desktop: { label: 'Desktop', w: 1440, h: 900, thumb: 300 }, mobile: { label: 'Mobile', w: 390, h: 844, thumb: 150 } };
 const store = {

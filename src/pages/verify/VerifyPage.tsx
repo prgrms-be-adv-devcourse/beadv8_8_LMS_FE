@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
-import { CHZZK_CONNECT_URL, myChannelsQuery } from '@/entities/member/api'
+import { myChannelsQuery } from '@/entities/member/api'
 import {
   AUTO_APPROVE_FOLLOWER_COUNT,
   canRequestApproval,
@@ -9,6 +9,7 @@ import {
 import type { MyChannel } from '@/entities/member/types'
 import { ChannelCard } from '@/entities/member/ui/ChannelCard'
 import { ChannelStatusPill } from '@/entities/member/ui/ChannelStatusPill'
+import { useConnectChzzk } from '@/features/channel/useConnectChzzk'
 import { useRequestApproval } from '@/features/channel/useRequestApproval'
 import { useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
@@ -37,6 +38,7 @@ export function VerifyPage() {
     isPending,
     refetch,
   } = useQuery(myChannelsQuery)
+  const connect = useConnectChzzk()
 
   return (
     <div className="page">
@@ -63,9 +65,15 @@ export function VerifyPage() {
           <div className="panel-head">
             <h2>내 채널</h2>
             {!verified && (
-              <a className="btn primary sm" href={CHZZK_CONNECT_URL}>
+              <button
+                type="button"
+                className="btn primary sm"
+                // 받은 주소로 이동하는 동안에도 다시 누르지 않게 둔다.
+                disabled={connect.isPending || connect.isSuccess}
+                onClick={() => connect.mutate()}
+              >
                 치지직 채널 연동하기
-              </a>
+              </button>
             )}
           </div>
           {isPending ? (

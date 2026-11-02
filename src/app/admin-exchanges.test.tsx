@@ -17,7 +17,6 @@ import { server } from '@/test/server'
 beforeEach(() => {
   resetAdminExchangeDb()
   server.use(...adminExchangeHandlers)
-  document.cookie = 'XSRF-TOKEN=t'
 })
 
 /** 처리 뒤 다시 불러오기까지 끝나야 다음 테스트로 요청이 새지 않는다(#84·#86) */

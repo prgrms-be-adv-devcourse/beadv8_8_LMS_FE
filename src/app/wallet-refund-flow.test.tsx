@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { Refund, Wallet } from '@/entities/wallet/types'
 import { mockExchanges } from '@/test/exchanges'
@@ -83,10 +83,6 @@ function mockGetRefund(
 const settle = (ms = 150) => new Promise((resolve) => setTimeout(resolve, ms))
 
 const ownCard = () => screen.getByRole('region', { name: '보유 HP' })
-
-beforeEach(() => {
-  document.cookie = 'XSRF-TOKEN=t'
-})
 
 afterEach(() => {
   queryClient.clear()

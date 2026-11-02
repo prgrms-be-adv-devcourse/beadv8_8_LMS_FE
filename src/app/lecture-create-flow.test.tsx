@@ -4,7 +4,7 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureRegisterInput } from '@/entities/lecture/types'
-import { renderApp, rs } from '@/test/renderApp'
+import { renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import {
   expectFieldError,
   expectNoFieldError,
@@ -110,7 +110,6 @@ const submitButton = () => screen.getByRole('button', { name: '검수 신청' })
 const lesson = (n: number) => screen.getByRole('group', { name: `${n}강` })
 
 function openForm() {
-  document.cookie = 'XSRF-TOKEN=t'
   return renderApp(PATH, 'VERIFIED_INFLUENCER')
 }
 
@@ -156,7 +155,7 @@ describe('강의 등록', () => {
     expect(screen.getByText('2,000 HP')).toBeVisible()
   })
 
-  it('강 파일을 고르면 파일 정보를 등록하고 CSRF 헤더와 함께 본문을 올리며 진행률을 보여 준다', async () => {
+  it('강 파일을 고르면 파일 정보를 등록하고 access token과 함께 본문을 올리며 진행률을 보여 준다', async () => {
     const gate = hold()
     const { registered, puts } = mockUpload({ upload: () => gate.promise })
     openForm()
@@ -177,7 +176,9 @@ describe('강의 등록', () => {
       },
     ])
     expect(puts[0].fileId).toBe(7)
-    expect(puts[0].headers.get('x-xsrf-token')).toBe('t')
+    expect(puts[0].headers.get('authorization')).toBe(
+      `Bearer ${TEST_ACCESS_TOKEN}`,
+    )
     expect(puts[0].headers.get('content-type')).toBe('video/mp4')
 
     gate.release()

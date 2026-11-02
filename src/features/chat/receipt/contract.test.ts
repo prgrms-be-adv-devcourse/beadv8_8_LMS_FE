@@ -66,7 +66,6 @@ describe('participation-version 헤더', () => {
 describe('REST ACK 전송', () => {
   it('응답이 시간 안에 끝나지 않으면 요청을 끊고 응답 유실(retry)로 본다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.put('*/api/v1/chats/5/received', () => new Promise<never>(() => {})),
     )
@@ -82,39 +81,12 @@ describe('REST ACK 전송', () => {
   })
 })
 
-describe('REST ACK 전송 (CSRF 토큰 받기)', () => {
-  it('CSRF 토큰을 받는 요청이 멈춰도 시간 상한 뒤 retry로 끝난다', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    // 토큰 쿠키가 없으면 먼저 /members/me로 토큰을 받는다. 그 요청이 끝나지 않는다.
-    document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    let tokenRequest: Request | undefined
-    server.use(
-      http.get('*/api/v1/members/me', ({ request }) => {
-        tokenRequest = request
-        return new Promise<never>(() => {})
-      }),
-    )
-    const transport = createRestAckTransport(1_000)
-    const result = transport.send({
-      chatRoomId: 5,
-      participationVersion: 2,
-      receivedSequence: 3,
-    })
-    await vi.advanceTimersByTimeAsync(1_000)
-    await expect(result).resolves.toBe('retry')
-    // 토큰을 받는 요청도 끊는다(매달린 요청이 쌓이지 않게).
-    expect(tokenRequest?.signal.aborted).toBe(true)
-    vi.useRealTimers()
-  })
-})
-
 describe('REST ACK 전송 (바깥 취소)', () => {
-  it('대기열이 끊으면 CSRF 토큰 받기 요청부터 끊는다', async () => {
-    document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-    let tokenRequest: Request | undefined
+  it('대기열이 끊으면(로그아웃·회원 전환) 진행 중인 요청을 끊는다', async () => {
+    let ackRequest: Request | undefined
     server.use(
-      http.get('*/api/v1/members/me', ({ request }) => {
-        tokenRequest = request
+      http.put('*/api/v1/chats/5/received', ({ request }) => {
+        ackRequest = request
         return new Promise<never>(() => {})
       }),
     )
@@ -123,16 +95,15 @@ describe('REST ACK 전송 (바깥 취소)', () => {
       { chatRoomId: 5, participationVersion: 2, receivedSequence: 3 },
       outer.signal,
     )
-    await vi.waitFor(() => expect(tokenRequest).toBeDefined())
+    await vi.waitFor(() => expect(ackRequest).toBeDefined())
     outer.abort()
     await expect(result).resolves.not.toBe('ok')
-    expect(tokenRequest?.signal.aborted).toBe(true)
+    expect(ackRequest?.signal.aborted).toBe(true)
   })
 })
 
 describe('REST ACK 전송 (리스너 정리)', () => {
   it('요청이 끝나면 바깥 취소 신호에 붙인 리스너를 뗀다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.put('*/api/v1/chats/5/received', () =>
         HttpResponse.json({ statusCode: 200, message: '', data: {} }),

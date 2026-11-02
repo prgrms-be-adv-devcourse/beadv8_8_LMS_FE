@@ -64,7 +64,7 @@ export function createRestAckTransport(
     send: ({ chatRoomId, participationVersion, receivedSequence }, signal) =>
       new Promise<AckResult>((resolve) => {
         const controller = new AbortController()
-        // 대기열이 폐기되면(로그아웃·회원 전환) CSRF 토큰 받기부터 끊는다. 다른 회원 세션으로 PUT이 나가지 않게.
+        // 대기열이 폐기되면(로그아웃·회원 전환) 진행 중인 요청을 끊는다(토큰을 다시 받은 뒤 다시 보내는 것까지).
         const abort = () => controller.abort()
         if (signal?.aborted) abort()
         signal?.addEventListener('abort', abort, { once: true })
@@ -74,7 +74,7 @@ export function createRestAckTransport(
           signal?.removeEventListener('abort', abort)
           resolve(result)
         }
-        // CSRF 토큰을 먼저 받는 단계(`/members/me`)까지 포함해 시간 상한을 둔다. 먼저 끝난 쪽만 결과가 된다.
+        // 토큰을 다시 받고 다시 보내는 단계까지 포함해 시간 상한을 둔다. 먼저 끝난 쪽만 결과가 된다.
         const timer = setTimeout(() => {
           controller.abort()
           finish('retry')

@@ -113,7 +113,7 @@ fetch('/api/v1/lectures')                        // ✅
 fetch('https://hapbang.duckdns.org/api/...')     // ❌ 같은 출처가 아니면 CORS·쿠키 문제가 생긴다
 ```
 
-같은 출처(origin)라 CORS 설정이 필요 없고, 세션 쿠키도 그대로 전송된다. 로컬 개발에서는 `vite.config.ts`의 `server.proxy`로 `/api`를 로컬 BE(`http://localhost:8080`)에 연결한다.
+같은 출처(origin)라 CORS 설정이 필요 없고, refresh token 쿠키(`SameSite=Strict`)도 그대로 전송된다. access token은 `Authorization: Bearer` 헤더로 보낸다. 로컬 개발에서는 BE 레포 `docker/compose.yaml`의 envoy 서비스로 로컬 Envoy(`localhost:8000`, `ENVOY_PORT`로 바꿈)를 띄우고(BE `docs/dev/local.md`), `vite.config.ts`의 `server.proxy`가 `/api`(채팅 웹소켓 포함)를 그쪽으로 넘긴다. Envoy가 운영처럼 Bearer 토큰을 검증해 BE 앱에 `X-User-Id`·`X-User-Role`을 넣는다. 주소는 개발 서버 전용 환경변수 `API_PROXY_TARGET`(기본 `http://localhost:8000`, `.env.local`에 둔다. `VITE_` 접두사가 없어 번들에 들어가지 않는다)으로 바꾼다.
 
 **라우팅**: Caddy가 없는 경로를 `index.html`로 돌려주므로(SPA fallback) 클라이언트 라우터를 그대로 쓰면 된다. `/api`, `/actuator`, `/swagger-ui`, `/v3/api-docs`, `/grafana`, `/kafka`로 시작하는 경로는 Gateway가 FE로 보내지 않으므로 FE 라우트로 쓰지 않는다.
 

@@ -8,7 +8,7 @@ Node 24(`.node-version`)와 pnpm(`package.json`의 `packageManager`, corepack으
 ```sh
 corepack enable
 pnpm install
-pnpm dev            # http://localhost:5173, /api는 로컬 BE 앱별 포트(8081~8086)로 프록시
+pnpm dev            # http://localhost:5173, /api는 로컬 Envoy(BE docker/compose.yaml의 envoy, 기본 http://localhost:8000)로 프록시
 ```
 
 | 명령 | 설명 |
@@ -30,8 +30,8 @@ import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/clie
 | 경로 | 내용 |
 | --- | --- |
 | `src/app/` | 라우터(역할별 가드), 앱 셸·내비, QueryClient |
-| `src/shared/api/` | API 클라이언트: CSRF 헤더, `RsData` 언랩, `ProblemDetail` → `ApiError` |
-| `src/shared/auth/` | 내 정보(`meQuery`), 역할, 로그인·로그아웃 |
+| `src/shared/api/` | API 클라이언트: Bearer 토큰, 401·403 때 재발급 후 재시도, `RsData` 언랩, `ProblemDetail` → `ApiError` |
+| `src/shared/auth/` | 내 정보(`meQuery`), access token(메모리)·재발급, 역할, 로그인·로그아웃 |
 | `src/shared/ui/`, `src/shared/styles/` | 공용 컴포넌트, 디자인 토큰(`docs/mockup-ui.html` 기준) |
 | `src/features/{모듈}/` | BE 모듈별 API·화면 (member, lecture, appearance, billing, chat, support, admin …) |
 | `src/pages/` | 공통 화면(자리표시, 404, 오류) |

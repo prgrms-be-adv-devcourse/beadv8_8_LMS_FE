@@ -1,5 +1,10 @@
+import {
+  authSession,
+  getAccessToken,
+  refreshAccessToken,
+} from '@/shared/auth/token'
 import { ApiError } from './ApiError'
-import { API_BASE, CSRF_HEADER, ensureCsrfToken } from './client'
+import { API_BASE } from './base'
 import type { ProblemDetail } from './types'
 
 export type UploadOptions = {
@@ -12,22 +17,51 @@ export type UploadOptions = {
 
 /**
  * 파일 본문을 그대로(multipart가 아님) PUT으로 올린다. 성공하면 resolve, 실패하면 ApiError를 던진다.
- * fetch는 업로드 진행률을 받을 수 없어 XMLHttpRequest를 쓴다. CSRF 헤더는 api()와 같이 붙인다.
+ * fetch는 업로드 진행률을 받을 수 없어 XMLHttpRequest를 쓴다. access token은 api()와 같이 Bearer로 붙인다.
+ * 토큰은 요청을 시작할 때만 확인되므로 업로드 도중 만료돼도 괜찮다. 시작할 때 만료돼 401이거나 역할이 막 바뀌어
+ * 403이면 api()처럼 토큰을 다시 받아 한 번만 다시 올린다(그사이 로그인이 바뀌었으면 다시 올리지 않는다).
  * signal로 중단하면 AbortError(DOMException)를 던진다.
  */
 export async function uploadBody(
   path: string,
   file: Blob,
+  options: UploadOptions,
+): Promise<void> {
+  const sentWith = getAccessToken()
+  const sentIn = authSession()
+  try {
+    await send(path, file, sentWith, options)
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      (error.status !== 401 && error.status !== 403) ||
+      authSession() !== sentIn
+    )
+      throw error
+    const latest = getAccessToken()
+    const token =
+      latest && latest !== sentWith
+        ? latest
+        : await refreshAccessToken().catch(() => null)
+    if (!token || authSession() !== sentIn) throw error
+    options.onProgress?.(0)
+    await send(path, file, token, options)
+  }
+}
+
+function send(
+  path: string,
+  file: Blob,
+  token: string | null,
   { contentType, onProgress, signal }: UploadOptions,
 ): Promise<void> {
-  const token = await ensureCsrfToken()
   return new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(abortError())
     const xhr = new XMLHttpRequest()
     xhr.open('PUT', `${API_BASE}${path}`)
     xhr.setRequestHeader('Accept', 'application/json')
     xhr.setRequestHeader('Content-Type', contentType)
-    if (token) xhr.setRequestHeader(CSRF_HEADER, token)
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && e.total > 0) onProgress?.(e.loaded / e.total)

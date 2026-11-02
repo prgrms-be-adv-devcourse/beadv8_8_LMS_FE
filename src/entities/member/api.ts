@@ -85,8 +85,15 @@ export function requestChannelApproval(channelId: number) {
   )
 }
 
-/** 치지직 연동 시작. BE가 치지직 동의 화면으로 보낸 뒤 /mypage?chzzk=…로 돌려보낸다. */
-export const CHZZK_CONNECT_URL = '/api/v1/members/channels/chzzk/connect'
+/**
+ * 치지직 연동 시작. 받은 주소(치지직 로그인·동의 화면)로 이동하면 BE가 연동한 뒤 /mypage?chzzk=…로 돌려보낸다.
+ * 연동할 회원은 응답 쿠키로 맡겨 두므로(콜백은 로그인 정보 없이 온다) 같은 브라우저에서 이동해야 한다.
+ */
+export function authorizeChzzk() {
+  return api<{ authorizeUrl: string }>('/members/channels/chzzk/authorize', {
+    method: 'POST',
+  })
+}
 
 /** 승급 신청 사유 최대 길이 (BE InfluencerUpgradeRequest.REASON_MAX) */
 export const UPGRADE_REASON_MAX = 500
@@ -156,7 +163,7 @@ export const channelReviewsQuery = (
       previousQuery?.queryKey[2] === status ? previous : undefined,
   })
 
-/** 승인: 회원이 유저면 인플루언서가 되고, 그 회원 세션 권한도 BE가 바로 바꾼다 */
+/** 승인: 회원이 유저면 인플루언서가 된다. 그 회원은 다음 토큰 재발급(403이면 바로) 때 새 역할을 받는다 */
 export function approveChannel(channelId: number) {
   return api<void>(`/members/admin/channels/${channelId}/approve`, {
     method: 'POST',

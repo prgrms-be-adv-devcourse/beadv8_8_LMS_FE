@@ -15,7 +15,7 @@ const API = {
   promotions: '*/api/v1/members/admin/upgrade-requests',
   lectures: '*/api/v1/lectures/admin/inspections',
   inquiries: '*/api/v1/inquiries/admin',
-  payouts: '*/api/v1/lectures/admin/payout-failures',
+  hpTasks: '*/api/v1/lectures/admin/hp-tasks',
   exchanges: '*/api/v1/settlements/admin/exchanges',
 } as const
 
@@ -63,7 +63,7 @@ describe('관리자 운영 대시보드', () => {
       promotions: 1,
       lectures: 2,
       inquiries: 4,
-      payouts: 5,
+      hpTasks: 5,
       exchanges: 6,
     })
     renderApp('/admin', 'ADMIN')
@@ -75,11 +75,11 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('승급 심사 대기')).toHaveTextContent('1건')
     expect(await card('강의 검수 대기')).toHaveTextContent('2건')
     expect(await card('답변 대기 문의')).toHaveTextContent('4건')
-    expect(await card('지급 실패')).toHaveTextContent('5건')
+    expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
     expect(await card('환전 승인 대기')).toHaveTextContent('6건')
   })
 
-  it('대기 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지)', async () => {
+  it('처리할 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지, 강의 HP 작업은 멈춘 작업)', async () => {
     const seen: string[] = []
     server.use(
       ...Object.values(API).map((path) =>
@@ -106,7 +106,9 @@ describe('관리자 운영 대시보드', () => {
     expect(query('/api/v1/inquiries/admin')).toMatch(
       /status=WAITING&sort=OLDEST&page=0/,
     )
-    expect(query('/api/v1/lectures/admin/payout-failures')).toMatch(/page=0/)
+    expect(query('/api/v1/lectures/admin/hp-tasks')).toMatch(
+      /status=DEAD&page=0/,
+    )
     expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
       /status=REQUESTED&page=0/,
     )
@@ -117,7 +119,7 @@ describe('관리자 운영 대시보드', () => {
     ['승급 심사 대기', '/admin/promotions'],
     ['강의 검수 대기', '/admin/lectures'],
     ['답변 대기 문의', '/admin/inquiries'],
-    ['지급 실패', '/admin/payouts'],
+    ['멈춘 강의 HP 작업', '/admin/hp-tasks'],
     ['환전 승인 대기', '/admin/exchanges'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
     mockCounts({
@@ -125,7 +127,7 @@ describe('관리자 운영 대시보드', () => {
       promotions: 1,
       lectures: 1,
       inquiries: 1,
-      payouts: 1,
+      hpTasks: 1,
       exchanges: 1,
     })
     const router = renderApp('/admin', 'ADMIN')
@@ -167,7 +169,7 @@ describe('관리자 운영 대시보드', () => {
   })
 
   it('한 API가 실패해도 나머지 카드는 건수를 보여 준다', async () => {
-    mockCounts({ channels: 3, lectures: 2, inquiries: 4, payouts: 5 })
+    mockCounts({ channels: 3, lectures: 2, inquiries: 4, hpTasks: 5 })
     server.use(
       http.get(API.promotions, () =>
         HttpResponse.json(
@@ -188,7 +190,7 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('채널 인증 대기')).toHaveTextContent('3건')
     expect(await card('강의 검수 대기')).toHaveTextContent('2건')
     expect(await card('답변 대기 문의')).toHaveTextContent('4건')
-    expect(await card('지급 실패')).toHaveTextContent('5건')
+    expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
   })
 
   it('실패한 카드에서 다시 시도하면 건수를 다시 불러온다', async () => {
@@ -219,7 +221,7 @@ describe('관리자 운영 대시보드', () => {
   it('불러오는 동안 카드마다 불러오는 중을 표시한다', async () => {
     mockCounts({ channels: 3 })
     server.use(
-      http.get(API.payouts, async () => {
+      http.get(API.hpTasks, async () => {
         await delay(300)
         return paged(5)
       }),
@@ -228,10 +230,10 @@ describe('관리자 운영 대시보드', () => {
 
     const channels = await card('채널 인증 대기')
     await waitFor(() => expect(channels).toHaveTextContent('3건'))
-    const payouts = await card('지급 실패')
-    expect(payouts).toHaveAttribute('aria-busy', 'true')
-    expect(payouts).toHaveTextContent('불러오는 중…')
-    await waitFor(() => expect(payouts).toHaveTextContent('5건'))
-    expect(payouts).toHaveAttribute('aria-busy', 'false')
+    const hpTasks = await card('멈춘 강의 HP 작업')
+    expect(hpTasks).toHaveAttribute('aria-busy', 'true')
+    expect(hpTasks).toHaveTextContent('불러오는 중…')
+    await waitFor(() => expect(hpTasks).toHaveTextContent('5건'))
+    expect(hpTasks).toHaveAttribute('aria-busy', 'false')
   })
 })

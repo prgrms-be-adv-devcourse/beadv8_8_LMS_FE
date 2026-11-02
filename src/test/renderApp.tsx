@@ -7,10 +7,14 @@ import { queryClient } from '@/app/queryClient'
 import { routes } from '@/app/router'
 import type { Wallet } from '@/entities/wallet/types'
 import { meQuery, type Me } from '@/shared/auth/me'
+import { setAccessToken } from '@/shared/auth/token'
 import type { Viewer } from '@/shared/auth/role'
 import { server } from './server'
 
 export const ME_ID = 1
+
+/** renderApp이 회원에게 미리 넣는 access token */
+export const TEST_ACCESS_TOKEN = 'test-access-token'
 
 export const rs = <T,>(data: T, status = 200) =>
   HttpResponse.json({ statusCode: status, message: '', data }, { status })
@@ -19,6 +23,8 @@ type WalletResponder = () => Response | Promise<Response>
 
 /**
  * 앱 전체 라우터로 path를 그린다. 로그인 상태와 지갑 응답을 미리 정한다.
+ * 회원이면 access token을 메모리에 넣고, refresh token 쿠키가 있는 것처럼 재발급이 성공하게 한다(TEST_ACCESS_TOKEN을
+ * 다시 준다). 재발급 실패를 보려면 테스트에서 덮어쓴다.
  * wallet에 함수를 넘기면 지갑 응답을 직접 만든다(실패·지연 확인용).
  */
 export function renderApp(
@@ -38,6 +44,14 @@ export function renderApp(
           profileImageUrl: null,
         }
   queryClient.setQueryData(meQuery.queryKey, me)
+  if (me) {
+    setAccessToken(TEST_ACCESS_TOKEN, 15 * 60)
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () =>
+        rs({ accessToken: TEST_ACCESS_TOKEN, expiresIn: 15 * 60 }),
+      ),
+    )
+  }
   server.use(
     http.get('*/api/v1/wallets/me', () =>
       typeof wallet === 'function'

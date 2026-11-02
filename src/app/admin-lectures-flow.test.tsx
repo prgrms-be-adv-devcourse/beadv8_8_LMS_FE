@@ -9,7 +9,7 @@ import type {
   LectureStatus,
 } from '@/entities/lecture/types'
 import { formatDate } from '@/shared/lib/date'
-import { renderApp, rs } from '@/test/renderApp'
+import { renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import {
   expectFieldError,
   expectNoFieldError,
@@ -248,7 +248,6 @@ describe('강의 검수 상세', () => {
   })
 
   it('승인하면 토스트를 띄우고 목록으로 돌아간다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     // 무효화로 다시 부른 상세는 판매 중이다. 그래도 목록으로 가야 한다.
     serveDetail(detail(), detail({ status: 'ON_SALE' }))
     serveInspections()
@@ -257,7 +256,7 @@ describe('강의 검수 상세', () => {
       http.post(
         '*/api/v1/lectures/admin/1/inspection/approve',
         ({ request }) => {
-          token = request.headers.get('X-XSRF-TOKEN')
+          token = request.headers.get('Authorization')
           return new HttpResponse(null, { status: 204 })
         },
       ),
@@ -274,11 +273,10 @@ describe('강의 검수 상세', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/admin/lectures'),
     )
-    expect(token).toBe('t')
+    expect(token).toBe(`Bearer ${TEST_ACCESS_TOKEN}`)
   })
 
   it('반려 사유가 비어 있으면 반려할 수 없고 칩으로 사유를 채울 수 있다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     serveDetail(
       detail(),
       detail({
@@ -328,7 +326,6 @@ describe('강의 검수 상세', () => {
   })
 
   it('반려 사유에 서버 400 필드 오류가 오면 그 칸에 표시하고 포커스한다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     serveDetail(detail())
     serveInspections()
     server.use(
@@ -359,7 +356,6 @@ describe('강의 검수 상세', () => {
   })
 
   it('이미 처리된 강의면 409를 알리고 상세를 다시 불러온다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     const calls = serveDetail(detail(), detail({ status: 'ON_SALE' }))
     server.use(
       http.post('*/api/v1/lectures/admin/1/inspection/approve', () =>
