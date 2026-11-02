@@ -4,7 +4,7 @@
 
 | 환경 | 주소 | 브랜치 |
 | --- | --- | --- |
-| prod | https://hapbang.duckdns.org | `main` |
+| prod | https://hapbang.duckdns.org | `dev` (병합하면 자동 배포) |
 
 dev 서버는 없다(2026-10-30 Compose와 함께 제거, BE #440). 화면 확인은 `pnpm dev` + 로컬 BE, 이미지·manifest 확인은 로컬 k3d로 한다.
 
@@ -24,19 +24,21 @@ dev 서버는 없다(2026-10-30 Compose와 함께 제거, BE #440). 화면 확�
 ## 배포 흐름
 
 ```
-PR → dev 병합            CI만 (format:check · lint · test · build · manifest 검사)
-dev → main 병합          Publish image: CI → 이미지 GHCR push  :sha-<커밋>
+PR(→ dev·main)          CI (format:check · lint · test · build · manifest 검사)
+dev 병합                Publish image: CI → 이미지 GHCR push  :sha-<커밋>
 운영 반영(자동)           Publish image 성공 → Deploy가 그 커밋을 배포(workflow_run)
-롤백·재배포(수동)         Actions → Deploy → Run workflow(main), sha 입력(비우면 main 최신)
-  커밋이 main에 있는지·이미지가 있는지 확인
+dev → main 병합          CI만. 서버 없음(안정화 표시)
+롤백·재배포(수동)         Actions → Deploy → Run workflow(dev), sha 입력(비우면 dev 최신)
+  커밋이 dev에 있는지·이미지가 있는지 확인
   → GitHub OIDC → IAM role → SSM으로 large에서 .github/scripts/k3s-deploy.sh apply <sha>
   → 그 커밋의 k8s/overlays/prod에 :sha-<커밋>을 넣어 apply → rollout status
 ```
 
-- **dev → main 병합이 곧 운영 배포다.** main은 Release PR로만 바뀌므로, 운영에 올릴 시점은 Release PR을 병합하는 사람이 정한다.
-- 자동 실행은 main 최신 커밋만 배포한다. main에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나도 운영이 되돌아가지 않는다.
+- **dev 병합이 곧 운영 배포다**(#156). 서버는 prod 하나뿐이고, dev가 기본 브랜치다.
+- **main은 서버가 없다.** 안정화됐다고 판단할 때 dev → main으로 병합하는 표시다. main 대상 PR에는 CI만 돌고, 이미지 발행·배포는 없다.
+- 자동 실행은 dev 최신 커밋만 배포한다. dev에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나도 운영이 되돌아가지 않는다. 배포는 하나씩 순서대로 돌고, 병합마다 `web` pod가 수 초 끊긴다(`maxSurge: 0`).
 - **자동 롤백**: rollout이 3분 안에 끝나지 않으면 `web` Deployment만 이전 revision으로 되돌리고 실패로 표시한다. Service·HTTPRoute·NetworkPolicy는 되돌리지 않는다.
-- **수동 롤백**: 되돌릴 main 커밋 sha를 넣고 Deploy를 실행한다.
+- **수동 롤백**: 되돌릴 dev 커밋 sha를 넣고 Deploy를 실행한다(`gh workflow run deploy.yml --ref dev -f sha=<커밋>`).
 - 이미지 태그는 `:sha-<커밋>` 하나다. `:latest`·`:dev`는 만들지 않는다.
 
 ### 이미지 pull (GHCR private)
@@ -54,7 +56,7 @@ GHCR 패키지는 조직 정책으로 private이다(public 전환 불가). BE �
 | 항목 | 내용 |
 | --- | --- |
 | GHCR 패키지 | `beadv8_8_lms_fe`는 private(조직 정책). 이 레포 Actions에 읽기 권한이 있다(publish.yml이 처음 만들 때 자동 연결) |
-| GitHub Environment `prod` | 배포 브랜치는 `main`만. Secrets `AWS_DEPLOY_ROLE_ARN`, `DEPLOY_INSTANCE_ID`(BE `prod` environment와 같은 값) |
+| GitHub Environment `prod` | 배포 브랜치는 `dev`만. Secrets `AWS_DEPLOY_ROLE_ARN`, `DEPLOY_INSTANCE_ID`(BE `prod` environment와 같은 값) |
 | IAM role | BE와 같은 `team08-hapbang-github-deploy`(콘솔에서 만듦, Terraform 밖). trust의 `sub`에 BE·FE 두 레포의 `repo:<org>@<org id>/<repo>@<repo id>:environment:prod`가 있다. 레포를 옮기거나 다시 만들면 FE subject를 바꿔야 한다. 권한은 large에 `AWS-RunShellScript` 실행·결과 읽기뿐이다 |
 
 Secret이 빠지거나 trust가 바뀌면 Deploy는 AWS role을 받는 단계에서 실패한다.
@@ -64,7 +66,7 @@ Secret이 빠지거나 trust가 바뀌면 Deploy는 AWS role을 받는 단계에
 GitHub Actions나 SSM을 쓸 수 없을 때만 쓴다. prod kubeconfig(context `hapbang-k3s`, 보안 그룹 6443이 내 IP `/32`로 열려 있어야 함)로 같은 스크립트를 로컬에서 실행한다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 하고, `hapbang-prod`에 `ghcr-pull`이 있어야 한다. 토큰은 따로 넣지 않는다.
 
 ```sh
-KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
+KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 dev 커밋 sha>
 ```
 
 `kubectl` 기본 context가 prod일 수 있으니 항상 `--context`를 적는다.
@@ -143,7 +145,7 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 | `k8s/base` | `web` Deployment·Service(80→8080)·HTTPRoute(`/`)·NetworkPolicy(Envoy에서만 8080) |
 | `k8s/overlays/prod`, `k8s/overlays/local` | 운영(GHCR 이미지), 로컬 k3d(`hapbang/web:local`) |
 | `.github/workflows/ci.yml` | PR마다 format:check·lint·test·build, manifest schema 검사 |
-| `.github/workflows/publish.yml` | `main` push 때 이미지 발행(`:sha-<커밋>`) |
+| `.github/workflows/publish.yml` | `dev` push 때 이미지 발행(`:sha-<커밋>`) |
 | `.github/workflows/deploy.yml` | 운영 배포(Publish image 성공 시 자동)·롤백(수동), OIDC → SSM |
 | `.github/scripts/k3s-deploy.sh` | large에서 실행하는 적용·rollout·자동 롤백 스크립트 |
 | `.github/scripts/ssm-run.sh` | 스크립트를 SSM Run Command로 large에 보내 실행(BE 레포와 같은 파일) |
