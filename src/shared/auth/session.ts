@@ -110,12 +110,13 @@ function replaceSession(queryClient: QueryClient, me: Me | null) {
  * 로그인 요청이 실패하면 그 오류(ApiError)를 그대로 던진다.
  */
 async function signIn(request: () => Promise<Me>) {
-  const me = await pauseRefreshWhile(() => {
+  // 로그인 요청부터 토큰 받기까지 한 작업으로 한다(겹친 로그인이 다른 계정의 토큰을 받지 않게).
+  return pauseRefreshWhile(async (refresh) => {
     clearAccessToken()
-    return request()
+    const me = await request()
+    if (!(await refresh())) throw new Error('토큰을 받지 못했어요.')
+    return me
   })
-  if (!(await refreshAccessToken())) throw new Error('토큰을 받지 못했어요.')
-  return me
 }
 
 /**

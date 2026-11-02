@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { nicknameError } from '@/entities/member/nickname'
 import { emailError, passwordError } from '@/entities/member/password'
 import { isApiError } from '@/shared/api/ApiError'
@@ -37,9 +37,12 @@ const CODE_FIELD: Record<string, FieldKey> = {
  * 이메일 하나는 구글이나 비밀번호 중 한 방식으로만 가입한다(구글로 가입한 이메일이면 409 DUPLICATE_EMAIL).
  */
 export function SignupForm({
+  autoFocus = false,
   onDone,
   onBack,
 }: {
+  /** 로그인 화면에서 넘어왔으면 첫 칸으로 포커스한다(누른 버튼이 사라져 포커스가 모달 밖으로 나가지 않게) */
+  autoFocus?: boolean
   /** 가입한 이메일로 로그인 화면을 연다 */
   onDone: (email: string) => void
   onBack: () => void
@@ -51,6 +54,10 @@ export function SignupForm({
     nickname: '',
   })
   const [failure, setFailure] = useState<string | null>(null)
+  const firstRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (autoFocus) firstRef.current?.focus()
+  }, [autoFocus])
   const fields = useFieldErrors({
     ids: FIELD_ID,
     order: FIELD_ORDER,
@@ -104,6 +111,7 @@ export function SignupForm({
     >
       <Field id={FIELD_ID.email} label="이메일" error={fields.error('email')}>
         <input
+          ref={firstRef}
           className="input"
           type="email"
           autoComplete="email"

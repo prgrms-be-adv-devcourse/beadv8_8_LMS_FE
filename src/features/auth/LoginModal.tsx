@@ -35,14 +35,21 @@ export function LoginModal() {
 function LoginOptions({ reason }: { reason?: string }) {
   const [view, setView] = useState<'login' | 'signup'>('login')
   const [signedUp, setSignedUp] = useState<string | null>(null)
+  // 화면을 바꿨는지. 바꾼 뒤에는 새 폼의 첫 칸으로 포커스한다(처음 열 때는 모달이 포커스를 정한다).
+  const [switched, setSwitched] = useState(false)
+  const show = (next: 'login' | 'signup') => {
+    setSwitched(true)
+    setView(next)
+  }
 
   if (view === 'signup')
     return (
       <SignupForm
-        onBack={() => setView('login')}
+        autoFocus={switched}
+        onBack={() => show('login')}
         onDone={(email) => {
           setSignedUp(email)
-          setView('login')
+          show('login')
         }}
       />
     )
@@ -72,7 +79,8 @@ function LoginOptions({ reason }: { reason?: string }) {
         // 가입하고 돌아오면 그 이메일로 다시 그린다.
         key={signedUp ?? ''}
         initialEmail={signedUp ?? ''}
-        onSignup={() => setView('signup')}
+        autoFocus={switched}
+        onSignup={() => show('signup')}
       />
       {isLocalLoginEnabled() && <TestAccountLogin />}
     </>

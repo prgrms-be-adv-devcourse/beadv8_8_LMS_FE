@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { usePasswordLogin } from '@/shared/auth/session'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
@@ -12,12 +12,19 @@ const FIELD_ORDER = ['email', 'password'] as const
  */
 export function EmailLoginForm({
   initialEmail = '',
+  autoFocus = false,
   onSignup,
 }: {
   /** 가입한 뒤 돌아왔을 때 미리 채울 이메일 */
   initialEmail?: string
+  /** 가입 화면에서 돌아왔으면 첫 칸으로 포커스한다(누른 버튼이 사라져 포커스가 모달 밖으로 나가지 않게) */
+  autoFocus?: boolean
   onSignup: () => void
 }) {
+  const firstRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (autoFocus) firstRef.current?.focus()
+  }, [autoFocus])
   const [values, setValues] = useState({ email: initialEmail, password: '' })
   const [failure, setFailure] = useState<string | null>(null)
   const login = usePasswordLogin()
@@ -59,6 +66,7 @@ export function EmailLoginForm({
     >
       <Field id={FIELD_ID.email} label="이메일" error={fields.error('email')}>
         <input
+          ref={firstRef}
           className="input"
           type="email"
           autoComplete="email"

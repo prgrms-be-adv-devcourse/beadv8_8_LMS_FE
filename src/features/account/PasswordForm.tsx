@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { passwordError } from '@/entities/member/password'
 import { isApiError } from '@/shared/api/ApiError'
 import { changePassword } from '@/shared/auth/me'
-import { refreshAccessToken } from '@/shared/auth/token'
+import { pauseRefreshWhile } from '@/shared/auth/token'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { toast } from '@/shared/ui/toastStore'
@@ -56,13 +56,16 @@ export function PasswordForm() {
     mutationFn: async (body: {
       currentPassword: string
       newPassword: string
-    }) => {
-      // 진행 중인 재발급을 끝내고 새 토큰으로 보낸다. 바꾼 뒤에 옛 재발급 응답이 오면 폐기된 쿠키로 덮어쓴다.
-      await refreshAccessToken().catch(() => null)
-      await changePassword(body)
-      // 바꾸면서 받은 새 쿠키로 토큰을 다시 받는다(옛 토큰도 만료 전까지 쓸 수 있어 실패해도 그대로 둔다).
-      await refreshAccessToken().catch(() => null)
-    },
+    }) =>
+      // 쿠키를 바꾸는 작업이라 로그인·로그아웃과 하나씩 한다. 그동안 다른 재발급이 끼어 폐기된 쿠키로 덮어쓰거나,
+      // 변경 중 로그아웃한 뒤 새 쿠키로 다시 로그인되지 않게 한다.
+      pauseRefreshWhile(async (refresh) => {
+        // 새 토큰으로 보낸다(변경 요청은 재발급하지 않는다).
+        await refresh().catch(() => null)
+        await changePassword(body)
+        // 바꾸면서 받은 새 쿠키로 토큰을 다시 받는다(옛 토큰도 만료 전까지 쓸 수 있어 실패해도 그대로 둔다).
+        await refresh().catch(() => null)
+      }),
     onSuccess: () => {
       setValues(EMPTY)
       fields.reset()

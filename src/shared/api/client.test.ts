@@ -404,6 +404,54 @@ describe('api 토큰 재발급', () => {
     await expect(refreshAccessToken()).resolves.toBe('t2')
   })
 
+  it('쿠키를 바꾸는 작업은 하나씩 하고, 작업 안의 재발급은 줄을 기다리지 않으며, 밖의 재발급은 줄이 빈 뒤에 받는다', async () => {
+    const order: string[] = []
+    let calls = 0
+    server.use(
+      http.post(url('/members/auth/refresh'), () => {
+        calls++
+        order.push(`refresh ${calls}`)
+        return HttpResponse.json({
+          statusCode: 200,
+          message: '',
+          data: { accessToken: `t${calls}`, expiresIn: 900 },
+        })
+      }),
+    )
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+
+    // 비밀번호 변경처럼: 작업 안에서 재발급 → (응답 지연) → 다시 재발급
+    const change = pauseRefreshWhile(async (refresh) => {
+      order.push('change start')
+      await refresh()
+      await gate
+      await refresh()
+      order.push('change end')
+    })
+    // 변경 중 로그아웃: 변경이 끝난 뒤에 한다
+    const logout = pauseRefreshWhile(async () => {
+      order.push('logout')
+      clearAccessToken()
+    })
+    // 밖에서 부른 재발급은 줄이 빈 뒤의 토큰(로그아웃 뒤 없음)을 받는다
+    const outside = refreshAccessToken()
+    await vi.waitFor(() => expect(order).toContain('refresh 1'))
+    release()
+
+    await Promise.all([change, logout])
+    await expect(outside).resolves.toBeNull()
+    expect(order).toEqual([
+      'change start',
+      'refresh 1',
+      'refresh 2',
+      'change end',
+      'logout',
+    ])
+    // 변경으로 받은 토큰이 로그아웃 뒤에 되살아나지 않는다.
+    expect(getAccessToken()).toBeNull()
+  })
+
   it('재발급을 기다리는 사이 로그아웃하면 늦게 받은 토큰을 쓰지 않는다', async () => {
     let release!: () => void
     const gate = new Promise<void>((resolve) => (release = resolve))

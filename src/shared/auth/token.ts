@@ -19,7 +19,9 @@ let version = 0
 let session = 0
 /** 진행 중인 재발급. 한 탭에서 동시에 필요해도 한 번만 부른다(여러 탭이 동시에 부르는 것은 BE가 잠시 봐준다) */
 let refreshing: Promise<string | null> | null = null
-/** 로그아웃·계정 전환 중이면 그 작업. 끝날 때까지 새 재발급을 시작하지 않는다 */
+/** refresh token 쿠키를 바꾸는 작업(로그인·로그아웃·비밀번호 변경)의 줄. 하나씩 실행한다 */
+let authQueue: Promise<unknown> = Promise.resolve()
+/** 줄의 마지막 작업. 줄이 빌 때까지 밖에서 부른 재발급은 시작하지 않는다 */
 let pausedBy: Promise<unknown> | null = null
 
 export function getAccessToken(): string | null {
@@ -49,21 +51,30 @@ export function authSession(): number {
 }
 
 /**
- * refresh token 쿠키를 바꾸는 작업(로그아웃·테스트 계정 로그인)을 재발급과 겹치지 않게 한다.
- * 진행 중인 재발급이 끝나기를 기다린 뒤 task를 하고, 그동안 새 재발급은 시작하지 않는다(task가 끝난 뒤의 토큰을 받는다).
- * 늦게 도착한 재발급 응답이 로그아웃으로 지운 쿠키를 되살리거나, 이전 계정 쿠키로 덮어쓰지 않게 하려는 것이다.
+ * refresh token 쿠키를 바꾸는 작업(로그인·로그아웃·비밀번호 변경)을 하나씩, 재발급과 겹치지 않게 실행한다.
+ * - 앞선 작업과 진행 중인 재발급이 끝나기를 기다린 뒤 task를 한다
+ * - 줄이 빌 때까지 밖에서 부른 재발급은 시작하지 않고, 끝난 뒤의 토큰을 받는다
+ * - task 안에서 재발급이 필요하면 넘겨받은 refresh를 쓴다(refreshAccessToken은 줄을 기다려 교착한다).
+ *   task 안에서 보내는 API도 재발급 대상이 아니어야 한다(client.ts의 AUTH_PATHS)
+ * 늦게 도착한 재발급 응답이 로그아웃으로 지운 쿠키를 되살리거나 다른 계정·폐기된 쿠키로 덮어쓰지 않게 하고,
+ * 두 로그인이 겹쳐 내 정보와 토큰의 계정이 달라지지 않게 하려는 것이다.
  */
-export async function pauseRefreshWhile<T>(task: () => Promise<T>): Promise<T> {
-  const run = (async () => {
-    await refreshing?.catch(() => null)
-    return task()
-  })()
+export function pauseRefreshWhile<T>(
+  task: (refresh: () => Promise<string | null>) => Promise<T>,
+): Promise<T> {
+  const run = authQueue
+    .catch(() => undefined)
+    .then(async () => {
+      await refreshing?.catch(() => null)
+      return task(startRefresh)
+    })
+  authQueue = run
   pausedBy = run
-  try {
-    return await run
-  } finally {
+  const clear = () => {
     if (pausedBy === run) pausedBy = null
   }
+  run.then(clear, clear)
+  return run
 }
 
 /**
@@ -78,6 +89,10 @@ export function refreshAccessToken(): Promise<string | null> {
       () => getAccessToken(),
       () => getAccessToken(),
     )
+  return startRefresh()
+}
+
+function startRefresh(): Promise<string | null> {
   refreshing ??= requestRefresh().finally(() => {
     refreshing = null
   })

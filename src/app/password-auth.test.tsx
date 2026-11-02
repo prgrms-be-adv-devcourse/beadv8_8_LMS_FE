@@ -126,6 +126,78 @@ describe('이메일 로그인', () => {
     },
   )
 
+  it('로그인 응답을 기다리는 사이 모달을 닫고 다른 계정으로 로그인해도 차례로 처리해 내 정보와 토큰의 계정이 같다', async () => {
+    let refreshCalls = 0
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () => {
+        refreshCalls++
+        return rs({ accessToken: `token-${refreshCalls}`, expiresIn: 900 })
+      }),
+    )
+    let releaseA!: () => void
+    const gateA = new Promise<void>((resolve) => (releaseA = resolve))
+    const loginOrder: string[] = []
+    server.use(
+      http.post('*/api/v1/members/login', async ({ request }) => {
+        const { email } = (await request.json()) as { email: string }
+        loginOrder.push(email)
+        if (email === 'a@hapbang.kr') {
+          await gateA
+          return rs(me({ id: 11, nickname: '에이', email }))
+        }
+        return rs(me({ id: 12, nickname: '비', email }))
+      }),
+    )
+    renderApp('/lectures', 'GUEST')
+
+    const login = async (email: string) => {
+      const dialog = await openLogin()
+      const form = within(dialog).getByRole('form', { name: '이메일로 로그인' })
+      await userEvent.type(within(form).getByLabelText('이메일'), email)
+      await userEvent.type(within(form).getByLabelText('비밀번호'), 'abcd1234')
+      await userEvent.click(
+        within(form).getByRole('button', { name: '이메일로 로그인' }),
+      )
+    }
+    await login('a@hapbang.kr')
+    await waitFor(() => expect(loginOrder).toEqual(['a@hapbang.kr']))
+    closeLoginModal()
+    await login('b@hapbang.kr')
+    // A가 끝나기 전에는 B를 보내지 않는다.
+    expect(loginOrder).toEqual(['a@hapbang.kr'])
+    releaseA()
+
+    await waitFor(() =>
+      expect(loginOrder).toEqual(['a@hapbang.kr', 'b@hapbang.kr']),
+    )
+    expect(
+      await within(screen.getByRole('banner')).findByRole('button', {
+        name: '비 메뉴',
+      }),
+    ).toBeInTheDocument()
+    expect(getAccessToken()).toBe('token-2')
+  })
+
+  it('키보드로 가입·로그인 화면을 바꾸면 새 폼의 첫 칸으로 포커스한다', async () => {
+    renderApp('/lectures', 'GUEST')
+    const dialog = await openLogin()
+    within(dialog).getByRole('button', { name: '이메일로 가입하기' }).focus()
+    await userEvent.keyboard('{Enter}')
+    const signupForm = within(dialog).getByRole('form', {
+      name: '이메일로 가입',
+    })
+    expect(within(signupForm).getByLabelText('이메일')).toHaveFocus()
+
+    within(signupForm)
+      .getByRole('button', { name: '로그인으로 돌아가기' })
+      .focus()
+    await userEvent.keyboard('{Enter}')
+    const loginForm = within(dialog).getByRole('form', {
+      name: '이메일로 로그인',
+    })
+    expect(within(loginForm).getByLabelText('이메일')).toHaveFocus()
+  })
+
   it('비어 있으면 요청하지 않고 첫 빈 칸을 알려 준다', async () => {
     let calls = 0
     server.use(
