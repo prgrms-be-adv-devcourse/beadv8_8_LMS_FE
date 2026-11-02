@@ -34,7 +34,7 @@ dev → main 병합          Publish image: CI → 이미지 GHCR push  :sha-<�
 ```
 
 - **dev → main 병합이 곧 운영 배포다.** main은 Release PR로만 바뀌므로, 운영에 올릴 시점은 Release PR을 병합하는 사람이 정한다.
-- AWS 설정(아래 사전 준비)이 없으면 Deploy는 경고만 남기고 건너뛴다. 그 전까지는 "SSM 준비 전 직접 배포"로 반영한다.
+- 자동 실행은 main 최신 커밋만 배포한다. main에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나도 운영이 되돌아가지 않는다.
 - **자동 롤백**: rollout이 3분 안에 끝나지 않으면 `web` Deployment만 이전 revision으로 되돌리고 실패로 표시한다. Service·HTTPRoute·NetworkPolicy는 되돌리지 않는다.
 - **수동 롤백**: 되돌릴 main 커밋 sha를 넣고 Deploy를 실행한다.
 - 이미지 태그는 `:sha-<커밋>` 하나다. `:latest`·`:dev`는 만들지 않는다.
@@ -49,17 +49,19 @@ GHCR 패키지는 조직 정책으로 private이다(public 전환 불가). BE �
 - Secret을 배포 동안만 두면 안 된다. k8s 1.35부터 kubelet은 node에 있는 이미지도 pull 인증을 확인하므로(`KubeletEnsureSecretPulledImages`), Secret이 없으면 매일 아침 node가 다시 켜질 때 pod가 이미지를 다시 받으려다 실패한다.
 - rollout이 실패하면 배포 로그가 원인을 이미지 없음·GHCR 인증 실패(401·403)·기동 실패로 나눠 알린다. 인증 실패면 BE 문서의 교체 절차로 토큰을 바꾼다.
 
-### 사전 준비 (한 번)
+### 배포 설정 (2026-11-02, #152)
 
 | 항목 | 내용 |
 | --- | --- |
-| GHCR 패키지 | `beadv8_8_lms_fe`는 private(조직 정책). 이 레포 Actions에 읽기 권한이 있어야 한다(publish.yml이 처음 만들 때 자동 연결) |
-| GitHub Environment `prod` | 배포 브랜치를 `main`으로 제한. Secrets `AWS_DEPLOY_ROLE_ARN`, `DEPLOY_INSTANCE_ID` |
-| IAM role trust | GitHub OIDC의 이 레포 `environment:prod` subject를 허용한다(BE [k8s.md 운영 앱 배포](https://github.com/prgrms-be-adv-devcourse/beadv8_8_LMS_BE/blob/dev/docs/deploy/k8s.md) 참고). BE 레포의 자격 증명을 복사하지 않는다 |
+| GHCR 패키지 | `beadv8_8_lms_fe`는 private(조직 정책). 이 레포 Actions에 읽기 권한이 있다(publish.yml이 처음 만들 때 자동 연결) |
+| GitHub Environment `prod` | 배포 브랜치는 `main`만. Secrets `AWS_DEPLOY_ROLE_ARN`, `DEPLOY_INSTANCE_ID`(BE `prod` environment와 같은 값) |
+| IAM role | BE와 같은 `team08-hapbang-github-deploy`(콘솔에서 만듦, Terraform 밖). trust의 `sub`에 BE·FE 두 레포의 `repo:<org>@<org id>/<repo>@<repo id>:environment:prod`가 있다. 레포를 옮기거나 다시 만들면 FE subject를 바꿔야 한다. 권한은 large에 `AWS-RunShellScript` 실행·결과 읽기뿐이다 |
 
-### SSM 준비 전 직접 배포
+Secret이 빠지거나 trust가 바뀌면 Deploy는 AWS role을 받는 단계에서 실패한다.
 
-prod kubeconfig(context `hapbang-k3s`, 6443이 내 IP로 열려 있어야 함)가 있으면 같은 스크립트를 로컬에서 실행할 수 있다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 하고, `hapbang-prod`에 `ghcr-pull`이 있어야 한다. 토큰은 따로 넣지 않는다.
+### 비상용 직접 배포 (로컬 kubectl)
+
+GitHub Actions나 SSM을 쓸 수 없을 때만 쓴다. prod kubeconfig(context `hapbang-k3s`, 보안 그룹 6443이 내 IP `/32`로 열려 있어야 함)로 같은 스크립트를 로컬에서 실행한다. 이미지(`:sha-<커밋>`)가 GHCR에 있어야 하고, `hapbang-prod`에 `ghcr-pull`이 있어야 한다. 토큰은 따로 넣지 않는다.
 
 ```sh
 KUBECTL="kubectl --context hapbang-k3s" .github/scripts/k3s-deploy.sh apply <40자 main 커밋 sha>
