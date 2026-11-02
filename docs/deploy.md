@@ -37,6 +37,7 @@ dev → main 병합          CI만. 서버 없음(안정화 표시)
 - **dev 병합이 곧 운영 배포다**(#156). 서버는 prod 하나뿐이고, dev가 기본 브랜치다.
 - **main은 서버가 없다.** 안정화됐다고 판단할 때 dev → main으로 병합하는 표시다. main 대상 PR에는 CI만 돌고, 이미지 발행·배포는 없다. main으로는 dev에서만 PR할 수 있다(`pr-source.yml`).
 - dev·main은 ruleset `protect-main-dev`로 보호한다: PR로만 병합(바로 push·force-push·삭제 금지), 필수 체크 `build`·`manifests`·`source-branch`.
+- 병합 방식: feature → dev는 squash, dev → main은 merge commit만 된다(ruleset `merge-method-dev`·`merge-method-main`, BE와 같음).
 - 자동 실행은 dev 최신 커밋만 배포한다. dev에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나도 운영이 되돌아가지 않는다. 배포는 하나씩 순서대로 돌고, 병합마다 `web` pod가 수 초 끊긴다(`maxSurge: 0`).
 - **자동 롤백**: rollout이 3분 안에 끝나지 않으면 `web` Deployment만 이전 revision으로 되돌리고 실패로 표시한다. Service·HTTPRoute·NetworkPolicy는 되돌리지 않는다.
 - **수동 롤백**: 되돌릴 dev 커밋 sha를 넣고 Deploy를 실행한다(`gh workflow run deploy.yml --ref dev -f sha=<커밋>`).
