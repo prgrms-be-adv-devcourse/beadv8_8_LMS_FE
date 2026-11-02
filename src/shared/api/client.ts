@@ -1,13 +1,27 @@
-import { readCookie } from '@/shared/lib/cookie'
+import {
+  authSession,
+  getAccessToken,
+  refreshAccessToken,
+} from '@/shared/auth/token'
 import { ApiError } from './ApiError'
+import { API_BASE } from './base'
 import type { ProblemDetail, RsData } from './types'
 
-/** 모든 API는 같은 출처의 상대 경로로 호출한다(docs/deploy.md). */
-export const API_BASE = '/api/v1'
+export { API_BASE }
 
-const CSRF_COOKIE = 'XSRF-TOKEN'
-export const CSRF_HEADER = 'X-XSRF-TOKEN'
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
+/**
+ * 재발급 뒤 다시 보내지 않는 요청. 재발급·로그아웃은 refresh token 쿠키로 부르고, 로그인·가입의 401·403은 토큰 만료가
+ * 아니라 결과(비밀번호 틀림 INVALID_CREDENTIALS, 이용할 수 없는 회원 LOGIN_NOT_ALLOWED)이므로 부른 쪽에 그대로 넘긴다.
+ * 비밀번호 변경은 재발급을 멈춘 줄(pauseRefreshWhile) 안에서 바로 앞에 받은 토큰으로 보낸다(여기서 재발급을 기다리면 교착한다)
+ */
+const AUTH_PATHS = new Set([
+  '/members/auth/refresh',
+  '/members/auth/logout',
+  '/members/login',
+  '/members/signup',
+  '/members/local-login',
+  '/members/me/password',
+])
 
 type Json = Record<string, unknown> | unknown[]
 
@@ -19,7 +33,10 @@ export type ApiRequest = Omit<RequestInit, 'body'> & {
 
 /**
  * BE API 호출. 성공하면 RsData의 data만, 204면 undefined를 돌려주고, 실패하면 ApiError를 던진다.
- * 변경 요청에는 XSRF-TOKEN 쿠키 값을 X-XSRF-TOKEN 헤더로 붙인다(BE csrf.spa()).
+ * access token이 있으면 Authorization: Bearer로 보낸다.
+ * 401(토큰 만료)·403(역할이 막 바뀌어 토큰의 역할이 옛 값)이면 토큰을 다시 받아 한 번만 다시 보낸다.
+ * 다시 받지 못하거나 그사이 로그인이 바뀌었으면(로그아웃·다른 계정) 처음 실패를 그대로 던진다(401이면 전역 처리가
+ * 비회원으로 바꾼다). 이전 로그인의 요청을 새 계정 토큰으로 보내지 않게 한다.
  */
 export async function api<T>(
   path: string,
@@ -37,19 +54,35 @@ export async function api<T>(
     payload = JSON.stringify(body)
   }
 
-  if (!SAFE_METHODS.has(method)) {
-    // 토큰을 받는 요청도 같은 취소 신호로 끊는다(시간 상한·화면 이탈 때 매달린 요청이 남지 않게).
-    const token = await ensureCsrfToken(init.signal ?? undefined)
-    if (token) headers.set(CSRF_HEADER, token)
+  const send = (token: string | null) => {
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+    else headers.delete('Authorization')
+    return fetch(buildUrl(path, query), {
+      ...init,
+      method,
+      headers,
+      body: payload,
+      credentials: 'same-origin',
+    })
   }
 
-  const res = await fetch(buildUrl(path, query), {
-    ...init,
-    method,
-    headers,
-    body: payload,
-    credentials: 'same-origin',
-  })
+  const sentWith = getAccessToken()
+  const sentIn = authSession()
+  let res = await send(sentWith)
+  if (
+    (res.status === 401 || res.status === 403) &&
+    // 경로에 쿼리를 직접 붙여 불러도 같은 요청으로 본다.
+    !AUTH_PATHS.has(path.split('?')[0]) &&
+    authSession() === sentIn
+  ) {
+    // 기다리는 사이 다른 요청이 이미 새 토큰을 받았으면 그 토큰으로 다시 보낸다.
+    const latest = getAccessToken()
+    const token =
+      latest && latest !== sentWith
+        ? latest
+        : await refreshAccessToken().catch(() => null)
+    if (token && authSession() === sentIn) res = await send(token)
+  }
 
   if (res.status === 204) return undefined as T
   const json = await readJson(res)
@@ -91,21 +124,4 @@ function isRsData(json: unknown): json is RsData<unknown> {
     typeof (json as RsData<unknown>).message === 'string' &&
     'data' in json
   )
-}
-
-/**
- * CSRF 토큰 쿠키가 아직 없으면(첫 방문, 로그아웃 직후) GET 한 번으로 받아 온다.
- * 응답 상태(401 포함)와 상관없이 BE가 쿠키를 내려 준다.
- */
-export async function ensureCsrfToken(
-  signal?: AbortSignal,
-): Promise<string | null> {
-  const token = readCookie(CSRF_COOKIE)
-  if (token) return token
-  await fetch(`${API_BASE}/members/me`, {
-    credentials: 'same-origin',
-    signal,
-  }).catch(() => undefined)
-  signal?.throwIfAborted()
-  return readCookie(CSRF_COOKIE)
 }

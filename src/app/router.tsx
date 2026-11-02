@@ -1,5 +1,9 @@
 import type { ReactNode } from 'react'
-import { createBrowserRouter, redirect, type RouteObject } from 'react-router'
+import {
+  redirect,
+  type LoaderFunctionArgs,
+  type RouteObject,
+} from 'react-router'
 import { AppShell } from '@/app/layouts/AppShell'
 import { NAV } from '@/app/nav'
 import { queryClient } from '@/app/queryClient'
@@ -14,6 +18,7 @@ import {
   type Viewer,
 } from '@/shared/auth/role'
 import { consumeReturnTo } from '@/shared/auth/session'
+import { getAccessToken, refreshAccessToken } from '@/shared/auth/token'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
@@ -35,6 +40,7 @@ import { CartPage } from '@/pages/cart/CartPage'
 import { ChargeResultPage } from '@/pages/charge-result/ChargeResultPage'
 import { ChatPage } from '@/pages/chat/ChatPage'
 import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
+import { LoginFailurePage } from '@/pages/login/LoginFailurePage'
 import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
 import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
 import { InquiryPage } from '@/pages/inquiry/InquiryPage'
@@ -76,6 +82,8 @@ const EXTRA_ROUTES: PageDef[] = [
   },
   // 치지직 연동 콜백 뒤 BE가 보내는 경로(BE ApiV1MemberChannelController.RESULT_PATH)
   { path: '/mypage', title: '치지직 연동 결과', roles: MEMBER },
+  // 구글 로그인 실패 때 BE가 보내는 주소(/login?error=)
+  { path: '/login', title: '로그인', roles: ALL },
   {
     path: '/appearances/requests/:requestId',
     title: '출연 요청서',
@@ -130,6 +138,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/influencers/:memberId': <InfluencerProfilePage />,
   '/verify': <VerifyPage />,
   '/mypage': <ChzzkResultPage />,
+  '/login': <LoginFailurePage />,
   '/settings': <SettingsPage />,
   '/profile/edit': <MyProfilePage />,
   '/promote': <PromotePage />,
@@ -180,11 +189,20 @@ function toRoute({ path, title, roles }: PageDef): RouteObject {
 
 /**
  * 첫 화면을 그리기 전에 로그인 상태를 확인한다(역할별 메뉴·가드가 깜빡이지 않게).
+ * 처음 열 때(새로고침·구글 로그인·치지직·결제 복귀 포함)는 메모리에 access token이 없으므로 refresh token 쿠키로
+ * 먼저 받고, 받으면 내 정보를 부른다. 받지 못하면(쿠키 없음·만료) 비회원이다.
+ * 이미 로그인 상태를 정했으면(로그인·로그아웃 뒤 화면 이동) 다시 받지 않는다.
  * BE가 응답하지 않아도 비회원으로 보고 앱은 연다.
  */
-async function rootLoader() {
+async function rootLoader({ request }: LoaderFunctionArgs) {
+  const decided = queryClient.getQueryData(meQuery.queryKey) !== undefined
+  if (!decided && !getAccessToken()) {
+    const token = await refreshAccessToken().catch(() => null)
+    if (!token) queryClient.setQueryData(meQuery.queryKey, null)
+  }
   const me = await queryClient.ensureQueryData(meQuery).catch(() => null)
-  if (me) {
+  // 구글 로그인 실패 화면(/login)은 저장한 돌아갈 경로를 쓰지 않고 첫 화면으로 보낸다(LoginFailurePage가 버린다).
+  if (me && new URL(request.url).pathname !== '/login') {
     const returnTo = consumeReturnTo()
     if (returnTo) throw redirect(returnTo)
   }
@@ -200,5 +218,3 @@ export const routes: RouteObject[] = [
     children: [...PAGES.map(toRoute), { path: '*', element: <NotFoundPage /> }],
   },
 ]
-
-export const router = createBrowserRouter(routes)

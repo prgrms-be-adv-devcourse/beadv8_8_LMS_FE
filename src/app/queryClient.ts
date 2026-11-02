@@ -1,12 +1,16 @@
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 import { isApiError } from '@/shared/api/ApiError'
 import { meQuery } from '@/shared/auth/me'
+import { clearAccessToken } from '@/shared/auth/token'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
 
-/** 세션이 끊겼으면(401) 비회원으로 바꾸고 로그인 모달을, 권한이 없으면(403) 안내를 띄운다. */
+/**
+ * 로그인이 끊겼으면(토큰을 다시 받아도 401) 비회원으로 바꾸고 로그인 모달을, 권한이 없으면(403) 안내를 띄운다.
+ */
 function handleAuthError(error: unknown) {
   if (isApiError(error, 'UNAUTHORIZED')) {
+    clearAccessToken()
     queryClient.setQueryData(meQuery.queryKey, null)
     openLoginModal('로그인이 필요해요.')
   } else if (isApiError(error, 'FORBIDDEN')) {

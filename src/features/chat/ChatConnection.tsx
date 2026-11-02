@@ -4,8 +4,12 @@ import { useEffect } from 'react'
 import { chatKeys, observeChatPages } from '@/entities/chat/api'
 import type { ChatRoom } from '@/entities/chat/types'
 import { API_BASE } from '@/shared/api/client'
-import { meQuery } from '@/shared/auth/me'
 import { clearSession } from '@/shared/auth/session'
+import {
+  accessTokenRemainingMs,
+  getAccessToken,
+  refreshAccessToken,
+} from '@/shared/auth/token'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { failAllSending, useChatStore } from './chatStore'
 import {
@@ -42,17 +46,20 @@ const QUEUE = {
 /** 다시 연결 대기: 3초부터 두 배씩 늘려 최대 30초. 여러 탭·회원이 한꺼번에 몰리지 않게 매번 최대 1초를 더 기다린다 */
 const RECONNECT = { baseMs: 3_000, maxMs: 30_000, jitterMs: 1_000 }
 
+/** 연결할 때 access token이 이보다 적게 남았으면 먼저 다시 받는다(연결 직후 만료로 끊기지 않게) */
+const TOKEN_MIN_REMAINING_MS = 30_000
+
 function brokerUrl() {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
   return `${scheme}://${location.host}${API_BASE}/chats/ws`
 }
 
 /**
- * 앱 전체에서 STOMP 연결 하나를 유지한다(세션 쿠키로 인증). 화면에는 아무것도 그리지 않는다.
+ * 앱 전체에서 STOMP 연결 하나를 유지한다(CONNECT 헤더의 access token으로 인증). 화면에는 아무것도 그리지 않는다.
  * 열어 둔 방은 방 topic으로, 그 밖의 방은 새 메시지 알림으로 받는다. 연결될 때마다(최초 연결 포함) 구독 전에 놓친
  * 메시지를 채우려고 채팅 데이터를 다시 부른다.
  * userId가 바뀌면(로그아웃·역할 전환) 연결을 새로 맺는다.
- * 연결이 끊기면 세션이 살아 있는지 한 번 확인한다. 세션이 없으면(로그아웃·만료, BE가 소켓을 닫은 경우)
+ * 연결이 끊기면 토큰을 다시 받을 수 있는지 한 번 확인한다. 받지 못하면(로그아웃·만료, BE가 소켓을 닫은 경우)
  * 비회원으로 바꿔 이 컴포넌트가 사라지게 하고, 거절될 재연결을 반복하지 않는다.
  */
 export function ChatConnection({ userId }: { userId: number }) {
@@ -122,31 +129,47 @@ export function ChatConnection({ userId }: { userId: number }) {
     let attempted = false
     // 이 연결을 정리했는지(로그아웃·회원 전환·화면 해제)
     let disposed = false
-    // 끊긴 뒤 세션을 확인했는지. 다시 연결되면 초기화한다(BE가 응답하지 않는 동안 재시도마다 확인하지 않게).
+    // 끊긴 뒤 로그인 상태를 확인했는지. 다시 연결되면 초기화한다(BE가 응답하지 않는 동안 재시도마다 확인하지 않게).
     let sessionChecked = false
 
-    const checkSession = async () => {
-      const me = await queryClient
-        .fetchQuery({ ...meQuery, staleTime: 0 })
-        .catch(() => undefined)
-      if (me !== null) return
-      // 로그아웃과 같이 이전 회원 데이터를 지운다(새로고침 없이 다른 계정으로 로그인해도 남지 않게).
+    // 다시 로그인해야 한다. 로그아웃과 같이 이전 회원 데이터를 지운다(새로고침 없이 다른 계정으로 로그인해도 남지 않게).
+    const endSession = () => {
       clearSession(queryClient)
       openLoginModal('로그인이 끊겼어요. 다시 로그인해 주세요.')
+    }
+    // 토큰을 다시 받아 본다. 받지 못하면(다시 로그인해야 함) 비회원으로 바꾼다. BE가 응답하지 않으면 그대로 둔다.
+    const checkSession = async () => {
+      const token = await refreshAccessToken().catch(() => undefined)
+      if (token === null) endSession()
     }
     const client = new Client({
       brokerURL: brokerUrl(),
       reconnectDelay: RECONNECT.baseMs,
       reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
       maxReconnectDelay: RECONNECT.maxMs,
-      beforeConnect: () => {
-        if (!attempted) {
-          attempted = true
+      // 브라우저 WebSocket은 헤더를 실을 수 없어 STOMP CONNECT 헤더로 access token을 보낸다. 다시 연결할 때마다
+      // 그때의 토큰을 넣고, 곧 만료되면 먼저 다시 받는다. 다시 받지 못하면(다시 로그인해야 함) 연결하지 않고 비회원으로
+      // 바꾼다. BE가 응답하지 않아 받지 못했으면 그대로 시도한다(서버가 거절하면 끊긴 뒤 다시 확인한다).
+      beforeConnect: async () => {
+        if (attempted)
+          await new Promise<void>((resolve) =>
+            setTimeout(resolve, Math.random() * RECONNECT.jitterMs),
+          )
+        attempted = true
+        const refreshed =
+          accessTokenRemainingMs() < TOKEN_MIN_REMAINING_MS
+            ? await refreshAccessToken().catch(() => undefined)
+            : undefined
+        if (disposed) return
+        if (refreshed === null) {
+          void client.deactivate()
+          endSession()
           return
         }
-        return new Promise<void>((resolve) =>
-          setTimeout(resolve, Math.random() * RECONNECT.jitterMs),
-        )
+        const token = getAccessToken()
+        client.connectHeaders = token
+          ? { Authorization: `Bearer ${token}` }
+          : {}
       },
       onConnect: () => {
         client.subscribe(QUEUE.messages, (frame) => {
@@ -194,11 +217,18 @@ export function ChatConnection({ userId }: { userId: number }) {
         topics.connected(client)
         useChatStore.setState({ status: 'connected' })
       },
-      onWebSocketClose: () => {
+      // 서버가 닫는 경우: 토큰 만료(4401 TOKEN_EXPIRED)·인증 실패(STOMP ERROR UNAUTHENTICATED)·다른 기기 로그아웃
+      // (1008 LOGGED_OUT)은 토큰을 다시 받아 보고, 받으면 새 토큰으로 다시 연결하고(연결되면 이력을 다시 맞춘다)
+      // 받지 못하면 비회원으로 바꾼다. 채팅 불가(1008 CHAT_NOT_ALLOWED)는 다시 연결하지 않는다.
+      onWebSocketClose: (event: { code?: number; reason?: string }) => {
         useChatStore.setState({ status: 'disconnected' })
         receipt.stop()
         topics.disconnected()
         failAllSending()
+        if (event.code === 1008 && event.reason === 'CHAT_NOT_ALLOWED') {
+          void client.deactivate()
+          return
+        }
         // 직접 닫은 경우(deactivate)는 확인하지 않는다.
         if (client.active && !sessionChecked) {
           sessionChecked = true

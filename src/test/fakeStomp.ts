@@ -1,4 +1,5 @@
 type Config = {
+  beforeConnect?: (client: FakeStompClient) => void | Promise<void>
   onConnect?: (frame: unknown) => void
   onWebSocketClose?: (event: unknown) => void
 }
@@ -26,6 +27,10 @@ export class FakeStompClient {
   connected = false
   active = false
   published: { destination: string; body: string }[] = []
+  /** CONNECT 헤더(beforeConnect가 넣는 access token 등) */
+  connectHeaders: Record<string, string> = {}
+  /** 마지막 activate()의 beforeConnect가 끝나면 풀린다. CONNECT 헤더를 확인하기 전에 기다린다 */
+  ready: Promise<void> = Promise.resolve()
   /** 이 클라이언트가 한 모든 구독(해제·끊긴 것 포함, 구독한 순) */
   subscriptions: FakeSubscription[] = []
   /** 지금 살아 있는 구독 */
@@ -39,8 +44,10 @@ export class FakeStompClient {
     FakeStompClient.instances.push(this)
   }
 
+  /** 실제 클라이언트처럼 연결 전에 beforeConnect를 부른다. 연결은 테스트가 connect()로 맺는다 */
   activate() {
     this.active = true
+    this.ready = Promise.resolve(this.config.beforeConnect?.(this))
   }
 
   /** 실제 클라이언트처럼 해제하면 구독도 끝나 이후 프레임을 받지 않는다 */

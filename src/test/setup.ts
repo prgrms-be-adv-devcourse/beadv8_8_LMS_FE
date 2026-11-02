@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest'
 import { cleanup, configure } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
+import { clearAccessToken } from '@/shared/auth/token'
 import { resetToast } from '@/shared/ui/toastStore'
 import { FakeStompClient } from './fakeStomp'
 import { server } from './server'
@@ -24,6 +25,8 @@ afterEach(() => {
   resetToast()
   FakeStompClient.reset()
   cleanup()
+  // access token은 모듈 메모리에 있어 테스트 사이에 남는다.
+  clearAccessToken()
   document.cookie.split('; ').forEach((c) => {
     document.cookie = `${c.split('=')[0]}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
   })

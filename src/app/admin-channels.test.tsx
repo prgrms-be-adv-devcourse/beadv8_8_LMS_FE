@@ -61,7 +61,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('승인은 확인창을 거쳐 처리하고 목록을 다시 불러온다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/admin/channels', 'ADMIN')
     const row = await item('새벽기타')
     await userEvent.click(within(row).getByRole('button', { name: '승인' }))
@@ -87,7 +86,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('반려는 사유가 있어야 보낼 수 있고, 자주 쓰는 사유를 고쳐 보낸다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/admin/channels', 'ADMIN')
     const row = await item('새벽기타')
     await userEvent.click(within(row).getByRole('button', { name: '반려' }))
@@ -121,7 +119,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('이미 처리된 채널이면 안내하고 목록을 다시 불러온다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     let listCalls = 0
     server.use(
       http.get('*/api/v1/members/admin/channels', () => {
@@ -174,7 +171,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('반려가 일시적으로 실패하면 모달과 입력한 사유를 그대로 둔다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.post('*/api/v1/members/admin/channels/101/reject', () =>
         HttpResponse.json(
@@ -201,7 +197,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('처리 중에는 모달을 닫고 다시 열어도 같은 채널을 또 보내지 못한다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))
     let approveCalls = 0
@@ -276,7 +271,6 @@ describe('관리자 채널 인증 심사', () => {
   })
 
   it('처리 중에 다른 메뉴로 갔다 돌아와도 같은 채널을 또 보내지 못한다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))
     let approveCalls = 0

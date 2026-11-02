@@ -351,7 +351,6 @@ async function openRecruitForm(wallet = {}, { approvedChannel = true } = {}) {
       ),
     ),
   )
-  document.cookie = 'XSRF-TOKEN=t'
   const router = renderApp('/recruits', 'INFLUENCER', wallet)
   await userEvent.click(
     await screen.findByRole('button', { name: '모집글 올리기' }),
@@ -636,7 +635,6 @@ describe('모집 상세 · 게스트', () => {
         },
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/recruits/7', 'INFLUENCER')
 
     await userEvent.type(
@@ -671,7 +669,6 @@ describe('모집 상세 · 게스트', () => {
         return problem(409, 'DUPLICATE_APPLICATION')
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/recruits/7', 'INFLUENCER')
 
     await userEvent.click(
@@ -718,7 +715,6 @@ describe('모집 상세 · 게스트', () => {
         return rs(mine)
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/recruits/7', 'INFLUENCER')
 
     await userEvent.click(
@@ -758,7 +754,6 @@ describe('모집 상세 · 게스트', () => {
         return rs(mine.value)
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp('/recruits?tab=applications', 'INFLUENCER')
 
     await userEvent.click(
@@ -835,7 +830,6 @@ describe('모집 상세 · 호스트', () => {
         rs(page(applicants)),
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
   }
 
   const applicant = (patch: Partial<Application> = {}) =>
@@ -1395,7 +1389,6 @@ describe('보류 확인 대기 (내 모집글)', () => {
       ),
       http.get('*/api/v1/members/channels/me', () => rs([])),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(
       `/recruits?tab=mine&holdPending=${Date.now() - 200_000}`,
       'INFLUENCER',

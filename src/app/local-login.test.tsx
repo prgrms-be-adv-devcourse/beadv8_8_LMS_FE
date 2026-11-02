@@ -1,10 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { meQuery, type Me } from '@/shared/auth/me'
 import type { Role } from '@/shared/auth/role'
+import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -29,10 +30,18 @@ const me = (role: Role): Me => ({
   profileImageUrl: null,
 })
 
-/** 테스트 계정 로그인 응답. 받은 요청을 calls에 남긴다. */
+const LOCAL_TOKEN = 'local-access-token'
+
+/**
+ * 테스트 계정 로그인 응답. 받은 요청을 calls에 남긴다.
+ * BE는 refresh token 쿠키만 주므로 이어서 부르는 재발급이 access token을 준다.
+ */
 function mockLocalLogin(respond?: () => Response | Promise<Response>) {
   const calls: Request[] = []
   server.use(
+    http.post('*/api/v1/members/auth/refresh', () =>
+      rs({ accessToken: LOCAL_TOKEN, expiresIn: 900 }),
+    ),
     http.post('*/api/v1/members/local-login', async ({ request }) => {
       calls.push(request)
       if (respond) return respond()
@@ -56,11 +65,6 @@ async function openTestAccounts() {
 
 const toasts = () =>
   screen.queryAllByRole('status').filter((el) => el.classList.contains('toast'))
-
-// 변경 요청이 CSRF 토큰을 받으려 /members/me를 따로 부르지 않게 쿠키를 둔다.
-beforeEach(() => {
-  document.cookie = 'XSRF-TOKEN=t'
-})
 
 afterEach(() => {
   queryClient.clear()
@@ -114,7 +118,8 @@ describe('로그인 모달 테스트 계정 로그인', () => {
     const params = new URL(calls[0].url).searchParams
     expect(params.get('role')).toBe('INFLUENCER')
     expect(params.get('number')).toBe('2')
-    expect(calls[0].headers.get('X-XSRF-TOKEN')).toBe('t')
+    // 재발급으로 받은 access token을 이 탭 메모리에 둔다.
+    expect(getAccessToken()).toBe(LOCAL_TOKEN)
 
     expect(router.state.location.pathname).toBe('/lectures')
     const header = await screen.findByRole('banner')

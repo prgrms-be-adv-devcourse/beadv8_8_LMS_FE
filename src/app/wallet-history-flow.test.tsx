@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { walletKeys } from '@/entities/wallet/api'
 import {
@@ -28,10 +28,6 @@ async function rowsOf(region: HTMLElement) {
   const table = await within(region).findByRole('table')
   return within(table).getAllByRole('row').slice(1)
 }
-
-beforeEach(() => {
-  document.cookie = 'XSRF-TOKEN=t'
-})
 
 afterEach(() => {
   queryClient.setQueryDefaults(walletKeys.earnings(), {})
