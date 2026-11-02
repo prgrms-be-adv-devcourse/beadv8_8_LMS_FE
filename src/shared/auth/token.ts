@@ -36,6 +36,33 @@ export function accessTokenRemainingMs(now = Date.now()): number {
 export function setAccessToken(token: string, expiresInSeconds: number) {
   current = { token, expiresAt: Date.now() + expiresInSeconds * 1000 }
   version++
+  // 토큰의 만료(exp)는 서버 시계, expiresAt은 이 기기 시계 기준이다. 차이가 두 시계의 차이(응답 지연만큼 오차)다.
+  const exp = expOf(token)
+  clockOffset = exp === null ? 0 : exp * 1000 - current.expiresAt
+}
+
+/** 서버 시계 - 이 기기 시계(ms). 토큰을 받기 전이거나 읽지 못하면 0 */
+let clockOffset = 0
+
+/** JWT payload의 exp(초). 서명은 확인하지 않는다(시각을 맞추는 데만 쓴다). 읽지 못하면 null */
+function expOf(token: string): number | null {
+  const payload = token.split('.')[1]
+  if (!payload) return null
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const { exp } = JSON.parse(atob(base64)) as { exp?: unknown }
+    return typeof exp === 'number' ? exp : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 서버 시계로 본 지금(ms). 서버가 준 절대 시각(채팅 연결 만료 등)과 비교할 때 쓴다. 기기 시계가 어긋나도
+ * 서버 시각에 맞춰 예약하게 한다
+ */
+export function serverNow(): number {
+  return Date.now() + clockOffset
 }
 
 /** 토큰을 버린다(로그아웃·다른 탭 로그아웃·재발급 실패) */

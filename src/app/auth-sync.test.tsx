@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { walletQuery } from '@/entities/wallet/api'
 import { meQuery } from '@/shared/auth/me'
@@ -130,25 +130,112 @@ describe('채팅 연결 인증', () => {
     return state
   }
 
-  it('STOMP CONNECT 헤더에 access token을 넣는다', async () => {
+  /**
+   * 연결 티켓 응답. 받은 Authorization과 횟수를 남긴다. respond가 상태 코드를 돌려주면 그 오류로 답한다
+   * (부를 때마다 다시 정한다)
+   */
+  function mockTickets(respond: (call: number) => number | null = () => null) {
+    const state = { calls: 0, authorizations: [] as (string | null)[] }
+    server.use(
+      http.post('*/api/v1/chats/ws-tickets', ({ request }) => {
+        state.calls++
+        state.authorizations.push(request.headers.get('Authorization'))
+        const status = respond(state.calls)
+        if (status)
+          return HttpResponse.json(
+            {
+              status,
+              code:
+                status === 429
+                  ? 'TOO_MANY_TICKET_REQUESTS'
+                  : status === 503
+                    ? 'CONNECTION_TICKET_UNAVAILABLE'
+                    : 'FORBIDDEN',
+            },
+            { status },
+          )
+        return rs({
+          ticket: `t-${state.calls}`,
+          expiresIn: 30,
+          connectionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+        })
+      }),
+    )
+    return state
+  }
+
+  const urlOf = (client: FakeStompClient) => new URL(client.brokerURL!)
+
+  it('연결할 때 일회용 티켓을 받아 주소에 싣고, CONNECT에는 토큰을 넣지 않는다', async () => {
     renderApp('/chat', 'INFLUENCER')
+    const tickets = mockTickets()
     const client = await connectSocket()
     await client.ready
-    expect(client.connectHeaders).toEqual({
-      Authorization: `Bearer ${TEST_ACCESS_TOKEN}`,
-    })
+
+    expect(tickets.authorizations).toEqual([`Bearer ${TEST_ACCESS_TOKEN}`])
+    expect(urlOf(client).pathname).toBe('/api/v1/chats/ws')
+    expect(urlOf(client).searchParams.get('ticket')).toBe('t-1')
+    expect(client.connectHeaders).toEqual({})
   })
 
-  it('다시 연결할 때 토큰이 곧 만료되면 먼저 다시 받아 새 토큰으로 연결한다', async () => {
+  it('다시 연결할 때마다 새 티켓을 받는다', async () => {
     renderApp('/chat', 'INFLUENCER')
-    const refresh = mockRefresh()
+    const tickets = mockTickets()
     const client = await connectSocket()
     await client.ready
 
-    setAccessToken('almost-expired', 10)
+    await act(() => client.config.beforeConnect!(client))
+    expect(tickets.calls).toBe(2)
+    expect(urlOf(client).searchParams.get('ticket')).toBe('t-2')
+  })
+
+  it('토큰이 곧 만료되면(60초 안) 먼저 다시 받아 새 토큰으로 티켓을 받는다', async () => {
+    renderApp('/chat', 'INFLUENCER')
+    const refresh = mockRefresh()
+    const tickets = mockTickets()
+    const client = await connectSocket()
+    await client.ready
+
+    setAccessToken('almost-expired', 50)
     await act(() => client.config.beforeConnect!(client))
     expect(refresh.calls).toBe(1)
-    expect(client.connectHeaders).toEqual({ Authorization: 'Bearer fresh-1' })
+    expect(tickets.authorizations.at(-1)).toBe('Bearer fresh-1')
+  })
+
+  it.each([429, 503])(
+    '티켓을 받지 못하면(%d) 재연결과 같은 간격으로 기다렸다 다시 받는다',
+    async (status) => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+      renderApp('/chat', 'INFLUENCER')
+      const tickets = mockTickets((call) => (call <= 2 ? status : null))
+      const client = await connectSocket()
+
+      await vi.waitFor(() => expect(tickets.calls).toBe(1))
+      // 첫 대기는 3초다.
+      await act(() => vi.advanceTimersByTimeAsync(2_900))
+      expect(tickets.calls).toBe(1)
+      await act(() => vi.advanceTimersByTimeAsync(200))
+      await vi.waitFor(() => expect(tickets.calls).toBe(2))
+      // 두 번째 대기는 6초다.
+      await act(() => vi.advanceTimersByTimeAsync(6_000))
+      await act(() => client.ready)
+      expect(tickets.calls).toBe(3)
+      expect(urlOf(client).searchParams.get('ticket')).toBe('t-3')
+      vi.useRealTimers()
+    },
+  )
+
+  it('채팅을 쓸 수 없는 회원이면(403) 티켓을 다시 받지 않고 연결하지 않는다', async () => {
+    renderApp('/chat', 'INFLUENCER')
+    const tickets = mockTickets(() => 403)
+    const client = await connectSocket()
+    await client.ready
+
+    expect(client.active).toBe(false)
+    await new Promise((r) => setTimeout(r, 50))
+    // api()가 역할이 막 바뀐 경우를 위해 토큰을 다시 받아 한 번 더 보낸 것 말고는 다시 받지 않는다.
+    expect(tickets.calls).toBe(2)
   })
 
   it('토큰을 다시 받지 못하면 연결하지 않고 비회원으로 바꾼다', async () => {
@@ -157,12 +244,15 @@ describe('채팅 연결 인증', () => {
     const client = await connectSocket()
     await client.ready
 
+    const tickets = mockTickets()
     clearAccessToken()
     await act(() => client.config.beforeConnect!(client))
 
     expect(
       await screen.findByText('로그인이 끊겼어요. 다시 로그인해 주세요.'),
     ).toBeInTheDocument()
+    // 티켓은 받지 않는다.
+    expect(tickets.calls).toBe(0)
     expect(client.active).toBe(false)
     // 다시 받지 못한 결과(401)로 바로 정리한다(한 번 더 부르지 않는다).
     expect(refresh.calls).toBe(1)
@@ -180,14 +270,66 @@ describe('채팅 연결 인증', () => {
     const client = await connectSocket()
     await client.ready
 
+    const tickets = mockTickets()
     setAccessToken('almost-expired', 10)
     await act(() => client.config.beforeConnect!(client))
 
+    // 지금 토큰으로 티켓을 받아 연결한다(거절되면 끊긴 뒤 다시 확인한다).
     expect(client.active).toBe(true)
-    expect(client.connectHeaders).toEqual({
-      Authorization: 'Bearer almost-expired',
-    })
+    expect(tickets.authorizations).toEqual(['Bearer almost-expired'])
+    expect(urlOf(client).searchParams.get('ticket')).toBe('t-1')
     expect(queryClient.getQueryData(meQuery.queryKey)).not.toBeNull()
+  })
+
+  it('연결 만료 60초 전에 새 티켓으로 같은 연결에서 재인증하고, 성공하면 다음 재인증을 잡는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    renderApp('/chat', 'INFLUENCER')
+    const tickets = mockTickets()
+    const client = await connectSocket()
+    await act(() => client.ready)
+    const reauths = () =>
+      client.published.filter((p) => p.destination === '/pub/chats/reauth')
+
+    await act(() => vi.advanceTimersByTimeAsync(14 * 60_000 - 1_000))
+    expect(reauths()).toEqual([])
+    await act(() => vi.advanceTimersByTimeAsync(1_000))
+    await vi.waitFor(() => expect(reauths()).toHaveLength(1))
+    expect(reauths()[0]).toEqual({
+      destination: '/pub/chats/reauth',
+      body: '',
+      headers: { ticket: 't-2' },
+    })
+    expect(tickets.calls).toBe(2)
+
+    act(() =>
+      client.push('/user/queue/chats/connection', {
+        type: 'REAUTHENTICATED',
+        code: null,
+        connectionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      }),
+    )
+    await act(() => vi.advanceTimersByTimeAsync(14 * 60_000))
+    await vi.waitFor(() => expect(reauths()).toHaveLength(2))
+    // 연결을 끊지 않는다.
+    expect(client.active).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('로그아웃하면 재인증 타이머를 멈추고 연결을 끊는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    renderApp('/chat', 'INFLUENCER')
+    const tickets = mockTickets()
+    const client = await connectSocket()
+    await act(() => client.ready)
+
+    act(() => otherTab().postMessage({ type: 'logout' }))
+    await vi.waitFor(() => expect(client.active).toBe(false))
+    await act(() => vi.advanceTimersByTimeAsync(20 * 60_000))
+    expect(
+      client.published.filter((p) => p.destination === '/pub/chats/reauth'),
+    ).toEqual([])
+    expect(tickets.calls).toBe(1)
+    vi.useRealTimers()
   })
 
   it('채팅 불가로 닫히면(1008 CHAT_NOT_ALLOWED) 다시 연결하지 않고 토큰도 다시 받지 않는다', async () => {
