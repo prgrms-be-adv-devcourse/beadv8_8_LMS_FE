@@ -1,19 +1,11 @@
-import { useId, useState } from 'react'
-import { isLocalLoginEnabled } from '@/shared/lib/localLogin'
+import { useState } from 'react'
 import { Modal } from '@/shared/ui/Modal'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { VIEWER_LABEL, type Role } from '@/shared/auth/role'
-import { startGoogleLogin, useTestAccountLogin } from '@/shared/auth/session'
+import { startGoogleLogin } from '@/shared/auth/session'
 import { EmailLoginForm } from './EmailLoginForm'
 import styles from './LoginModal.module.css'
 import { SignupForm } from './SignupForm'
-
-/** BE 초기 계정(MemberSeedAccountUseCase): 역할마다 하나. 유저는 초기 계정이 없다(가입하면 된다) */
-const TEST_ACCOUNTS: { role: Role; email: string }[] = [
-  { role: 'INFLUENCER', email: 'influencer@hapbang.local' },
-  { role: 'VERIFIED_INFLUENCER', email: 'verified-influencer@hapbang.local' },
-  { role: 'ADMIN', email: 'admin@hapbang.local' },
-]
+import { TestAccountLogin } from './TestAccountLogin'
 
 export function LoginModal() {
   const { open, reason } = useLoginModalStore()
@@ -80,34 +72,13 @@ function LoginOptions({ reason }: { reason?: string }) {
         autoFocus={switched}
         onSignup={() => show('signup')}
       />
-      {isLocalLoginEnabled() && <TestAccountLogin />}
+      {
+        // 테스트 계정 로그인은 pnpm dev와 VITE_LOCAL_LOGIN=true로 직접 빌드한 이미지(로컬 k3d 확인용)에서만 보인다.
+        // 조건을 여기에 그대로 써야 빌드가 값을 상수로 바꿔 운영 번들에서 TestAccountLogin(초기 계정 비밀번호)을 뺀다.
+        (import.meta.env.DEV ||
+          import.meta.env.VITE_LOCAL_LOGIN === 'true') && <TestAccountLogin />
+      }
     </>
-  )
-}
-
-/** 개발용: Google 없이 역할별 BE 초기 계정으로 로그인한다(이메일·비밀번호 로그인). */
-function TestAccountLogin() {
-  const labelId = useId()
-  const { mutate, isPending } = useTestAccountLogin()
-  return (
-    <div className={styles.testAccounts} role="group" aria-labelledby={labelId}>
-      <p id={labelId} className="fine">
-        개발용 테스트 계정
-      </p>
-      <div className={styles.accounts}>
-        {TEST_ACCOUNTS.map((account) => (
-          <button
-            key={account.role}
-            type="button"
-            className="btn sm"
-            disabled={isPending}
-            onClick={() => mutate(account)}
-          >
-            {VIEWER_LABEL[account.role]}
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 
