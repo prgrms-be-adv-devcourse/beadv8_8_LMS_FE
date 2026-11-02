@@ -89,7 +89,7 @@ const adminHomeDefaults = [
   '*/api/v1/members/admin/upgrade-requests',
   '*/api/v1/lectures/admin/inspections',
   '*/api/v1/inquiries/admin',
-  '*/api/v1/lectures/admin/payout-failures',
+  '*/api/v1/lectures/admin/hp-tasks',
   '*/api/v1/settlements/admin/exchanges',
 ].map((path) =>
   http.get(path, () =>

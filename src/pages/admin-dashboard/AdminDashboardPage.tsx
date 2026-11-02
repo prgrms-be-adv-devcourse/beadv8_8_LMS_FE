@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import { channelReviewsQuery, upgradeReviewsQuery } from '@/entities/member/api'
-import { payoutFailuresQuery } from '@/entities/payout/api'
+import { lectureHpTasksQuery } from '@/entities/hp-task/api'
 import { adminExchangesQuery } from '@/entities/wallet/adminExchangeApi'
 import { formatNumber } from '@/shared/lib/money'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -30,7 +30,7 @@ export function AdminDashboardPage() {
   const inquiries = useQuery(
     adminInquiriesQuery({ status: 'WAITING', sort: 'OLDEST', page: 0 }),
   )
-  const payouts = useQuery(payoutFailuresQuery(0))
+  const hpTasks = useQuery(lectureHpTasksQuery({ status: 'DEAD', page: 0 }))
   const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
 
   return (
@@ -60,7 +60,11 @@ export function AdminDashboardPage() {
           to="/admin/inquiries"
           query={inquiries}
         />
-        <SummaryCard label="지급 실패" to="/admin/payouts" query={payouts} />
+        <SummaryCard
+          label="멈춘 강의 HP 작업"
+          to="/admin/hp-tasks"
+          query={hpTasks}
+        />
         <SummaryCard
           label="환전 승인 대기"
           to="/admin/exchanges"
