@@ -47,3 +47,33 @@ export function localLogin(role: Role, number = 1) {
     query: { role, number },
   })
 }
+
+/**
+ * 이메일·비밀번호 로그인. 구글 로그인처럼 refresh token 쿠키만 주므로 access token은 이어서 재발급으로 받는다.
+ * 없는 이메일·틀린 비밀번호(구글로 가입한 이메일 포함)는 401 INVALID_CREDENTIALS, 5번 연속 틀리면 15분 동안
+ * 429 LOGIN_LOCKED, 정지·탈퇴 회원은 403 LOGIN_NOT_ALLOWED
+ */
+export function passwordLogin(body: { email: string; password: string }) {
+  return api<Me>('/members/login', { method: 'POST', body })
+}
+
+/** 이메일·비밀번호 가입. 가입만 하고 로그인은 따로 한다. 이미 가입된 이메일(구글 포함)이면 409 DUPLICATE_EMAIL */
+export function signup(body: {
+  email: string
+  password: string
+  nickname: string
+}) {
+  return api<Me>('/members/signup', { method: 'POST', body })
+}
+
+/**
+ * 비밀번호 변경. 모든 기기의 refresh token을 폐기하고 이 기기에는 새 쿠키를 준다(다른 기기는 다시 로그인해야 한다).
+ * 구글로 가입한 회원은 409 PASSWORD_NOT_SET, 현재 비밀번호가 틀리면 400 INVALID_CURRENT_PASSWORD,
+ * 5번 연속 틀리면 15분 동안 429 PASSWORD_CHANGE_LOCKED
+ */
+export function changePassword(body: {
+  currentPassword: string
+  newPassword: string
+}) {
+  return api<void>('/members/me/password', { method: 'PATCH', body })
+}

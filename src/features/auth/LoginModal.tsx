@@ -1,10 +1,12 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { isLocalLoginEnabled } from '@/shared/lib/localLogin'
 import { Modal } from '@/shared/ui/Modal'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { VIEWER_LABEL, type Role } from './role'
-import { startGoogleLogin, useLocalLogin } from './session'
+import { VIEWER_LABEL, type Role } from '@/shared/auth/role'
+import { startGoogleLogin, useLocalLogin } from '@/shared/auth/session'
+import { EmailLoginForm } from './EmailLoginForm'
 import styles from './LoginModal.module.css'
+import { SignupForm } from './SignupForm'
 
 const TEST_ROLES: Role[] = [
   'USER',
@@ -20,7 +22,39 @@ export function LoginModal() {
   if (!open) return null
   return (
     <Modal title="합방 시작하기" onClose={closeLoginModal}>
-      {reason && <p>{reason}</p>}
+      <LoginOptions reason={reason} />
+    </Modal>
+  )
+}
+
+/**
+ * 구글 로그인과 이메일·비밀번호 로그인, 이메일 가입. 이메일 하나는 두 방식 중 하나로만 가입·로그인한다.
+ * 가입은 로그인까지 하지 않으므로 가입하면 로그인 화면으로 돌아와 이메일을 채워 둔다.
+ * 모달을 닫으면 처음(로그인) 화면으로 돌아간다.
+ */
+function LoginOptions({ reason }: { reason?: string }) {
+  const [view, setView] = useState<'login' | 'signup'>('login')
+  const [signedUp, setSignedUp] = useState<string | null>(null)
+
+  if (view === 'signup')
+    return (
+      <SignupForm
+        onBack={() => setView('login')}
+        onDone={(email) => {
+          setSignedUp(email)
+          setView('login')
+        }}
+      />
+    )
+  return (
+    <>
+      {signedUp ? (
+        <p className="notice" role="status">
+          가입했어요. 이메일과 비밀번호로 로그인해 주세요.
+        </p>
+      ) : (
+        reason && <p>{reason}</p>
+      )}
       <button
         type="button"
         className="btn block google-btn"
@@ -33,8 +67,15 @@ export function LoginModal() {
         처음 로그인하면 유저로 가입돼요. 치지직 채널을 인증하면 인플루언서가
         돼요.
       </p>
+      <p className={styles.divider}>또는 이메일로</p>
+      <EmailLoginForm
+        // 가입하고 돌아오면 그 이메일로 다시 그린다.
+        key={signedUp ?? ''}
+        initialEmail={signedUp ?? ''}
+        onSignup={() => setView('signup')}
+      />
       {isLocalLoginEnabled() && <TestAccountLogin />}
-    </Modal>
+    </>
   )
 }
 

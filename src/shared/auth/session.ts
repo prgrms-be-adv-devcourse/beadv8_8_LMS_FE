@@ -9,7 +9,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
-import { localLogin, logout, meQuery, type Me } from './me'
+import { localLogin, logout, meQuery, passwordLogin, type Me } from './me'
 import { VIEWER_LABEL, type Role, type Viewer } from './role'
 import {
   clearAccessToken,
@@ -105,22 +105,45 @@ function replaceSession(queryClient: QueryClient, me: Me | null) {
 }
 
 /**
+ * refresh token 쿠키를 주는 로그인(테스트 계정·이메일)을 하고 access token을 재발급받는다.
+ * 이전 계정의 재발급이 끝난 뒤 로그인하고(늦은 응답이 새 계정 쿠키를 덮어쓰지 않게), 이전 토큰은 버린다.
+ * 로그인 요청이 실패하면 그 오류(ApiError)를 그대로 던진다.
+ */
+async function signIn(request: () => Promise<Me>) {
+  const me = await pauseRefreshWhile(() => {
+    clearAccessToken()
+    return request()
+  })
+  if (!(await refreshAccessToken())) throw new Error('토큰을 받지 못했어요.')
+  return me
+}
+
+/**
+ * 이메일·비밀번호 로그인. 성공하면 모달을 닫고 지금 화면에 머문다.
+ * 실패 안내(비밀번호 틀림·잠금·이용 불가)는 로그인 폼이 그 자리에 보여 준다.
+ */
+export function usePasswordLogin() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { email: string; password: string }) =>
+      signIn(() => passwordLogin(body)),
+    onSuccess: (me) => {
+      replaceSession(queryClient, me)
+      closeLoginModal()
+      toast('로그인했어요.')
+    },
+  })
+}
+
+/**
  * 테스트 계정 로그인(로컬 BE). refresh token 쿠키를 받은 뒤 access token을 재발급받는다.
  * 성공하면 모달을 닫고 지금 화면에 머문다. 권한이 없는 화면이면 RoleGate가 역할 첫 화면으로 보낸다.
  */
 export function useLocalLogin() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ role, number }: { role: Role; number: number }) => {
-      // 이전 계정의 재발급이 끝난 뒤 로그인하고(늦은 응답이 새 계정 쿠키를 덮어쓰지 않게), 이전 토큰은 버린다.
-      const me = await pauseRefreshWhile(() => {
-        clearAccessToken()
-        return localLogin(role, number)
-      })
-      if (!(await refreshAccessToken()))
-        throw new Error('토큰을 받지 못했어요.')
-      return me
-    },
+    mutationFn: ({ role, number }: { role: Role; number: number }) =>
+      signIn(() => localLogin(role, number)),
     onSuccess: (me, { role, number }) => {
       replaceSession(queryClient, me)
       closeLoginModal()
