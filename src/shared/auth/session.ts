@@ -9,7 +9,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
-import { localLogin, logout, meQuery, passwordLogin, type Me } from './me'
+import { logout, meQuery, passwordLogin, type Me } from './me'
 import { VIEWER_LABEL, type Role, type Viewer } from './role'
 import {
   clearAccessToken,
@@ -105,7 +105,7 @@ function replaceSession(queryClient: QueryClient, me: Me | null) {
 }
 
 /**
- * refresh token 쿠키를 주는 로그인(테스트 계정·이메일)을 하고 access token을 재발급받는다.
+ * refresh token 쿠키를 주는 로그인(이메일, 테스트 계정)을 하고 access token을 재발급받는다.
  * 이전 계정의 재발급이 끝난 뒤 로그인하고(늦은 응답이 새 계정 쿠키를 덮어쓰지 않게), 이전 토큰은 버린다.
  * 로그인 요청이 실패하면 그 오류(ApiError)를 그대로 던진다.
  */
@@ -137,18 +137,25 @@ export function usePasswordLogin() {
 }
 
 /**
- * 테스트 계정 로그인(로컬 BE). refresh token 쿠키를 받은 뒤 access token을 재발급받는다.
+ * 테스트 계정 로그인: BE 초기 계정으로 이메일·비밀번호 로그인을 한다(이메일 로그인과 같은 줄을 탄다).
  * 성공하면 모달을 닫고 지금 화면에 머문다. 권한이 없는 화면이면 RoleGate가 역할 첫 화면으로 보낸다.
+ * 계정·비밀번호는 부르는 쪽(features/auth/TestAccountLogin)이 넘긴다. 운영 번들에 들어가지 않게 그 모듈에만 둔다.
  */
-export function useLocalLogin() {
+export function useTestAccountLogin() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ role, number }: { role: Role; number: number }) =>
-      signIn(() => localLogin(role, number)),
-    onSuccess: (me, { role, number }) => {
+    mutationFn: ({
+      email,
+      password,
+    }: {
+      role: Role
+      email: string
+      password: string
+    }) => signIn(() => passwordLogin({ email, password })),
+    onSuccess: (me, { role }) => {
       replaceSession(queryClient, me)
       closeLoginModal()
-      toast(`${VIEWER_LABEL[role]} ${number} 테스트 계정으로 로그인했어요.`)
+      toast(`${VIEWER_LABEL[role]} 테스트 계정으로 로그인했어요.`)
     },
     onError: () => toast('테스트 계정으로 로그인하지 못했어요.'),
   })

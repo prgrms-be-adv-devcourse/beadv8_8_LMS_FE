@@ -78,12 +78,29 @@ describe('uploadBody', () => {
     expect(seen).toEqual(['Bearer old-role', 'Bearer new-role'])
   })
 
-  it('다시 받지 못하면 처음 401을 던진다', async () => {
+  it('다시 받지 못하면(refresh 401) 로그인이 끝난 것으로 표시해 처음 401을 던진다', async () => {
     setAccessToken('expired', 900)
     const seen = mockUpload('fresh')
     await expect(
       uploadBody(PATH, file(), { contentType: 'video/mp4' }),
-    ).rejects.toMatchObject({ status: 401 })
+    ).rejects.toMatchObject({ status: 401, sessionEnded: true })
     expect(seen).toEqual(['Bearer expired'])
+  })
+
+  it('다시 받은 토큰으로도 401이면 그 업로드만의 오류다', async () => {
+    setAccessToken('expired', 900)
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () =>
+        HttpResponse.json({
+          statusCode: 200,
+          message: '',
+          data: { accessToken: 'fresh', expiresIn: 900 },
+        }),
+      ),
+    )
+    mockUpload('never')
+    await expect(
+      uploadBody(PATH, file(), { contentType: 'video/mp4' }),
+    ).rejects.toMatchObject({ status: 401, sessionEnded: false })
   })
 })

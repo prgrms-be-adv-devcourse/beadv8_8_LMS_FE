@@ -1,21 +1,11 @@
-import { useId, useState } from 'react'
-import { isLocalLoginEnabled } from '@/shared/lib/localLogin'
+import { useState } from 'react'
 import { Modal } from '@/shared/ui/Modal'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { VIEWER_LABEL, type Role } from '@/shared/auth/role'
-import { startGoogleLogin, useLocalLogin } from '@/shared/auth/session'
+import { startGoogleLogin } from '@/shared/auth/session'
 import { EmailLoginForm } from './EmailLoginForm'
 import styles from './LoginModal.module.css'
 import { SignupForm } from './SignupForm'
-
-const TEST_ROLES: Role[] = [
-  'USER',
-  'INFLUENCER',
-  'VERIFIED_INFLUENCER',
-  'ADMIN',
-]
-/** BE MemberDataInit이 역할마다 만드는 테스트 계정 번호 */
-const TEST_NUMBERS = [1, 2]
+import { TestAccountLogin } from './TestAccountLogin'
 
 export function LoginModal() {
   const { open, reason } = useLoginModalStore()
@@ -82,36 +72,13 @@ function LoginOptions({ reason }: { reason?: string }) {
         autoFocus={switched}
         onSignup={() => show('signup')}
       />
-      {isLocalLoginEnabled() && <TestAccountLogin />}
+      {
+        // 테스트 계정 로그인은 pnpm dev와 VITE_LOCAL_LOGIN=true로 직접 빌드한 이미지(로컬 k3d 확인용)에서만 보인다.
+        // 조건을 여기에 그대로 써야 빌드가 값을 상수로 바꿔 운영 번들에서 TestAccountLogin(초기 계정 비밀번호)을 뺀다.
+        (import.meta.env.DEV ||
+          import.meta.env.VITE_LOCAL_LOGIN === 'true') && <TestAccountLogin />
+      }
     </>
-  )
-}
-
-/** 로컬·dev 서버 전용: Google 없이 역할별 테스트 계정으로 로그인한다(POST /members/local-login). */
-function TestAccountLogin() {
-  const labelId = useId()
-  const { mutate, isPending } = useLocalLogin()
-  return (
-    <div className={styles.testAccounts} role="group" aria-labelledby={labelId}>
-      <p id={labelId} className="fine">
-        개발용 테스트 계정
-      </p>
-      <div className={styles.accounts}>
-        {TEST_ROLES.flatMap((role) =>
-          TEST_NUMBERS.map((number) => (
-            <button
-              key={`${role}-${number}`}
-              type="button"
-              className="btn sm"
-              disabled={isPending}
-              onClick={() => mutate({ role, number })}
-            >
-              {VIEWER_LABEL[role]} {number}
-            </button>
-          )),
-        )}
-      </div>
-    </div>
   )
 }
 

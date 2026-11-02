@@ -259,6 +259,23 @@ describe('api 토큰 재발급', () => {
     expect(refresh.calls).toBe(1)
   })
 
+  it('다시 받은 토큰으로도 401이면 그 요청만의 오류다(로그인이 끝난 것이 아니다)', async () => {
+    setAccessToken('first', 900)
+    const refresh = mockRefresh()
+    server.use(
+      http.get(
+        url('/wallets/me'),
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+    )
+
+    const error = await api('/wallets/me').catch((e: unknown) => e)
+    expect(error).toMatchObject({ status: 401, sessionEnded: false })
+    expect(refresh.calls).toBe(1)
+    // 다시 받은 토큰은 그대로 둔다.
+    expect(getAccessToken()).toBe('fresh-1')
+  })
+
   it('다시 받지 못하면(refresh 401) 토큰을 비우고 처음 401을 던진다', async () => {
     setAccessToken('expired', 900)
     // 기본 응답: refresh token이 없어 401
@@ -267,6 +284,8 @@ describe('api 토큰 재발급', () => {
     await expect(api('/wallets/me')).rejects.toMatchObject({
       status: 401,
       code: 'UNAUTHORIZED',
+      // refresh token이 거절됐으니 로그인이 끝났다.
+      sessionEnded: true,
     })
     expect(seen).toEqual(['Bearer expired'])
     expect(getAccessToken()).toBeNull()

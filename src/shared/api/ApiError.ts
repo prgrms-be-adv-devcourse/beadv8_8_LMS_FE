@@ -16,6 +16,12 @@ export class ApiError extends Error {
   readonly errors: { field: string; message: string }[]
   /** 받은 오류 본문 그대로. 오류별 추가 속성(pgCode 등)을 읽을 때 쓴다. */
   readonly body: ProblemDetail | null
+  /**
+   * 로그인이 끝나서 난 오류인지. 토큰을 다시 받으려 했는데 refresh token이 거절됐을 때(INVALID_REFRESH_TOKEN)만 true다.
+   * 다시 받은 토큰으로도 401이면(그 앱이 아직 사용자 인증을 못 하는 등) 그 요청만의 오류라 false다.
+   * 전역 처리는 true일 때만 비회원으로 바꾸고 로그인 모달을 띄운다.
+   */
+  sessionEnded = false
 
   constructor(status: number, body: ProblemDetail | null) {
     super(
@@ -36,6 +42,13 @@ function statusCode(status: number): string {
   if (status === 403) return 'FORBIDDEN'
   if (status === 404) return 'NOT_FOUND'
   return status >= 500 ? 'INTERNAL_ERROR' : `HTTP_${status}`
+}
+
+/** 로그인이 끝나(refresh token이 거절돼) 요청을 보내지 못했다. 전역 처리가 비회원으로 바꾼다 */
+export function sessionEndedError() {
+  const error = new ApiError(401, null)
+  error.sessionEnded = true
+  return error
 }
 
 export function isApiError(error: unknown, code?: string): error is ApiError {
