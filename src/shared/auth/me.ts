@@ -32,11 +32,15 @@ export const meQuery = queryOptions({
   retryOnMount: false,
 })
 
+/** 이 기기의 refresh token을 폐기하고 쿠키를 지운다(쿠키가 없어도 204) */
 export function logout() {
-  return api<void>('/members/logout', { method: 'POST' })
+  return api<void>('/members/auth/logout', { method: 'POST' })
 }
 
-/** local·dev BE 전용 테스트 계정 로그인. number는 같은 역할의 몇 번째 계정(1·2). 운영에는 없어 404 */
+/**
+ * 로컬 BE 전용 테스트 계정 로그인. number는 같은 역할의 몇 번째 계정(1·2). 운영에는 없어 404.
+ * 구글 로그인처럼 refresh token 쿠키만 주므로 access token은 이어서 재발급으로 받는다
+ */
 export function localLogin(role: Role, number = 1) {
   return api<Me>('/members/local-login', {
     method: 'POST',

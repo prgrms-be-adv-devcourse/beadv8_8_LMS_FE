@@ -1,12 +1,12 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { MyChannel } from '@/entities/member/types'
 import type { Me } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { ME_ID, renderApp, rs } from '@/test/renderApp'
+import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 const me = (patch: Partial<Me> = {}): Me => ({
@@ -34,6 +34,7 @@ const channel = (patch: Partial<MyChannel> = {}): MyChannel => ({
 
 afterEach(() => {
   queryClient.clear()
+  vi.unstubAllGlobals()
   closeLoginModal()
 })
 
@@ -127,18 +128,27 @@ describe('인플루언서', () => {
 })
 
 describe('채널 인증', () => {
-  it('승인 요청이 자동 승인되면 그 자리에서 인플루언서로 바뀐다', async () => {
+  it('승인 요청이 자동 승인되면 새 역할 토큰을 받고 그 자리에서 인플루언서로 바뀐다', async () => {
     let role: Me['role'] = 'USER'
+    const order: string[] = []
     server.use(
       http.get('*/api/v1/members/channels/me', () => rs([channel()])),
       http.post('*/api/v1/members/channels/3/approval-request', () => {
         role = 'INFLUENCER'
         return rs({ status: 'APPROVED', role })
       }),
-      http.get('*/api/v1/members/me', () => rs(me({ role }))),
+      http.get('*/api/v1/members/me', ({ request }) => {
+        order.push(`me ${request.headers.get('Authorization')}`)
+        return rs(me({ role }))
+      }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp('/verify', 'USER')
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () => {
+        order.push('refresh')
+        return rs({ accessToken: 'influencer-token', expiresIn: 900 })
+      }),
+    )
 
     await userEvent.click(
       await screen.findByRole('button', { name: '승인 요청' }),
@@ -152,12 +162,65 @@ describe('채널 인증', () => {
     expect(router.state.location.pathname).toBe('/verify')
     expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
     expect(
-      screen.queryByRole('link', { name: '치지직 채널 연동하기' }),
+      screen.queryByRole('button', { name: '치지직 채널 연동하기' }),
     ).toBeNull()
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(
       within(nav).getByRole('link', { name: '내 출연' }),
     ).toBeInTheDocument()
+    // 새 역할이 담긴 토큰을 먼저 받고 그 토큰으로 내 정보를 다시 부른다.
+    expect(order.slice(0, 2)).toEqual(['refresh', 'me Bearer influencer-token'])
+  })
+
+  it('치지직 연동을 누르면 연동 주소를 받아 그 화면으로 이동한다', async () => {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, assign })
+    let authorization: string | null = null
+    server.use(
+      http.get('*/api/v1/members/channels/me', () => rs([])),
+      http.post('*/api/v1/members/channels/chzzk/authorize', ({ request }) => {
+        authorization = request.headers.get('Authorization')
+        return rs({
+          authorizeUrl: 'https://chzzk.naver.com/account-interlock?x=1',
+        })
+      }),
+    )
+    renderApp('/verify', 'USER')
+
+    const connect = await screen.findByRole('button', {
+      name: '치지직 채널 연동하기',
+    })
+    await userEvent.click(connect)
+
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith(
+        'https://chzzk.naver.com/account-interlock?x=1',
+      ),
+    )
+    expect(authorization).toBe(`Bearer ${TEST_ACCESS_TOKEN}`)
+    // 이동하는 동안 다시 누르지 않게 둔다.
+    expect(connect).toBeDisabled()
+  })
+
+  it('치지직 연동으로 승인돼 돌아오면 새 역할 토큰을 받은 뒤 채널 인증 화면으로 간다', async () => {
+    let refreshed = false
+    server.use(
+      http.get('*/api/v1/members/channels/me', () => rs([channel()])),
+      http.get('*/api/v1/members/me', () =>
+        rs(me({ role: refreshed ? 'INFLUENCER' : 'USER' })),
+      ),
+    )
+    const router = renderApp('/mypage?chzzk=approved', 'USER')
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () => {
+        refreshed = true
+        return rs({ accessToken: 'influencer-token', expiresIn: 900 })
+      }),
+    )
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/verify'))
+    expect(refreshed).toBe(true)
+    expect(await screen.findByText('인증 완료')).toBeInTheDocument()
   })
 
   it('반려된 채널은 사유와 다시 승인 요청 버튼을 보여 준다', async () => {
@@ -206,7 +269,6 @@ describe('계정 설정', () => {
         return rs(me({ nickname: '새벽 기타' }))
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/settings', 'USER')
 
     const input = await screen.findByRole('textbox', { name: '닉네임' })
@@ -282,7 +344,6 @@ describe('계정 설정', () => {
           return rs(admin({ nickname: '운영자' }))
         }),
       )
-      document.cookie = 'XSRF-TOKEN=t'
       renderApp('/settings', 'ADMIN')
 
       const input = await screen.findByRole('textbox', { name: '닉네임' })
@@ -304,7 +365,6 @@ describe('계정 설정', () => {
         }),
         http.delete('*/api/v1/members/me/profile-image', () => rs(admin())),
       )
-      document.cookie = 'XSRF-TOKEN=t'
       renderApp('/settings', 'ADMIN')
 
       const file = new File(['png'], 'a.png', { type: 'image/png' })

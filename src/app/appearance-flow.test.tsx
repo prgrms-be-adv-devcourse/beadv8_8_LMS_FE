@@ -117,7 +117,6 @@ describe('출연 요청 보내기', () => {
         }),
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
 
     const dialog = await openRequestForm()
@@ -221,7 +220,6 @@ describe('출연 요청 보내기', () => {
         ),
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
 
     const dialog = await openRequestForm()
@@ -308,7 +306,6 @@ describe('받은 출연 요청', () => {
         },
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/appearances?tab=guest', 'INFLUENCER')
 
     await userEvent.click(
@@ -341,7 +338,6 @@ describe('받은 출연 요청', () => {
         )
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/appearances/requests/30', 'INFLUENCER')
 
     await userEvent.click(await screen.findByRole('button', { name: '수락' }))
@@ -379,7 +375,6 @@ describe('받은 출연 요청', () => {
         },
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/appearances/requests/30', 'INFLUENCER')
 
     await userEvent.click(await screen.findByRole('button', { name: '거절' }))
@@ -415,7 +410,6 @@ describe('보낸 출연 요청', () => {
         return rs(current.value)
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/appearances/requests/30', 'INFLUENCER')
 
     expect(await screen.findByText('수락 대기')).toBeInTheDocument()
@@ -483,7 +477,6 @@ describe('리뷰 반영', () => {
         },
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/appearances/requests/30', 'INFLUENCER')
 
     await userEvent.click(await screen.findByRole('button', { name: '수락' }))
@@ -531,7 +524,6 @@ describe('리뷰 반영', () => {
         }),
       ),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp(`/influencers/${GUEST_ID}`, 'INFLUENCER')
 
     const dialog = await openRequestForm()

@@ -8,8 +8,7 @@ import {
 import type { UpgradeRequest } from '@/entities/member/types'
 import { UpgradeStatusPill } from '@/entities/member/ui/UpgradeStatusPill'
 import { useRequestUpgrade } from '@/features/upgrade/useRequestUpgrade'
-import { meQuery } from '@/shared/auth/me'
-import { useLogout, useViewer } from '@/shared/auth/session'
+import { refreshRole, useLogout, useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -18,7 +17,7 @@ import styles from './PromotePage.module.css'
 
 /**
  * 승급 신청: 인플루언서 → 인증된 인플루언서(강의 등록·판매). 심사는 관리자 재량이다.
- * 승인되면 BE가 세션 역할을 바꾸므로 내 정보를 다시 불러온다. 이 화면은 인증된 인플루언서도 볼 수 있어
+ * 승인되면 새 역할 토큰과 내 정보를 다시 받는다. 이 화면은 인증된 인플루언서도 볼 수 있어
  * 역할이 바뀌어도 "권한 없음"으로 내보내지 않고 완료 안내를 보여 준다.
  */
 export function PromotePage() {
@@ -97,8 +96,8 @@ function CurrentStatus({ latest }: { latest: UpgradeRequest | undefined }) {
 }
 
 /**
- * 승인됐는데 내 정보가 아직 인플루언서인 경우. 내 정보를 한 번 다시 불러오고,
- * 그래도 그대로면(BE가 세션 역할을 바꾸지 못한 경우 등) 다시 불러오기·재로그인을 안내한다.
+ * 승인됐는데 내 정보가 아직 인플루언서인 경우. 새 역할 토큰과 내 정보를 한 번 다시 받고,
+ * 그래도 그대로면(반영이 늦는 경우 등) 다시 불러오기·재로그인을 안내한다.
  * 역할이 바뀌면 부모가 완료 안내로 바꿔 그리므로 이 컴포넌트는 사라진다.
  */
 function ApprovedButStale() {
@@ -106,14 +105,11 @@ function ApprovedButStale() {
   const logout = useLogout()
   const [checking, setChecking] = useState(true)
 
-  const refetchMe = () =>
-    queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
+  const refetchMe = () => refreshRole(queryClient)
 
   useEffect(() => {
     let active = true
-    void queryClient
-      .invalidateQueries({ queryKey: meQuery.queryKey })
-      .finally(() => active && setChecking(false))
+    void refreshRole(queryClient).finally(() => active && setChecking(false))
     return () => {
       active = false
     }

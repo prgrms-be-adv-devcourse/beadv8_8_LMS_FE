@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { Wallet } from '@/entities/wallet/types'
 import {
@@ -77,10 +77,6 @@ function deferred() {
   const promise = new Promise<Response>((r) => (resolve = r))
   return { promise, resolve }
 }
-
-beforeEach(() => {
-  document.cookie = 'XSRF-TOKEN=t'
-})
 
 afterEach(() => {
   queryClient.clear()

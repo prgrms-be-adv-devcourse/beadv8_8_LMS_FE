@@ -10,7 +10,7 @@ import type {
   HpReleaseStatus,
 } from '@/entities/appearance/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { ME_ID, renderApp, rs } from '@/test/renderApp'
+import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 import { expectSuccessToast } from '@/test/toast'
 
@@ -83,7 +83,6 @@ const asGuest = (patch: Partial<Appearance> = {}) =>
 /** 출연 상세. current.value를 바꾸면 다시 불렀을 때 바뀐 상태가 온다. 상세를 부른 횟수를 센다 */
 function mockAppearance(current: { value: Appearance }) {
   const calls = { detail: 0 }
-  document.cookie = 'XSRF-TOKEN=t'
   server.use(
     http.get(`*/api/v1/members/${PARTNER_ID}`, () =>
       rs(profile(PARTNER_ID, '편집하는 고래')),
@@ -140,7 +139,7 @@ describe('출연 확인·불참 (호스트)', () => {
     mockAppearance(current)
     server.use(
       http.post('*/api/v1/appearances/40/confirm', ({ request }) => {
-        token = request.headers.get('X-XSRF-TOKEN')
+        token = request.headers.get('Authorization')
         current.value = appearance({
           status: 'CONFIRMED',
           confirmType: 'HOST',
@@ -168,7 +167,7 @@ describe('출연 확인·불참 (호스트)', () => {
 
     // 지급이 처리 중(PENDING)이라 토스트는 확인 결과만 말한다.
     await expectSuccessToast('출연을 확인했어요.')
-    expect(token).toBe('t')
+    expect(token).toBe(`Bearer ${TEST_ACCESS_TOKEN}`)
     expect(await screen.findByText(/· 호스트 확인/)).toBeInTheDocument()
     expect(screen.getByText('출연료 지급을 처리 중이에요.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '불참' })).toBeNull()

@@ -75,7 +75,6 @@ describe('관리자 승급 심사', () => {
   it('승인하면 목록을 다시 불러와 대기에서 빠진다', async () => {
     let pending = [review()]
     let approved: string | undefined
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.get('*/api/v1/members/admin/upgrade-requests', () =>
         rs(paged(pending)),
@@ -104,7 +103,6 @@ describe('관리자 승급 심사', () => {
 
   it('반려는 자주 쓰는 사유를 고르거나 직접 적어 보낸다', async () => {
     let body: unknown
-    document.cookie = 'XSRF-TOKEN=t'
     mockReviews({ PENDING: [review()] })
     server.use(
       http.post(
@@ -173,7 +171,6 @@ describe('관리자 승급 심사', () => {
 
   it('이미 처리된 신청이면 안내하고 목록을 다시 불러온다', async () => {
     let calls = 0
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.get('*/api/v1/members/admin/upgrade-requests', () => {
         calls++

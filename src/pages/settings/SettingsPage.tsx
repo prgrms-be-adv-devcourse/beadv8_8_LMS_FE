@@ -19,8 +19,9 @@ export function SettingsPage() {
         <section className="panel form">
           <h2>계정</h2>
           <dl className="kv">
-            <dt>로그인</dt>
-            <dd>Google · {me.email}</dd>
+            {/* 구글·비밀번호 중 어느 방식으로 가입했는지는 BE가 알려 주지 않아 이메일만 보인다. */}
+            <dt>이메일</dt>
+            <dd>{me.email}</dd>
             <dt>회원 등급</dt>
             <dd>{VIEWER_LABEL[me.role]}</dd>
           </dl>

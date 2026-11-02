@@ -11,6 +11,11 @@ import { closeLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
 import { localLogin, logout, meQuery, type Me } from './me'
 import { VIEWER_LABEL, type Role, type Viewer } from './role'
+import {
+  clearAccessToken,
+  pauseRefreshWhile,
+  refreshAccessToken,
+} from './token'
 
 const GOOGLE_LOGIN_URL = '/api/v1/members/oauth2/authorization/google'
 const RETURN_TO_KEY = 'hapbang.returnTo'
@@ -48,28 +53,47 @@ export function consumeReturnTo(): string | null {
   }
 }
 
+/**
+ * 로그아웃: BE에 refresh token 폐기를 알리고, 요청이 실패해도 이 탭의 토큰·데이터는 지운다(채팅 연결도 닫힌다).
+ * 다른 탭에도 알린다.
+ */
 export function useLogout() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   return async () => {
-    try {
-      await logout()
-    } catch {
-      toast('로그아웃하지 못했어요. 잠시 후 다시 시도해 주세요.')
-      return
-    }
+    // 진행 중인 재발급이 끝난 뒤의 쿠키로 로그아웃한다(늦은 재발급 응답이 지운 쿠키를 되살리지 않게).
+    const notified = await pauseRefreshWhile(() =>
+      logout().then(
+        () => true,
+        () => false,
+      ),
+    )
     clearSession(queryClient)
     broadcastLogout()
     navigate('/')
+    if (!notified)
+      toast(
+        '로그아웃했지만 서버에 알리지 못했어요. 공용 기기라면 브라우저를 닫아 주세요.',
+      )
   }
 }
 
 /**
- * 비회원으로 바꾸고(채팅 연결도 닫힌다) 다른 회원의 데이터가 남지 않도록 나머지 캐시를 지운다.
+ * 토큰을 버리고 비회원으로 바꾼 뒤(채팅 연결도 닫힌다) 다른 회원의 데이터가 남지 않도록 나머지 캐시를 지운다.
  * 내 정보까지 clear()로 지우면 화면이 구독하던 쿼리가 끊겨, 다시 그려지기 전까지 로그인 화면이 남는다.
  */
 export function clearSession(queryClient: QueryClient) {
+  clearAccessToken()
   replaceSession(queryClient, null)
+}
+
+/**
+ * 역할이 바뀐 뒤(채널 승인·승급 승인) 새 역할이 담긴 토큰을 받고 내 정보를 다시 불러온다.
+ * 토큰을 받지 못해도 내 정보는 다시 불러온다(옛 역할 토큰으로 막힌 요청은 api()가 다시 받아 한 번 더 보낸다).
+ */
+export async function refreshRole(queryClient: QueryClient) {
+  await refreshAccessToken().catch(() => null)
+  await queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
 }
 
 /** 내 정보를 me로 바꾸고 이전 사용자(비회원 포함)의 나머지 캐시를 지운다. 내 정보는 지우지 않는다(clearSession 참고). */
@@ -81,14 +105,22 @@ function replaceSession(queryClient: QueryClient, me: Me | null) {
 }
 
 /**
- * 테스트 계정 로그인(local·dev BE). 성공하면 모달을 닫고 지금 화면에 머문다.
- * 권한이 없는 화면이면 RoleGate가 역할 첫 화면으로 보낸다.
+ * 테스트 계정 로그인(로컬 BE). refresh token 쿠키를 받은 뒤 access token을 재발급받는다.
+ * 성공하면 모달을 닫고 지금 화면에 머문다. 권한이 없는 화면이면 RoleGate가 역할 첫 화면으로 보낸다.
  */
 export function useLocalLogin() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ role, number }: { role: Role; number: number }) =>
-      localLogin(role, number),
+    mutationFn: async ({ role, number }: { role: Role; number: number }) => {
+      // 이전 계정의 재발급이 끝난 뒤 로그인하고(늦은 응답이 새 계정 쿠키를 덮어쓰지 않게), 이전 토큰은 버린다.
+      const me = await pauseRefreshWhile(() => {
+        clearAccessToken()
+        return localLogin(role, number)
+      })
+      if (!(await refreshAccessToken()))
+        throw new Error('토큰을 받지 못했어요.')
+      return me
+    },
     onSuccess: (me, { role, number }) => {
       replaceSession(queryClient, me)
       closeLoginModal()
@@ -99,8 +131,8 @@ export function useLocalLogin() {
 }
 
 // ── 탭 간 로그아웃 동기화 ──
-// 세션 쿠키는 탭이 함께 쓰므로 한 탭에서 로그아웃하면 다른 탭도 비회원이다. 알리지 않으면 다른 탭은
-// 다음 API 호출(401) 전까지 로그인 화면과 채팅 연결을 그대로 둔다.
+// refresh token 쿠키는 탭이 함께 쓰므로 한 탭에서 로그아웃하면 다른 탭도 다시 받을 수 없다. 알리지 않으면 다른 탭은
+// 메모리의 access token이 만료될 때(최대 15분)까지 로그인 화면과 채팅 연결을 그대로 둔다.
 
 const AUTH_CHANNEL = 'hapbang.auth'
 type AuthMessage = { type: 'logout' }
@@ -131,6 +163,7 @@ export function useLogoutSync() {
     const channel = new BroadcastChannel(AUTH_CHANNEL)
     channel.onmessage = (e: MessageEvent<AuthMessage>) => {
       if (e.data?.type !== 'logout') return
+      // 이 탭의 토큰도 버린다(clearSession).
       clearSession(queryClient)
       toast('다른 탭에서 로그아웃했어요.')
     }

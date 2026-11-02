@@ -16,7 +16,6 @@ import { server } from '@/test/server'
 beforeEach(() => {
   resetPayoutFailureDb()
   server.use(...payoutFailureHandlers)
-  document.cookie = 'XSRF-TOKEN=t'
 })
 
 afterEach(() => queryClient.clear())

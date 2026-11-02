@@ -86,7 +86,6 @@ const cancelRequest = (
 
 /** 출연 상세. current.value를 바꾸면 다시 불렀을 때 바뀐 상태가 온다 */
 function mockAppearance(current: { value: Appearance }) {
-  document.cookie = 'XSRF-TOKEN=t'
   server.use(
     http.get(`*/api/v1/members/${PARTNER_ID}`, () =>
       rs(profile(PARTNER_ID, '편집하는 고래')),
@@ -538,7 +537,6 @@ describe('모집 전체 취소 (호스트)', () => {
   })
 
   it('성립 출연 위약금과 대기 지원 미선정을 안내하고, 확인이 필요하면 다시 보낸다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     const current = { value: recruit() }
     const bodies: unknown[] = []
     server.use(
@@ -607,7 +605,6 @@ describe('모집 전체 취소 (호스트)', () => {
   })
 
   it('모집글을 취소할 수 없으면 안내한다', async () => {
-    document.cookie = 'XSRF-TOKEN=t'
     server.use(
       http.get(`*/api/v1/members/${ME_ID}`, () => rs(profile(ME_ID, '하늘'))),
       http.get('*/api/v1/appearances/recruits/7', () =>

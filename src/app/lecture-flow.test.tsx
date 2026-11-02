@@ -227,7 +227,6 @@ describe('바로 구매', () => {
         return rs(purchasedOrder(), 201)
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/lectures/7', 'USER', {
       revenueBalanceHp: 10000,
       availableTotalHp: 130000,
@@ -356,7 +355,6 @@ describe('바로 구매', () => {
 describe('내 강의', () => {
   it('구매 확정 전 강의를 구매 취소하면 목록에서 빠진다', async () => {
     const orders = mockOrders(purchasedOrder())
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/library', 'USER')
 
     await userEvent.click(
@@ -386,7 +384,6 @@ describe('내 강의', () => {
         })
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/library/7/watch', 'USER')
 
     await userEvent.click(
@@ -551,7 +548,6 @@ describe('구매자 흐름 회귀', () => {
         return rs({ id: 1002 })
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     const router = renderApp('/library/7/review', 'USER')
     const save = await screen.findByRole('button', { name: '리뷰 고치기' })
     expect(save).toBeEnabled()

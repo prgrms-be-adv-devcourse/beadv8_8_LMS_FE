@@ -35,7 +35,6 @@ describe('승급 신청', () => {
         return rs(list[0], 201)
       }),
     )
-    document.cookie = 'XSRF-TOKEN=t'
     renderApp('/promote', 'INFLUENCER')
 
     const submit = await screen.findByRole('button', { name: '승급 신청' })

@@ -16,7 +16,6 @@ afterEach(() => {
 describe('읽음 처리의 참여 세대', () => {
   it('세대가 바뀐 뒤 도착한 옛 세대 읽음의 409는 새 세대의 이력·보내는 중 표시를 버리지 않는다', async () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true)
-    document.cookie = 'XSRF-TOKEN=t'
     let release = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))
     const bodies: unknown[] = []
@@ -65,7 +64,6 @@ describe('읽음 처리의 참여 세대', () => {
 
   it('화면 캐시는 아직 옛 세대여도 채팅 연결이 새 세대를 관측했으면, 옛 세대 읽음의 409로 새 세대 보내는 중 표시를 지우지 않는다', async () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true)
-    document.cookie = 'XSRF-TOKEN=t'
     let release = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))
     server.use(
@@ -107,7 +105,6 @@ describe('읽음 처리의 참여 세대', () => {
 
   it('화면을 떠난 뒤 도착한 읽음 409는 다시 들어와 만든 새 상태를 지우지 않는다', async () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true)
-    document.cookie = 'XSRF-TOKEN=t'
     let release = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))
     let reads = 0
