@@ -103,9 +103,17 @@ jobs:
             exit 1
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # 자동 실행은 main 최신 커밋만 배포한다. main에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나면
+          # 오래된 커밋이 나중에 배포돼 운영이 되돌아가므로 건너뛴다(최신 커밋의 Publish image가 배포한다).
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$sha" != "$(git rev-parse HEAD)" ]; then
+            echo "::warning::$sha 보다 새 main 커밋이 있어 배포를 건너뜁니다. 그 커밋의 Publish image가 끝나면 배포됩니다."
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        if: steps.aws.outputs.ready == 'true'
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -113,7 +121,7 @@ jobs:
 
       # 테스트를 통과한 main 커밋에만 이미지가 있다.
       - name: 이미지 확인
-        if: steps.aws.outputs.ready == 'true'
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         env:
           SHA: ${{ steps.commit.outputs.sha }}
         run: |
@@ -123,13 +131,13 @@ jobs:
           fi
 
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
-        if: steps.aws.outputs.ready == 'true'
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
 
       - name: 배포
-        if: steps.aws.outputs.ready == 'true'
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         env:
           INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}
           SHA: ${{ steps.commit.outputs.sha }}
