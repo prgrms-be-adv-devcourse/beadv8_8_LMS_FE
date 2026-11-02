@@ -17,7 +17,7 @@ pnpm format:check   # Prettier 검사
 pnpm format         # Prettier 적용 / format:check는 검사만
 ```
 
-CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 main 커밋만 이미지가 발행된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
+CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 dev 커밋만 이미지가 발행되고 운영에 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
 Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 
 ## 화면 명세: `docs/mockup-ui.html`
@@ -53,7 +53,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 배포·환경변수
 
-`docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 dev 서버는 없다. `main` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
+`docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 **dev 병합이 곧 운영 배포**다(기본 브랜치 dev, #156). main은 서버 없는 안정화 표시다. `dev` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
 
 `VITE_*` 값은 번들에 공개되므로 비밀값을 넣지 않고, 이미지에 환경별 값을 넣지 않는다(필요하면 `publish.yml` build-arg를 팀과 상의).
 
