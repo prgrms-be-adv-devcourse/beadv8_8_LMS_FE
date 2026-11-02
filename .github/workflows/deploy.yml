@@ -1,18 +1,24 @@
-# 운영(prod) k3s FE 배포·롤백. Actions → Deploy → Run workflow(브랜치 main)에서 수동으로 실행한다.
-# 이미지는 main push 때 publish.yml이 :sha-<커밋>으로 올린다. 이 workflow는 이미지를 만들지 않는다.
-# - sha: 배포할 main 커밋. 비우면 main 최신이다. 롤백도 되돌릴 main 커밋을 넣고 실행한다.
+# 운영(prod) k3s FE 배포·롤백. 이 workflow는 이미지를 만들지 않는다(main push 때 publish.yml이 :sha-<커밋>으로 올린다).
+# - 자동: main push의 Publish image가 성공하면 그 커밋을 배포한다(workflow_run). main은 Release PR로만 바뀐다.
+# - 수동: Actions → Deploy → Run workflow(브랜치 main). sha를 비우면 main 최신이다. 롤백은 되돌릴 main 커밋을 넣고 실행한다.
+#   그 커밋의 이미지가 이미 있으므로 Publish image를 다시 돌리지 않는다.
 # web Deployment·Service·HTTPRoute·NetworkPolicy(k8s/overlays/prod)만 적용한다. 공용 Gateway·BE 앱·DB는 건드리지 않는다.
 # rollout이 실패하면 Deployment만 이전 revision으로 되돌리고 실패로 끝난다(.github/scripts/k3s-deploy.sh).
 #
 # 클러스터 접근: GitHub OIDC로 IAM role을 받아 SSM Run Command로 large에서 kubectl을 실행한다(6443·SSH를 쓰지 않는다. BE와 같은 방식).
 #   role의 trust는 이 레포 environment prod job만 허용하고, prod environment는 main 브랜치만 허용한다.
 #   prod environment Secrets: AWS_DEPLOY_ROLE_ARN(role ARN), DEPLOY_INSTANCE_ID(large 인스턴스 ID)
+#   두 Secret이 없으면 경고만 남기고 배포를 건너뛴다(AWS 설정 전. docs/deploy.md 사전 준비).
 # GHCR은 조직 정책으로 private이다. 이 job의 GHCR 로그인(GITHUB_TOKEN)은 러너에서 이미지가 있는지 보는 데만 쓴다.
 #   node는 hapbang-prod의 공유 Secret ghcr-pull(BE 레포 k8s/registry, 90일 PAT)로 받는다. 토큰을 서버로 보내지 않는다(TKT-460).
 # 공개 레포라 로그도 공개다. node 이름·IP가 나오는 출력을 하지 않는다.
 name: Deploy
 
 on:
+  workflow_run:
+    workflows: [Publish image]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       sha:
@@ -33,6 +39,8 @@ env:
 
 jobs:
   deploy:
+    # 자동 실행은 Publish image가 성공했을 때만 한다(실패·취소면 이미지가 없다).
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     environment: prod
     timeout-minutes: 30
@@ -42,11 +50,28 @@ jobs:
       packages: read
       # GitHub OIDC 토큰으로 AWS role을 받는다.
       id-token: write
+    env:
+      # 자동 실행은 Publish image가 만든 커밋, 수동 실행은 입력값(비우면 main 최신)
+      TARGET_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
     steps:
+      - name: AWS 설정 확인
+        id: aws
+        env:
+          ROLE_ARN: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}
+        run: |
+          if [ -z "$ROLE_ARN" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "::warning::prod environment에 AWS_DEPLOY_ROLE_ARN·DEPLOY_INSTANCE_ID가 없어 배포를 건너뜁니다(docs/deploy.md 사전 준비). 그 전까지는 docs/deploy.md의 직접 배포로 반영합니다."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
       # 입력값은 스크립트에 직접 넣지 않고 환경 변수로만 받는다(명령 주입 방지).
       - name: 입력 확인
+        if: steps.aws.outputs.ready == 'true'
         env:
-          INPUT_SHA: ${{ inputs.sha }}
+          INPUT_SHA: ${{ env.TARGET_SHA }}
         run: |
           if [ "$GITHUB_REF" != refs/heads/main ]; then
             echo "::error::main 브랜치에서 실행하세요(Run workflow → Use workflow from: main). 현재: $GITHUB_REF"
@@ -58,14 +83,16 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.aws.outputs.ready == 'true'
         with:
           ref: main
           fetch-depth: 0
 
       - name: 커밋 확인
         id: commit
+        if: steps.aws.outputs.ready == 'true'
         env:
-          INPUT_SHA: ${{ inputs.sha }}
+          INPUT_SHA: ${{ env.TARGET_SHA }}
         run: |
           sha=$(git rev-parse --verify --quiet "${INPUT_SHA:-HEAD}^{commit}") || {
             echo "::error::커밋을 찾을 수 없거나 짧은 sha가 여러 커밋에 해당합니다: $INPUT_SHA"
@@ -76,8 +103,17 @@ jobs:
             exit 1
           fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          # 자동 실행은 main 최신 커밋만 배포한다. main에 연달아 병합돼 Publish image가 뒤바뀐 순서로 끝나면
+          # 오래된 커밋이 나중에 배포돼 운영이 되돌아가므로 건너뛴다(최신 커밋의 Publish image가 배포한다).
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$sha" != "$(git rev-parse HEAD)" ]; then
+            echo "::warning::$sha 보다 새 main 커밋이 있어 배포를 건너뜁니다. 그 커밋의 Publish image가 끝나면 배포됩니다."
+            echo "latest=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "latest=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -85,6 +121,7 @@ jobs:
 
       # 테스트를 통과한 main 커밋에만 이미지가 있다.
       - name: 이미지 확인
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         env:
           SHA: ${{ steps.commit.outputs.sha }}
         run: |
@@ -94,11 +131,13 @@ jobs:
           fi
 
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
 
       - name: 배포
+        if: steps.aws.outputs.ready == 'true' && steps.commit.outputs.latest == 'true'
         env:
           INSTANCE_ID: ${{ secrets.DEPLOY_INSTANCE_ID }}
           SHA: ${{ steps.commit.outputs.sha }}

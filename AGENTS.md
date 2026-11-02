@@ -53,7 +53,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 배포·환경변수
 
-`docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 dev 서버는 없다. `main` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, 운영 반영은 `deploy.yml`을 수동 실행해 k3s의 `web` Deployment만 바꾼다. manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
+`docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 dev 서버는 없다. `main` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
 
 `VITE_*` 값은 번들에 공개되므로 비밀값을 넣지 않고, 이미지에 환경별 값을 넣지 않는다(필요하면 `publish.yml` build-arg를 팀과 상의).
 
