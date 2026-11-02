@@ -125,9 +125,29 @@ const authDefaults = [
   ),
 ]
 
+/**
+ * 채팅 웹소켓 연결 티켓. 연결할 때마다 받으므로 채팅 연결이 있는 테스트는 늘 부른다.
+ * 연결 만료는 15분 뒤(재인증은 그 60초 전)다.
+ */
+let ticketCount = 0
+const chatTicketDefault = [
+  http.post('*/api/v1/chats/ws-tickets', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        ticket: `ticket-${++ticketCount}`,
+        expiresIn: 30,
+        connectionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      },
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
 export const server = setupServer(
   ...authDefaults,
+  ...chatTicketDefault,
   ...appShellCartDefault,
   ...appShellDefaults,
   ...adminHomeDefaults,

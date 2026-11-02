@@ -149,3 +149,22 @@ export type ChatRoomHistory = {
   /** 다음(더 최근) 페이지 커서. 더 없으면 null (BE #263) */
   nextCursor: string | null
 }
+
+/** POST /chats/ws-tickets */
+export type ChatConnectionTicket = {
+  /** 한 번만, 받자마자 쓴다 */
+  ticket: string
+  /** 티켓 유효 시간(초) */
+  expiresIn: number
+  /** 이 티켓으로 연결(또는 재인증)한 연결이 닫히는 시각(ISO-8601 UTC) */
+  connectionExpiresAt: string
+}
+
+/** 재인증 결과(/user/queue/chats/connection). 재인증 프레임을 보낸 연결에만 온다 */
+export type ChatReauthFrame = {
+  type: 'REAUTHENTICATED' | 'REAUTH_FAILED' | (string & {})
+  /** 실패 사유(INVALID_TICKET·MEMBER_MISMATCH·CONNECTION_CLOSING). 성공이면 null */
+  code: string | null
+  /** 이 연결이 닫히는 시각. 성공이면 새 값, 실패면 바뀌지 않은 기존 값. 모르면 null */
+  connectionExpiresAt: string | null
+}

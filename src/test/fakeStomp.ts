@@ -1,4 +1,5 @@
 type Config = {
+  brokerURL?: string
   beforeConnect?: (client: FakeStompClient) => void | Promise<void>
   onConnect?: (frame: unknown) => void
   onWebSocketClose?: (event: unknown) => void
@@ -26,7 +27,14 @@ export class FakeStompClient {
   static instances: FakeStompClient[] = []
   connected = false
   active = false
-  published: { destination: string; body: string }[] = []
+  /** 보낸 프레임(본문이 없는 프레임은 빈 문자열) */
+  published: {
+    destination: string
+    body: string
+    headers?: Record<string, string>
+  }[] = []
+  /** 연결 주소(beforeConnect가 일회용 티켓을 붙인다) */
+  brokerURL?: string
   /** CONNECT 헤더(beforeConnect가 넣는 access token 등) */
   connectHeaders: Record<string, string> = {}
   /** 마지막 activate()의 beforeConnect가 끝나면 풀린다. CONNECT 헤더를 확인하기 전에 기다린다 */
@@ -41,6 +49,7 @@ export class FakeStompClient {
 
   constructor(config: Config) {
     this.config = config
+    this.brokerURL = config.brokerURL
     FakeStompClient.instances.push(this)
   }
 
@@ -84,8 +93,12 @@ export class FakeStompClient {
     return [...this.live].filter((s) => s.destination === destination)
   }
 
-  publish(params: { destination: string; body: string }) {
-    this.published.push(params)
+  publish(params: {
+    destination: string
+    body?: string
+    headers?: Record<string, string>
+  }) {
+    this.published.push({ ...params, body: params.body ?? '' })
   }
 
   // ── 테스트 도우미 ──

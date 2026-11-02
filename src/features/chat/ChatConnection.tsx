@@ -5,13 +5,15 @@ import { chatKeys, observeChatPages } from '@/entities/chat/api'
 import type { ChatRoom } from '@/entities/chat/types'
 import { API_BASE } from '@/shared/api/client'
 import { clearSession } from '@/shared/auth/session'
-import {
-  accessTokenRemainingMs,
-  getAccessToken,
-  refreshAccessToken,
-} from '@/shared/auth/token'
+import { refreshAccessToken } from '@/shared/auth/token'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { failAllSending, useChatStore } from './chatStore'
+import {
+  createReauth,
+  RECONNECT,
+  requestTicket,
+  ticketRetryDelay,
+} from './connectionAuth'
 import {
   applyChatError,
   applyIncomingMessage,
@@ -41,21 +43,26 @@ const QUEUE = {
   errors: '/user/queue/chats/errors',
   /** 재동기화 신호: 서버의 실시간 구독이 끊겼다 복구됐다 */
   sync: SYNC_QUEUE,
+  /** 재인증 결과(이 연결에만 온다) */
+  connection: '/user/queue/chats/connection',
 }
 
-/** 다시 연결 대기: 3초부터 두 배씩 늘려 최대 30초. 여러 탭·회원이 한꺼번에 몰리지 않게 매번 최대 1초를 더 기다린다 */
-const RECONNECT = { baseMs: 3_000, maxMs: 30_000, jitterMs: 1_000 }
+/** 재인증 프레임을 보내는 곳(헤더 ticket, 본문 없음) */
+const REAUTH_DESTINATION = '/pub/chats/reauth'
 
-/** 연결할 때 access token이 이보다 적게 남았으면 먼저 다시 받는다(연결 직후 만료로 끊기지 않게) */
-const TOKEN_MIN_REMAINING_MS = 30_000
-
-function brokerUrl() {
+/** 연결 주소. 브라우저 WebSocket은 헤더를 실을 수 없어 일회용 티켓을 쿼리로 보낸다 */
+function brokerUrl(ticket?: string) {
   const scheme = location.protocol === 'https:' ? 'wss' : 'ws'
-  return `${scheme}://${location.host}${API_BASE}/chats/ws`
+  const url = `${scheme}://${location.host}${API_BASE}/chats/ws`
+  return ticket ? `${url}?ticket=${encodeURIComponent(ticket)}` : url
 }
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 /**
- * 앱 전체에서 STOMP 연결 하나를 유지한다(CONNECT 헤더의 access token으로 인증). 화면에는 아무것도 그리지 않는다.
+ * 앱 전체에서 STOMP 연결 하나를 유지한다. 연결마다 일회용 티켓을 받아 주소에 싣고(CONNECT에는 토큰을 넣지 않는다),
+ * 연결 만료 전에 같은 연결로 재인증한다(connectionAuth.ts). 화면에는 아무것도 그리지 않는다.
  * 열어 둔 방은 방 topic으로, 그 밖의 방은 새 메시지 알림으로 받는다. 연결될 때마다(최초 연결 포함) 구독 전에 놓친
  * 메시지를 채우려고 채팅 데이터를 다시 부른다.
  * userId가 바뀌면(로그아웃·역할 전환) 연결을 새로 맺는다.
@@ -142,34 +149,53 @@ export function ChatConnection({ userId }: { userId: number }) {
       const token = await refreshAccessToken().catch(() => undefined)
       if (token === null) endSession()
     }
+    // 이번 연결에 쓴 티켓의 연결 만료. 연결되면 이 시각 60초 전에 재인증한다.
+    let connectionExpiresAt: string | null = null
+    const reauth = createReauth({
+      send: (ticket) => {
+        if (!client.connected) return false
+        client.publish({ destination: REAUTH_DESTINATION, headers: { ticket } })
+        return true
+      },
+      onSignedOut: () => {
+        void client.deactivate()
+        endSession()
+      },
+    })
     const client = new Client({
       brokerURL: brokerUrl(),
       reconnectDelay: RECONNECT.baseMs,
       reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
       maxReconnectDelay: RECONNECT.maxMs,
-      // 브라우저 WebSocket은 헤더를 실을 수 없어 STOMP CONNECT 헤더로 access token을 보낸다. 다시 연결할 때마다
-      // 그때의 토큰을 넣고, 곧 만료되면 먼저 다시 받는다. 다시 받지 못하면(다시 로그인해야 함) 연결하지 않고 비회원으로
-      // 바꾼다. BE가 응답하지 않아 받지 못했으면 그대로 시도한다(서버가 거절하면 끊긴 뒤 다시 확인한다).
+      // 연결·재연결마다 새 티켓을 받아 주소에 싣는다(티켓은 한 번만 쓴다). 토큰이 곧 만료되면 먼저 다시 받는다.
+      // - 토큰을 다시 받지 못하면(다시 로그인해야 함) 연결하지 않고 비회원으로 바꾼다
+      // - 채팅을 쓸 수 없는 회원(403)이면 연결하지 않는다
+      // - 횟수 제한(429)·서버 장애(503)·응답 없음이면 재연결과 같은 간격으로 다시 받는다(소켓을 열지 않아
+      //   stompjs가 다시 시도하지 않으므로 여기서 기다린다)
       beforeConnect: async () => {
-        if (attempted)
-          await new Promise<void>((resolve) =>
-            setTimeout(resolve, Math.random() * RECONNECT.jitterMs),
-          )
+        if (attempted) await sleep(Math.random() * RECONNECT.jitterMs)
         attempted = true
-        const refreshed =
-          accessTokenRemainingMs() < TOKEN_MIN_REMAINING_MS
-            ? await refreshAccessToken().catch(() => undefined)
-            : undefined
-        if (disposed) return
-        if (refreshed === null) {
-          void client.deactivate()
-          endSession()
-          return
+        for (let failures = 0; ; failures++) {
+          if (disposed || !client.active) return
+          const result = await requestTicket()
+          if (disposed) return
+          if (result.ok) {
+            client.brokerURL = brokerUrl(result.ticket.ticket)
+            client.connectHeaders = {}
+            connectionExpiresAt = result.ticket.connectionExpiresAt
+            return
+          }
+          if (result.reason === 'signedOut') {
+            void client.deactivate()
+            endSession()
+            return
+          }
+          if (result.reason === 'forbidden') {
+            void client.deactivate()
+            return
+          }
+          await sleep(ticketRetryDelay(failures))
         }
-        const token = getAccessToken()
-        client.connectHeaders = token
-          ? { Authorization: `Bearer ${token}` }
-          : {}
       },
       onConnect: () => {
         client.subscribe(QUEUE.messages, (frame) => {
@@ -206,6 +232,10 @@ export function ChatConnection({ userId }: { userId: number }) {
           if (!disposed && isResyncSignal(JSON.parse(frame.body)))
             receipt.resync()
         })
+        client.subscribe(QUEUE.connection, (frame) => {
+          if (!disposed) reauth.handle(JSON.parse(frame.body))
+        })
+        reauth.start(connectionExpiresAt)
         // 구독 전에 불러온 이력에는 구독 전까지 온 메시지가 빠져 있을 수 있다(최초 연결 전에 연 방,
         // 끊긴 동안 온 메시지). 구독한 뒤 다시 불러와 사이 구간을 메운다. 불러오는 중에 온 메시지는
         // applyIncomingMessage가 보관했다가 합친다.
@@ -217,11 +247,13 @@ export function ChatConnection({ userId }: { userId: number }) {
         topics.connected(client)
         useChatStore.setState({ status: 'connected' })
       },
-      // 서버가 닫는 경우: 토큰 만료(4401 TOKEN_EXPIRED)·인증 실패(STOMP ERROR UNAUTHENTICATED)·다른 기기 로그아웃
-      // (1008 LOGGED_OUT)은 토큰을 다시 받아 보고, 받으면 새 토큰으로 다시 연결하고(연결되면 이력을 다시 맞춘다)
-      // 받지 못하면 비회원으로 바꾼다. 채팅 불가(1008 CHAT_NOT_ALLOWED)는 다시 연결하지 않는다.
+      // 서버가 닫는 경우: 연결 만료(4401 TOKEN_EXPIRED, 재인증하지 못함)·인증 실패(STOMP ERROR UNAUTHENTICATED 뒤
+      // 1002)·다른 기기 로그아웃(1008 LOGGED_OUT)은 토큰을 다시 받아 보고, 받으면 새 티켓으로 다시 연결하고(연결되면
+      // 이력을 다시 맞춘다) 받지 못하면 비회원으로 바꾼다. 핸드셰이크 거절(티켓 401)은 브라우저에 1006으로만 보여 같은
+      // 길로 새 티켓을 받아 다시 연결한다. 채팅 불가(1008 CHAT_NOT_ALLOWED)는 다시 연결하지 않는다.
       onWebSocketClose: (event: { code?: number; reason?: string }) => {
         useChatStore.setState({ status: 'disconnected' })
+        reauth.stop()
         receipt.stop()
         topics.disconnected()
         failAllSending()
@@ -255,6 +287,8 @@ export function ChatConnection({ userId }: { userId: number }) {
 
     return () => {
       disposed = true
+      // 로그아웃·회원 전환: 재인증 타이머를 멈추고 연결을 끊는다.
+      reauth.stop()
       topics.disconnected()
       stopWatchingViewing()
       stopWatchingGenerations()
