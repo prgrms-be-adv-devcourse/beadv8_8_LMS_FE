@@ -37,7 +37,10 @@ export function useRetryHpTask(taskId: number) {
         '재시도를 요청했어요. 다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내요.',
       ),
     onError: (error) => {
-      if (isApiError(error, 'UNAUTHORIZED') || isApiError(error, 'FORBIDDEN'))
+      if (
+        (isApiError(error) && error.sessionEnded) ||
+        isApiError(error, 'FORBIDDEN')
+      )
         return
       toast(errorMessage(error))
     },

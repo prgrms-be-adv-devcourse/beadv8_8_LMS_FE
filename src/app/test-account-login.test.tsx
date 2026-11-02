@@ -10,16 +10,19 @@ import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
-const ACCOUNTS = [
-  '유저 1',
-  '유저 2',
-  '인플루언서 1',
-  '인플루언서 2',
-  '인증된 인플루언서 1',
-  '인증된 인플루언서 2',
-  '관리자 1',
-  '관리자 2',
+/** 버튼 이름과 BE 초기 계정(MemberSeedAccountUseCase) */
+const ACCOUNTS: [string, string, Role][] = [
+  ['인플루언서', 'influencer@hapbang.local', 'INFLUENCER'],
+  [
+    '인증된 인플루언서',
+    'verified-influencer@hapbang.local',
+    'VERIFIED_INFLUENCER',
+  ],
+  ['관리자', 'admin@hapbang.local', 'ADMIN'],
 ]
+const ROLE_OF: Record<string, Role> = Object.fromEntries(
+  ACCOUNTS.map(([, email, role]) => [email, role]),
+)
 
 const me = (role: Role): Me => ({
   id: ME_ID,
@@ -33,20 +36,20 @@ const me = (role: Role): Me => ({
 const LOCAL_TOKEN = 'local-access-token'
 
 /**
- * 테스트 계정 로그인 응답. 받은 요청을 calls에 남긴다.
+ * 이메일·비밀번호 로그인 응답. 받은 본문을 calls에 남긴다.
  * BE는 refresh token 쿠키만 주므로 이어서 부르는 재발급이 access token을 준다.
  */
-function mockLocalLogin(respond?: () => Response | Promise<Response>) {
-  const calls: Request[] = []
+function mockLogin(respond?: () => Response | Promise<Response>) {
+  const calls: { email: string; password: string }[] = []
   server.use(
     http.post('*/api/v1/members/auth/refresh', () =>
       rs({ accessToken: LOCAL_TOKEN, expiresIn: 900 }),
     ),
-    http.post('*/api/v1/members/local-login', async ({ request }) => {
-      calls.push(request)
+    http.post('*/api/v1/members/login', async ({ request }) => {
+      const body = (await request.json()) as { email: string; password: string }
+      calls.push(body)
       if (respond) return respond()
-      const role = new URL(request.url).searchParams.get('role') as Role
-      return rs(me(role))
+      return rs(me(ROLE_OF[body.email]))
     }),
   )
   return calls
@@ -87,10 +90,10 @@ describe('로그인 모달 테스트 계정 로그인', () => {
       within(dialog).getByRole('button', { name: /Google로 계속하기/ }),
     ).toBeInTheDocument()
     expect(within(dialog).queryByRole('group')).toBeNull()
-    expect(within(dialog).queryByRole('button', { name: '유저 1' })).toBeNull()
+    expect(within(dialog).queryByRole('button', { name: '관리자' })).toBeNull()
   })
 
-  it('dev 서버 빌드에서는 역할·번호별 버튼 8개를 보여 준다', async () => {
+  it('dev 서버 빌드에서는 초기 계정이 있는 역할의 버튼 3개를 보여 준다(유저는 없다)', async () => {
     vi.stubEnv('DEV', false)
     vi.stubEnv('VITE_LOCAL_LOGIN', 'true')
     renderApp('/lectures', 'GUEST')
@@ -99,51 +102,50 @@ describe('로그인 모달 테스트 계정 로그인', () => {
       within(group)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(ACCOUNTS)
+    ).toEqual(ACCOUNTS.map(([label]) => label))
   })
 
-  it('인플루언서 2를 누르면 그 계정으로 로그인하고 모달을 닫은 채 그 화면에 머문다', async () => {
-    const calls = mockLocalLogin()
-    const router = renderApp('/lectures', 'GUEST')
-    // 비회원으로 받아 둔 데이터는 로그인 뒤에 남지 않는다.
-    queryClient.setQueryData(['guest-only'], 'x')
-    const group = await openTestAccounts()
+  it.each(ACCOUNTS)(
+    '%s 버튼을 누르면 그 초기 계정(%s)으로 이메일 로그인하고 모달을 닫은 채 그 화면에 머문다',
+    async (label, email) => {
+      const calls = mockLogin()
+      const router = renderApp('/lectures', 'GUEST')
+      // 비회원으로 받아 둔 데이터는 로그인 뒤에 남지 않는다.
+      queryClient.setQueryData(['guest-only'], 'x')
+      const group = await openTestAccounts()
 
-    await userEvent.click(
-      within(group).getByRole('button', { name: '인플루언서 2' }),
-    )
+      await userEvent.click(within(group).getByRole('button', { name: label }))
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(calls).toHaveLength(1)
-    const params = new URL(calls[0].url).searchParams
-    expect(params.get('role')).toBe('INFLUENCER')
-    expect(params.get('number')).toBe('2')
-    // 재발급으로 받은 access token을 이 탭 메모리에 둔다.
-    expect(getAccessToken()).toBe(LOCAL_TOKEN)
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(calls).toEqual([{ email, password: 'hapbang1234!' }])
+      // 재발급으로 받은 access token을 이 탭 메모리에 둔다.
+      expect(getAccessToken()).toBe(LOCAL_TOKEN)
 
-    expect(router.state.location.pathname).toBe('/lectures')
-    const header = await screen.findByRole('banner')
-    expect(
-      await within(header).findByRole('link', { name: '장바구니' }),
-    ).toBeInTheDocument()
-    expect(within(header).queryByRole('button', { name: '로그인' })).toBeNull()
-    await waitFor(() =>
-      expect(toasts().map((el) => el.textContent)).toContain(
-        '인플루언서 2 테스트 계정으로 로그인했어요.',
-      ),
-    )
-    expect(queryClient.getQueryData(['guest-only'])).toBeUndefined()
-  })
+      expect(router.state.location.pathname).toBe('/lectures')
+      const header = await screen.findByRole('banner')
+      expect(
+        within(header).queryByRole('button', { name: '로그인' }),
+      ).toBeNull()
+      await waitFor(() =>
+        expect(toasts().map((el) => el.textContent)).toContain(
+          `${label} 테스트 계정으로 로그인했어요.`,
+        ),
+      )
+      expect(queryClient.getQueryData(['guest-only'])).toBeUndefined()
+    },
+  )
 
   it('권한이 필요한 화면에서 로그인하면 그 화면이 열린다', async () => {
-    mockLocalLogin()
+    mockLogin()
     const router = renderApp('/wallet', 'GUEST')
     const dialog = await screen.findByRole('dialog', { name: '합방 시작하기' })
     const group = within(dialog).getByRole('group', {
       name: '개발용 테스트 계정',
     })
 
-    await userEvent.click(within(group).getByRole('button', { name: '유저 1' }))
+    await userEvent.click(
+      within(group).getByRole('button', { name: '인플루언서' }),
+    )
 
     expect(
       await screen.findByRole('heading', { level: 1, name: '지갑' }),
@@ -152,19 +154,21 @@ describe('로그인 모달 테스트 계정 로그인', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('테스트 계정이 없으면(404) 안내하고 모달을 유지한다', async () => {
-    mockLocalLogin(() =>
+  it('로그인하지 못하면(초기 계정 비밀번호를 바꾼 경우 401 등) 안내하고 모달을 유지한다', async () => {
+    mockLogin(() =>
       HttpResponse.json(
-        { statusCode: 404, message: '테스트 계정이 없습니다.', data: null },
-        { status: 404 },
+        {
+          status: 401,
+          code: 'INVALID_CREDENTIALS',
+          detail: '이메일 또는 비밀번호가 올바르지 않습니다.',
+        },
+        { status: 401 },
       ),
     )
     renderApp('/lectures', 'GUEST')
     const group = await openTestAccounts()
 
-    await userEvent.click(
-      within(group).getByRole('button', { name: '관리자 2' }),
-    )
+    await userEvent.click(within(group).getByRole('button', { name: '관리자' }))
 
     await waitFor(() =>
       expect(toasts().map((el) => el.textContent)).toContain(
@@ -178,19 +182,21 @@ describe('로그인 모달 테스트 계정 로그인', () => {
   })
 
   it('로그인 요청 중에는 버튼을 다시 누를 수 없다', async () => {
-    const calls = mockLocalLogin(async () => {
+    const calls = mockLogin(async () => {
       await delay(200)
-      return rs(me('USER'))
+      return rs(me('INFLUENCER'))
     })
     renderApp('/lectures', 'GUEST')
     const group = await openTestAccounts()
 
-    await userEvent.click(within(group).getByRole('button', { name: '유저 1' }))
+    await userEvent.click(
+      within(group).getByRole('button', { name: '인플루언서' }),
+    )
 
     for (const button of within(group).getAllByRole('button')) {
       expect(button).toBeDisabled()
     }
-    await userEvent.click(within(group).getByRole('button', { name: '유저 2' }))
+    await userEvent.click(within(group).getByRole('button', { name: '관리자' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(calls).toHaveLength(1)
   })

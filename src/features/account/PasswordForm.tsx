@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { passwordError } from '@/entities/member/password'
-import { isApiError } from '@/shared/api/ApiError'
+import { isApiError, sessionEndedError } from '@/shared/api/ApiError'
 import { changePassword } from '@/shared/auth/me'
 import { pauseRefreshWhile } from '@/shared/auth/token'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
@@ -60,8 +60,10 @@ export function PasswordForm() {
       // 쿠키를 바꾸는 작업이라 로그인·로그아웃과 하나씩 한다. 그동안 다른 재발급이 끼어 폐기된 쿠키로 덮어쓰거나,
       // 변경 중 로그아웃한 뒤 새 쿠키로 다시 로그인되지 않게 한다.
       pauseRefreshWhile(async (refresh) => {
-        // 새 토큰으로 보낸다(변경 요청은 재발급하지 않는다).
-        await refresh().catch(() => null)
+        // 새 토큰으로 보낸다(변경 요청은 재발급하지 않는다). refresh token이 거절됐으면(null) 로그인이 끝났으므로
+        // 보내지 않고 로그아웃 처리한다. BE가 응답하지 않았으면 지금 토큰으로 보낸다.
+        const token = await refresh().catch(() => undefined)
+        if (token === null) throw sessionEndedError()
         await changePassword(body)
         // 바꾸면서 받은 새 쿠키로 토큰을 다시 받는다(옛 토큰도 만료 전까지 쓸 수 있어 실패해도 그대로 둔다).
         await refresh().catch(() => null)

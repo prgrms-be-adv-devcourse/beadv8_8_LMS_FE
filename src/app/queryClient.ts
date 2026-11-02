@@ -6,10 +6,11 @@ import { openLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
 
 /**
- * 로그인이 끊겼으면(토큰을 다시 받아도 401) 비회원으로 바꾸고 로그인 모달을, 권한이 없으면(403) 안내를 띄운다.
+ * 로그인이 끝났으면(refresh token이 거절됨) 비회원으로 바꾸고 로그인 모달을, 권한이 없으면(403) 안내를 띄운다.
+ * 다시 받은 토큰으로도 401인 요청(그 앱이 아직 사용자 인증을 못 하는 등)은 로그인을 유지하고 그 화면의 오류로만 둔다.
  */
 function handleAuthError(error: unknown) {
-  if (isApiError(error, 'UNAUTHORIZED')) {
+  if (isApiError(error) && error.sessionEnded) {
     clearAccessToken()
     queryClient.setQueryData(meQuery.queryKey, null)
     openLoginModal('로그인이 필요해요.')

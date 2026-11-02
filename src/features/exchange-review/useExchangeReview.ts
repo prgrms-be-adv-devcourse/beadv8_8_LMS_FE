@@ -54,7 +54,7 @@ function useReview<T>(
     },
     onError: (error) => {
       if (
-        isApiError(error, 'UNAUTHORIZED') ||
+        (isApiError(error) && error.sessionEnded) ||
         isApiError(error, 'FORBIDDEN') ||
         isRejectionReasonError(error)
       )

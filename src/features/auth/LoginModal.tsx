@@ -3,19 +3,17 @@ import { isLocalLoginEnabled } from '@/shared/lib/localLogin'
 import { Modal } from '@/shared/ui/Modal'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
 import { VIEWER_LABEL, type Role } from '@/shared/auth/role'
-import { startGoogleLogin, useLocalLogin } from '@/shared/auth/session'
+import { startGoogleLogin, useTestAccountLogin } from '@/shared/auth/session'
 import { EmailLoginForm } from './EmailLoginForm'
 import styles from './LoginModal.module.css'
 import { SignupForm } from './SignupForm'
 
-const TEST_ROLES: Role[] = [
-  'USER',
-  'INFLUENCER',
-  'VERIFIED_INFLUENCER',
-  'ADMIN',
+/** BE 초기 계정(MemberSeedAccountUseCase): 역할마다 하나. 유저는 초기 계정이 없다(가입하면 된다) */
+const TEST_ACCOUNTS: { role: Role; email: string }[] = [
+  { role: 'INFLUENCER', email: 'influencer@hapbang.local' },
+  { role: 'VERIFIED_INFLUENCER', email: 'verified-influencer@hapbang.local' },
+  { role: 'ADMIN', email: 'admin@hapbang.local' },
 ]
-/** BE MemberDataInit이 역할마다 만드는 테스트 계정 번호 */
-const TEST_NUMBERS = [1, 2]
 
 export function LoginModal() {
   const { open, reason } = useLoginModalStore()
@@ -87,29 +85,27 @@ function LoginOptions({ reason }: { reason?: string }) {
   )
 }
 
-/** 로컬·dev 서버 전용: Google 없이 역할별 테스트 계정으로 로그인한다(POST /members/local-login). */
+/** 개발용: Google 없이 역할별 BE 초기 계정으로 로그인한다(이메일·비밀번호 로그인). */
 function TestAccountLogin() {
   const labelId = useId()
-  const { mutate, isPending } = useLocalLogin()
+  const { mutate, isPending } = useTestAccountLogin()
   return (
     <div className={styles.testAccounts} role="group" aria-labelledby={labelId}>
       <p id={labelId} className="fine">
         개발용 테스트 계정
       </p>
       <div className={styles.accounts}>
-        {TEST_ROLES.flatMap((role) =>
-          TEST_NUMBERS.map((number) => (
-            <button
-              key={`${role}-${number}`}
-              type="button"
-              className="btn sm"
-              disabled={isPending}
-              onClick={() => mutate({ role, number })}
-            >
-              {VIEWER_LABEL[role]} {number}
-            </button>
-          )),
-        )}
+        {TEST_ACCOUNTS.map((account) => (
+          <button
+            key={account.role}
+            type="button"
+            className="btn sm"
+            disabled={isPending}
+            onClick={() => mutate(account)}
+          >
+            {VIEWER_LABEL[account.role]}
+          </button>
+        ))}
       </div>
     </div>
   )

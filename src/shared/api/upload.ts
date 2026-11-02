@@ -42,7 +42,9 @@ export async function uploadBody(
     const token =
       latest && latest !== sentWith
         ? latest
-        : await refreshAccessToken().catch(() => null)
+        : await refreshAccessToken().catch(() => undefined)
+    // refresh token이 거절됐으면 로그인이 끝난 것이다(api()와 같은 기준).
+    if (token === null) error.sessionEnded = true
     if (!token || authSession() !== sentIn) throw error
     options.onProgress?.(0)
     await send(path, file, token, options)
