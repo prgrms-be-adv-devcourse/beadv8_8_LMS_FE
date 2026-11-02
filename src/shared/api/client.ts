@@ -19,7 +19,6 @@ const AUTH_PATHS = new Set([
   '/members/auth/logout',
   '/members/login',
   '/members/signup',
-  '/members/local-login',
   '/members/me/password',
 ])
 
@@ -35,8 +34,10 @@ export type ApiRequest = Omit<RequestInit, 'body'> & {
  * BE API 호출. 성공하면 RsData의 data만, 204면 undefined를 돌려주고, 실패하면 ApiError를 던진다.
  * access token이 있으면 Authorization: Bearer로 보낸다.
  * 401(토큰 만료)·403(역할이 막 바뀌어 토큰의 역할이 옛 값)이면 토큰을 다시 받아 한 번만 다시 보낸다.
- * 다시 받지 못하거나 그사이 로그인이 바뀌었으면(로그아웃·다른 계정) 처음 실패를 그대로 던진다(401이면 전역 처리가
- * 비회원으로 바꾼다). 이전 로그인의 요청을 새 계정 토큰으로 보내지 않게 한다.
+ * 다시 받지 못하거나 그사이 로그인이 바뀌었으면(로그아웃·다른 계정) 처음 실패를 그대로 던진다. 이전 로그인의 요청을
+ * 새 계정 토큰으로 보내지 않게 한다.
+ * refresh token이 거절돼 다시 받지 못했으면 오류에 sessionEnded를 표시한다(전역 처리가 비회원으로 바꾼다). 다시 받은
+ * 토큰으로도 401·403이면 그 요청만의 오류로 던진다(로그인은 유지한다).
  */
 export async function api<T>(
   path: string,
@@ -69,6 +70,7 @@ export async function api<T>(
   const sentWith = getAccessToken()
   const sentIn = authSession()
   let res = await send(sentWith)
+  let sessionEnded = false
   if (
     (res.status === 401 || res.status === 403) &&
     // 경로에 쿼리를 직접 붙여 불러도 같은 요청으로 본다.
@@ -77,16 +79,22 @@ export async function api<T>(
   ) {
     // 기다리는 사이 다른 요청이 이미 새 토큰을 받았으면 그 토큰으로 다시 보낸다.
     const latest = getAccessToken()
+    // null: refresh token이 거절됐다(로그인이 끝났다). undefined: BE가 응답하지 않아 확인하지 못했다.
     const token =
       latest && latest !== sentWith
         ? latest
-        : await refreshAccessToken().catch(() => null)
+        : await refreshAccessToken().catch(() => undefined)
+    if (token === null) sessionEnded = true
     if (token && authSession() === sentIn) res = await send(token)
   }
 
   if (res.status === 204) return undefined as T
   const json = await readJson(res)
-  if (!res.ok) throw new ApiError(res.status, json as ProblemDetail | null)
+  if (!res.ok) {
+    const error = new ApiError(res.status, json as ProblemDetail | null)
+    error.sessionEnded = sessionEnded
+    throw error
+  }
   return unwrap<T>(json)
 }
 

@@ -117,6 +117,32 @@ describe('API 401', () => {
     expect(screen.queryByRole('dialog', { name: '합방 시작하기' })).toBeNull()
   })
 
+  it('토큰을 다시 받았는데도 그 API가 401이면(아직 사용자 인증을 못 하는 앱) 로그인을 유지하고 모달을 띄우지 않는다', async () => {
+    let refreshCalls = 0
+    // 지갑 앱이 Bearer를 아직 받지 못해 늘 401이다.
+    renderApp(
+      '/lectures',
+      'USER',
+      () => new HttpResponse(null, { status: 401 }),
+    )
+    server.use(
+      http.post('*/api/v1/members/auth/refresh', () => {
+        refreshCalls++
+        return rs({ accessToken: 'renewed', expiresIn: 900 })
+      }),
+    )
+
+    const header = await screen.findByRole('banner')
+    expect(
+      await within(header).findByRole('button', { name: '하늘 메뉴' }),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(refreshCalls).toBeGreaterThanOrEqual(1))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect(screen.queryByRole('dialog', { name: '합방 시작하기' })).toBeNull()
+    expect(queryClient.getQueryData(meQuery.queryKey)).not.toBeNull()
+    expect(getAccessToken()).toBe('renewed')
+  })
+
   it('다시 받지 못하면 토큰을 버리고 비회원으로 바꿔 로그인 모달을 띄운다', async () => {
     renderApp('/wallet', 'USER', () => new HttpResponse(null, { status: 401 }))
     // refresh token도 만료됐다.

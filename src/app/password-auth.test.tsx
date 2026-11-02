@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import type { Me } from '@/shared/auth/me'
+import { meQuery, type Me } from '@/shared/auth/me'
 import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
@@ -372,6 +372,29 @@ describe('비밀번호 변경', () => {
     })
     expect(order).toEqual(['refresh', 'change', 'refresh'])
     expect(within(form).getByLabelText('현재 비밀번호')).toHaveValue('')
+  })
+
+  it('먼저 받는 refresh가 거절되면(로그인 끝남) 바꾸지 않고 비회원으로 바꾼다', async () => {
+    let changeCalls = 0
+    renderApp('/settings', 'USER')
+    server.use(
+      http.post(
+        '*/api/v1/members/auth/refresh',
+        () => new HttpResponse(null, { status: 401 }),
+      ),
+      http.patch('*/api/v1/members/me/password', () => {
+        changeCalls++
+        return rs(null)
+      }),
+    )
+    await fillAndSubmit('abcd1234', 'efgh5678')
+
+    expect(
+      await screen.findByRole('dialog', { name: '합방 시작하기' }),
+    ).toBeInTheDocument()
+    expect(changeCalls).toBe(0)
+    expect(getAccessToken()).toBeNull()
+    expect(queryClient.getQueryData(meQuery.queryKey)).toBeNull()
   })
 
   it('구글로 가입한 회원이면(PASSWORD_NOT_SET) 비밀번호가 없다고 안내한다', async () => {

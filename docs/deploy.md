@@ -26,13 +26,15 @@ dev 서버는 없다(2026-10-30 Compose와 함께 제거, BE #440). 화면 확�
 ```
 PR → dev 병합            CI만 (format:check · lint · test · build · manifest 검사)
 dev → main 병합          Publish image: CI → 이미지 GHCR push  :sha-<커밋>
-운영 반영(수동)           Actions → Deploy → Run workflow(main), sha 입력(비우면 main 최신)
+운영 반영(자동)           Publish image 성공 → Deploy가 그 커밋을 배포(workflow_run)
+롤백·재배포(수동)         Actions → Deploy → Run workflow(main), sha 입력(비우면 main 최신)
   커밋이 main에 있는지·이미지가 있는지 확인
   → GitHub OIDC → IAM role → SSM으로 large에서 .github/scripts/k3s-deploy.sh apply <sha>
   → 그 커밋의 k8s/overlays/prod에 :sha-<커밋>을 넣어 apply → rollout status
 ```
 
-- main 병합만으로는 운영이 바뀌지 않는다. 운영에 올리는 시점은 사람이 정해 Deploy를 실행한다.
+- **dev → main 병합이 곧 운영 배포다.** main은 Release PR로만 바뀌므로, 운영에 올릴 시점은 Release PR을 병합하는 사람이 정한다.
+- AWS 설정(아래 사전 준비)이 없으면 Deploy는 경고만 남기고 건너뛴다. 그 전까지는 "SSM 준비 전 직접 배포"로 반영한다.
 - **자동 롤백**: rollout이 3분 안에 끝나지 않으면 `web` Deployment만 이전 revision으로 되돌리고 실패로 표시한다. Service·HTTPRoute·NetworkPolicy는 되돌리지 않는다.
 - **수동 롤백**: 되돌릴 main 커밋 sha를 넣고 Deploy를 실행한다.
 - 이미지 태그는 `:sha-<커밋>` 하나다. `:latest`·`:dev`는 만들지 않는다.
@@ -128,7 +130,7 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 | 변수 | 값 | 넣는 곳 |
 | --- | --- | --- |
 | `VITE_TOSS_PAYMENTS_CLIENT_KEY` | 토스페이먼츠 테스트 클라이언트 키(`test_ck_…`, 공개 값). 비어 있으면 HP 충전 버튼이 꺼진다 | 로컬은 `.env.local`, 배포는 GitHub Variable `TOSS_PAYMENTS_CLIENT_KEY` → `publish.yml` build-args → `Dockerfile` `ARG` |
-| `VITE_LOCAL_LOGIN` | `true`면 로그인 모달에 테스트 계정 로그인 버튼(`POST /members/local-login`)을 보여 준다. `pnpm dev`에서는 값 없이도 보인다 | 로컬 k3d 이미지를 직접 빌드할 때만 `--build-arg`로 넘긴다. 발행 이미지에는 넣지 않는다(운영에는 API가 없다) |
+| `VITE_LOCAL_LOGIN` | `true`면 로그인 모달에 테스트 계정 로그인 버튼(BE 초기 계정으로 `POST /members/login`)을 보여 준다. `pnpm dev`에서는 값 없이도 보인다 | 로컬 k3d 이미지를 직접 빌드할 때만 `--build-arg`로 넘긴다. 발행 이미지에는 넣지 않는다 |
 
 ## 파일
 
@@ -140,6 +142,6 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 | `k8s/overlays/prod`, `k8s/overlays/local` | 운영(GHCR 이미지), 로컬 k3d(`hapbang/web:local`) |
 | `.github/workflows/ci.yml` | PR마다 format:check·lint·test·build, manifest schema 검사 |
 | `.github/workflows/publish.yml` | `main` push 때 이미지 발행(`:sha-<커밋>`) |
-| `.github/workflows/deploy.yml` | 운영 배포·롤백(수동, OIDC → SSM) |
+| `.github/workflows/deploy.yml` | 운영 배포(Publish image 성공 시 자동)·롤백(수동), OIDC → SSM |
 | `.github/scripts/k3s-deploy.sh` | large에서 실행하는 적용·rollout·자동 롤백 스크립트 |
 | `.github/scripts/ssm-run.sh` | 스크립트를 SSM Run Command로 large에 보내 실행(BE 레포와 같은 파일) |

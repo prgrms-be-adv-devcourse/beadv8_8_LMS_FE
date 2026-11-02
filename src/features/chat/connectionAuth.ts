@@ -6,7 +6,6 @@ import type {
 import { isApiError } from '@/shared/api/ApiError'
 import {
   accessTokenRemainingMs,
-  getAccessToken,
   refreshAccessToken,
   serverNow,
 } from '@/shared/auth/token'
@@ -45,7 +44,8 @@ export type TicketResult =
 /**
  * 연결·재인증에 쓸 일회용 티켓을 받는다. access token이 minTokenMs보다 적게 남았으면 먼저 다시 받는다
  * (서버는 연결 만료를 토큰 만료에 맞추므로, 남은 토큰이 짧으면 연결도 짧다).
- * 티켓 요청이 401이면 api()가 이미 토큰을 다시 받아 한 번 더 보냈으므로, 그래도 토큰이 없으면 로그아웃으로 본다.
+ * 티켓 요청이 401이면 api()가 이미 토큰을 다시 받아 한 번 더 보냈다. refresh token이 거절됐으면(sessionEnded)
+ * 로그아웃으로 보고, 다시 받은 토큰으로도 401이면 잠시 뒤 다시 받는다.
  */
 export async function requestTicket({
   minTokenMs = TOKEN_MIN_REMAINING_MS,
@@ -57,7 +57,7 @@ export async function requestTicket({
   try {
     return { ok: true, ticket: await issueConnectionTicket() }
   } catch (error) {
-    if (isApiError(error) && error.status === 401 && !getAccessToken())
+    if (isApiError(error) && error.sessionEnded)
       return { ok: false, reason: 'signedOut' }
     if (isApiError(error) && error.status === 403)
       return { ok: false, reason: 'forbidden' }

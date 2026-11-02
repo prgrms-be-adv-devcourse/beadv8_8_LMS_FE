@@ -272,7 +272,17 @@ describe('requestTicket', () => {
     })
   })
 
-  it('401이 계속되고 토큰도 다시 받지 못하면 로그아웃으로 본다', async () => {
+  it('토큰을 다시 받았는데도 401이면 로그아웃이 아니라 잠시 뒤 다시 받는다', async () => {
+    setAccessToken('current', 600)
+    refreshTo('renewed')
+    tickets(() => new HttpResponse(null, { status: 401 }))
+    await expect(requestTicket()).resolves.toEqual({
+      ok: false,
+      reason: 'retry',
+    })
+  })
+
+  it('401에 refresh token도 거절되면 로그아웃으로 본다', async () => {
     setAccessToken('current', 600)
     tickets(() => new HttpResponse(null, { status: 401 }))
     await expect(requestTicket()).resolves.toEqual({
