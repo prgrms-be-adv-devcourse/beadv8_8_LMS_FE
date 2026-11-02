@@ -24,7 +24,8 @@ import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
 import { AdminDashboardPage } from '@/pages/admin-dashboard/AdminDashboardPage'
-import { AdminPayoutsPage } from '@/pages/admin-payouts/AdminPayoutsPage'
+import { AdminHpTaskPage } from '@/pages/admin-hp-task/AdminHpTaskPage'
+import { AdminHpTasksPage } from '@/pages/admin-hp-tasks/AdminHpTasksPage'
 import { AdminExchangePage } from '@/pages/admin-exchange/AdminExchangePage'
 import { AdminExchangesPage } from '@/pages/admin-exchanges/AdminExchangesPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
@@ -113,6 +114,7 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/admin/chats/:chatRoomId', title: '채팅 기록', roles: ADMIN },
   { path: '/admin/inquiries/:inquiryId', title: '문의 답변', roles: ADMIN },
   { path: '/admin/exchanges/:exchangeId', title: '환전 승인', roles: ADMIN },
+  { path: '/admin/hp-tasks/:taskId', title: '강의 HP 작업', roles: ADMIN },
 ]
 
 const PAGES: PageDef[] = [
@@ -159,7 +161,8 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/support/inquiries/:inquiryId': <InquiryPage />,
   '/admin/lectures': <AdminLecturesPage />,
   '/admin/channels': <AdminChannelsPage />,
-  '/admin/payouts': <AdminPayoutsPage />,
+  '/admin/hp-tasks': <AdminHpTasksPage />,
+  '/admin/hp-tasks/:taskId': <AdminHpTaskPage />,
   '/admin/exchanges': <AdminExchangesPage />,
   '/admin/exchanges/:exchangeId': <AdminExchangePage />,
   '/admin/promotions': <AdminPromotionsPage />,

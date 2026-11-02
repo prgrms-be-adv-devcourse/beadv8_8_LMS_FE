@@ -1,0 +1,14 @@
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+.code {
+  overflow-wrap: anywhere;
+}
+.detail {
+  min-width: 200px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
