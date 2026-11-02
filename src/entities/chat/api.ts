@@ -133,7 +133,6 @@ export function markChatRoomRead(
   })
 }
 
-/** 방 목록 정렬: 최근 메시지가 있는 방부터(BE는 방 ID 내림차순). 메시지가 없으면 만든 시각 */
 /**
  * 채팅 웹소켓 연결 티켓(일회용, 약 30초). 연결(`/chats/ws?ticket=`)과 재인증(`/pub/chats/reauth`)마다 새로 받는다.
  * 인플루언서 이상·관리자만(403). 회원당 60초에 10번까지(429 TOO_MANY_TICKET_REQUESTS), 서버가 티켓을 저장하지
@@ -143,6 +142,7 @@ export function issueConnectionTicket() {
   return api<ChatConnectionTicket>('/chats/ws-tickets', { method: 'POST' })
 }
 
+/** 방 목록 정렬: 최근 메시지가 있는 방부터(BE는 방 ID 내림차순). 메시지가 없으면 만든 시각 */
 export function sortRoomsByRecent<T extends ChatRoom>(rooms: T[]): T[] {
   const at = (r: ChatRoom) => r.lastMessage?.sentAt ?? r.createdAt
   return [...rooms].sort((a, b) => at(b).localeCompare(at(a)))
