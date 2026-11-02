@@ -20,12 +20,21 @@ export type ChatMessageType = 'TEXT' | 'SYSTEM' | 'NOTIFICATION'
 export type NotificationKind =
   'APPEARANCE_REQUEST_SENT' | 'APPEARANCE_APPLICATION_SUBMITTED'
 
+/** 알림 문구 값(종류별 형식). 모르는 키도 들어올 수 있다 */
+export type NotificationValues = Record<string, unknown>
+
 /** 알림 메시지에만 값이 있다. 다른 메시지는 null */
 export type NotificationFields = {
   notificationKind?: NotificationKind | null
   referenceId?: number | null
   /** 상위 출연 건 ID(지원 알림의 모집글 ID). BE #232 전에 남은 알림은 null */
   parentReferenceId?: number | null
+  /**
+   * 알림 종류별 문구 값(형식 버전 v). 알림 종류에 맞는 필드 하나만 채워지고 나머지는 null이다. 값이 있으면 서버는
+   * 문구(content)를 비워 두고 FE가 템플릿으로 만든다. 형식은 notification.ts의 템플릿이 확인한다
+   */
+  appearanceRequestSent?: NotificationValues | null
+  appearanceApplicationSubmitted?: NotificationValues | null
 }
 
 export type ChatRoomMember = {
@@ -72,6 +81,10 @@ export type ChatMessagePage = {
   messages: ChatMessage[]
   /** 더 오래된 메시지를 불러올 cursor. 더 없으면 null */
   nextCursor: number | null
+  /** 조회한 회원의 현재 참여 세대. 전환 전 서버는 주지 않는다 */
+  participationVersion?: number
+  /** 조회한 회원의 가시 범위 시작 순번. 이보다 낮은 순번은 볼 수 없다 */
+  visibleFromSequence?: number
 }
 
 /** 새 메시지 알림(/user/queue/chats/notifications). 받는 사람에게만 온다 */

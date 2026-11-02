@@ -15,7 +15,10 @@ import {
   partnerOf,
   sortRoomsByRecent,
 } from '@/entities/chat/api'
-import { firstLine } from '@/entities/chat/notification'
+import {
+  notificationLine,
+  notificationText,
+} from '@/entities/chat/notification'
 import {
   CHAT_MESSAGE_COUNT_FROM,
   CHAT_MESSAGE_MAX_LENGTH,
@@ -176,10 +179,8 @@ function roomPreview(
   if (partnerActive === false) return '상대가 나간 대화'
   const last = room.lastMessage
   if (!last) return `${formatDate(room.createdAt)} 시작`
-  if (last.messageType === 'NOTIFICATION') return firstLine(last.content)
-  return last.senderUserId === myUserId && last.messageType === 'TEXT'
-    ? `나: ${last.content}`
-    : last.content
+  if (last.messageType !== 'TEXT') return notificationText(last).title
+  return last.senderUserId === myUserId ? `나: ${last.content}` : last.content
 }
 
 function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
@@ -207,7 +208,12 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const messages = data ? orderedMessages(data.pages) : []
   const latestId = messages.at(-1)?.messageId
   // 화면에 보인 가장 최근 메시지까지 읽음으로 알린다(방을 보는 중 받은 메시지 포함).
-  useMarkRoomRead(room.chatRoomId, messages.at(-1)?.roomSequence)
+  // 읽음에는 이력 응답의 참여 세대를 붙인다(없으면 방 목록의 내 세대).
+  useMarkRoomRead(
+    room.chatRoomId,
+    messages.at(-1)?.roomSequence,
+    data?.pages[0]?.participationVersion ?? me?.participationVersion,
+  )
   const listRef = useRef<HTMLDivElement>(null)
   const keepOffset = useRef<number | null>(null)
 
@@ -457,7 +463,10 @@ function cutWithinLimit(pasted: string, room: number) {
 
 const NO_PENDING: PendingMessage[] = []
 
-/** 보내는 중이거나 실패한 내 메시지. 실패하면 다시 보내기·지우기 */
+/**
+ * 보내는 중·실패·결과 미확인인 내 메시지. 실패·결과 미확인이면 같은 임시 ID로 다시 보내기·지우기.
+ * 결과 미확인은 저장됐을 수도 있어 실패와 따로 안내한다(다시 보내도 두 번 저장되지 않는다).
+ */
 function PendingItem({
   chatRoomId,
   pending,
@@ -465,33 +474,46 @@ function PendingItem({
   chatRoomId: number
   pending: PendingMessage
 }) {
-  const failed = pending.status === 'failed'
+  if (pending.status === 'sending')
+    return (
+      <div className={`${styles.msg} ${styles.me} ${styles.sending}`}>
+        <div className={styles.bubble}>{pending.content}</div>
+        <time>보내는 중…</time>
+      </div>
+    )
+  const unconfirmed = pending.status === 'unconfirmed'
   return (
     <div
-      className={`${styles.msg} ${styles.me} ${failed ? styles.failed : styles.sending}`}
+      className={`${styles.msg} ${styles.me} ${unconfirmed ? styles.unconfirmed : styles.failed}`}
     >
       <div className={styles.bubble}>{pending.content}</div>
-      {failed ? (
-        <span className={styles.failNote} role="alert">
+      <span
+        className={unconfirmed ? styles.unconfirmedNote : styles.failNote}
+        role="alert"
+      >
+        {unconfirmed ? (
+          <>
+            <strong>전송 결과를 확인하지 못했어요.</strong>
+            {pending.error && <span>{pending.error}</span>}
+          </>
+        ) : (
           <span>{pending.error ?? '보내지 못했어요.'}</span>
-          <button
-            type="button"
-            className="link"
-            onClick={() => retryPending(chatRoomId, pending.clientMessageId)}
-          >
-            다시 보내기
-          </button>
-          <button
-            type="button"
-            className="link"
-            onClick={() => discardPending(chatRoomId, pending.clientMessageId)}
-          >
-            지우기
-          </button>
-        </span>
-      ) : (
-        <time>보내는 중…</time>
-      )}
+        )}
+        <button
+          type="button"
+          className="link"
+          onClick={() => retryPending(chatRoomId, pending.clientMessageId)}
+        >
+          다시 보내기
+        </button>
+        <button
+          type="button"
+          className="link"
+          onClick={() => discardPending(chatRoomId, pending.clientMessageId)}
+        >
+          지우기
+        </button>
+      </span>
     </div>
   )
 }
@@ -511,7 +533,7 @@ function MessageItem({
   mine: boolean
 }) {
   if (message.messageType === 'SYSTEM')
-    return <p className={styles.system}>{message.content}</p>
+    return <p className={styles.system}>{notificationLine(message)}</p>
   if (message.messageType === 'NOTIFICATION')
     return (
       <NotificationCard

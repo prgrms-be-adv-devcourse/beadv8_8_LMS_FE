@@ -2,6 +2,10 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { chatHistoryQuery } from '@/entities/chat/api'
+import {
+  notificationLine,
+  notificationText,
+} from '@/entities/chat/notification'
 import type {
   ChatHistoryMessage,
   ChatRoomEventType,
@@ -269,7 +273,7 @@ function MessageItem({
   if (message.messageType === 'SYSTEM')
     return (
       <li className={`${styles.item} ${styles.event}`}>
-        {formatDateTime(message.sentAt)} · {message.content}
+        {formatDateTime(message.sentAt)} · {notificationLine(message)}
       </li>
     )
   const deleted = message.deletedAt !== null
@@ -288,12 +292,22 @@ function MessageItem({
           </span>
         )}
       </div>
-      <p className={styles.text}>{message.content}</p>
+      <p className={styles.text}>
+        {message.messageType === 'NOTIFICATION'
+          ? notificationLines(message)
+          : message.content}
+      </p>
       {message.messageType === 'NOTIFICATION' && (
         <NotificationRefs message={message} />
       )}
     </li>
   )
+}
+
+/** 알림 문구(회원 화면과 같은 템플릿). 제목과 내용을 줄바꿈으로 잇는다 */
+function notificationLines(message: ChatHistoryMessage) {
+  const { title, lines } = notificationText(message)
+  return [title, ...lines].join('\n')
 }
 
 /**

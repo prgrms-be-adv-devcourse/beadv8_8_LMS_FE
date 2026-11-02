@@ -38,7 +38,8 @@ export async function api<T>(
   }
 
   if (!SAFE_METHODS.has(method)) {
-    const token = await ensureCsrfToken()
+    // 토큰을 받는 요청도 같은 취소 신호로 끊는다(시간 상한·화면 이탈 때 매달린 요청이 남지 않게).
+    const token = await ensureCsrfToken(init.signal ?? undefined)
     if (token) headers.set(CSRF_HEADER, token)
   }
 
@@ -96,11 +97,15 @@ function isRsData(json: unknown): json is RsData<unknown> {
  * CSRF 토큰 쿠키가 아직 없으면(첫 방문, 로그아웃 직후) GET 한 번으로 받아 온다.
  * 응답 상태(401 포함)와 상관없이 BE가 쿠키를 내려 준다.
  */
-export async function ensureCsrfToken(): Promise<string | null> {
+export async function ensureCsrfToken(
+  signal?: AbortSignal,
+): Promise<string | null> {
   const token = readCookie(CSRF_COOKIE)
   if (token) return token
-  await fetch(`${API_BASE}/members/me`, { credentials: 'same-origin' }).catch(
-    () => undefined,
-  )
+  await fetch(`${API_BASE}/members/me`, {
+    credentials: 'same-origin',
+    signal,
+  }).catch(() => undefined)
+  signal?.throwIfAborted()
   return readCookie(CSRF_COOKIE)
 }
