@@ -106,11 +106,9 @@ export function mockGroup(init: Partial<GroupMockState> = {}) {
       ({ request }) => {
         const keyword = new URL(request.url).searchParams.get('keyword')
         state.candidateQueries.push(keyword)
+        // 닉네임 일부로만 찾는다(BE #640).
         const shown = state.candidates.filter(
-          (c) =>
-            !keyword ||
-            String(c.userId) === keyword ||
-            c.nickname.includes(keyword),
+          (c) => !keyword || c.nickname.includes(keyword),
         )
         return rs({
           candidates: shown,

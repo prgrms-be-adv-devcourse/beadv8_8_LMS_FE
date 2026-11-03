@@ -7,6 +7,7 @@ import type {
   ChatInviteOutcome,
   ChatRoomMember,
 } from '@/entities/chat/types'
+import { UNKNOWN_MEMBER } from '@/entities/chat/notification'
 import { HostCrown } from '@/entities/chat/ui/HostCrown'
 import { Avatar } from '@/shared/ui/Avatar'
 import { Modal } from '@/shared/ui/Modal'
@@ -140,7 +141,6 @@ function MemberRow({
           {host && <HostCrown />}
           {me && <span className="tag">나</span>}
         </b>
-        <span className="fine">ID {member.userId}</span>
       </span>
       {kickable &&
         (confirming ? (
@@ -179,8 +179,8 @@ function MemberRow({
 const selectionKey = (ids: number[]) => ids.join(',')
 
 /**
- * 초대(호스트). 이 모집글에 지원한 회원을 회원 ID(정확히)·닉네임(일부)으로 찾아 여러 명을 고른다. 닉네임은 같을 수 있어
- * 결과에 회원 ID를 함께 보이고 ID로 초대한다. 초대하면 바로 참여하며 결과는 회원별로 보인다(실패한 회원은 다시 검색된다).
+ * 초대(호스트). 이 모집글에 지원한 회원을 닉네임(일부)으로 찾아 여러 명을 고른다. 화면에는 닉네임만 보이고(닉네임은 겹치지
+ * 않는다) 초대 요청에는 회원 ID를 쓴다. 초대하면 바로 참여하며 결과는 회원별로 보인다(실패한 회원은 다시 검색된다).
  * 응답을 받지 못해 같은 회원을 다시 보내면 같은 요청 ID를 써서 두 번 초대되지 않게 한다
  */
 export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
@@ -290,7 +290,7 @@ export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
           className="input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="회원 ID 또는 닉네임"
+          placeholder="닉네임"
           aria-label="초대할 회원 검색"
         />
         <button type="submit" className="btn">
@@ -305,9 +305,9 @@ export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
               type="button"
               className="chip sm on"
               onClick={() => toggle(userId, nickname)}
-              aria-label={`${nickname}(ID ${userId}) 빼기`}
+              aria-label={`${nickname} 빼기`}
             >
-              {nickname} · {userId} ✕
+              {nickname} ✕
             </button>
           ))}
         </div>
@@ -347,10 +347,11 @@ export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
                     />
                     <span className={styles.name}>
                       <b>{c.nickname}</b>
-                      <span className="fine">
-                        ID {c.userId}
-                        {!c.invitable && ` · ${inviteFailureLabel(c.reason)}`}
-                      </span>
+                      {!c.invitable && (
+                        <span className="fine">
+                          {inviteFailureLabel(c.reason)}
+                        </span>
+                      )}
                     </span>
                   </label>
                 </li>
@@ -383,8 +384,7 @@ function InviteOutcome({
   names: Map<number, string>
   onDismiss: () => void
 }) {
-  const label = (userId: number) =>
-    `${names.get(userId) ?? '회원'}(ID ${userId})`
+  const label = (userId: number) => names.get(userId) ?? UNKNOWN_MEMBER
   const joined = results.filter((r) => r.result === 'JOINED')
   const already = results.filter((r) => r.result === 'ALREADY_MEMBER')
   const failed = results.filter((r) => r.result === 'FAILED')

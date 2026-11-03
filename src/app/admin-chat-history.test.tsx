@@ -172,6 +172,36 @@ describe('관리자 채팅 기록', () => {
     )
   })
 
+  it('단체방 안내는 관리자 화면에서 회원 번호와 함께 보인다(행위자·대상 구분)', async () => {
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', () =>
+        rs({
+          ...history,
+          messages: [
+            {
+              messageId: 202,
+              roomSequence: 1,
+              senderUserId: 7,
+              messageType: 'SYSTEM',
+              content: '',
+              sentAt: '2026-10-10T10:00:00',
+              deletedAt: null,
+              notificationKind: 'GROUP_MEMBER_KICKED',
+              groupMemberKicked: { v: 1, kickedByUserId: 7, kickedUserId: 40 },
+            },
+          ],
+          logs: [],
+        }),
+      ),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    expect(list).toHaveTextContent(
+      '하루(회원 #7)님이 회원 #40님을 내보냈습니다.',
+    )
+  })
+
   it('여러 페이지에 나뉜 기록을 이어 받아 빠짐·중복 없이 시간순으로 보여 준다', async () => {
     const at = (minute: number) =>
       `2026-10-10T10:${String(minute).padStart(2, '0')}:00`

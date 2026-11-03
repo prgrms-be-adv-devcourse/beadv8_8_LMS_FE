@@ -56,7 +56,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 출연 모집글의 호스트가 만드는 단체방(`roomType: GROUP`)이다. 기준은 BE `apps/chat-app/docs/final-design.md` 3장이다. 새 라우트 없이 `/chat/:chatRoomId`에서 열고, 모집 상세에 '단체방' 패널(`features/chat-group/RecruitGroupPanel`)이 있다. 참여자·초대·폐쇄 확인은 채팅 화면 머리의 모달(`features/chat-group/GroupModals`)이다.
 - 방 목록·상세는 참여자를 싣지 않는다(`members: []`). 내 참여 세대는 `group.myParticipationVersion`이고, 방 종류와 관계없이 `myMembershipIn`(`entities/chat/api.ts`)으로 읽는다. 참여자는 `GET /chats/{id}/members` 페이지로 읽는다.
 - 할 수 있는 일은 상태로 정한다(`groupPermissions`, `entities/chat/group.ts`). 사용 중일 때만 보내기·초대·내보내기가 된다. 호스트는 나가기 대신 폐쇄하고, 직접 폐쇄한 방에서만 나갈 수 있다.
-- 일반 메시지의 보낸 사람 이름은 서버의 `sender.nickname`으로 보인다(나간 회원도 남고, 정보가 없으면 '회원 {ID}'). 단체방 안내는 서버가 종류와 회원 ID만 준다(`content`는 빈 문자열, `sender: null`). 문구는 `entities/chat/notification.ts` 템플릿이 만들고, 이름은 불러온 메시지의 보낸 사람 정보와 참여자 목록에서 찾는다. 못 찾으면 '회원 {ID}'다.
+- 일반 메시지의 보낸 사람 이름은 서버의 `sender.nickname`으로 보인다(나간 회원도 남고, 정보가 없으면 '알 수 없는 회원'). 단체방 안내는 서버가 종류와 회원 ID만 준다(`content`는 빈 문자열, `sender: null`). 문구는 `entities/chat/notification.ts` 템플릿이 만들고, 이름은 불러온 메시지의 보낸 사람 정보와 참여자 목록에서 찾는다. 못 찾으면 '알 수 없는 회원'이다. 사용자 화면에는 회원 ID를 보이지 않는다(닉네임은 겹치지 않는다). 관리자 화면은 분쟁 확인용으로 회원 ID를 보인다.
 - 테스트의 BE 흉내는 `src/test/chatGroupMock.ts`(`mockGroup`)다.
 - 메시지별 안 읽은 사람 수(1:1·단체방 모두, BE `contracts/unread-count.md`): 일반 메시지의 `unreadMemberCount`와 방 topic의 `READ_COUNTS` 프레임(재동기화 신호가 아니다)을 `features/chat/readCounts.ts`에 모은다. 같은 메시지는 작은 값을 남기고(값은 줄기만 한다), 참여 세대가 바뀌어 이력 캐시를 버리면 함께 버린다. 0이거나 값이 없으면 숨긴다.
 

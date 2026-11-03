@@ -140,7 +140,7 @@ export type ChatRoomMemberPage = {
 export type ChatInviteFailure =
   'NOT_APPLICANT' | 'CHAT_NOT_ALLOWED' | 'ROOM_FULL'
 
-/** 초대 후보 한 명. 닉네임은 같을 수 있어 초대는 회원 ID로 지정한다 */
+/** 초대 후보 한 명. 화면에는 닉네임만 보이고 초대는 회원 ID로 지정한다 */
 export type ChatInviteCandidate = {
   userId: number
   nickname: string
@@ -184,7 +184,7 @@ export type ChatGroupCloseResponse = {
 
 /**
  * 일반 메시지(TEXT)의 보낸 사람 표시 정보(채팅 회원 복제본). 나간·내보내진 회원도 닉네임이 남는다.
- * 탈퇴한 회원은 nickname '탈퇴한 회원'·withdrawn true, 복제본이 없으면 nickname null이다(FE가 '회원 {ID}'로 쓴다).
+ * 탈퇴한 회원은 nickname '탈퇴한 회원'·withdrawn true, 복제본이 없으면 nickname null이다(FE가 '알 수 없는 회원'으로 쓴다).
  * 이력·방 목록은 조회 때의 닉네임, 실시간·전송 확인은 전달 때의 닉네임이다
  */
 export type ChatMessageSender = {
