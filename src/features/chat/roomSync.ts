@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { chatKeys } from '@/entities/chat/api'
 import { clearRoomPending, useChatStore } from './chatStore'
+import { discardReadCounts } from './readCounts'
 
 /**
  * 이 방의 참여가 바뀌었다(나가기·다시 시작·재입장). 이전 참여 때의 이력 캐시와 보내는 중·실패 표시를 버리고
@@ -15,6 +16,7 @@ export function forgetRoom(queryClient: QueryClient, chatRoomId: number) {
 export function discardRoomState(queryClient: QueryClient, chatRoomId: number) {
   queryClient.removeQueries({ queryKey: chatKeys.messages(chatRoomId) })
   clearRoomPending(chatRoomId)
+  discardReadCounts(chatRoomId)
 }
 
 // ── 탭 간 채팅 참여 동기화 ──

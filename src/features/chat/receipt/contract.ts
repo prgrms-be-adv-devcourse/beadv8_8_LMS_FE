@@ -138,6 +138,9 @@ export const roomTopic = (chatRoomId: number) =>
 
 export const CHAT_FRAME_TYPE_HEADER = 'chat-frame-type'
 
+/** 안 읽은 사람 수 갱신(읽음·참여 변경 뒤 방마다 최대 1초에 한 번). 재동기화 신호가 아니다(features/chat/readCounts) */
+export const READ_COUNTS = 'READ_COUNTS'
+
 /** 방 topic 구독을 서버가 받지 않았다(연결은 유지된다) */
 export const SUBSCRIPTION_REJECTED = 'SUBSCRIPTION_REJECTED'
 /** 서버가 방 topic 구독을 지웠다(나가기·내보내기·세대 바뀜·방 닫힘). 이후 그 구독으로 온 메시지는 적용하지 않는다 */

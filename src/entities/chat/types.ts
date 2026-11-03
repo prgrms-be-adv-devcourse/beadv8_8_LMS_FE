@@ -202,6 +202,14 @@ export type ChatMessage = NotificationFields & {
   senderUserId: number
   /** 보낸 사람 표시 정보. 일반 메시지(TEXT)에만 있고 안내·알림은 null(행위자는 안내 값에 있다) */
   sender?: ChatMessageSender | null
+  /**
+   * 안 읽은 사람 수(보낸 사람 제외, 이 메시지를 볼 수 있는 현재 참여자 중 아직 읽지 않은 사람). 일반 메시지(TEXT)의
+   * 이력·새 메시지 프레임에만 있고 안내·알림·방 목록 마지막 메시지는 null이다. 1:1 방은 0 또는 1이다.
+   * 값은 줄기만 하므로 같은 메시지는 작은 값을 쓴다(features/chat/readCounts). 값을 보내기 전 서버는 필드가 없다
+   */
+  unreadMemberCount?: number | null
+  /** 그 값을 센 DB 시각(epoch 마이크로초). 진단용이며 값을 덮어쓰는 기준이 아니다 */
+  readCountVersion?: number | null
   messageType: ChatMessageType
   content: string
   sentAt: string
@@ -221,6 +229,8 @@ export type ChatMessagePage = {
   participationVersion?: number
   /** 조회한 회원의 가시 범위 시작 순번. 이보다 낮은 순번은 볼 수 없다 */
   visibleFromSequence?: number
+  /** 이 페이지의 안 읽은 사람 수를 센 DB 시각(epoch 마이크로초, 진단용) */
+  readCountVersion?: number | null
 }
 
 /** 새 메시지 알림(/user/queue/chats/notifications). 받는 사람에게만 온다 */
