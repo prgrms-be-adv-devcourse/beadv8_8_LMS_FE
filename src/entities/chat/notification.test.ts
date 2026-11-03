@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { notificationLine, notificationText } from './notification'
+import {
+  notificationLine,
+  notificationPreview,
+  notificationText,
+} from './notification'
 
 const request = {
   v: 1,
@@ -166,5 +170,128 @@ describe('시스템 안내(값 형식은 후속에서 정한다)', () => {
         appearanceRequestSent: request,
       }),
     ).toBe('새 안내가 있습니다.')
+  })
+})
+
+describe('단체방 안내', () => {
+  const names: Record<number, string> = { 1: '호스트 별', 2: '바다', 3: '구름' }
+  const nameOf = (id: number) => names[id]
+  const system = (fields: Record<string, unknown>) => ({
+    messageType: 'SYSTEM' as const,
+    content: '',
+    ...fields,
+  })
+
+  it('초대는 초대한 회원과 초대된 회원(세 명까지, 넘으면 외 N명)으로 만든다', () => {
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBERS_INVITED',
+          groupMembersInvited: {
+            v: 1,
+            inviterUserId: 1,
+            invitedUserIds: [2, 3],
+          },
+        }),
+        nameOf,
+      ),
+    ).toBe('호스트 별님이 바다님, 구름님을 초대했습니다.')
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBERS_INVITED',
+          groupMembersInvited: {
+            v: 1,
+            inviterUserId: 1,
+            invitedUserIds: [2, 3, 7, 8, 9],
+          },
+        }),
+        nameOf,
+      ),
+    ).toBe('호스트 별님이 바다님, 구름님, 회원 7님 외 2명을 초대했습니다.')
+  })
+
+  it('이름을 모르는 회원은 회원 ID로 쓴다(나간·내보내진 회원)', () => {
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBER_KICKED',
+          groupMemberKicked: { v: 1, kickedByUserId: 1, kickedUserId: 40 },
+        }),
+        nameOf,
+      ),
+    ).toBe('호스트 별님이 회원 40님을 내보냈습니다.')
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBER_LEFT',
+          groupMemberLeft: { v: 1, leftUserId: 2 },
+        }),
+      ),
+    ).toBe('회원 2님이 나갔습니다.')
+  })
+
+  it('폐쇄·호스트 운영 불가·일시 중지·재개는 종류만으로 만든다(호스트의 사유는 보이지 않는다)', () => {
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_ROOM_CLOSED',
+          groupRoomClosed: { v: 1, closedByUserId: 1 },
+        }),
+      ),
+    ).toBe('호스트가 방을 폐쇄했습니다. 이제 대화를 읽을 수만 있어요.')
+    expect(
+      notificationLine(system({ notificationKind: 'GROUP_HOST_UNAVAILABLE' })),
+    ).toBe('호스트가 방을 운영할 수 없게 되어 읽기 전용으로 바뀌었습니다.')
+    expect(
+      notificationLine(system({ notificationKind: 'GROUP_ROOM_SUSPENDED' })),
+    ).toBe('호스트 사정으로 방 사용이 잠시 중지됐습니다.')
+    expect(
+      notificationLine(system({ notificationKind: 'GROUP_ROOM_RESUMED' })),
+    ).toBe('방 사용이 다시 시작됐습니다.')
+  })
+
+  it('값이 다른 버전이거나 형식이 틀리면 종류만으로 쓴 문구로 대신한다', () => {
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBERS_INVITED',
+          groupMembersInvited: { v: 2, inviterUserId: 1, invitedUserIds: [2] },
+        }),
+        nameOf,
+      ),
+    ).toBe('새 참여자가 초대됐습니다.')
+    expect(
+      notificationLine(
+        system({
+          notificationKind: 'GROUP_MEMBERS_INVITED',
+          groupMembersInvited: {
+            v: 1,
+            inviterUserId: 1,
+            invitedUserIds: ['2'],
+          },
+        }),
+        nameOf,
+      ),
+    ).toBe('새 참여자가 초대됐습니다.')
+  })
+
+  it('방 목록 미리보기는 이름 없이 쓴다', () => {
+    expect(
+      notificationPreview(
+        system({
+          notificationKind: 'GROUP_MEMBER_LEFT',
+          groupMemberLeft: { v: 1, leftUserId: 2 },
+        }),
+      ),
+    ).toBe('참여자가 나갔습니다.')
+    expect(
+      notificationPreview(
+        system({
+          notificationKind: 'GROUP_ROOM_CLOSED',
+          groupRoomClosed: { v: 1, closedByUserId: 1 },
+        }),
+      ),
+    ).toBe('방이 폐쇄됐습니다.')
   })
 })

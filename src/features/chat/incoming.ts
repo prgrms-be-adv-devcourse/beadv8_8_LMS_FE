@@ -1,5 +1,5 @@
 import type { InfiniteData, QueryClient } from '@tanstack/react-query'
-import { chatKeys } from '@/entities/chat/api'
+import { chatKeys, myMembershipIn } from '@/entities/chat/api'
 import type {
   ChatError,
   ChatMessage,
@@ -33,7 +33,7 @@ type RoomArrival = {
 
 /** 방 목록 항목의 내 참여 세대 */
 function myVersionIn(room: ChatRoom | undefined, myUserId: number | null) {
-  return room?.members.find((m) => m.userId === myUserId)?.participationVersion
+  return myMembershipIn(room, myUserId)?.participationVersion
 }
 
 // 조회 중에 도착한 메시지. 조회 응답이 그 메시지보다 먼저 만들어졌으면 응답에 빠지므로(이력),
@@ -406,7 +406,26 @@ export function applyIncomingMessage(
   ) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }
+  refreshGroupMembers(queryClient, message)
   return live
+}
+
+/**
+ * 단체방 안내(초대·내보내기·나가기 등)는 참여자가 바뀐 것이라 그 방의 참여자 목록과 초대 후보(나간 회원은 다시 후보가
+ * 된다)를 다시 받는다
+ */
+function refreshGroupMembers(queryClient: QueryClient, message: ChatMessage) {
+  if (
+    message.messageType !== 'SYSTEM' ||
+    !message.notificationKind?.startsWith('GROUP_')
+  )
+    return
+  void queryClient.invalidateQueries({
+    queryKey: chatKeys.members(message.chatRoomId),
+  })
+  void queryClient.invalidateQueries({
+    queryKey: chatKeys.candidates(message.chatRoomId),
+  })
 }
 
 /**
@@ -469,6 +488,7 @@ export function applyRoomActivity(
     senderRejoined
   )
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
+  refreshGroupMembers(queryClient, lastMessage)
 }
 
 /**
@@ -497,14 +517,16 @@ export function unreadOf(queryClient: QueryClient, chatRoomId: number) {
 
 /**
  * 보내기 오류(/user/queue/chats/errors). 어느 메시지인지 알면 그 메시지를 실패로 표시한다.
- * 상대가 나간 방이면 방 상태를 다시 불러와 다시 시작 안내를 띄운다.
+ * 상대가 나간 방이면 방 상태를 다시 불러와 다시 시작 안내를 띄운다. 단체방이 사용 중이 아니게 됐으면(폐쇄·일시 중지)
+ * 방 상태를 다시 불러와 입력을 막는다.
  */
 export function applyChatError(queryClient: QueryClient, error: ChatError) {
   if (error.clientMessageId) failPending(error.clientMessageId, error.message)
   toast(error.message)
   if (
     error.code === 'CHAT_PARTNER_LEFT' ||
-    error.code === 'NOT_CHAT_ROOM_MEMBER'
+    error.code === 'NOT_CHAT_ROOM_MEMBER' ||
+    error.code === 'GROUP_ROOM_NOT_ACTIVE'
   ) {
     void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
   }

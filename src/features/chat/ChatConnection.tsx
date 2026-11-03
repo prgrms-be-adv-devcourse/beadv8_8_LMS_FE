@@ -1,7 +1,7 @@
 import { Client, ReconnectionTimeMode } from '@stomp/stompjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { chatKeys, observeChatPages } from '@/entities/chat/api'
+import { chatKeys, myMembershipIn, observeChatPages } from '@/entities/chat/api'
 import type { ChatRoom } from '@/entities/chat/types'
 import { API_BASE } from '@/shared/api/client'
 import { clearSession } from '@/shared/auth/session'
@@ -95,9 +95,10 @@ export function ChatConnection({ userId }: { userId: number }) {
       target: () => useChatStore.getState().viewingRoomId,
       generationOf: (chatRoomId) => {
         const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
-        const me = rooms
-          ?.find((r) => r.chatRoomId === chatRoomId)
-          ?.members.find((m) => m.userId === userId)
+        const me = myMembershipIn(
+          rooms?.find((r) => r.chatRoomId === chatRoomId),
+          userId,
+        )
         if (rooms && !me?.active) return undefined
         return receipt.generationOf(chatRoomId)
       },

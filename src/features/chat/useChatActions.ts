@@ -4,7 +4,12 @@ import {
   type QueryClient,
 } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
-import { chatKeys, leaveChatRoom, startChat } from '@/entities/chat/api'
+import {
+  chatKeys,
+  leaveChatRoom,
+  myMembershipIn,
+  startChat,
+} from '@/entities/chat/api'
 import type { ChatRoom } from '@/entities/chat/types'
 import { toast } from '@/shared/ui/toastStore'
 import { useChatStore } from './chatStore'
@@ -18,10 +23,12 @@ const sameRequester = (context: { userId: number | null } | undefined) =>
 /** 방 목록 캐시의 이 방 내 참여 */
 function myMembership(queryClient: QueryClient, chatRoomId: number) {
   const { myUserId } = useChatStore.getState()
-  return queryClient
-    .getQueryData<ChatRoom[]>(chatKeys.rooms())
-    ?.find((r) => r.chatRoomId === chatRoomId)
-    ?.members.find((m) => m.userId === myUserId)
+  return myMembershipIn(
+    queryClient
+      .getQueryData<ChatRoom[]>(chatKeys.rooms())
+      ?.find((r) => r.chatRoomId === chatRoomId),
+    myUserId,
+  )
 }
 
 /**
@@ -39,7 +46,7 @@ export function useStartChat() {
       if (!sameRequester(context)) return
       // 응답을 기다리는 동안 이 탭이 더 새 참여를 알게 됐으면(다른 탭의 나가기·다시 시작) 늦은 응답으로
       // 새 참여의 이력·보내는 중 표시를 지우거나 알리지 않는다.
-      const mine = room.members?.find((m) => m.userId === context.userId)
+      const mine = myMembershipIn(room, context.userId)
       const known = myMembership(queryClient, room.chatRoomId)
       const outdated =
         mine !== undefined &&

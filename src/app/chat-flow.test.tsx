@@ -1300,7 +1300,7 @@ describe('채팅 참여 바뀜: 보내는 중 표시 정리·탭 간 동기화·
 
     expect(
       await screen.findByText(
-        '채팅방을 찾을 수 없어요. 이미 나간 방일 수 있어요.',
+        '채팅방을 찾을 수 없어요. 이미 나갔거나 내보내진 방일 수 있어요.',
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('이전 대화')).toBeNull()

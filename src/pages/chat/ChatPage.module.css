@@ -51,6 +51,14 @@
   text-align: center;
   padding: 0 5px;
 }
+/* 단체방 표시: 방 목록 이름 옆 인원(.rm span의 줄 단위 표시를 덮는다) */
+.rm .groupMeta {
+  display: inline;
+  margin-left: 6px;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--ink-3);
+}
 .placeholder {
   display: grid;
   place-items: center;
@@ -77,6 +85,17 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+.who b {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.groupLinks {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .close {
   width: 32px;
@@ -121,6 +140,12 @@
   font-size: 14px;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+/* 단체방: 다른 사람 메시지 위의 보낸 사람(호스트는 왕관) */
+.sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
 }
 .msg.me {
   align-self: flex-end;

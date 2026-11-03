@@ -51,6 +51,14 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 주문 상태가 필요한 앱 흐름 테스트는 그 테스트 안에서 `mockOrders(order)`(`src/test/lectureOrders.ts`)로 구매 목록·주문 상세·구매 확정·취소·재생 동의 응답을 켠다.
 - 구매 목록과 내 리뷰는 첫 페이지로만 보유·작성 여부를 판단하지 않는다. 자료 다운로드는 클릭 시 시청 URL을 다시 발급받는다.
 
+## 모집용 단체방
+
+- 출연 모집글의 호스트가 만드는 단체방(`roomType: GROUP`)이다. 기준은 BE `apps/chat-app/docs/final-design.md` 3장이다. 새 라우트 없이 `/chat/:chatRoomId`에서 열고, 모집 상세에 '단체방' 패널(`features/chat-group/RecruitGroupPanel`)이 있다. 참여자·초대·폐쇄 확인은 채팅 화면 머리의 모달(`features/chat-group/GroupModals`)이다.
+- 방 목록·상세는 참여자를 싣지 않는다(`members: []`). 내 참여 세대는 `group.myParticipationVersion`이고, 방 종류와 관계없이 `myMembershipIn`(`entities/chat/api.ts`)으로 읽는다. 참여자는 `GET /chats/{id}/members` 페이지로 읽는다.
+- 할 수 있는 일은 상태로 정한다(`groupPermissions`, `entities/chat/group.ts`). 사용 중일 때만 보내기·초대·내보내기가 된다. 호스트는 나가기 대신 폐쇄하고, 직접 폐쇄한 방에서만 나갈 수 있다.
+- 단체방 안내는 서버가 종류와 회원 ID만 준다(`content`는 빈 문자열). 문구는 `entities/chat/notification.ts` 템플릿이 참여자 이름으로 만들고, 모르는 회원은 '회원 {ID}'로 쓴다.
+- 테스트의 BE 흉내는 `src/test/chatGroupMock.ts`(`mockGroup`)다.
+
 ## 배포·환경변수
 
 `docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 **dev 병합이 곧 운영 배포**다(기본 브랜치 dev, #156). main은 서버 없는 안정화 표시다. `dev` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
