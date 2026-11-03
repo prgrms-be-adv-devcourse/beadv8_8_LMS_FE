@@ -57,6 +57,7 @@ import {
   useChatStore,
   type PendingMessage,
 } from '@/features/chat/chatStore'
+import { useUnreadMemberCount } from '@/features/chat/readCounts'
 import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
@@ -825,6 +826,7 @@ function MessageItem({
   /** 단체방 안내의 회원 이름 */
   nameOf: NameOf
 }) {
+  const unread = useUnreadMemberCount(message)
   if (message.messageType === 'SYSTEM')
     return <p className={styles.system}>{notificationLine(message, nameOf)}</p>
   if (message.messageType === 'NOTIFICATION')
@@ -844,9 +846,25 @@ function MessageItem({
         </span>
       )}
       <div className={styles.bubble}>{message.content}</div>
-      <time dateTime={message.sentAt}>
-        {timeFormatter.format(parseServerDate(message.sentAt))}
-      </time>
+      <span className={styles.meta}>
+        {/* 안 읽은 사람 수(0이면 숨김, 보낸 사람 제외). 누가 읽었는지는 보이지 않는다. 1:1 방의 내 메시지는 상대가
+            읽기 전까지 1이고, 상대 메시지의 1은 내가 아직 읽지 않았다는 뜻이다. */}
+        {unread !== undefined && (
+          <span
+            className={styles.unreadCount}
+            aria-label={
+              !group && mine
+                ? '상대가 아직 읽지 않음'
+                : `안 읽은 사람 ${unread}명`
+            }
+          >
+            {unread}
+          </span>
+        )}
+        <time dateTime={message.sentAt}>
+          {timeFormatter.format(parseServerDate(message.sentAt))}
+        </time>
+      </span>
     </div>
   )
 }

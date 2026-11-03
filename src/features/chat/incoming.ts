@@ -15,6 +15,11 @@ import {
   useChatStore,
 } from './chatStore'
 import { isPageActive } from './pageActive'
+import {
+  clearReadCounts,
+  discardReadCounts,
+  recordMessageCounts,
+} from './readCounts'
 import type { RoomActivity } from './receipt/contract'
 import { createGapWatcher, type GapWatcher } from './receipt/gapWatcher'
 import { RECEIPT_POLICY } from './receipt/policy'
@@ -194,6 +199,8 @@ export function mergeIntoHistory(
 ) {
   const key = chatKeys.messages(chatRoomId)
   if (!queryClient.getQueryData<MessagePages>(key)) return false
+  // 이미 캐시에 있는 메시지는 합치지 않으므로, 대조·전송 확인으로 받은 더 작은 안 읽은 사람 수를 따로 기록한다.
+  recordMessageCounts(chatRoomId, messages)
   // 이력을 다시 부르는 중이면 그 응답이 이 메시지보다 먼저 만들어졌을 수 있다. 보관했다가 조회가 끝나면 다시 합친다.
   if (messages.length > 0 && isFetching(queryClient, key)) {
     const arrived = historyArrivals.get(chatRoomId) ?? []
@@ -237,9 +244,24 @@ export function watchChatLoads(
       if (kind === 'messages') {
         historyArrivals.delete(Number(chatRoomId))
         watcher.discard(Number(chatRoomId))
+        discardReadCounts(Number(chatRoomId))
       }
       if (kind === 'rooms') roomArrivals = []
       return
+    }
+    // 이력 캐시에 들어온 안 읽은 사람 수(이력 조회·실시간 반영 모두)를 작은 값으로 기록한다. 나중에 옛 스냅샷의
+    // 이력을 다시 받아도 기록한 작은 값이 남는다.
+    if (
+      kind === 'messages' &&
+      event.type === 'updated' &&
+      event.action.type === 'success'
+    ) {
+      const data = queryClient.getQueryData<MessagePages>(event.query.queryKey)
+      if (data)
+        recordMessageCounts(
+          Number(chatRoomId),
+          data.pages.flatMap((p) => p.messages),
+        )
     }
     // setQueryData(실시간 메시지 반영 등)도 manual 'success'를 낸다. 실제 조회 결과일 때만 반영한다.
     if (
@@ -290,6 +312,7 @@ export function watchChatLoads(
     roomArrivals = []
     appliedIds.clear()
     activityCounted.clear()
+    clearReadCounts()
   }
 }
 
@@ -323,6 +346,10 @@ export function applyIncomingMessage(
   const first = rememberApplied(message.messageId)
 
   const historyKey = chatKeys.messages(message.chatRoomId)
+  // 같은 메시지를 다시 받으면 캐시에 합치지 않으므로(중복 전달), 그 프레임의 더 작은 안 읽은 사람 수를 따로 기록한다.
+  // 이력 캐시가 있는 방만 기록한다(열지 않은 방은 열 때 이력의 값을 쓰고, 기록이 쌓이지 않게).
+  if (queryClient.getQueryData(historyKey))
+    recordMessageCounts(message.chatRoomId, [message])
   const rooms = queryClient.getQueryData<ChatRoom[]>(chatKeys.rooms())
   const cached = rooms?.find((r) => r.chatRoomId === message.chatRoomId)
   // 방 목록에 없는 방의 메시지는 상대가 새로 시작했거나 서버가 나를 재입장시킨 것이다(내가 나갔던 방에 상대가

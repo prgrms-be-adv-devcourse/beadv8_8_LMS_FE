@@ -1,8 +1,8 @@
 import { Client, ReconnectionTimeMode } from '@stomp/stompjs'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { chatKeys, myMembershipIn, observeChatPages } from '@/entities/chat/api'
-import type { ChatRoom } from '@/entities/chat/types'
+import type { ChatMessagePage, ChatRoom } from '@/entities/chat/types'
 import { API_BASE } from '@/shared/api/client'
 import { clearSession } from '@/shared/auth/session'
 import { refreshAccessToken } from '@/shared/auth/token'
@@ -28,6 +28,7 @@ import {
   receiptTransports,
   SYNC_QUEUE,
 } from './receipt/contract'
+import { applyReadCountsFrame, isReadCountsFrame } from './readCounts'
 import { createReceiptService } from './receipt/receiptService'
 import { createRoomSubscription } from './roomSubscription'
 import { listenRoomChanges } from './roomSync'
@@ -109,6 +110,23 @@ export function ChatConnection({ userId }: { userId: number }) {
         if (!receipt.acceptsRealtime(message, meta)) return
         if (applyIncomingMessage(queryClient, message, 'room'))
           receipt.recordRealtime(message, meta)
+      },
+      // 안 읽은 사람 수 갱신. 재동기화 신호가 아니다. 그 구독의 세대(헤더)가 아는 세대와 맞을 때만, 이력 캐시에 있는
+      // 메시지에 작은 값으로 반영한다(형식이 틀리면 버린다. 값은 이력을 다시 읽을 때 맞춰진다).
+      onReadCounts: (frame) => {
+        if (disposed) return
+        const body: unknown = JSON.parse(frame.body)
+        if (!isReadCountsFrame(body)) return
+        if (!receipt.acceptsFrame(body.roomId, readDeliveryMeta(frame.headers)))
+          return
+        const history = queryClient.getQueryData<InfiniteData<ChatMessagePage>>(
+          chatKeys.messages(body.roomId),
+        )
+        if (!history) return
+        applyReadCountsFrame(
+          body,
+          history.pages.flatMap((p) => p.messages),
+        )
       },
       onLost: (chatRoomId) => receipt.reconcileGap(chatRoomId),
       onGeneration: (chatRoomId, version) =>

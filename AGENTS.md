@@ -58,6 +58,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 할 수 있는 일은 상태로 정한다(`groupPermissions`, `entities/chat/group.ts`). 사용 중일 때만 보내기·초대·내보내기가 된다. 호스트는 나가기 대신 폐쇄하고, 직접 폐쇄한 방에서만 나갈 수 있다.
 - 일반 메시지의 보낸 사람 이름은 서버의 `sender.nickname`으로 보인다(나간 회원도 남고, 정보가 없으면 '회원 {ID}'). 단체방 안내는 서버가 종류와 회원 ID만 준다(`content`는 빈 문자열, `sender: null`). 문구는 `entities/chat/notification.ts` 템플릿이 만들고, 이름은 불러온 메시지의 보낸 사람 정보와 참여자 목록에서 찾는다. 못 찾으면 '회원 {ID}'다.
 - 테스트의 BE 흉내는 `src/test/chatGroupMock.ts`(`mockGroup`)다.
+- 메시지별 안 읽은 사람 수(1:1·단체방 모두, BE `contracts/unread-count.md`): 일반 메시지의 `unreadMemberCount`와 방 topic의 `READ_COUNTS` 프레임(재동기화 신호가 아니다)을 `features/chat/readCounts.ts`에 모은다. 같은 메시지는 작은 값을 남기고(값은 줄기만 한다), 참여 세대가 바뀌어 이력 캐시를 버리면 함께 버린다. 0이거나 값이 없으면 숨긴다.
 
 ## 배포·환경변수
 

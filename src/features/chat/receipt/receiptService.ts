@@ -17,6 +17,7 @@ import { RECEIPT_POLICY } from './policy'
 import { createReconcileScheduler } from './reconcileScheduler'
 import { clearRoomPending } from '../chatStore'
 import { discardArrivals, mergeIntoHistory } from '../incoming'
+import { discardReadCounts, recordMessageCounts } from '../readCounts'
 import { discardRoomState } from '../roomSync'
 
 type MessagePages = InfiniteData<ChatMessagePage, number | null>
@@ -150,6 +151,8 @@ export function createReceiptService({
     clearRoomPending(chatRoomId)
     // 조회 중 보관한 옛 세대 메시지를 새 세대 이력에 합치지 않는다.
     discardArrivals(chatRoomId)
+    // 옛 세대의 안 읽은 사람 수도 버린다(이력에서 관측해 이력 캐시를 두는 경우 포함).
+    discardReadCounts(chatRoomId)
     if (source !== 'history') {
       historyGeneration.delete(chatRoomId)
       discardRoomState(queryClient, chatRoomId)
@@ -294,19 +297,21 @@ export function createReceiptService({
    * - 더 높으면: 다른 곳에서 재입장해 이 탭이 모르는 세대다. 이 탭의 옛 세대 이력·보내는 중 표시·확인 위치를 버리고
    *   방 목록을 다시 받는다. 이 메시지는 새 세대 이력을 불러올 때 함께 온다
    */
-  const acceptsRealtime = (message: ChatMessage, meta: DeliveryMeta) => {
+  const acceptsRealtime = (message: ChatMessage, meta: DeliveryMeta) =>
+    acceptsFrame(message.chatRoomId, meta)
+
+  /** 이 방의 방 topic 프레임(메시지·안 읽은 사람 수 갱신)을 적용해도 되는지. 규칙은 acceptsRealtime과 같다 */
+  function acceptsFrame(chatRoomId: number, meta: DeliveryMeta) {
     if (meta.participationVersion === undefined) return true
-    const floor = floorVersion(message.chatRoomId)
+    const floor = floorVersion(chatRoomId)
     if (floor === undefined) return true
     if (meta.participationVersion < floor) return false
     // 방 목록이 아직 옛 세대인데 새 세대를 기다리는 중이면, 새 세대 프레임도 이력을 다시 받을 때 함께 온다.
     if (meta.participationVersion === floor)
-      return myVersion(message.chatRoomId) === floor
+      return myVersion(chatRoomId) === floor
     // 더 높은 새 세대: 하한을 올리고 이 탭의 옛 세대 상태를 버린 뒤 방 목록을 다시 받는다.
     // 진행 중인 방 목록 조회를 끊고 다시 시작하지 않는다(새 세대 프레임이 잇달아 와도 재조회가 끝나게).
-    if (
-      observeGeneration(message.chatRoomId, meta.participationVersion, 'frame')
-    )
+    if (observeGeneration(chatRoomId, meta.participationVersion, 'frame'))
       void queryClient.invalidateQueries(
         { queryKey: chatKeys.rooms() },
         { cancelRefetch: false },
@@ -498,6 +503,8 @@ export function createReceiptService({
       }
       // 화면이 그리는 범위에 이력 캐시에 없는 메시지가 있으면, 확인 구간을 기록하기 전에 먼저 이력 캐시에 합친다
       // (합칠 때 중복 제거). 화면 상태에 반영하지 못했으면 기록하지 않는다(반영 전에 ACK하지 않게).
+      // 이미 캐시에 있는 메시지는 합치지 않으므로, 대조로 읽은 안 읽은 사람 수(더 작을 수 있다)를 따로 기록한다.
+      recordMessageCounts(chatRoomId, page.messages)
       const missing = page.messages.filter(
         (m) => m.roomSequence >= cachedOldest && !cached.has(m.messageId),
       )
@@ -612,6 +619,7 @@ export function createReceiptService({
         )
     },
     acceptsRealtime,
+    acceptsFrame,
     recordRealtime,
     /**
      * 연결·재연결 직후 바로 대조한다(방금 다시 불러온 최신 페이지는 다시 읽지 않는다).

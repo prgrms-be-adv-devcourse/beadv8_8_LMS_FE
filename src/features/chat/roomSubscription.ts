@@ -1,6 +1,7 @@
 import {
   CHAT_FRAME_TYPE_HEADER,
   PARTICIPATION_VERSION_HEADER,
+  READ_COUNTS,
   roomTopic,
   SUBSCRIPTION_REASONS,
   SUBSCRIPTION_REJECTED,
@@ -27,6 +28,8 @@ type Options = {
   generationOf: (chatRoomId: number) => number | undefined
   /** 방 topic으로 온 메시지 프레임 */
   onMessage: (frame: TopicFrame) => void
+  /** 안 읽은 사람 수 갱신 프레임(READ_COUNTS) */
+  onReadCounts: (frame: TopicFrame) => void
   /** 구독이 거절·회수됐다. 방 목록과 그 방 이력을 다시 맞춘다 */
   onLost: (chatRoomId: number) => void
   /** 서버가 알려 준 내 현재 세대(구독 세대가 낡았을 때) */
@@ -118,6 +121,7 @@ export function createRoomSubscription(options: Options) {
         if (active !== entry) return
         const type = frame.headers[CHAT_FRAME_TYPE_HEADER]
         if (!type || type === 'MESSAGE') options.onMessage(frame)
+        else if (type === READ_COUNTS) options.onReadCounts(frame)
         else if (
           type === SUBSCRIPTION_REJECTED ||
           type === SUBSCRIPTION_REVOKED

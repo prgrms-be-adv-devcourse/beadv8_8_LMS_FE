@@ -160,6 +160,20 @@
   font: 500 11px var(--f-mono);
   color: var(--ink-3);
 }
+/* 시간과 안 읽은 사람 수. 내 메시지는 숫자가 시간 앞(말풍선 쪽)에 온다 */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.msg:not(.me) .meta {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.unreadCount {
+  font: 700 11px var(--f-mono);
+  color: var(--signal);
+}
 .system {
   align-self: center;
   font-size: 12px;
