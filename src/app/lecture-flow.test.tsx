@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -138,6 +138,56 @@ describe('강의 목록', () => {
     )
     await waitFor(() => expect(sorts).toContain('PRICE_ASC'))
     expect(router.state.location.search).toBe('?sort=PRICE_ASC')
+  })
+
+  it('뒤로 가기로 검색 전 주소로 돌아가면 검색창을 비우고, 앞으로 가면 검색어를 되살린다', async () => {
+    server.use(
+      http.get('*/api/v1/lectures', () =>
+        rs({
+          content: [summary(1, '썸네일 잘 만들기', 12000)],
+          page: { size: 12, number: 0, totalElements: 1, totalPages: 1 },
+        }),
+      ),
+    )
+    const router = renderApp('/lectures', 'GUEST')
+    await screen.findByRole('button', { name: /썸네일 잘 만들기/ })
+    const box = screen.getByRole('searchbox', { name: '강의 검색' })
+    await userEvent.type(box, 'AI{Enter}')
+    await waitFor(() =>
+      expect(router.state.location.search).toBe('?keyword=AI'),
+    )
+
+    await act(() => router.navigate(-1))
+    expect(router.state.location.search).toBe('')
+    expect(screen.getByRole('searchbox', { name: '강의 검색' })).toHaveValue('')
+
+    await act(() => router.navigate(1))
+    expect(screen.getByRole('searchbox', { name: '강의 검색' })).toHaveValue(
+      'AI',
+    )
+  })
+
+  it('검색어가 그대로인 동안에는 입력 중인 값을 덮어쓰지 않는다(정렬 변경)', async () => {
+    server.use(
+      http.get('*/api/v1/lectures', () =>
+        rs({
+          content: [summary(1, '썸네일 잘 만들기', 12000)],
+          page: { size: 12, number: 0, totalElements: 1, totalPages: 1 },
+        }),
+      ),
+    )
+    const router = renderApp('/lectures', 'GUEST')
+    await screen.findByRole('button', { name: /썸네일 잘 만들기/ })
+    const box = screen.getByRole('searchbox', { name: '강의 검색' })
+    await userEvent.type(box, '마이')
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: '정렬' }),
+      'PRICE_ASC',
+    )
+    await waitFor(() =>
+      expect(router.state.location.search).toBe('?sort=PRICE_ASC'),
+    )
+    expect(box).toHaveValue('마이')
   })
 
   it('비회원이 강의를 누르면 로그인 모달을 연다', async () => {

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -257,6 +257,23 @@ describe('고객센터 (회원)', () => {
       q: '환전',
       sort: 'OLDEST',
     })
+  })
+
+  it('뒤로 가기로 검색 전 주소로 돌아가면 내 문의 검색창을 비우고, 앞으로 가면 되살린다', async () => {
+    server.use(http.get('*/api/v1/inquiries', () => rs(page([summary()]))))
+    const router = renderApp('/support', 'USER')
+    await screen.findByRole('link', { name: /환전이 늦어요/ })
+    await userEvent.type(screen.getByLabelText('내 문의 검색'), '환전{Enter}')
+    await waitFor(() =>
+      expect(new URLSearchParams(router.state.location.search).get('q')).toBe(
+        '환전',
+      ),
+    )
+
+    await act(() => router.navigate(-1))
+    expect(screen.getByLabelText('내 문의 검색')).toHaveValue('')
+    await act(() => router.navigate(1))
+    expect(screen.getByLabelText('내 문의 검색')).toHaveValue('환전')
   })
 
   it('상세에서 돌아오면 보던 검색어·페이지로 다시 연다', async () => {

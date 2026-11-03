@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { myInquiriesQuery } from '@/entities/inquiry/api'
 import { isInquiryCategory } from '@/entities/inquiry/category'
@@ -7,6 +7,7 @@ import type { InquirySort } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
 import { NewInquiryForm } from '@/features/inquiry/NewInquiryForm'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
+import { useSearchDraft } from '@/shared/lib/useSearchDraft'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
@@ -65,7 +66,7 @@ function useListParams() {
 function MyInquiries() {
   const { keyword, sort, update } = useListParams()
   const [page, setPage] = usePageParam('page')
-  const [draft, setDraft] = useState(keyword)
+  const [draft, setDraft] = useSearchDraft(keyword)
   const query = useQuery(myInquiriesQuery({ keyword, sort, page }))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
