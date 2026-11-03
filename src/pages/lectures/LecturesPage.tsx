@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type FormEvent } from 'react'
+import { type FormEvent } from 'react'
 import { useSearchParams } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
@@ -14,6 +14,7 @@ import {
 } from '@/features/purchase/useBuyerState'
 import { useViewer } from '@/shared/auth/session'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
+import { useSearchDraft } from '@/shared/lib/useSearchDraft'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -45,7 +46,7 @@ export function LecturesPage() {
   const buyer = useBuyerState()
   const { keyword, sort, update } = useListParams()
   const [page, setPage] = usePageParam('page')
-  const [draft, setDraft] = useState(keyword)
+  const [draft, setDraft] = useSearchDraft(keyword)
   const query = useQuery(lecturesQuery({ keyword, sort, page }))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
