@@ -60,12 +60,15 @@ const ids = (data: Data, key: string) => {
 
 /**
  * 안내에 나오는 회원 이름. 서버는 회원 ID만 남기므로 화면이 아는 이름(참여자 목록 등)으로 바꾼다.
- * 모르는 회원(나간 회원 등)은 undefined를 돌려주면 '회원 {ID}'로 쓴다
+ * 모르는 회원(나간 회원 등)은 undefined를 돌려주면 '알 수 없는 회원'으로 쓴다. 화면에는 회원 ID를 보이지 않는다
  */
 export type NameOf = (userId: number) => string | undefined
 
+/** 이름을 모르는 회원(보낸 사람 정보·참여자 목록에 없음). 회원 ID 대신 쓴다 */
+export const UNKNOWN_MEMBER = '알 수 없는 회원'
+
 const nameWith = (nameOf: NameOf | undefined) => (userId: number) =>
-  nameOf?.(userId) ?? `회원 ${userId}`
+  nameOf?.(userId) ?? UNKNOWN_MEMBER
 
 /** 초대된 회원: 세 명까지 이름, 넘으면 '외 N명' */
 const INVITED_NAMES_MAX = 3

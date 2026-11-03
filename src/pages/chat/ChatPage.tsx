@@ -33,6 +33,7 @@ import {
 import {
   notificationLine,
   notificationPreview,
+  UNKNOWN_MEMBER,
   type NameOf,
 } from '@/entities/chat/notification'
 import {
@@ -161,9 +162,7 @@ function RoomList({
       {sorted.map((room) => {
         const partner = partnerOf(room, myUserId)
         const group = isGroupRoom(room) ? room.group : null
-        const name = group
-          ? group.title
-          : (partner?.nickname ?? '알 수 없는 회원')
+        const name = group ? group.title : (partner?.nickname ?? UNKNOWN_MEMBER)
         // 보고 있는 방은 읽음 처리 중이라 0으로 보인다.
         const count =
           room.chatRoomId === currentId ? 0 : (room.unreadCount ?? 0)
@@ -706,7 +705,7 @@ function CloseThread() {
  * 단체방 안내에 나오는 회원 이름. 안내는 회원 ID만 담으므로(보낸 사람 정보 없음) 다음 순서로 찾는다.
  * 1. 불러온 메시지의 보낸 사람 정보(나간·내보내진 회원도 메시지를 보낸 적이 있으면 이름이 남는다)
  * 2. 참여자 목록(첫 페이지부터 불러온 만큼) 3. 내 정보
- * 못 찾으면 undefined(템플릿이 '회원 {ID}'로 쓴다)
+ * 못 찾으면 undefined(템플릿이 '알 수 없는 회원'으로 쓴다)
  */
 function useNoticeNames(
   chatRoomId: number,
@@ -734,9 +733,9 @@ function useNoticeNames(
   )
 }
 
-/** 보낸 사람 이름(서버의 보낸 사람 정보). 회원 정보가 없으면 '회원 {ID}' */
+/** 보낸 사람 이름(서버의 보낸 사람 정보). 회원 정보가 없으면 '알 수 없는 회원' */
 function senderName(message: ChatMessage) {
-  return message.sender?.nickname ?? `회원 ${message.senderUserId}`
+  return message.sender?.nickname ?? UNKNOWN_MEMBER
 }
 
 /**

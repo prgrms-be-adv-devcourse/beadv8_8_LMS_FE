@@ -131,7 +131,7 @@ describe('단체방 화면', () => {
       ),
     ).toBeInTheDocument()
     expect(
-      within(region).getByText('회원 40님이 나갔습니다.'),
+      within(region).getByText('알 수 없는 회원님이 나갔습니다.'),
     ).toBeInTheDocument()
     const hostMessage = within(region).getByText('어서 오세요').parentElement!
     expect(hostMessage).toHaveTextContent('호스트 별')
@@ -192,7 +192,7 @@ describe('단체방 화면', () => {
     ).toHaveTextContent('탈퇴한 회원')
     expect(
       within(region).getByText('정보 없는 메시지').parentElement,
-    ).toHaveTextContent('회원 42')
+    ).toHaveTextContent('알 수 없는 회원')
   })
 
   it('방 목록 미리보기는 단체방이면 보낸 사람을 앞에 붙인다', async () => {
@@ -294,7 +294,7 @@ describe('단체방 화면', () => {
 describe('단체방 초대', () => {
   const candidates = () => [
     { userId: GUEST_A, nickname: '바다', invitable: true, reason: null },
-    { userId: GUEST_B, nickname: '바다', invitable: true, reason: null },
+    { userId: GUEST_B, nickname: '파도', invitable: true, reason: null },
     {
       userId: 23,
       nickname: '구름',
@@ -312,7 +312,7 @@ describe('단체방 초대', () => {
     return screen.findByRole('dialog', { name: '단체방에 초대' })
   }
 
-  it('같은 닉네임은 회원 ID로 구분해 여러 명을 고르고, 회원별 결과를 보인다', async () => {
+  it('닉네임만 보이며 여러 명을 고르고(초대 요청은 회원 ID), 회원별 결과를 보인다', async () => {
     const state = mockGroup({
       candidates: candidates(),
       inviteResult: (userId) =>
@@ -322,8 +322,10 @@ describe('단체방 초대', () => {
     })
     const dialog = await openInvite()
     const list = await within(dialog).findByRole('list', { name: '초대 후보' })
-    expect(within(list).getByText(`ID ${GUEST_A}`)).toBeInTheDocument()
-    expect(within(list).getByText(`ID ${GUEST_B}`)).toBeInTheDocument()
+    expect(within(list).getByText('바다')).toBeInTheDocument()
+    expect(within(list).getByText('파도')).toBeInTheDocument()
+    // 화면에는 회원 ID를 보이지 않는다.
+    expect(dialog).not.toHaveTextContent(/ID/)
     // 초대할 수 없는 회원은 사유와 함께 고를 수 없다.
     expect(
       within(list).getByText(/지금 채팅할 수 없는 회원이에요/),
@@ -340,35 +342,35 @@ describe('단체방 초대', () => {
     const outcome = await within(dialog).findByRole('status', {
       name: '초대 결과',
     })
-    expect(outcome).toHaveTextContent(`바다(ID ${GUEST_A})`)
-    expect(outcome).toHaveTextContent(`바다(ID ${GUEST_B}): 정원이 찼어요`)
+    expect(outcome).toHaveTextContent('참여 바다')
+    expect(outcome).toHaveTextContent('파도: 정원이 찼어요')
+    expect(outcome).not.toHaveTextContent(/ID/)
     expect(state.invites).toHaveLength(1)
     expect(state.invites[0].userIds).toEqual([GUEST_A, GUEST_B])
     expect(state.invites[0].requestId).toMatch(UUID)
     // 참여한 회원은 후보에서 빠지고, 실패한 회원은 다시 나와 다시 고를 수 있다.
-    await waitFor(() =>
-      expect(within(dialog).queryByText(`ID ${GUEST_A}`)).toBeNull(),
-    )
-    expect(within(dialog).getByText(`ID ${GUEST_B}`)).toBeInTheDocument()
+    const after = within(dialog).getByRole('list', { name: '초대 후보' })
+    await waitFor(() => expect(within(after).queryByText('바다')).toBeNull())
+    expect(within(after).getByText('파도')).toBeInTheDocument()
     expect(
       within(dialog).getByRole('button', { name: '0명 초대' }),
     ).toBeDisabled()
   })
 
-  it('회원 ID나 닉네임으로 검색한다', async () => {
+  it('닉네임으로 검색한다', async () => {
     const state = mockGroup({ candidates: candidates() })
     const dialog = await openInvite()
+    const search = within(dialog).getByRole('textbox', {
+      name: '초대할 회원 검색',
+    })
+    expect(search).toHaveAttribute('placeholder', '닉네임')
     await within(dialog).findByRole('list', { name: '초대 후보' })
-    await userEvent.type(
-      within(dialog).getByRole('textbox', { name: '초대할 회원 검색' }),
-      String(GUEST_B),
-    )
+    const list = () => within(dialog).getByRole('list', { name: '초대 후보' })
+    await userEvent.type(search, '파')
     await userEvent.click(within(dialog).getByRole('button', { name: '검색' }))
-    await waitFor(() =>
-      expect(within(dialog).queryByText(`ID ${GUEST_A}`)).toBeNull(),
-    )
-    expect(within(dialog).getByText(`ID ${GUEST_B}`)).toBeInTheDocument()
-    expect(state.candidateQueries).toEqual([null, String(GUEST_B)])
+    await waitFor(() => expect(within(list()).queryByText('바다')).toBeNull())
+    expect(within(list()).getByText('파도')).toBeInTheDocument()
+    expect(state.candidateQueries).toEqual([null, '파'])
   })
 
   it('응답을 받지 못해 다시 보내면 같은 요청 ID를 쓰고, 고른 회원이 바뀌면 새 요청 ID를 쓴다', async () => {
@@ -488,7 +490,7 @@ describe('단체방 상태 변화 반영', () => {
     await waitFor(() => expect(state.invites).toHaveLength(1))
     expect(state.invites[0].userIds).toEqual([GUEST_A])
     expect(
-      within(dialog).getByRole('button', { name: '파도(ID 22) 빼기' }),
+      within(dialog).getByRole('button', { name: '파도 빼기' }),
     ).toBeInTheDocument()
     expect(
       within(dialog).getByRole('button', { name: '1명 초대' }),
@@ -545,6 +547,8 @@ describe('참여자·내보내기', () => {
     )
     const dialog = await screen.findByRole('dialog', { name: '참여자 2명' })
     const list = await within(dialog).findByRole('list', { name: '참여자' })
+    // 참여자 목록에는 닉네임만 보이고 회원 ID는 보이지 않는다.
+    expect(dialog).not.toHaveTextContent(/ID/)
     const hostRow = within(list).getByText('하늘').closest('li')!
     expect(
       within(hostRow).getByRole('img', { name: '호스트' }),

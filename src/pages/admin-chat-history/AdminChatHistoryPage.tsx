@@ -5,6 +5,7 @@ import { chatHistoryQuery } from '@/entities/chat/api'
 import {
   notificationLine,
   notificationText,
+  type NameOf,
 } from '@/entities/chat/notification'
 import type {
   ChatHistoryMessage,
@@ -194,7 +195,12 @@ function HistoryView({
     userId === null
       ? '시스템'
       : (history.members.find((m) => m.userId === userId)?.nickname ??
-        `회원 ${userId}`)
+        `회원 #${userId}`)
+  // 단체방 안내의 회원(안내 값은 회원 ID만 담는다). 관리자 화면은 분쟁 확인용으로 회원 번호를 함께 보인다.
+  const noticeName = (userId: number) => {
+    const known = history.members.find((m) => m.userId === userId)?.nickname
+    return known ? `${known}(회원 #${userId})` : `회원 #${userId}`
+  }
   const timeline = mergeTimeline(pages)
   const messageCount = timeline.filter((e) => e.kind === 'message').length
 
@@ -253,6 +259,7 @@ function HistoryView({
                 key={`msg-${e.message.messageId}`}
                 message={e.message}
                 sender={nickname(e.message.senderUserId)}
+                nameOf={noticeName}
               />
             ),
           )}
@@ -266,14 +273,17 @@ function HistoryView({
 function MessageItem({
   message,
   sender,
+  nameOf,
 }: {
   message: ChatHistoryMessage
   sender: string
+  /** 단체방 안내의 회원 이름(회원 번호 포함) */
+  nameOf: NameOf
 }) {
   if (message.messageType === 'SYSTEM')
     return (
       <li className={`${styles.item} ${styles.event}`}>
-        {formatDateTime(message.sentAt)} · {notificationLine(message)}
+        {formatDateTime(message.sentAt)} · {notificationLine(message, nameOf)}
       </li>
     )
   const deleted = message.deletedAt !== null

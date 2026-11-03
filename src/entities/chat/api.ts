@@ -244,7 +244,7 @@ export const chatMembersQuery = (chatRoomId: number) =>
 export const CHAT_CANDIDATE_PAGE_SIZE = 20
 
 /**
- * 초대 후보 검색(호스트). 모집글에 지원 이력이 있는 회원 중 회원 ID가 같거나 닉네임에 검색어가 든 회원(회원 ID 순).
+ * 초대 후보 검색(호스트). 모집글에 지원 이력이 있는 회원 중 닉네임에 검색어가 든 회원(회원 ID 순).
  * 검색어가 비면 지원자 전체다. 이미 참여 중인 회원은 빠진다
  */
 export const inviteCandidatesQuery = (chatRoomId: number, keyword: string) =>
