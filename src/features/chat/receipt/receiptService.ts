@@ -3,7 +3,7 @@ import {
   type InfiniteData,
   type QueryClient,
 } from '@tanstack/react-query'
-import { CHAT_PAGE_SIZE, chatKeys } from '@/entities/chat/api'
+import { CHAT_PAGE_SIZE, chatKeys, myMembershipIn } from '@/entities/chat/api'
 import type {
   ChatMessage,
   ChatMessagePage,
@@ -112,10 +112,12 @@ export function createReceiptService({
 
   /** 방 목록 캐시에서 이 방의 내 참여 세대(활성 참여일 때만) */
   const myVersion = (chatRoomId: number) => {
-    const me = queryClient
-      .getQueryData<ChatRoom[]>(chatKeys.rooms())
-      ?.find((r) => r.chatRoomId === chatRoomId)
-      ?.members.find((m) => m.userId === userId)
+    const me = myMembershipIn(
+      queryClient
+        .getQueryData<ChatRoom[]>(chatKeys.rooms())
+        ?.find((r) => r.chatRoomId === chatRoomId),
+      userId,
+    )
     return me?.active ? me.participationVersion : undefined
   }
 

@@ -6,6 +6,7 @@ import { isRecruitOpen } from '@/entities/appearance/recruit'
 import type { HpReleaseStatus, Recruit } from '@/entities/appearance/types'
 import { RecruitStatusPill } from '@/entities/appearance/ui/RecruitStatusPill'
 import { CancelRecruitModal } from '@/features/appearance-cancel/CancelModals'
+import { RecruitGroupPanel } from '@/features/chat-group/RecruitGroupPanel'
 import { ApplicantList } from '@/features/recruit/ApplicantList'
 import { ApplyPanel } from '@/features/recruit/ApplyPanel'
 import {
@@ -103,6 +104,7 @@ function Detail({
           ) : (
             <ApplyPanel recruit={recruit} viewer={viewer} />
           )}
+          <RecruitGroupPanel recruit={recruit} host={host} viewer={viewer} />
         </div>
         <aside className="panel sticky">
           <dl className="kv">

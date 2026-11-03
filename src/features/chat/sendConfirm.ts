@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { CHAT_PAGE_SIZE, chatKeys } from '@/entities/chat/api'
+import { CHAT_PAGE_SIZE, chatKeys, myMembershipIn } from '@/entities/chat/api'
 import type {
   ChatMessage,
   ChatMessagePage,
@@ -66,10 +66,12 @@ async function findInHistory(
 /** 방 목록 캐시의 이 방 내 참여 세대(활성 참여일 때만) */
 function myVersion(queryClient: QueryClient, chatRoomId: number) {
   const { myUserId } = useChatStore.getState()
-  const me = queryClient
-    .getQueryData<ChatRoom[]>(chatKeys.rooms())
-    ?.find((r) => r.chatRoomId === chatRoomId)
-    ?.members.find((m) => m.userId === myUserId)
+  const me = myMembershipIn(
+    queryClient
+      .getQueryData<ChatRoom[]>(chatKeys.rooms())
+      ?.find((r) => r.chatRoomId === chatRoomId),
+    myUserId,
+  )
   return me?.active ? me.participationVersion : undefined
 }
 

@@ -2,9 +2,14 @@ import { infiniteQueryOptions, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type {
   ChatConnectionTicket,
+  ChatGroupCloseResponse,
+  ChatGroupRooms,
+  ChatInviteCandidatePage,
+  ChatInviteResponse,
   ChatMessagePage,
   ChatRoom,
   ChatRoomHistory,
+  ChatRoomMemberPage,
 } from './types'
 
 export const chatKeys = {
@@ -14,6 +19,17 @@ export const chatKeys = {
     [...chatKeys.all, 'messages', chatRoomId] as const,
   history: (chatRoomId: number) =>
     [...chatKeys.all, 'history', chatRoomId] as const,
+  /** 모집글의 단체방(현재 방·이전 방) */
+  groups: (recruitId: number) =>
+    [...chatKeys.all, 'groups', recruitId] as const,
+  /** 방의 참여자 페이지 */
+  members: (chatRoomId: number) =>
+    [...chatKeys.all, 'members', chatRoomId] as const,
+  /** 초대 후보 검색(검색어별) */
+  candidates: (chatRoomId: number, keyword?: string) =>
+    keyword === undefined
+      ? ([...chatKeys.all, 'candidates', chatRoomId] as const)
+      : ([...chatKeys.all, 'candidates', chatRoomId, keyword] as const),
 }
 
 export const CHAT_PAGE_SIZE = 30
@@ -133,7 +149,6 @@ export function markChatRoomRead(
   })
 }
 
-/** 방 목록 정렬: 최근 메시지가 있는 방부터(BE는 방 ID 내림차순). 메시지가 없으면 만든 시각 */
 /**
  * 채팅 웹소켓 연결 티켓(일회용, 약 30초). 연결(`/chats/ws?ticket=`)과 재인증(`/pub/chats/reauth`)마다 새로 받는다.
  * 인플루언서 이상·관리자만(403). 회원당 60초에 10번까지(429 TOO_MANY_TICKET_REQUESTS), 서버가 티켓을 저장하지
@@ -143,6 +158,7 @@ export function issueConnectionTicket() {
   return api<ChatConnectionTicket>('/chats/ws-tickets', { method: 'POST' })
 }
 
+/** 방 목록 정렬: 최근 메시지가 있는 방부터(BE는 방 ID 내림차순). 메시지가 없으면 만든 시각 */
 export function sortRoomsByRecent<T extends ChatRoom>(rooms: T[]): T[] {
   const at = (r: ChatRoom) => r.lastMessage?.sentAt ?? r.createdAt
   return [...rooms].sort((a, b) => at(b).localeCompare(at(a)))
@@ -162,7 +178,121 @@ export function orderedMessages<
   return [...byId.values()].sort((a, b) => a.roomSequence - b.roomSequence)
 }
 
-/** 1:1 방의 상대 (없으면 undefined) */
+/** 1:1 방의 상대 (없으면 undefined). 단체방은 늘 undefined */
 export function partnerOf(room: ChatRoom, myUserId: number | undefined) {
+  if (isGroupRoom(room)) return undefined
   return room.members.find((m) => m.userId !== myUserId)
+}
+
+/** 단체방인지(단체방 정보가 있을 때만 단체방으로 다룬다) */
+export function isGroupRoom(
+  room: ChatRoom,
+): room is ChatRoom & { group: NonNullable<ChatRoom['group']> } {
+  return room.roomType === 'GROUP' && room.group != null
+}
+
+/**
+ * 방 목록 항목의 내 참여(참여 중인지, 참여 세대). 1:1 방은 참여자 목록에서, 단체방은 내 참여 세대(group.myParticipationVersion)로
+ * 읽는다. 단체방은 참여 중인 방만 목록에 나오므로 세대가 있으면 참여 중이다. 모르면 undefined
+ */
+export function myMembershipIn(
+  room: ChatRoom | undefined,
+  myUserId: number | null | undefined,
+): { active: boolean; participationVersion: number } | undefined {
+  if (!room) return undefined
+  if (room.roomType === 'GROUP') {
+    const version = room.group?.myParticipationVersion
+    return version == null
+      ? undefined
+      : { active: true, participationVersion: version }
+  }
+  // 응답에 참여자가 빠져 있을 수 있다(만들기 응답 등).
+  return room.members?.find((m) => m.userId === myUserId)
+}
+
+/** 모집글의 단체방 중 내가 볼 수 있는 방(현재 방과 읽기 전용으로 남은 이전 방) */
+export const chatGroupsQuery = (recruitId: number) =>
+  queryOptions({
+    queryKey: chatKeys.groups(recruitId),
+    queryFn: ({ signal }) =>
+      api<ChatGroupRooms>('/chats/groups', { query: { recruitId }, signal }),
+  })
+
+/** 모집 단체방 만들기(호스트). 모집글의 현재 방이 있으면 그 방을 돌려준다 */
+export function createChatGroup(recruitId: number) {
+  return api<ChatRoom>('/chats/groups', {
+    method: 'POST',
+    body: { recruitId },
+  })
+}
+
+export const CHAT_MEMBER_PAGE_SIZE = 50
+
+/** 방의 참여자(참여 순, 참여 중인 회원만) */
+export const chatMembersQuery = (chatRoomId: number) =>
+  infiniteQueryOptions({
+    queryKey: chatKeys.members(chatRoomId),
+    queryFn: ({ pageParam, signal }) =>
+      api<ChatRoomMemberPage>(`/chats/${chatRoomId}/members`, {
+        query: { cursor: pageParam ?? undefined, size: CHAT_MEMBER_PAGE_SIZE },
+        signal,
+      }),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.nextCursor,
+  })
+
+export const CHAT_CANDIDATE_PAGE_SIZE = 20
+
+/**
+ * 초대 후보 검색(호스트). 모집글에 지원 이력이 있는 회원 중 회원 ID가 같거나 닉네임에 검색어가 든 회원(회원 ID 순).
+ * 검색어가 비면 지원자 전체다. 이미 참여 중인 회원은 빠진다
+ */
+export const inviteCandidatesQuery = (chatRoomId: number, keyword: string) =>
+  infiniteQueryOptions({
+    queryKey: chatKeys.candidates(chatRoomId, keyword),
+    queryFn: ({ pageParam, signal }) =>
+      api<ChatInviteCandidatePage>(`/chats/${chatRoomId}/invite-candidates`, {
+        query: {
+          keyword: keyword || undefined,
+          cursor: pageParam ?? undefined,
+          size: CHAT_CANDIDATE_PAGE_SIZE,
+        },
+        signal,
+      }),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => last.nextCursor,
+  })
+
+/**
+ * 여러 명 초대(호스트). 회원별로 참여·이미 참여 중·실패(사유)를 돌려준다.
+ * requestId는 멱등 키다. 응답을 받지 못해 같은 초대를 다시 보낼 때는 같은 값을, 새 초대는 새 값을 쓴다
+ */
+export function inviteChatMembers(
+  chatRoomId: number,
+  requestId: string,
+  userIds: number[],
+) {
+  return api<ChatInviteResponse>(`/chats/${chatRoomId}/members`, {
+    method: 'POST',
+    body: { requestId, userIds },
+  })
+}
+
+/** 내보내기(호스트). 대상의 참여 세대를 보내 옛 요청이 재초대된 새 참여를 끝내지 않게 한다 */
+export function kickChatMember(
+  chatRoomId: number,
+  userId: number,
+  participationVersion: number,
+) {
+  return api<void>(`/chats/${chatRoomId}/members/${userId}`, {
+    method: 'DELETE',
+    query: { participationVersion },
+  })
+}
+
+/** 폐쇄(호스트). 방은 읽기 전용이 되고 30일 뒤 참여자 조회가 끝난다 */
+export function closeChatGroup(chatRoomId: number) {
+  return api<ChatGroupCloseResponse>(`/chats/${chatRoomId}/close`, {
+    method: 'POST',
+  })
 }

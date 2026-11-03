@@ -10,6 +10,7 @@ import type {
   RecruitSummary,
 } from '@/entities/appearance/types'
 import { kstLocalInput } from '@/shared/lib/date'
+import { groupRoom } from '@/test/chatGroupMock'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import {
@@ -1098,6 +1099,223 @@ describe('모집 상세 · 호스트', () => {
     await userEvent.click(await screen.findByRole('button', { name: '채팅' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/chat/77'))
     expect(target).toEqual({ targetUserId: GUEST_ID })
+  })
+})
+
+describe('모집 상세 · 단체방', () => {
+  const groups = (data: {
+    currentRoom?: ReturnType<typeof groupRoom> | null
+    previousRooms?: ReturnType<typeof groupRoom>[]
+  }) =>
+    http.get('*/api/v1/chats/groups', ({ request }) => {
+      expect(new URL(request.url).searchParams.get('recruitId')).toBe('7')
+      return rs({
+        recruitId: 7,
+        currentRoom: data.currentRoom ?? null,
+        previousRooms: data.previousRooms ?? [],
+      })
+    })
+  const panel = () => screen.findByRole('region', { name: '단체방' })
+
+  it('호스트는 모집 중인 모집글에 단체방을 만들고 그 방으로 간다', async () => {
+    mockRecruit({ value: recruit({ hostId: ME_ID }) })
+    let body: unknown
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+      http.post('*/api/v1/chats/groups', async ({ request }) => {
+        body = await request.json()
+        return rs(groupRoom())
+      }),
+    )
+    const router = renderApp('/recruits/7', 'INFLUENCER')
+    await userEvent.click(
+      await within(await panel()).findByRole('button', {
+        name: '단체방 만들기',
+      }),
+    )
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/9'))
+    expect(body).toEqual({ recruitId: 7 })
+  })
+
+  it('만들지 못하면 서버 문구로 알린다', async () => {
+    mockRecruit({ value: recruit({ hostId: ME_ID }) })
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+      http.post('*/api/v1/chats/groups', () =>
+        HttpResponse.json(
+          {
+            status: 409,
+            code: 'RECRUIT_NOT_OPEN',
+            detail: '모집 중인 모집글에만 단체방을 만들 수 있습니다.',
+          },
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
+        ),
+      ),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    await userEvent.click(
+      await within(await panel()).findByRole('button', {
+        name: '단체방 만들기',
+      }),
+    )
+    await expectSuccessToast('모집 중인 모집글에만 단체방을 만들 수 있습니다.')
+  })
+
+  it('현재 방이 있으면 열기를, 읽기 전용으로 남은 이전 방은 만든 날·볼 수 있는 기한과 함께 보인다', async () => {
+    mockRecruit({ value: recruit({ hostId: ME_ID }) })
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+      groups({
+        currentRoom: groupRoom({}, { memberCount: 3 }),
+        previousRooms: [
+          groupRoom(
+            {
+              chatRoomId: 4,
+              status: 'READ_ONLY',
+              createdAt: '2026-10-01T10:00:00',
+            },
+            {
+              statusReason: 'CLOSED_BY_HOST',
+              historyExpiresAt: '2026-11-30T10:00:00',
+            },
+          ),
+        ],
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    const region = await panel()
+    expect(
+      await within(region).findByRole('link', { name: '단체방 열기' }),
+    ).toHaveAttribute('href', '/chat/9')
+    expect(region).toHaveTextContent('참여자 3명')
+    expect(
+      within(region).queryByRole('button', { name: '단체방 만들기' }),
+    ).toBeNull()
+    const previous = within(region).getByLabelText('이전 단체방')
+    expect(previous).toHaveTextContent('읽기 전용')
+    expect(previous).toHaveTextContent('10/1(목)에 만든 방')
+    expect(previous).toHaveTextContent('11/30(월) 10:00까지 볼 수 있어요')
+    expect(
+      within(previous).getByRole('link', { name: '열기' }),
+    ).toHaveAttribute('href', '/chat/4')
+  })
+
+  it('모집이 끝난 모집글에는 새 단체방을 만들 수 없다고 안내한다', async () => {
+    mockRecruit({ value: recruit({ hostId: ME_ID, status: 'CLOSED' }) })
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    const region = await panel()
+    expect(
+      await within(region).findByText(
+        '모집 중인 모집글에만 단체방을 만들 수 있어요.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(region).queryByRole('button', { name: '단체방 만들기' }),
+    ).toBeNull()
+  })
+
+  it('참여자(게스트)는 볼 수 있는 방이 있을 때만 열기를 본다', async () => {
+    mockRecruit({ value: recruit() })
+    server.use(groups({ currentRoom: groupRoom({}, { hostUserId: HOST_ID }) }))
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(
+      await within(await panel()).findByRole('link', { name: '단체방 열기' }),
+    ).toHaveAttribute('href', '/chat/9')
+  })
+
+  it('만들지 못한 뒤에는 모집글을 다시 받아 바뀐 모집 상태를 보인다', async () => {
+    const current = { value: recruit({ hostId: ME_ID }) }
+    mockRecruit(current)
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+      http.post('*/api/v1/chats/groups', () => {
+        // 그사이 모집이 마감됐다.
+        current.value = recruit({ hostId: ME_ID, status: 'CLOSED' })
+        return HttpResponse.json(
+          {
+            status: 409,
+            code: 'RECRUIT_NOT_OPEN',
+            detail: '모집 중인 모집글에만 단체방을 만들 수 있습니다.',
+          },
+          {
+            status: 409,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
+        )
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    const region = await panel()
+    await userEvent.click(
+      await within(region).findByRole('button', { name: '단체방 만들기' }),
+    )
+    expect(
+      await within(region).findByText(
+        '모집 중인 모집글에만 단체방을 만들 수 있어요.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(region).queryByRole('button', { name: '단체방 만들기' }),
+    ).toBeNull()
+  })
+
+  it('게스트의 단체방을 불러오지 못하면 숨기지 않고 다시 시도할 수 있게 보인다', async () => {
+    mockRecruit({ value: recruit() })
+    server.use(
+      http.get('*/api/v1/chats/groups', () =>
+        HttpResponse.json(
+          { status: 500, code: 'INTERNAL_ERROR', detail: '서버 오류' },
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/problem+json' },
+          },
+        ),
+      ),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    // 5xx는 두 번 더 시도한 뒤 실패로 보인다.
+    const region = await screen.findByRole(
+      'region',
+      { name: '단체방' },
+      { timeout: 5000 },
+    )
+    expect(within(region).getByRole('alert')).toHaveTextContent(
+      '단체방을 불러오지 못했어요.',
+    )
+    expect(
+      within(region).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+  })
+
+  it('참여한 방이 없는 게스트에게는 단체방 패널을 보이지 않는다', async () => {
+    mockRecruit({ value: recruit() })
+    let called = false
+    server.use(
+      http.get('*/api/v1/chats/groups', () => {
+        called = true
+        return rs({ recruitId: 7, currentRoom: null, previousRooms: [] })
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    await screen.findByRole('heading', { name: recruit().title })
+    await waitFor(() => expect(called).toBe(true))
+    expect(screen.queryByRole('region', { name: '단체방' })).toBeNull()
   })
 })
 
