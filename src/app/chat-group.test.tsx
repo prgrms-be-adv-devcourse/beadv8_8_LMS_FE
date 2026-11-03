@@ -25,13 +25,30 @@ const GUEST_A = 21
 const GUEST_B = 22
 
 let seq = 0
+/** 서버가 일반 메시지에 싣는 보낸 사람 닉네임(채팅 회원 복제본) */
+const NICKNAMES: Record<number, string> = {
+  [HOST_ID]: '호스트 별',
+  [ME_ID]: '하늘',
+  [GUEST_A]: '바다',
+  [GUEST_B]: '파도',
+}
+
 const message = (patch: Partial<ChatMessage> = {}): ChatMessage => {
   seq++
+  const senderUserId = patch.senderUserId ?? GUEST_A
+  const text = (patch.messageType ?? 'TEXT') === 'TEXT'
   return {
     messageId: 500 + seq,
     chatRoomId: GROUP_ROOM_ID,
     roomSequence: seq,
-    senderUserId: GUEST_A,
+    senderUserId,
+    sender: text
+      ? {
+          userId: senderUserId,
+          nickname: NICKNAMES[senderUserId] ?? null,
+          withdrawn: false,
+        }
+      : null,
     messageType: 'TEXT',
     content: `메시지 ${seq}`,
     sentAt: '2026-11-03T09:00:00',
@@ -132,6 +149,63 @@ describe('단체방 화면', () => {
     expect(
       within(region).getByRole('button', { name: '나가기' }),
     ).toBeInTheDocument()
+  })
+
+  it('보낸 사람은 서버의 보낸 사람 정보로 보인다: 나간 회원의 이름은 안내에도 쓰고, 정보가 없으면 회원 ID로 쓴다', async () => {
+    mockGroup({
+      room: groupRoom({}, { hostUserId: HOST_ID }),
+      // 나간 회원(40)·탈퇴한 회원(41)·정보 없는 회원(42)은 참여자 목록에 없다.
+      members: [member(HOST_ID, '호스트 별'), member(ME_ID, '하늘')],
+      messages: [
+        message({
+          senderUserId: 40,
+          content: '먼저 갈게요',
+          sender: { userId: 40, nickname: '노을', withdrawn: false },
+        }),
+        message({
+          messageType: 'SYSTEM',
+          content: '',
+          senderUserId: 40,
+          notificationKind: 'GROUP_MEMBER_LEFT',
+          groupMemberLeft: { v: 1, leftUserId: 40 },
+        }),
+        message({
+          senderUserId: 41,
+          content: '탈퇴 전 메시지',
+          sender: { userId: 41, nickname: '탈퇴한 회원', withdrawn: true },
+        }),
+        message({
+          senderUserId: 42,
+          content: '정보 없는 메시지',
+          sender: { userId: 42, nickname: null, withdrawn: false },
+        }),
+      ],
+    })
+    renderApp(`/chat/${GROUP_ROOM_ID}`, 'INFLUENCER')
+    const region = await thread()
+    expect(
+      (await within(region).findByText('먼저 갈게요')).parentElement,
+    ).toHaveTextContent('노을')
+    expect(within(region).getByText('노을님이 나갔습니다.')).toBeInTheDocument()
+    expect(
+      within(region).getByText('탈퇴 전 메시지').parentElement,
+    ).toHaveTextContent('탈퇴한 회원')
+    expect(
+      within(region).getByText('정보 없는 메시지').parentElement,
+    ).toHaveTextContent('회원 42')
+  })
+
+  it('방 목록 미리보기는 단체방이면 보낸 사람을 앞에 붙인다', async () => {
+    mockGroup({
+      room: groupRoom({
+        lastMessage: message({ senderUserId: GUEST_A, content: '내일 봬요' }),
+      }),
+    })
+    renderApp('/chat', 'INFLUENCER')
+    const list = await screen.findByRole('navigation', { name: '대화 목록' })
+    expect(await within(list).findByRole('link')).toHaveTextContent(
+      '바다: 내일 봬요',
+    )
   })
 
   it('사용 중인 방의 호스트는 나가기 대신 초대·폐쇄를 본다', async () => {

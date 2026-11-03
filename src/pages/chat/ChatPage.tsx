@@ -222,7 +222,11 @@ function roomPreview(
   const last = room.lastMessage
   if (!last) return `${formatDate(room.createdAt)} 시작`
   if (last.messageType !== 'TEXT') return notificationPreview(last)
-  return last.senderUserId === myUserId ? `나: ${last.content}` : last.content
+  if (last.senderUserId === myUserId) return `나: ${last.content}`
+  // 단체방은 여러 사람이 보내므로 보낸 사람을 앞에 붙인다.
+  return room.roomType === 'GROUP'
+    ? `${senderName(last)}: ${last.content}`
+    : last.content
 }
 
 function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
@@ -233,7 +237,6 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   const partnerLeft = partner !== undefined && !partner.active
   const status = useChatStore((s) => s.status)
   const pending = useChatStore((s) => s.pending[room.chatRoomId]) ?? NO_PENDING
-  const nameOf = useMemberNames(room.chatRoomId, group !== null)
   const [text, setText] = useState('')
   const {
     data,
@@ -249,6 +252,7 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
 
   // 오래된 것부터 그린다(순번순, 같은 메시지는 한 번).
   const messages = data ? orderedMessages(data.pages) : []
+  const nameOf = useNoticeNames(room.chatRoomId, group !== null, messages)
   const latestId = messages.at(-1)?.messageId
   // 화면에 보인 가장 최근 메시지까지 읽음으로 알린다(방을 보는 중 받은 메시지 포함).
   // 읽음에는 이력 응답의 참여 세대를 붙인다(없으면 방 목록의 내 세대).
@@ -698,29 +702,40 @@ function CloseThread() {
 }
 
 /**
- * 단체방 안내·보낸 사람 이름. 서버는 회원 ID만 주므로 참여자 목록(첫 페이지부터 불러온 만큼)과 내 정보에서 찾는다.
- * 나간·내보내진 회원처럼 목록에 없는 회원은 undefined(부르는 쪽이 '회원 {ID}'로 쓴다)
+ * 단체방 안내에 나오는 회원 이름. 안내는 회원 ID만 담으므로(보낸 사람 정보 없음) 다음 순서로 찾는다.
+ * 1. 불러온 메시지의 보낸 사람 정보(나간·내보내진 회원도 메시지를 보낸 적이 있으면 이름이 남는다)
+ * 2. 참여자 목록(첫 페이지부터 불러온 만큼) 3. 내 정보
+ * 못 찾으면 undefined(템플릿이 '회원 {ID}'로 쓴다)
  */
-function useMemberNames(chatRoomId: number, enabled: boolean): NameOf {
+function useNoticeNames(
+  chatRoomId: number,
+  enabled: boolean,
+  messages: ChatMessage[],
+): NameOf {
   const { data } = useInfiniteQuery({
     ...chatMembersQuery(chatRoomId),
     enabled,
   })
   const { data: me } = useQuery(meQuery)
-  const names = useMemo(
-    () =>
-      new Map(
-        data?.pages.flatMap((p) =>
-          p.members.map((m) => [m.userId, m.nickname] as const),
-        ),
-      ),
-    [data],
-  )
+  const names = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const page of data?.pages ?? [])
+      for (const m of page.members) map.set(m.userId, m.nickname)
+    // 메시지의 보낸 사람 정보가 더 넓다(나간 회원 포함). 최근 메시지의 이름을 쓴다.
+    for (const m of messages)
+      if (m.sender?.nickname) map.set(m.sender.userId, m.sender.nickname)
+    return map
+  }, [data, messages])
   return useCallback(
     (userId: number) =>
       names.get(userId) ?? (userId === me?.id ? me.nickname : undefined),
     [names, me],
   )
+}
+
+/** 보낸 사람 이름(서버의 보낸 사람 정보). 회원 정보가 없으면 '회원 {ID}' */
+function senderName(message: ChatMessage) {
+  return message.sender?.nickname ?? `회원 ${message.senderUserId}`
 }
 
 /**
@@ -807,6 +822,7 @@ function MessageItem({
   mine: boolean
   /** 단체방이면 다른 사람 메시지에 보낸 사람 이름과 호스트 왕관을 보인다 */
   group: ChatGroupSummary | null
+  /** 단체방 안내의 회원 이름 */
   nameOf: NameOf
 }) {
   if (message.messageType === 'SYSTEM')
@@ -823,7 +839,7 @@ function MessageItem({
     <div className={mine ? `${styles.msg} ${styles.me}` : styles.msg}>
       {group && !mine && (
         <span className={styles.sender}>
-          {nameOf(message.senderUserId) ?? `회원 ${message.senderUserId}`}
+          {senderName(message)}
           {message.senderUserId === group.hostUserId && <HostCrown />}
         </span>
       )}

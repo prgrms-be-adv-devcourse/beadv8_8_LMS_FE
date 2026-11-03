@@ -182,6 +182,17 @@ export type ChatGroupCloseResponse = {
   historyExpiresAt: string | null
 }
 
+/**
+ * 일반 메시지(TEXT)의 보낸 사람 표시 정보(채팅 회원 복제본). 나간·내보내진 회원도 닉네임이 남는다.
+ * 탈퇴한 회원은 nickname '탈퇴한 회원'·withdrawn true, 복제본이 없으면 nickname null이다(FE가 '회원 {ID}'로 쓴다).
+ * 이력·방 목록은 조회 때의 닉네임, 실시간·전송 확인은 전달 때의 닉네임이다
+ */
+export type ChatMessageSender = {
+  userId: number
+  nickname: string | null
+  withdrawn: boolean
+}
+
 /** 메시지 이력·실시간 수신(/user/queue/chats/messages) */
 export type ChatMessage = NotificationFields & {
   messageId: number
@@ -189,6 +200,8 @@ export type ChatMessage = NotificationFields & {
   /** 방 단위 순번. 이력 조회 cursor로도 쓴다 */
   roomSequence: number
   senderUserId: number
+  /** 보낸 사람 표시 정보. 일반 메시지(TEXT)에만 있고 안내·알림은 null(행위자는 안내 값에 있다) */
+  sender?: ChatMessageSender | null
   messageType: ChatMessageType
   content: string
   sentAt: string
