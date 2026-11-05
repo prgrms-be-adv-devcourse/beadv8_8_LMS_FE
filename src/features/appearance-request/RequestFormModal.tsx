@@ -4,7 +4,6 @@ import { Link, useNavigate } from 'react-router'
 import {
   appearanceKeys,
   createAppearanceRequest,
-  holdPendingPath,
 } from '@/entities/appearance/api'
 import {
   CONTENT_MAX,
@@ -99,27 +98,24 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         fee,
         acceptDeadline: toServerDateTime(formValues.acceptDeadline),
       }),
-    // 보낸 시각(브라우저 시계). 보류 확인이 늦어지면 이 시각 이후 만든 요청서가 목록에 보일 때까지 기다린다.
-    onMutate: () => ({ sentAt: Date.now() }),
-    onSuccess: (created, _, context) => {
+    onSuccess: (created) => {
       onClose()
-      if (created.status === 'REQUESTED') {
-        toast(`${guest.nickname} 님에게 출연 요청을 보냈어요.`)
-        navigate(SENT_PATH)
-      } else {
-        // HP 보류가 끝나기 전(HOLD_PENDING)인 요청서는 목록·상세에 없어 보낸 요청 목록에서 결과를 기다린다.
-        toast('접수됐어요. 포인트를 확인하고 있어요.')
-        navigate(holdPendingPath(SENT_PATH, context.sentAt))
-      }
+      // 보류가 끝나기 전(HOLD_PENDING)인 요청서도 보낸 요청에 '포인트 확인 중'으로 보이고, 끝날 때까지 목록이 다시 불러온다.
+      toast(
+        created.status === 'REQUESTED'
+          ? `${guest.nickname} 님에게 출연 요청을 보냈어요.`
+          : '접수됐어요. 포인트를 확인하고 있어요.',
+      )
+      navigate(SENT_PATH)
     },
-    onError: (error, _, context) => {
+    onError: (error) => {
       if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 요청서를 저장했고 HP 보류만 늦어지고 있다.
-        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록에서 결과를 기다리게 한다.
+        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록('포인트 확인 중')에서 결과를 보게 한다.
         onClose()
         toast('접수됐어요. 포인트를 확인하고 있어요.')
-        navigate(holdPendingPath(SENT_PATH, context?.sentAt ?? Date.now()))
+        navigate(SENT_PATH)
         return
       }
       fields.applyServerErrors(error)

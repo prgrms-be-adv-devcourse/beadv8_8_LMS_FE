@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
   appearancesQuery,
-  HOLD_PENDING_PARAM,
 } from '@/entities/appearance/api'
 import type {
   AppearanceRequestSummary,
@@ -13,15 +11,11 @@ import type {
 } from '@/entities/appearance/types'
 import { confirmStage } from '@/entities/appearance/rules'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
-import { HoldPendingNotice } from '@/entities/appearance/ui/HoldPendingNotice'
+import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
+import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
-import {
-  HOLD_POLL_INTERVAL_MS,
-  useHoldPendingFound,
-  useHoldPendingParam,
-} from '@/shared/lib/holdPending'
 import { formatNumber } from '@/shared/lib/money'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -29,7 +23,6 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
-import { toast } from '@/shared/ui/toastStore'
 import styles from './AppearancesPage.module.css'
 
 const TABS: { value: RequestSide; label: string }[] = [
@@ -40,28 +33,19 @@ const TABS: { value: RequestSide; label: string }[] = [
 export function AppearancesPage() {
   const [params, setParams] = useSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
-  // 요청 목록 페이지. 성립한 출연 목록은 apage로 따로 넘긴다. 한쪽을 넘겨도 다른 쪽 페이지와 처리 중 안내는 남는다.
+  // 요청 목록 페이지. 성립한 출연 목록은 apage로 따로 넘긴다. 한쪽을 넘겨도 다른 쪽 페이지는 남는다.
   const [page, setPage] = usePageParam('page')
-  const hold = useHoldPendingParam(HOLD_PENDING_PARAM, side === 'host')
-  const { polling, dismiss } = hold
-  const query = useQuery({
-    ...appearanceRequestsQuery(side, page),
-    refetchInterval: polling ? HOLD_POLL_INTERVAL_MS : false,
-  })
+  const [selectedView, selectView] = useHoldListView()
+  // 보기는 보낸 요청에만 있다(받은 요청에는 보류 상태 요청서가 나오지 않는다).
+  const view = side === 'host' ? selectedView : 'active'
+  // 보류 확인 중인 요청서가 보이는 동안 목록이 스스로 다시 부른다(appearanceRequestsQuery).
+  const query = useQuery(appearanceRequestsQuery(side, page, view))
   const moving = useClampPage(page, query, setPage)
-  const { data, error, isPending, refetch, isFetching } = query
+  const { data, error, isPending, refetch } = query
 
-  // 역할을 바꾸면 두 목록 모두 첫 페이지부터 보고, 처리 중 안내는 닫는다.
+  // 역할을 바꾸면 두 목록 모두 첫 페이지·기본 보기부터 본다.
   const selectTab = (tab: RequestSide) =>
     setParams(tab === 'guest' ? { tab: 'guest' } : {})
-  useHoldPendingFound(
-    hold.since,
-    data?.content.map((r) => r.createdAt),
-    useCallback(() => {
-      toast('출연 요청을 보냈어요.')
-      dismiss()
-    }, [dismiss]),
-  )
 
   return (
     <div className="page">
@@ -79,20 +63,26 @@ export function AppearancesPage() {
         <h2 className={styles.sectionTitle}>
           {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
         </h2>
-        {hold.waiting && (
-          <HoldPendingNotice
-            polling={polling}
-            refreshing={isFetching}
-            onRefresh={() => refetch()}
-            onDismiss={dismiss}
-          />
+        {side === 'host' && (
+          <div className="toolbar">
+            <span className="fine">
+              {view === 'failed'
+                ? 'HP 보류에 실패해 보내지지 않은 요청서예요.'
+                : '포인트 확인 중인 요청서는 확인이 끝나면 자동으로 바뀌어요.'}
+            </span>
+            <HoldListViewSelect value={view} onChange={selectView} />
+          </div>
         )}
         {isPending || moving ? (
           <Loading />
         ) : error ? (
           <LoadError error={error} retry={refetch} />
         ) : data.content.length === 0 ? (
-          side === 'host' ? (
+          side === 'host' && view === 'failed' ? (
+            <EmptyState title="보내지지 않은 요청서가 없어요">
+              HP 보류에 실패한 요청서가 여기에 보여요.
+            </EmptyState>
+          ) : side === 'host' ? (
             <EmptyState
               title="아직 보낸 출연 요청이 없어요"
               action={

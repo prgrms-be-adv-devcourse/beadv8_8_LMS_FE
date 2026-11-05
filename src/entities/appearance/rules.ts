@@ -5,6 +5,7 @@ import type {
   AppearanceRequestInput,
   AppearanceRequestStatus,
   RecruitInput,
+  RecruitStatus,
 } from './types'
 
 /** 최저 출연료 (1인당). BE appearance.yml appearance.policy.minimum-fee */
@@ -147,6 +148,18 @@ export function validateRecruitForm(
 
   return errors
 }
+
+/**
+ * HP 보류 결과를 기다리는 중이거나 실패한 요청서·모집글. 올린 호스트에게만 보이고 수정·취소·마감·지원 같은 동작이 없다
+ * (BE가 404로 막는다)
+ */
+export function isHoldStatus(status: AppearanceRequestStatus | RecruitStatus) {
+  return status === 'HOLD_PENDING' || status === 'HOLD_FAILED'
+}
+
+/** 보류 실패 상세의 안내(BE는 거절 사유를 주지 않는다) */
+export const HOLD_FAILED_NOTICE =
+  'HP 보류에 실패해 등록되지 않았어요. 잔액을 확인한 뒤 다시 올려 주세요.'
 
 /** 끝난(더 응답할 수 없는) 요청서 */
 export function isRequestEnded(status: AppearanceRequestStatus) {

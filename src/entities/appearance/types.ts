@@ -1,11 +1,13 @@
 /**
- * 출연 요청서 상태 (목록·상세에 보이는 것만)
+ * 출연 요청서 상태
+ * - HOLD_PENDING: 보내기 직후 HP 보류 결과를 기다리는 중(보통 60~120초, 늦어도 1시간 뒤 HOLD_FAILED). 보낸 호스트에게만 보인다
+ * - HOLD_FAILED: HP 보류에 실패해 보내지지 않았다. 보낸 호스트에게만 보이고, 기본 목록에서는 빼고 '등록 실패' 보기로 본다
  * - REQUESTED: 응답 대기. HP 보류가 끝나 게스트의 수락·거절을 기다린다
  * - ACCEPTED: 수락. 출연이 성립했다
  * - REJECTED: 거절. 보류 HP를 호스트에게 반환한다
  * - EXPIRED: 만료. 수락 기한까지 응답이 없어 보류 HP를 반환한다
  * - CANCELED: 취소. 게스트 응답 전에 호스트가 취소해 보류 HP를 반환한다
- * 보내기 직후 HP 보류가 끝나기 전(HOLD_PENDING)·실패(HOLD_FAILED)한 요청서는 목록에 나오지 않는다.
+ * 두 보류 상태의 요청서에는 수정·취소 같은 동작이 없다(BE가 404로 막는다). 받은 요청 목록에는 나오지 않는다.
  */
 export type AppearanceRequestStatus =
   | 'HOLD_PENDING'
@@ -71,11 +73,13 @@ export type AppearanceRequestEdit = Partial<
 export type RequestSide = 'host' | 'guest'
 
 /**
- * 출연 모집글 상태 (목록·상세에 보이는 것만)
+ * 출연 모집글 상태
+ * - HOLD_PENDING: 올리기 직후 HP 보류 결과를 기다리는 중(보통 60~120초, 늦어도 1시간 뒤 HOLD_FAILED). 올린 호스트에게만 보인다
+ * - HOLD_FAILED: HP 보류에 실패해 등록되지 않았다. 올린 호스트에게만 보이고, 기본 목록에서는 빼고 '등록 실패' 보기로 본다
  * - RECRUITING: 모집 중. 1인 출연료 × 모집 인원만큼 HP가 보류돼 있다
  * - CLOSED: 마감. 조기 마감(EARLY)이나 마감 일시 배치(DEADLINE)로 닫히고, 채우지 못한 자리의 출연료를 돌려준다
  * - CANCELED: 모집 전체 취소. 성립한 출연은 출연마다 호스트 일방 취소(위약금)로, 대기 지원은 미선정으로 끝난다
- * 올리기 직후 HP 보류가 끝나기 전(HOLD_PENDING)·실패(HOLD_FAILED)한 글은 목록·상세에 나오지 않는다.
+ * 두 보류 상태의 글에는 수정·마감·취소·지원 같은 동작이 없다(BE가 404로 막는다). 공개 모집 목록에는 나오지 않는다.
  */
 export type RecruitStatus =
   'HOLD_PENDING' | 'HOLD_FAILED' | 'RECRUITING' | 'CLOSED' | 'CANCELED'
