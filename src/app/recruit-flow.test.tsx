@@ -621,6 +621,28 @@ describe('모집 상세 공통', () => {
   })
 })
 
+describe('모집 상세의 호스트 채널', () => {
+  it('탈퇴로 파기된 채널(withdrawn)은 링크 없이 안내 글자로 보인다', async () => {
+    mockRecruit({
+      value: recruit({ hostChannelUrl: 'withdrawn', status: 'CANCELED' }),
+    })
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(await screen.findByText('탈퇴한 회원의 채널')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'withdrawn' })).toBeNull()
+  })
+
+  it('http(s)가 아닌 값은 링크로 그리지 않고 글자로 보인다', async () => {
+    mockRecruit({ value: recruit({ hostChannelUrl: 'javascript:alert(1)' }) })
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(await screen.findByText('javascript:alert(1)')).not.toHaveAttribute(
+      'href',
+    )
+    expect(
+      screen.queryByRole('link', { name: 'javascript:alert(1)' }),
+    ).toBeNull()
+  })
+})
+
 describe('모집 상세 · 게스트', () => {
   it('지원하지 않은 모집글에 메시지와 함께 지원한다', async () => {
     const current = { value: recruit() }

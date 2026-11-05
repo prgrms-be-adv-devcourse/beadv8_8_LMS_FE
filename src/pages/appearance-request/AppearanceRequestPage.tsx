@@ -8,6 +8,7 @@ import type {
   HpReleaseStatus,
   RequestSide,
 } from '@/entities/appearance/types'
+import { HostChannel } from '@/entities/appearance/ui/HostChannel'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import {
@@ -98,13 +99,7 @@ function Detail({
               </dd>
               <dt>호스트 채널</dt>
               <dd>
-                <a
-                  href={request.hostChannelUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {request.hostChannelUrl}
-                </a>
+                <HostChannel url={request.hostChannelUrl} />
               </dd>
             </dl>
           </section>

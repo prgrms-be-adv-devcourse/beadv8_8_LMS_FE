@@ -209,3 +209,24 @@ export function confirmStage(
   if (!isPast(confirmDeadline(appearance.scheduledAt), now)) return 'open'
   return 'ended'
 }
+
+/**
+ * BE가 파기한 호스트 채널 주소(BE #675). 탈퇴한 회원의 개인정보를 파기할 때 그 회원이 호스트로 쓴 요청서·모집글의 채널을
+ * 이 값으로 덮는다(Swagger 계약 값)
+ */
+export const WITHDRAWN_CHANNEL = 'withdrawn'
+
+export type HostChannelView =
+  | { kind: 'withdrawn' }
+  | { kind: 'text'; text: string }
+  | { kind: 'link'; href: string }
+
+/**
+ * 호스트 채널을 어떻게 보일지. 파기된 채널은 링크 없이 안내 글자로, http(s) 주소만 링크로, 그 밖의 값(원래 오지 않음)은
+ * 링크로 그리지 않고 글자로 보인다(상대 경로·javascript: 링크가 되지 않게)
+ */
+export function hostChannelView(url: string): HostChannelView {
+  if (url === WITHDRAWN_CHANNEL) return { kind: 'withdrawn' }
+  if (!/^https?:\/\//i.test(url)) return { kind: 'text', text: url }
+  return { kind: 'link', href: url }
+}

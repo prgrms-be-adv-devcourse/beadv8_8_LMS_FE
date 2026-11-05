@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router'
 import { recruitQuery } from '@/entities/appearance/api'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
 import type { HpReleaseStatus, Recruit } from '@/entities/appearance/types'
+import { HostChannel } from '@/entities/appearance/ui/HostChannel'
 import { RecruitStatusPill } from '@/entities/appearance/ui/RecruitStatusPill'
 import { CancelRecruitModal } from '@/features/appearance-cancel/CancelModals'
 import { RecruitGroupPanel } from '@/features/chat-group/RecruitGroupPanel'
@@ -90,14 +91,7 @@ function Detail({
             <p className="lede" style={{ whiteSpace: 'pre-wrap' }}>
               {recruit.content}
             </p>
-            <a
-              className="link"
-              href={recruit.hostChannelUrl}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {recruit.hostChannelUrl}
-            </a>
+            <HostChannel url={recruit.hostChannelUrl} />
           </div>
           {host ? (
             <ApplicantList recruit={recruit} />
