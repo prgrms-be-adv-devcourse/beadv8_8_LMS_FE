@@ -282,6 +282,29 @@ describe('출연 요청서 입력 오류', () => {
   })
 })
 
+describe('요청서 상세의 호스트 채널', () => {
+  it('정상 주소는 새 탭 링크다', async () => {
+    mockRequestDetail({ value: request() })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+    const link = await screen.findByRole('link', {
+      name: 'https://chzzk.naver.com/host',
+    })
+    expect(link).toHaveAttribute('href', 'https://chzzk.naver.com/host')
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('탈퇴로 파기된 채널(withdrawn)은 링크 없이 안내 글자로 보인다', async () => {
+    mockRequestDetail({
+      value: request({ hostChannelUrl: 'withdrawn', status: 'EXPIRED' }),
+    })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+    const channel = (await screen.findByText('호스트 채널'))
+      .nextElementSibling as HTMLElement
+    expect(within(channel).getByText('탈퇴한 회원의 채널')).toBeInTheDocument()
+    expect(within(channel).queryByRole('link')).toBeNull()
+  })
+})
+
 describe('받은 출연 요청', () => {
   it('목록에서 요청서를 열어 본 버전 그대로 수락한다', async () => {
     const current = { value: request() }

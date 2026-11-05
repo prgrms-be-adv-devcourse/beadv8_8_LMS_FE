@@ -4,6 +4,7 @@ import {
   canRequestCancel,
   confirmDeadline,
   confirmStage,
+  hostChannelView,
   penaltyOf,
   type RecruitFormValues,
   validateRecruitForm,
@@ -144,5 +145,24 @@ describe('출연 확인 기간', () => {
       null,
     )
     expect(confirmStage({ ...base, status: 'CONFIRMED' }, now)).toBe(null)
+  })
+})
+
+describe('hostChannelView', () => {
+  it('파기된 채널은 withdrawn, http(s) 주소는 링크(대소문자 무시), 그 밖은 글자다', () => {
+    expect(hostChannelView('withdrawn')).toEqual({ kind: 'withdrawn' })
+    expect(hostChannelView('https://chzzk.naver.com/host')).toEqual({
+      kind: 'link',
+      href: 'https://chzzk.naver.com/host',
+    })
+    expect(hostChannelView('HTTP://example.com')).toEqual({
+      kind: 'link',
+      href: 'HTTP://example.com',
+    })
+    expect(hostChannelView('javascript:alert(1)')).toEqual({
+      kind: 'text',
+      text: 'javascript:alert(1)',
+    })
+    expect(hostChannelView('foo')).toEqual({ kind: 'text', text: 'foo' })
   })
 })
