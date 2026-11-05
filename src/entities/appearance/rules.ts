@@ -161,11 +161,6 @@ export function isHoldStatus(status: AppearanceRequestStatus | RecruitStatus) {
 export const HOLD_FAILED_NOTICE =
   'HP 보류에 실패해 등록되지 않았어요. 잔액을 확인한 뒤 다시 올려 주세요.'
 
-/** 끝난(더 응답할 수 없는) 요청서 */
-export function isRequestEnded(status: AppearanceRequestStatus) {
-  return status !== 'REQUESTED' && status !== 'HOLD_PENDING'
-}
-
 /** 출연 취소 요청 사유·거절 사유·일방 취소 사유 최대 길이 (BE REASON_MAX) */
 export const CANCEL_REASON_MAX = 500
 /** 출연 1건당 취소 요청 횟수 (BE) */

@@ -1531,6 +1531,42 @@ describe('보류 확인 중·실패 (내 모집글)', () => {
     expect(mine.calls).toBe(stopped)
   })
 
+  it('올린 직후 보류 확인 중인 모집글이 이미 보던 내 모집글 목록에 바로 보인다', async () => {
+    let posted = false
+    server.use(
+      http.get('*/api/v1/appearances/recruits/mine', () =>
+        rs(
+          page(
+            posted ? [recruit({ hostId: ME_ID, status: 'HOLD_PENDING' })] : [],
+          ),
+        ),
+      ),
+      http.get('*/api/v1/members/channels/me', () => rs([])),
+      http.post('*/api/v1/appearances/recruits', () => {
+        posted = true
+        return rs(recruit({ hostId: ME_ID, status: 'HOLD_PENDING' }), 201)
+      }),
+    )
+    renderApp('/recruits?tab=mine', 'INFLUENCER')
+    await screen.findByText('아직 올린 모집글이 없어요')
+
+    await userEvent.click(screen.getByRole('button', { name: '모집글 올리기' }))
+    const dialog = await screen.findByRole('dialog', { name: '모집글 올리기' })
+    await fillRecruitForm(dialog)
+    await userEvent.type(
+      within(dialog).getByLabelText('내 채널 주소'),
+      'https://chzzk.naver.com/sky',
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: /HP 보류하고 게시/ }),
+    )
+    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
+    // 폼이 appearanceKeys.all로 무효화해 보기(view)가 붙은 목록 키도 다시 불러온다.
+    expect(await screen.findByText('포인트 확인 중')).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0))
+    await settle()
+  })
+
   it("'등록 실패' 보기는 보류 실패 글만 요청하고 첫 페이지부터 본다", async () => {
     const mine = mockMine(() =>
       mine.statuses.at(-1) === 'HOLD_FAILED'
