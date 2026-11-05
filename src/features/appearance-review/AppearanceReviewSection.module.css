@@ -8,21 +8,20 @@
   align-items: center;
   gap: 2px;
 }
+/* 별 라벨(안의 라디오는 숨긴다). 색은 앱의 별점 표시(.rating)·강의 리뷰 폼과 같은 --hold */
 .star {
+  position: relative;
   border: 0;
   background: none;
   font-size: 30px;
   line-height: 1;
   padding: 0 2px;
   color: var(--line-2);
+  cursor: pointer;
+  border-radius: 4px;
 }
 .star.on {
   color: var(--hold);
-}
-.star {
-  position: relative;
-  cursor: pointer;
-  border-radius: 4px;
 }
 .star:focus-within {
   outline: 2px solid var(--ink);
