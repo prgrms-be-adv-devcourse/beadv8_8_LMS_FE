@@ -23,6 +23,8 @@ export const RECRUIT_COUNT_MIN = 1
 export const RECRUIT_COUNT_MAX = 10
 /** 지원 메시지 (선택) */
 export const APPLY_MESSAGE_MAX = 500
+/** 출연 리뷰 본문(선택, 앞뒤 공백을 지운 길이) */
+export const REVIEW_CONTENT_MAX = 1000
 const URL_PATTERN = /^https?:\/\/\S+$/
 
 export type RequestFormValues = Omit<
