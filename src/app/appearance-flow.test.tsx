@@ -525,7 +525,7 @@ describe('리뷰 반영', () => {
     )
   })
 
-  it('HP 보류가 지연되면(503) 다시 보내지 않고 보낸 목록에서 처리 중으로 안내한다', async () => {
+  it('HP 보류가 지연되면(503) 다시 보내지 않고 보낸 요청 목록으로 간다', async () => {
     mockGuestProfile()
     let posts = 0
     server.use(
@@ -556,18 +556,12 @@ describe('리뷰 반영', () => {
       await within(dialog).findByRole('button', { name: /HP 보류하고 요청/ }),
     )
 
-    expect(
-      await screen.findByText('포인트를 확인하고 있어요. 보통 1~2분 걸려요.'),
-    ).toBeInTheDocument()
     await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
     expect(router.state.location.pathname).toBe('/appearances')
-    expect(router.state.location.search).toMatch(/holdPending=\d{13}/)
-    // 목록이 비어 있어도 안내는 남고, 입력창은 닫힌다.
+    // 주소값 없이 보낸 요청으로 간다. 그 요청서는 목록에 '포인트 확인 중'으로 보인다.
+    expect(router.state.location.search).toBe('?tab=host')
     expect(
       await screen.findByText('아직 보낸 출연 요청이 없어요'),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByText('포인트를 확인하고 있어요. 보통 1~2분 걸려요.'),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('dialog', { name: '출연 요청 보내기' }),
@@ -576,27 +570,62 @@ describe('리뷰 반영', () => {
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
-  it('보류 확인을 기다리는 동안 60초가 지나도 다시 부르고, 늦게 나타난 요청서가 보이면 멈추고 알린다', async () => {
+  it('보낸 요청은 보류 실패를 뺀 상태를 요청하고, 보류 확인 중인 요청서가 있는 동안만 다시 부른다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     onTestFinished(() => {
       vi.useRealTimers()
     })
-    const kst = (ms: number) =>
-      new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 19)
-    const state = { calls: 0, appearedAt: null as number | null }
+    let status: AppearanceRequest['status'] = 'HOLD_PENDING'
+    const state = { calls: 0, statuses: [] as (string | null)[] }
     server.use(
-      http.get('*/api/v1/appearances/requests/sent', () => {
+      http.get('*/api/v1/appearances/requests/sent', ({ request: req }) => {
         state.calls++
+        state.statuses.push(new URL(req.url).searchParams.get('status'))
+        const content = [request({ hostId: ME_ID, guestId: HOST_ID, status })]
+        return rs({
+          content,
+          page: { size: 10, number: 0, totalElements: 1, totalPages: 1 },
+        })
+      }),
+    )
+    renderApp('/appearances?tab=host', 'INFLUENCER')
+    expect(await screen.findByText('포인트 확인 중')).toHaveClass(
+      'pill',
+      'warn',
+    )
+    expect(state.statuses[0]).toBe(
+      'HOLD_PENDING,REQUESTED,ACCEPTED,REJECTED,EXPIRED,CANCELED',
+    )
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    const before = state.calls
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    await waitFor(() => expect(state.calls).toBeGreaterThan(before))
+
+    status = 'REQUESTED'
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    await waitFor(() => expect(screen.queryByText('포인트 확인 중')).toBeNull())
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    const stopped = state.calls
+    await act(() => vi.advanceTimersByTimeAsync(20_000))
+    expect(state.calls).toBe(stopped)
+  })
+
+  it("'등록 실패' 보기는 보류 실패 요청서만 보이고, 받은 요청에는 보기가 없다", async () => {
+    const statuses: (string | null)[] = []
+    server.use(
+      http.get('*/api/v1/appearances/requests/sent', ({ request: req }) => {
+        const status = new URL(req.url).searchParams.get('status')
+        statuses.push(status)
         const content =
-          state.appearedAt === null
-            ? []
-            : [
+          status === 'HOLD_FAILED'
+            ? [
                 request({
                   hostId: ME_ID,
                   guestId: HOST_ID,
-                  createdAt: kst(state.appearedAt),
+                  status: 'HOLD_FAILED',
                 }),
               ]
+            : []
         return rs({
           content,
           page: {
@@ -607,30 +636,52 @@ describe('리뷰 반영', () => {
           },
         })
       }),
+      http.get('*/api/v1/appearances/requests/received', ({ request: req }) => {
+        statuses.push(`received:${new URL(req.url).searchParams.get('status')}`)
+        return rs({
+          content: [],
+          page: { size: 10, number: 0, totalElements: 0, totalPages: 0 },
+        })
+      }),
     )
-    const router = renderApp(
-      `/appearances?tab=host&holdPending=${Date.now()}`,
-      'INFLUENCER',
+    const router = renderApp('/appearances?tab=host', 'INFLUENCER')
+    await screen.findByText('아직 보낸 출연 요청이 없어요')
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: '보기' }),
+      'failed',
     )
-    const waiting = '포인트를 확인하고 있어요. 보통 1~2분 걸려요.'
-    expect(await screen.findByText(waiting)).toBeInTheDocument()
+    expect(await screen.findByText('등록되지 않음')).toHaveClass('pill', 'bad')
+    expect(statuses.at(-1)).toBe('HOLD_FAILED')
+    expect(new URLSearchParams(router.state.location.search).get('view')).toBe(
+      'failed',
+    )
 
-    await act(() => vi.advanceTimersByTimeAsync(65_000))
-    expect(state.calls).toBeGreaterThanOrEqual(10)
-    expect(screen.getByText(waiting)).toBeInTheDocument()
+    await userEvent.click(
+      screen.getByRole('tab', { name: '게스트로 (받은 요청)' }),
+    )
+    await screen.findByText('아직 받은 출연 요청이 없어요')
+    expect(screen.queryByRole('combobox', { name: '보기' })).toBeNull()
+    expect(statuses.at(-1)).toBe('received:null')
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
 
-    state.appearedAt = Date.now()
-    await act(() => vi.advanceTimersByTimeAsync(5_000))
-    await expectSuccessToast('출연 요청을 보냈어요.')
-    await waitFor(() => expect(screen.queryByText(waiting)).toBeNull())
-    expect(router.state.location.search).not.toContain('holdPending')
-    // 대기 주소를 기록에 남기지 않는다(뒤로 가기로 끝난 대기가 되살아나지 않게)
-    expect(router.state.historyAction).toBe('REPLACE')
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
-    const calls = state.calls
-    await act(() => vi.advanceTimersByTimeAsync(30_000))
-    expect(state.calls).toBe(calls)
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  it('보류 실패 요청서 상세는 안내하고 수정·취소를 보이지 않는다', async () => {
+    mockRequestDetail({
+      value: request({
+        hostId: ME_ID,
+        guestId: HOST_ID,
+        status: 'HOLD_FAILED',
+      }),
+    })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+    expect(
+      await screen.findByText(
+        'HP 보류에 실패해 등록되지 않았어요. 잔액을 확인한 뒤 다시 올려 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('등록되지 않음')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /고치기|수정/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /취소/ })).toBeNull()
   })
 
   it('탭을 바꾸는 동안 이전 역할의 목록을 새 역할로 보여 주지 않는다', async () => {

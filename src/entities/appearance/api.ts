@@ -11,34 +11,67 @@ import type {
   AppearanceRequest,
   AppearanceRequestEdit,
   AppearanceRequestInput,
+  AppearanceRequestStatus,
   AppearanceRequestSummary,
   Recruit,
   RecruitEdit,
   RecruitInput,
   RecruitListTab,
+  RecruitStatus,
   RecruitSummary,
   RequestSide,
 } from './types'
 
 /**
- * 보낸 요청서·모집글의 HP 보류 결과를 기다리는 중임을 목록 화면에 알리는 URL 파라미터. 값은 보낸 시각(ms)이다.
- * BE는 보류가 끝나지 않은 글을 목록·상세에서 숨기고 ID도 주지 않아(503 BILLING_UNAVAILABLE),
- * 개별 글을 추적하지 못하고 목록을 잠시 다시 불러오는 것으로 대신한다(BE #306 전까지).
+ * 내가 보낸 요청서·올린 모집글 목록의 보기(주소 `?view=`). BE는 상태를 지정하지 않으면 보류 실패(HOLD_FAILED) 글까지
+ * 모두 주므로, 기본 보기는 실패 글을 뺀 상태를 status로 명시하고, '등록 실패' 보기만 실패 글을 받는다(사용자 결정 2026-11-05).
+ * 받은 요청·공개 모집 목록에는 두 보류 상태가 나오지 않아 보기를 쓰지 않는다
  */
-export const HOLD_PENDING_PARAM = 'holdPending'
+export type HoldListView = 'active' | 'failed'
 
-/** 보류 결과를 기다리는 목록 주소. sentAt은 요청을 보내기 직전의 브라우저 시각(ms) */
-export const holdPendingPath = (path: string, sentAt: number) =>
-  `${path}&${HOLD_PENDING_PARAM}=${sentAt}`
+/** 주소 값 → 보기. 없거나 모르는 값이면 기본(active) */
+export const holdListViewOf = (value: string | null): HoldListView =>
+  value === 'failed' ? 'failed' : 'active'
+
+/** 기본 보기의 요청서 상태(보류 실패 제외) */
+const ACTIVE_REQUEST_STATUSES: AppearanceRequestStatus[] = [
+  'HOLD_PENDING',
+  'REQUESTED',
+  'ACCEPTED',
+  'REJECTED',
+  'EXPIRED',
+  'CANCELED',
+]
+/** 기본 보기의 모집글 상태(보류 실패 제외) */
+const ACTIVE_RECRUIT_STATUSES: RecruitStatus[] = [
+  'HOLD_PENDING',
+  'RECRUITING',
+  'CLOSED',
+  'CANCELED',
+]
+
+/** status 목록 요청 값(BE는 List로 받는다. 쉼표로 이어 보낸다) */
+const statusQuery = <T extends string>(view: HoldListView, active: T[]) =>
+  view === 'failed' ? 'HOLD_FAILED' : active.join(',')
+
+/** HP 보류 결과를 기다리는 글이 보이는 동안 다시 부르는 간격. 보류는 보통 60~120초, 늦어도 1시간 안에 끝난다 */
+export const HOLD_PENDING_POLL_MS = 5_000
+
+/** 보류 확인 중(HOLD_PENDING) 글이 있는 동안만 다시 부른다 */
+const pollWhileHoldPending = (statuses: string[] | undefined) =>
+  statuses?.includes('HOLD_PENDING') ? HOLD_PENDING_POLL_MS : false
 
 export const appearanceKeys = {
   all: ['appearance'] as const,
-  requests: (side: RequestSide, page: number) =>
-    [...appearanceKeys.all, 'requests', side, page] as const,
+  requests: (side: RequestSide, page: number, view: HoldListView = 'active') =>
+    [...appearanceKeys.all, 'requests', side, page, view] as const,
   request: (requestId: number) =>
     [...appearanceKeys.all, 'request', requestId] as const,
-  recruits: (tab: RecruitListTab, page: number) =>
-    [...appearanceKeys.all, 'recruits', tab, page] as const,
+  recruits: (
+    tab: RecruitListTab,
+    page: number,
+    view: HoldListView = 'active',
+  ) => [...appearanceKeys.all, 'recruits', tab, page, view] as const,
   recruit: (recruitId: number) =>
     [...appearanceKeys.all, 'recruit', recruitId] as const,
   recruitApplications: (recruitId: number, page: number) =>
@@ -57,25 +90,54 @@ export const appearanceKeys = {
     [...appearanceKeys.all, 'appearance', appearanceId] as const,
 }
 
-/** 호스트로 보낸 요청(sent) / 게스트로 받은 요청(received). 최신순 고정 */
-export const appearanceRequestsQuery = (side: RequestSide, page: number) =>
+/**
+ * 호스트로 보낸 요청(sent) / 게스트로 받은 요청(received). 최신순 고정.
+ * 보낸 요청은 보기(view)에 맞는 상태만 받고, 보류 확인 중인 요청서가 보이는 동안 다시 부른다
+ */
+export const appearanceRequestsQuery = (
+  side: RequestSide,
+  page: number,
+  view: HoldListView = 'active',
+) =>
   queryOptions({
-    queryKey: appearanceKeys.requests(side, page),
+    queryKey: appearanceKeys.requests(side, page, view),
     queryFn: () =>
-      api<PagedModel<AppearanceRequestSummary>>(
-        `/appearances/requests/${side === 'host' ? 'sent' : 'received'}`,
-        { query: { page, size: 10 } },
-      ),
-    // 같은 역할의 페이지를 넘길 때만 이전 목록을 유지한다. 역할이 바뀌면 이전 목록을 새 역할로
+      side === 'host'
+        ? api<PagedModel<AppearanceRequestSummary>>(
+            '/appearances/requests/sent',
+            {
+              query: {
+                page,
+                size: 10,
+                status: statusQuery(view, ACTIVE_REQUEST_STATUSES),
+              },
+            },
+          )
+        : api<PagedModel<AppearanceRequestSummary>>(
+            '/appearances/requests/received',
+            { query: { page, size: 10 } },
+          ),
+    refetchInterval: (query) =>
+      side === 'host'
+        ? pollWhileHoldPending(query.state.data?.content.map((r) => r.status))
+        : false,
+    // 같은 역할·보기의 페이지를 넘길 때만 이전 목록을 유지한다. 역할이 바뀌면 이전 목록을 새 역할로
     // 잘못 해석해(상대·상태가 뒤바뀜) 보여 주게 되므로, 새 목록이 올 때까지 로딩으로 둔다.
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[2] === side ? previous : undefined,
+      previousQuery?.queryKey[2] === side && previousQuery?.queryKey[4] === view
+        ? previous
+        : undefined,
   })
 
+/** 요청서 상세. 보류 확인 중이면(보낸 호스트에게만 보인다) 끝날 때까지 다시 부른다 */
 export const appearanceRequestQuery = (requestId: number) =>
   queryOptions({
     queryKey: appearanceKeys.request(requestId),
     queryFn: () => api<AppearanceRequest>(`/appearances/requests/${requestId}`),
+    refetchInterval: (query) =>
+      pollWhileHoldPending(
+        query.state.data ? [query.state.data.status] : undefined,
+      ),
   })
 
 /** 출연 요청 보내기. 출연료만큼 HP를 보류한 뒤 응답한다(잔액 부족이면 INSUFFICIENT_BALANCE). */
@@ -120,24 +182,49 @@ export function cancelAppearanceRequest(requestId: number) {
   })
 }
 
-/** 모집 중(open, 마감 전만) / 내가 올린 모집글(mine). 최신순 고정 */
-export const recruitsQuery = (tab: RecruitListTab, page: number) =>
+/**
+ * 모집 중(open, 마감 전만) / 내가 올린 모집글(mine). 최신순 고정.
+ * 내 모집글은 보기(view)에 맞는 상태만 받고, 보류 확인 중인 글이 보이는 동안 다시 부른다
+ */
+export const recruitsQuery = (
+  tab: RecruitListTab,
+  page: number,
+  view: HoldListView = 'active',
+) =>
   queryOptions({
-    queryKey: appearanceKeys.recruits(tab, page),
+    queryKey: appearanceKeys.recruits(tab, page, view),
     queryFn: () =>
-      api<PagedModel<RecruitSummary>>(
-        tab === 'mine' ? '/appearances/recruits/mine' : '/appearances/recruits',
-        { query: { page, size: 10 } },
-      ),
-    // 같은 탭의 페이지를 넘길 때만 이전 목록을 유지한다(다른 탭 목록을 잠깐이라도 보여 주지 않는다).
+      tab === 'mine'
+        ? api<PagedModel<RecruitSummary>>('/appearances/recruits/mine', {
+            query: {
+              page,
+              size: 10,
+              status: statusQuery(view, ACTIVE_RECRUIT_STATUSES),
+            },
+          })
+        : api<PagedModel<RecruitSummary>>('/appearances/recruits', {
+            query: { page, size: 10 },
+          }),
+    // 같은 탭·보기의 페이지를 넘길 때만 이전 목록을 유지한다(다른 탭·보기 목록을 잠깐이라도 보여 주지 않는다).
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[2] === tab ? previous : undefined,
+      previousQuery?.queryKey[2] === tab && previousQuery?.queryKey[4] === view
+        ? previous
+        : undefined,
+    refetchInterval: (query) =>
+      tab === 'mine'
+        ? pollWhileHoldPending(query.state.data?.content.map((r) => r.status))
+        : false,
   })
 
+/** 모집글 상세. 보류 확인 중이면(올린 호스트에게만 보인다) 끝날 때까지 다시 부른다 */
 export const recruitQuery = (recruitId: number) =>
   queryOptions({
     queryKey: appearanceKeys.recruit(recruitId),
     queryFn: () => api<Recruit>(`/appearances/recruits/${recruitId}`),
+    refetchInterval: (query) =>
+      pollWhileHoldPending(
+        query.state.data ? [query.state.data.status] : undefined,
+      ),
   })
 
 /** 모집글의 지원자 목록 (호스트만). 최신순 고정 */

@@ -506,7 +506,7 @@ describe('모집글 올리기', () => {
     ).toHaveAttribute('href', '/wallet')
   })
 
-  it('HP 보류가 지연되면(503) 다시 보내지 않고 내 모집글 탭에서 처리 중으로 안내한다', async () => {
+  it('HP 보류가 지연되면(503) 다시 보내지 않고 내 모집글 탭으로 간다', async () => {
     let posts = 0
     server.use(
       http.post('*/api/v1/appearances/recruits', () => {
@@ -520,14 +520,10 @@ describe('모집글 올리기', () => {
       await within(dialog).findByRole('button', { name: /HP 보류하고 게시/ }),
     )
 
-    expect(
-      await screen.findByText('포인트를 확인하고 있어요. 보통 1~2분 걸려요.'),
-    ).toBeInTheDocument()
     await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
     expect(router.state.location.pathname).toBe('/recruits')
-    expect(router.state.location.search).toContain('tab=mine')
-    // 보낸 시각(ms)을 주소에 남긴다
-    expect(router.state.location.search).toMatch(/holdPending=\d{13}/)
+    // 주소값 없이 내 모집글로 간다. 그 글은 목록에 '포인트 확인 중'으로 보인다.
+    expect(router.state.location.search).toBe('?tab=mine')
     expect(screen.queryByRole('dialog', { name: '모집글 올리기' })).toBeNull()
     expect(posts).toBe(1)
     // 내 모집글 탭으로 옮겨 부르는 목록 조회까지 끝나야 다음 테스트의 핸들러로 새지 않는다.
@@ -1512,29 +1508,17 @@ describe('모집글 폼 입력 오류 표시', () => {
   })
 })
 
-describe('보류 확인 대기 (내 모집글)', () => {
+describe('보류 확인 중·실패 (내 모집글)', () => {
   afterEach(() => vi.useRealTimers())
 
-  /** 서버가 내려주는 KST LocalDateTime 문자열 */
-  const kst = (ms: number) =>
-    new Date(ms + 9 * 60 * 60 * 1000).toISOString().slice(0, 19)
-  const WAITING = '포인트를 확인하고 있어요. 보통 1~2분 걸려요.'
-  const EXPIRED =
-    '아직 확인 중이에요. 잠시 뒤 새로고침해 보세요. 잔액이 부족했다면 등록되지 않아요.'
-
-  /** 내 모집글 목록. appear를 켜면 그때 만든 모집글이 목록에 나타난다 */
-  function mockMine() {
-    const state = { calls: 0, appearedAt: null as number | null }
+  /** 내 모집글 목록. 요청한 status를 기록하고, 응답할 글을 정한다 */
+  function mockMine(content: () => Recruit[]) {
+    const state = { calls: 0, statuses: [] as (string | null)[] }
     server.use(
-      http.get('*/api/v1/appearances/recruits/mine', () => {
+      http.get('*/api/v1/appearances/recruits/mine', ({ request }) => {
         state.calls++
-        return rs(
-          state.appearedAt === null
-            ? page([], 0, 0)
-            : page([
-                recruit({ hostId: ME_ID, createdAt: kst(state.appearedAt) }),
-              ]),
-        )
+        state.statuses.push(new URL(request.url).searchParams.get('status'))
+        return rs(page(content()))
       }),
     )
     return state
@@ -1542,100 +1526,51 @@ describe('보류 확인 대기 (내 모집글)', () => {
   const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
   const settle = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
 
-  it('60초가 지나도 계속 다시 부르고, 늦게 나타난 모집글이 보이면 바로 멈추고 알린다', async () => {
+  it('기본 보기는 보류 실패를 뺀 상태를 요청하고, 보류 확인 중인 글이 있는 동안만 다시 부른다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const mine = mockMine()
-    const router = renderApp(
-      `/recruits?tab=mine&holdPending=${Date.now()}`,
-      'INFLUENCER',
+    let status: Recruit['status'] = 'HOLD_PENDING'
+    const mine = mockMine(() => [recruit({ hostId: ME_ID, status })])
+    renderApp('/recruits?tab=mine', 'INFLUENCER')
+
+    expect(await screen.findByText('포인트 확인 중')).toHaveClass(
+      'pill',
+      'warn',
     )
-    expect(await screen.findByText(WAITING)).toBeInTheDocument()
-
-    await advance(65_000)
+    expect(mine.statuses[0]).toBe('HOLD_PENDING,RECRUITING,CLOSED,CANCELED')
     await settle()
-    expect(mine.calls).toBeGreaterThanOrEqual(10)
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
-
-    // BE 배치가 보류를 확인해 모집글이 목록에 나타났다(보낸 뒤 약 70초).
-    mine.appearedAt = Date.now()
+    const before = mine.calls
     await advance(5_000)
-    await expectSuccessToast('모집글이 등록됐어요.')
-    await waitFor(() => expect(screen.queryByText(WAITING)).toBeNull())
-    expect(router.state.location.search).not.toContain('holdPending')
-    // 대기 주소를 기록에 남기지 않는다(뒤로 가기로 끝난 대기가 되살아나지 않게)
-    expect(router.state.historyAction).toBe('REPLACE')
+    await settle()
+    expect(mine.calls).toBeGreaterThan(before)
 
+    // 보류가 확인돼 모집 중이 되면 다시 부르지 않는다.
+    status = 'RECRUITING'
+    await advance(5_000)
+    await waitFor(() => expect(screen.queryByText('포인트 확인 중')).toBeNull())
     await settle()
-    const calls = mine.calls
-    await advance(30_000)
-    expect(mine.calls).toBe(calls)
-    await settle()
+    const stopped = mine.calls
+    await advance(20_000)
+    expect(mine.calls).toBe(stopped)
   })
 
-  it('150초가 지나면 멈추고, 실패로 단정하지 않는 문구로 바꾼다', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    const mine = mockMine()
-    renderApp(`/recruits?tab=mine&holdPending=${Date.now()}`, 'INFLUENCER')
-    expect(await screen.findByText(WAITING)).toBeInTheDocument()
-
-    await advance(145_000)
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
-    await advance(6_000)
-    expect(await screen.findByText(EXPIRED)).toBeInTheDocument()
-
-    await settle()
-    const calls = mine.calls
-    await advance(30_000)
-    expect(mine.calls).toBe(calls)
-    await settle()
-  })
-
-  it('새로고침으로 같은 주소를 다시 열면 보낸 시각부터 남은 시간만 기다린다', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    mockMine()
-    // 100초 전에 보냈다 → 50초 남음
-    renderApp(
-      `/recruits?tab=mine&holdPending=${Date.now() - 100_000}`,
-      'INFLUENCER',
-    )
-    expect(await screen.findByText(WAITING)).toBeInTheDocument()
-    await advance(45_000)
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
-    await advance(6_000)
-    expect(await screen.findByText(EXPIRED)).toBeInTheDocument()
-    await settle()
-  })
-
-  it('예전 형식(holdPending=1)으로 들어오면 지금 시각부터 기다린다', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    mockMine()
-    const router = renderApp('/recruits?tab=mine&holdPending=1', 'INFLUENCER')
-
-    expect(await screen.findByText(WAITING)).toBeInTheDocument()
-    await waitFor(() =>
-      expect(router.state.location.search).toMatch(/holdPending=\d{13}/),
-    )
-    await advance(100_000)
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
-    await settle()
-  })
-
-  it('시간이 지난 안내를 닫고 다시 보내면 처음부터 기다린다', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    mockMine()
+  it('올린 직후 보류 확인 중인 모집글이 이미 보던 내 모집글 목록에 바로 보인다', async () => {
+    let posted = false
     server.use(
-      http.post('*/api/v1/appearances/recruits', () =>
-        problem(503, 'BILLING_UNAVAILABLE', '지연'),
+      http.get('*/api/v1/appearances/recruits/mine', () =>
+        rs(
+          page(
+            posted ? [recruit({ hostId: ME_ID, status: 'HOLD_PENDING' })] : [],
+          ),
+        ),
       ),
       http.get('*/api/v1/members/channels/me', () => rs([])),
+      http.post('*/api/v1/appearances/recruits', () => {
+        posted = true
+        return rs(recruit({ hostId: ME_ID, status: 'HOLD_PENDING' }), 201)
+      }),
     )
-    const router = renderApp(
-      `/recruits?tab=mine&holdPending=${Date.now() - 200_000}`,
-      'INFLUENCER',
-    )
-    expect(await screen.findByText(EXPIRED)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
-    expect(screen.queryByText(EXPIRED)).toBeNull()
+    renderApp('/recruits?tab=mine', 'INFLUENCER')
+    await screen.findByText('아직 올린 모집글이 없어요')
 
     await userEvent.click(screen.getByRole('button', { name: '모집글 올리기' }))
     const dialog = await screen.findByRole('dialog', { name: '모집글 올리기' })
@@ -1647,12 +1582,92 @@ describe('보류 확인 대기 (내 모집글)', () => {
     await userEvent.click(
       await within(dialog).findByRole('button', { name: /HP 보류하고 게시/ }),
     )
-
-    expect(await screen.findByText(WAITING)).toBeInTheDocument()
-    expect(router.state.location.search).toMatch(/holdPending=\d{13}/)
-    await advance(100_000)
-    expect(screen.getByText(WAITING)).toBeInTheDocument()
+    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
+    // 폼이 appearanceKeys.all로 무효화해 보기(view)가 붙은 목록 키도 다시 불러온다.
+    expect(await screen.findByText('포인트 확인 중')).toBeInTheDocument()
     await waitFor(() => expect(queryClient.isMutating()).toBe(0))
     await settle()
+  })
+
+  it("'등록 실패' 보기는 보류 실패 글만 요청하고 첫 페이지부터 본다", async () => {
+    const mine = mockMine(() =>
+      mine.statuses.at(-1) === 'HOLD_FAILED'
+        ? [recruit({ hostId: ME_ID, status: 'HOLD_FAILED' })]
+        : [],
+    )
+    const router = renderApp('/recruits?tab=mine&page=2', 'INFLUENCER')
+    await screen.findByText('아직 올린 모집글이 없어요')
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: '보기' }),
+      'failed',
+    )
+    expect(await screen.findByText('등록되지 않음')).toHaveClass('pill', 'bad')
+    expect(mine.statuses.at(-1)).toBe('HOLD_FAILED')
+    const params = new URLSearchParams(router.state.location.search)
+    expect(params.get('view')).toBe('failed')
+    expect(params.get('page')).toBeNull()
+  })
+
+  it('주소의 보기 값을 모르면 기본 보기로 본다', async () => {
+    const mine = mockMine(() => [])
+    renderApp('/recruits?tab=mine&view=unknown', 'INFLUENCER')
+    await screen.findByText('아직 올린 모집글이 없어요')
+    expect(mine.statuses[0]).toBe('HOLD_PENDING,RECRUITING,CLOSED,CANCELED')
+    expect(screen.getByRole('combobox', { name: '보기' })).toHaveValue('active')
+  })
+
+  it('보류 실패 상세는 안내하고 수정·마감·취소·지원자 목록을 보이지 않는다', async () => {
+    mockRecruit({ value: recruit({ hostId: ME_ID, status: 'HOLD_FAILED' }) })
+    let applications = 0
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7/applications', () => {
+        applications++
+        return rs(page([]))
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(
+      await screen.findByText(
+        'HP 보류에 실패해 등록되지 않았어요. 잔액을 확인한 뒤 다시 올려 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('등록되지 않음')).toBeInTheDocument()
+    for (const name of ['기본 정보 수정', '조기 마감', '모집 전체 취소'])
+      expect(screen.queryByRole('button', { name })).toBeNull()
+    expect(screen.queryByRole('region', { name: '단체방' })).toBeNull()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect(applications).toBe(0)
+  })
+
+  it('보류 확인 중 상세는 안내하고 확인될 때까지 다시 부른다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const current = {
+      value: recruit({ hostId: ME_ID, status: 'HOLD_PENDING' as const }),
+    }
+    let calls = 0
+    mockProfiles()
+    server.use(
+      http.get('*/api/v1/appearances/recruits/7', () => {
+        calls++
+        return rs(current.value)
+      }),
+      http.get('*/api/v1/appearances/recruits/7/applications', () =>
+        rs(page([])),
+      ),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(
+      await screen.findByText(/포인트\(HP\) 보류를 확인하고 있어요/),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '기본 정보 수정' })).toBeNull()
+    current.value = recruit({ hostId: ME_ID, status: 'RECRUITING' })
+    await advance(5_000)
+    expect(
+      await screen.findByRole('button', { name: '기본 정보 수정' }),
+    ).toBeInTheDocument()
+    await settle()
+    const stopped = calls
+    await advance(20_000)
+    expect(calls).toBe(stopped)
   })
 })

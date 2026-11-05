@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { recruitQuery } from '@/entities/appearance/api'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
+import { HOLD_FAILED_NOTICE, isHoldStatus } from '@/entities/appearance/rules'
 import type { HpReleaseStatus, Recruit } from '@/entities/appearance/types'
 import { HostChannel } from '@/entities/appearance/ui/HostChannel'
 import { RecruitStatusPill } from '@/entities/appearance/ui/RecruitStatusPill'
@@ -74,6 +75,7 @@ function Detail({
   const [modal, setModal] = useState<'edit' | 'close' | 'cancel' | null>(null)
   const closeModal = () => setModal(null)
   const open = isRecruitOpen(recruit)
+  const holding = isHoldStatus(recruit.status)
   // 모집 중이거나 마감된 모집글을 방송 예정 일시 전까지 전체 취소할 수 있다.
   const cancelable =
     (recruit.status === 'RECRUITING' || recruit.status === 'CLOSED') &&
@@ -93,12 +95,15 @@ function Detail({
             </p>
             <HostChannel url={recruit.hostChannelUrl} />
           </div>
-          {host ? (
+          {/* 보류 확인 중·실패한 글은 올린 호스트에게만 보이고 지원·단체방 같은 동작이 없다(BE가 404로 막는다). */}
+          {holding ? null : host ? (
             <ApplicantList recruit={recruit} />
           ) : (
             <ApplyPanel recruit={recruit} viewer={viewer} />
           )}
-          <RecruitGroupPanel recruit={recruit} host={host} viewer={viewer} />
+          {!holding && (
+            <RecruitGroupPanel recruit={recruit} host={host} viewer={viewer} />
+          )}
         </div>
         <aside className="panel sticky">
           <dl className="kv">
@@ -212,6 +217,15 @@ function StatusNote({ recruit, host }: { recruit: Recruit; host: boolean }) {
           {release}
         </>
       )
+    case 'HOLD_PENDING':
+      return (
+        <p className="notice warn">
+          포인트(HP) 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면 모집이
+          시작돼요. 확인되는 동안에는 고치거나 취소할 수 없어요.
+        </p>
+      )
+    case 'HOLD_FAILED':
+      return <p className="notice bad">{HOLD_FAILED_NOTICE}</p>
     default:
       return null
   }

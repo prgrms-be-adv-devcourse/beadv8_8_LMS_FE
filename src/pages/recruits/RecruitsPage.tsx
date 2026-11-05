@@ -1,18 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import {
-  HOLD_PENDING_PARAM,
-  myApplicationsQuery,
-  recruitsQuery,
-} from '@/entities/appearance/api'
+import { myApplicationsQuery, recruitsQuery } from '@/entities/appearance/api'
 import type {
   Application,
   RecruitListTab,
   RecruitSummary,
 } from '@/entities/appearance/types'
 import { ApplicationStatusPill } from '@/entities/appearance/ui/ApplicationStatusPill'
-import { HoldPendingNotice } from '@/entities/appearance/ui/HoldPendingNotice'
+import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
+import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import {
   RecruitDeadlinePill,
   RecruitStatusOnlyPill,
@@ -25,18 +22,12 @@ import { INFLUENCER } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
-import {
-  HOLD_POLL_INTERVAL_MS,
-  useHoldPendingFound,
-  useHoldPendingParam,
-} from '@/shared/lib/holdPending'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
-import { toast } from '@/shared/ui/toastStore'
 
 type Tab = RecruitListTab | 'applications'
 
@@ -98,42 +89,37 @@ export function RecruitsPage() {
 
 function Recruits({ tab }: { tab: RecruitListTab }) {
   const [page, setPage] = usePageParam('page')
-  const hold = useHoldPendingParam(HOLD_PENDING_PARAM, tab === 'mine')
-  const { polling } = hold
-  const query = useQuery({
-    ...recruitsQuery(tab, page),
-    refetchInterval: polling ? HOLD_POLL_INTERVAL_MS : false,
-  })
-  const { data, error, isPending, refetch, isFetching } = query
+  const [selectedView, selectView] = useHoldListView()
+  // 보기는 내 모집글에만 있다(공개 모집에는 보류 상태 글이 나오지 않는다).
+  const view = tab === 'mine' ? selectedView : 'active'
+  // 보류 확인 중인 글이 보이는 동안 목록이 스스로 다시 부른다(recruitsQuery).
+  const query = useQuery(recruitsQuery(tab, page, view))
+  const { data, error, isPending, refetch } = query
   const moving = useClampPage(page, query, setPage)
   const { data: me } = useQuery(meQuery)
 
-  const { dismiss } = hold
-  useHoldPendingFound(
-    hold.since,
-    data?.content.map((r) => r.createdAt),
-    useCallback(() => {
-      toast('모집글이 등록됐어요.')
-      dismiss()
-    }, [dismiss]),
-  )
-
   return (
     <>
-      {hold.waiting && (
-        <HoldPendingNotice
-          polling={polling}
-          refreshing={isFetching}
-          onRefresh={() => refetch()}
-          onDismiss={dismiss}
-        />
+      {tab === 'mine' && (
+        <div className="toolbar">
+          <span className="fine">
+            {view === 'failed'
+              ? 'HP 보류에 실패해 등록되지 않은 모집글이에요.'
+              : '포인트 확인 중인 글은 확인이 끝나면 자동으로 바뀌어요.'}
+          </span>
+          <HoldListViewSelect value={view} onChange={selectView} />
+        </div>
       )}
       {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
-        tab === 'mine' ? (
+        tab === 'mine' && view === 'failed' ? (
+          <EmptyState title="등록되지 않은 모집글이 없어요">
+            HP 보류에 실패한 모집글이 여기에 보여요.
+          </EmptyState>
+        ) : tab === 'mine' ? (
           <EmptyState title="아직 올린 모집글이 없어요">
             모집글을 올리면 여러 게스트의 지원을 받을 수 있어요.
           </EmptyState>

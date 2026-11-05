@@ -2,7 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { appearanceRequestQuery } from '@/entities/appearance/api'
-import { PENALTY_RATE_PERCENT } from '@/entities/appearance/rules'
+import {
+  HOLD_FAILED_NOTICE,
+  PENALTY_RATE_PERCENT,
+} from '@/entities/appearance/rules'
 import type {
   AppearanceRequest,
   HpReleaseStatus,
@@ -190,6 +193,16 @@ function StatusNote({
     </p>
   )
   switch (request.status) {
+    case 'HOLD_PENDING':
+      return (
+        <p className="notice warn">
+          포인트(HP) 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면
+          게스트에게 요청이 전달돼요. 확인되는 동안에는 고치거나 취소할 수
+          없어요.
+        </p>
+      )
+    case 'HOLD_FAILED':
+      return <p className="notice bad">{HOLD_FAILED_NOTICE}</p>
     case 'REQUESTED':
       if (expired)
         return (
