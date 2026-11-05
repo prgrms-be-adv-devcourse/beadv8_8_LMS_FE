@@ -1,0 +1,68 @@
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.stars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.star {
+  border: 0;
+  background: none;
+  font-size: 30px;
+  line-height: 1;
+  padding: 0 2px;
+  color: var(--line-2);
+}
+.star.on {
+  color: var(--hold);
+}
+.star {
+  position: relative;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.star:focus-within {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+/* 라디오는 보이지 않게 두고(키보드·스크린리더용) 별 라벨로 그린다 */
+.radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.item:first-of-type {
+  border-top: 0;
+}
+.itemHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.content {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

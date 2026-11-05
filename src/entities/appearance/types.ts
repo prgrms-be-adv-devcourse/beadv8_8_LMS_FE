@@ -259,9 +259,41 @@ export type Appearance = AppearanceSummary & {
   absentReason: string | null
   /** 출연료 지급 진행 상태. 확인 전이면 null */
   hpPayoutStatus: HpReleaseStatus | null
+  /** 지금 내가 이 출연에 리뷰를 쓸 수 있는지. 쓸 수 있는지는 FE가 따로 계산하지 않고 이것만 본다 */
+  reviewable: boolean
+  /** 내가 쓴 리뷰. 쓰지 않았으면 null */
+  myReview: AppearanceReview | null
+  /** 상대가 나에게 쓴 리뷰. 두 리뷰가 함께 공개된 뒤에만 채워지고, 그 전에는 null(오류 아님) */
+  receivedReview: AppearanceReview | null
   version: number
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * 출연 리뷰 1건(출연 상세의 내 리뷰·받은 리뷰). 출연 확인(CONFIRMED) 뒤 호스트와 게스트가 서로 한 번씩 쓴다(수정·삭제 없음).
+ * 두 사람이 모두 써야 함께 공개된다(블라인드)
+ */
+export type AppearanceReview = {
+  id: number
+  /** 별점 1~5 정수 */
+  rating: number
+  /** 본문. 쓰지 않았으면 null */
+  content: string | null
+  /** 상대도 리뷰를 써서 함께 공개됐으면 true */
+  published: boolean
+  /** 공개 시각 (KST, offset 없음). 공개 전이면 null */
+  publishedAt: string | null
+  /** 작성 시각 (KST, offset 없음) */
+  createdAt: string
+}
+
+/** 출연 리뷰 작성 요청 본문 */
+export type AppearanceReviewInput = {
+  /** 1~5 정수 (필수) */
+  rating: number
+  /** 선택. 앞뒤 공백을 지운 뒤 1,000자 이하. 공백뿐이면 서버가 null로 저장 */
+  content?: string
 }
 
 /** 호스트 일방 취소·모집 전체 취소 요청 본문 */

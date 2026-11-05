@@ -3,6 +3,7 @@ import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type {
   Appearance,
+  AppearanceReviewInput,
   AppearanceRole,
   AppearanceSummary,
   Application,
@@ -284,6 +285,20 @@ const confirmBody = ({ confirmPendingCancelRequest }: HostCancelInput) =>
 export function confirmAppearance(appearanceId: number) {
   return api<Appearance>(`/appearances/${appearanceId}/confirm`, {
     method: 'POST',
+  })
+}
+
+/**
+ * 출연 리뷰 작성 (호스트·게스트). 출연 확인이 끝난 출연에만, 출연당 방향별 1번(수정·삭제 없음).
+ * 201 `{ id }`이고 공개 여부는 응답에 없어 출연 상세를 다시 불러온다
+ */
+export function writeAppearanceReview(
+  appearanceId: number,
+  input: AppearanceReviewInput,
+) {
+  return api<{ id: number }>(`/appearances/${appearanceId}/reviews`, {
+    method: 'POST',
+    body: input,
   })
 }
 

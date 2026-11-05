@@ -29,6 +29,7 @@ import {
   AbsentModal,
   ConfirmAppearanceModal,
 } from '@/features/appearance-confirm/ConfirmModals'
+import { AppearanceReviewSection } from '@/features/appearance-review/AppearanceReviewSection'
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -150,6 +151,7 @@ function Detail({
               </Link>
             )}
           </section>
+          <AppearanceReviewSection appearance={appearance} />
           <CancelHistory requests={appearance.cancelRequests} />
         </div>
         <aside className="panel sticky">
