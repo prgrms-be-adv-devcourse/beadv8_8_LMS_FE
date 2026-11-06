@@ -46,13 +46,33 @@ export function passwordLogin(body: { email: string; password: string }) {
   return api<Me>('/members/login', { method: 'POST', body })
 }
 
-/** 이메일·비밀번호 가입. 가입만 하고 로그인은 따로 한다. 이미 가입된 이메일(구글 포함)이면 409 DUPLICATE_EMAIL */
+/**
+ * 이메일·비밀번호 가입. 가입만 하고 로그인은 따로 한다. 인증 코드 확인(SIGN_UP)으로 받은 토큰이 필요하다.
+ * 토큰이 없거나 만료(30분)·이미 씀·다른 이메일이면 400 EMAIL_NOT_VERIFIED(코드부터 다시 받는다).
+ * 이미 가입된 이메일(구글 포함)이면 409 DUPLICATE_EMAIL, 다른 회원이 쓰는 닉네임이면 409 DUPLICATE_NICKNAME.
+ * 가입이 실패하면 토큰은 남아 고쳐서 다시 보낼 수 있다
+ */
 export function signup(body: {
   email: string
   password: string
   nickname: string
+  emailVerificationToken: string
 }) {
   return api<Me>('/members/signup', { method: 'POST', body })
+}
+
+/**
+ * 비밀번호 재설정(로그인 없이). 인증 코드 확인(PASSWORD_RESET)으로 받은 토큰과 새 비밀번호를 보낸다.
+ * 성공하면 로그인 잠금이 풀리고 그 회원의 모든 기기가 로그아웃된다(새 비밀번호로 다시 로그인한다).
+ * 토큰이 없거나 만료·사용·다른 이메일·가입용이면 400 EMAIL_NOT_VERIFIED(코드부터 다시 받는다).
+ * 비밀번호가 없는 회원(구글)은 409 PASSWORD_NOT_SET. 새 비밀번호 규칙 오류(400)면 토큰이 남아 다시 보낼 수 있다
+ */
+export function resetPassword(body: {
+  email: string
+  emailVerificationToken: string
+  newPassword: string
+}) {
+  return api<void>('/members/password-reset', { method: 'POST', body })
 }
 
 /**
