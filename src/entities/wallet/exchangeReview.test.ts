@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   approveBlockReason,
   isExchangeReviewable,
@@ -44,6 +44,21 @@ describe('approveBlockReason', () => {
       approveBlockReason(applicant({ role: 'USER', approvable: false })),
     ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(유저).')
     expect(approveBlockReason(applicant())).toBeNull()
+  })
+
+  it('모르는 회원 상태·역할이어도 이유에 undefined가 들어가지 않는다', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(
+      approveBlockReason(
+        applicant({ status: 'DORMANT' as never, approvable: false }),
+      ),
+    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(알 수 없는 상태).')
+    expect(
+      approveBlockReason(
+        applicant({ role: 'PARTNER' as never, approvable: false }),
+      ),
+    ).toBe('정상 상태의 인플루언서가 아니라 승인할 수 없어요(알 수 없음).')
+    vi.restoreAllMocks()
   })
 })
 

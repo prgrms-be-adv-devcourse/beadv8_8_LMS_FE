@@ -16,7 +16,7 @@ import { ChatConnection } from '@/features/chat/ChatConnection'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
-import { MEMBER, VIEWER_LABEL, type Viewer } from '@/shared/auth/role'
+import { MEMBER, viewerLabel, type Viewer } from '@/shared/auth/role'
 import { useLogout, useLogoutSync, useViewer } from '@/shared/auth/session'
 import { Avatar } from '@/shared/ui/Avatar'
 import { HpAmount } from '@/shared/ui/HpAmount'
@@ -304,7 +304,7 @@ function ProfileMenu({ viewer }: { viewer: Viewer }) {
         <div className={styles.profileMenu}>
           <span className={styles.meText}>
             {me.nickname}
-            <small>{VIEWER_LABEL[viewer]}</small>
+            <small>{viewerLabel(viewer)}</small>
           </span>
           <Link className="btn ghost sm" to="/settings">
             계정 설정

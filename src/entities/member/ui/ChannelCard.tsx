@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import { PLATFORM_LABEL, type Channel } from '../types'
 
 type ChannelCardProps = {
@@ -23,7 +24,9 @@ export function ChannelCard({ channel, aside, children }: ChannelCardProps) {
             flexWrap: 'wrap',
           }}
         >
-          <span className="pill info">{PLATFORM_LABEL[channel.platform]}</span>
+          <span className="pill info">
+            {lookup(PLATFORM_LABEL, channel.platform) ?? UNKNOWN_NAME}
+          </span>
           <a
             className="row-title"
             href={channel.channelUrl}

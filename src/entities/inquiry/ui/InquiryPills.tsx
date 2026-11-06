@@ -1,16 +1,28 @@
+import {
+  lookup,
+  statusOf,
+  UNKNOWN_NAME,
+  type StatusLabel,
+} from '@/shared/lib/statusLabel'
 import { CATEGORY_LABEL, STATUS_LABEL } from '../category'
 import type { InquiryCategory, InquiryStatus, ObjectionResult } from '../types'
 
+const STATUS: Record<InquiryStatus, StatusLabel> = {
+  WAITING: ['warn', STATUS_LABEL.WAITING],
+  ANSWERED: ['ok', STATUS_LABEL.ANSWERED],
+}
+
 export function InquiryStatusPill({ status }: { status: InquiryStatus }) {
-  return (
-    <span className={status === 'ANSWERED' ? 'pill ok' : 'pill warn'}>
-      {STATUS_LABEL[status]}
-    </span>
-  )
+  const [tone, label] = statusOf(STATUS, status)
+  return <span className={`pill ${tone}`}>{label}</span>
 }
 
 export function CategoryPill({ category }: { category: InquiryCategory }) {
-  return <span className="pill mute">{CATEGORY_LABEL[category]}</span>
+  return (
+    <span className="pill mute">
+      {lookup(CATEGORY_LABEL, category) ?? UNKNOWN_NAME}
+    </span>
+  )
 }
 
 export function ObjectionResultPill({ result }: { result: ObjectionResult }) {

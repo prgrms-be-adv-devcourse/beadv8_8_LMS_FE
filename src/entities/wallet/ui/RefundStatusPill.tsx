@@ -1,6 +1,7 @@
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { RefundStatus } from '../types'
 
-const LABEL: Record<RefundStatus, [tone: string, label: string]> = {
+const LABEL: Record<RefundStatus, StatusLabel> = {
   COMPLETED: ['ok', '환불 완료'],
   PARTIALLY_COMPLETED: ['warn', '일부 환불'],
   FAILED: ['bad', '환불 실패'],
@@ -11,7 +12,7 @@ const LABEL: Record<RefundStatus, [tone: string, label: string]> = {
 }
 
 export function RefundStatusPill({ status }: { status: RefundStatus }) {
-  const [tone, label] = LABEL[status]
+  const [tone, label] = statusOf(LABEL, status)
   return (
     <span className={`pill ${tone}`}>
       {status === 'PROCESSING' && (

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { chatGroupsQuery } from '@/entities/chat/api'
-import { GROUP_STATUS_LABEL, historyUntil } from '@/entities/chat/group'
+import { groupStatusLabel, historyUntil } from '@/entities/chat/group'
 import type { ChatRoom } from '@/entities/chat/types'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
 import type { Recruit } from '@/entities/appearance/types'
@@ -65,7 +65,7 @@ export function RecruitGroupPanel({
             </span>{' '}
             {current.status !== 'ACTIVE' && (
               <span className="pill mute">
-                {GROUP_STATUS_LABEL[current.status]}
+                {groupStatusLabel(current.status)}
               </span>
             )}
           </span>
@@ -109,9 +109,7 @@ function PreviousRooms({ rooms }: { rooms: ChatRoom[] }) {
           <div className="row-main">
             <span className="row-title">
               {room.group?.title}{' '}
-              <span className="pill mute">
-                {GROUP_STATUS_LABEL[room.status]}
-              </span>
+              <span className="pill mute">{groupStatusLabel(room.status)}</span>
             </span>
             <span className="fine">
               {formatDate(room.createdAt)}에 만든 방

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { meQuery } from '@/shared/auth/me'
-import { VIEWER_LABEL } from '@/shared/auth/role'
+import { viewerLabel } from '@/shared/auth/role'
 import { NicknameForm } from '@/features/account/NicknameForm'
 import { PasswordForm } from '@/features/account/PasswordForm'
 import { ProfileImageEditor } from '@/features/account/ProfileImageEditor'
@@ -26,7 +26,7 @@ export function SettingsPage() {
               <dt>이메일</dt>
               <dd>{me.email}</dd>
               <dt>회원 등급</dt>
-              <dd>{VIEWER_LABEL[me.role]}</dd>
+              <dd>{viewerLabel(me.role)}</dd>
             </dl>
             <ProfileImageEditor me={me} />
             {/* 닉네임이 바뀌면 입력값을 새 값으로 다시 시작한다. */}

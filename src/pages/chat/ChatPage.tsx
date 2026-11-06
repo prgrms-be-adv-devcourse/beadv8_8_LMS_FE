@@ -26,7 +26,7 @@ import {
   sortRoomsByRecent,
 } from '@/entities/chat/api'
 import {
-  GROUP_STATUS_LABEL,
+  groupStatusLabel,
   groupPermissions,
   groupStatusNotice,
 } from '@/entities/chat/group'
@@ -193,9 +193,7 @@ function RoomList({
               <span>{roomPreview(room, myUserId, partner?.active)}</span>
             </span>
             {group && room.status !== 'ACTIVE' && (
-              <span className="pill mute">
-                {GROUP_STATUS_LABEL[room.status]}
-              </span>
+              <span className="pill mute">{groupStatusLabel(room.status)}</span>
             )}
             {count > 0 && (
               <span
@@ -552,7 +550,7 @@ function GroupHead({
         <b>
           {group.title}
           {status !== 'ACTIVE' && (
-            <span className="pill mute">{GROUP_STATUS_LABEL[status]}</span>
+            <span className="pill mute">{groupStatusLabel(status)}</span>
           )}
         </b>
         <span className={styles.groupLinks}>

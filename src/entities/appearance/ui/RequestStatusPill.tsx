@@ -1,3 +1,4 @@
+import { unknownStatus, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { AppearanceRequestStatus, RequestSide } from '../types'
 
 /** 상태 표시. 응답 대기는 내가 호스트면 "수락 대기", 게스트면 "응답 필요" */
@@ -15,7 +16,7 @@ export function RequestStatusPill({
 function labelOf(
   status: AppearanceRequestStatus,
   side: RequestSide,
-): [string, string] {
+): StatusLabel {
   switch (status) {
     case 'REQUESTED':
       return side === 'host' ? ['warn', '수락 대기'] : ['signal', '응답 필요']
@@ -31,5 +32,7 @@ function labelOf(
       return ['warn', '포인트 확인 중']
     case 'HOLD_FAILED':
       return ['bad', '등록되지 않음']
+    default:
+      return unknownStatus(status)
   }
 }

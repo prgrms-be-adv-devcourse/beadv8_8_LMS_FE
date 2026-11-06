@@ -1,8 +1,9 @@
 import { formatDate } from '@/shared/lib/date'
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import { saleStateOf, type SaleState } from '../sale'
 import type { Sale } from '../types'
 
-const LABEL: Record<SaleState, [tone: string, label: string]> = {
+const LABEL: Record<SaleState, StatusLabel> = {
   OBJECTION: ['warn', '이의 제기 중'],
   CANCELED: ['mute', '구매 취소 · 반환'],
   RETURNED: ['info', '이의 제기 인정 · 반환'],
@@ -12,7 +13,7 @@ const LABEL: Record<SaleState, [tone: string, label: string]> = {
 
 export function SaleStatusPill({ sale }: { sale: Sale }) {
   const state = saleStateOf(sale)
-  const [tone, label] = LABEL[state]
+  const [tone, label] = statusOf(LABEL, state)
   return (
     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
       <span className={`pill ${tone}`}>{label}</span>

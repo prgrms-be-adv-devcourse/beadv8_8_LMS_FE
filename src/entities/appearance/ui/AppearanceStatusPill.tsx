@@ -1,6 +1,7 @@
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { AppearanceStatus, RequestSide } from '../types'
 
-const LABEL: Record<AppearanceStatus, [tone: string, label: string]> = {
+const LABEL: Record<AppearanceStatus, StatusLabel> = {
   ESTABLISHED: ['info', '출연 성립'],
   CANCEL_REQUESTED: ['warn', '취소 요청 처리 중'],
   CONFIRMED: ['ok', '출연 확인'],
@@ -23,6 +24,6 @@ export function AppearanceStatusPill({
   awaiting?: RequestSide
 }) {
   if (awaiting) return <span className="pill warn">{AWAITING[awaiting]}</span>
-  const [tone, label] = LABEL[status]
+  const [tone, label] = statusOf(LABEL, status)
   return <span className={`pill ${tone}`}>{label}</span>
 }

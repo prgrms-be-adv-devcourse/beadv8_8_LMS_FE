@@ -12,6 +12,7 @@ import type { HpTaskType, LectureHpTask } from '@/entities/hp-task/types'
 import { HpTaskStatusPill } from '@/entities/hp-task/ui/HpTaskStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -132,8 +133,9 @@ function TaskItem({ task }: { task: LectureHpTask }) {
         <div className={styles.head}>
           <HpTaskStatusPill status={task.status} outcome={task.outcome} />
           <b>
-            #{task.id} {HP_TASK_TYPE_LABEL[task.taskType]} ·{' '}
-            {HP_TASK_PURPOSE_LABEL[task.purpose]}
+            #{task.id}{' '}
+            {lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME} ·{' '}
+            {lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME}
           </b>
         </div>
         <span className="fine">

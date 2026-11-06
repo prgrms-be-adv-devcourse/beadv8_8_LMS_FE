@@ -1,6 +1,7 @@
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { ExchangeStatus } from '../types'
 
-const LABEL: Record<ExchangeStatus, [tone: string, label: string]> = {
+const LABEL: Record<ExchangeStatus, StatusLabel> = {
   REQUESTED: ['warn', '승인 대기'],
   APPROVED: ['ok', '승인 · 송금 대기'],
   REJECTED: ['bad', '거절'],
@@ -12,7 +13,7 @@ const LABEL: Record<ExchangeStatus, [tone: string, label: string]> = {
 }
 
 export function ExchangeStatusPill({ status }: { status: ExchangeStatus }) {
-  const [tone, label] = LABEL[status]
+  const [tone, label] = statusOf(LABEL, status)
   return (
     <span className={`pill ${tone}`}>
       {status === 'PROCESSING' && (

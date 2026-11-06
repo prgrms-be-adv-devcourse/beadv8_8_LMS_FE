@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { TITLE_MAX } from '@/entities/lecture/rules'
 import type { ContentType, LectureContent } from '@/entities/lecture/types'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import type { Upload, Uploads } from './useUploads'
 
 /** 이미 강의에 연결돼 있는 파일. 새 파일을 올리지 않으면 이 fileId를 그대로 다시 보낸다 */
@@ -222,7 +223,9 @@ export function UploadMeta({
   if (!upload || upload.status === 'error') {
     if (current)
       return (
-        <span className="fine">{KIND[current.contentType]} · 올린 파일</span>
+        <span className="fine">
+          {lookup(KIND, current.contentType) ?? UNKNOWN_NAME} · 올린 파일
+        </span>
       )
     return <span className="fine c-bad">파일이 없어요</span>
   }

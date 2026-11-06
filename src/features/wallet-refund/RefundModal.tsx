@@ -9,6 +9,7 @@ import type { Refund, RefundStatus, Wallet } from '@/entities/wallet/types'
 import { RefundStatusPill } from '@/entities/wallet/ui/RefundStatusPill'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup } from '@/shared/lib/statusLabel'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { useRefund } from './useRefund'
@@ -221,6 +222,8 @@ const GUIDE: Record<RefundStatus, string> = {
 
 /** 서버가 준 금액을 그대로 보여 준다. 요청 금액 말고는 0보다 클 때만 보인다. */
 function RefundResult({ refund }: { refund: Refund }) {
+  // 모르는 환불 상태면 안내를 숨긴다.
+  const guide = lookup(GUIDE, refund.status)
   return (
     <>
       <div>
@@ -235,7 +238,7 @@ function RefundResult({ refund }: { refund: Refund }) {
         />
         <AmountRow label="보류 중인 금액" amount={refund.pendingAmount} />
       </div>
-      <p className="fine">{GUIDE[refund.status]}</p>
+      {guide && <p className="fine">{guide}</p>}
       {refund.status === 'MANUAL_REVIEW_REQUIRED' && (
         <Link className="btn sm" to="/support">
           고객센터 문의
