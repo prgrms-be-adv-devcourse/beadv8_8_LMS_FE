@@ -5,6 +5,7 @@ import { chatHistoryQuery } from '@/entities/chat/api'
 import {
   notificationLine,
   notificationText,
+  UNKNOWN_MEMBER,
   type NameOf,
 } from '@/entities/chat/notification'
 import type {
@@ -20,12 +21,43 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminChatHistoryPage.module.css'
 
-const EVENT_LABEL: Record<ChatRoomEventType, string> = {
-  ROOM_CREATED: '채팅방을 만들었어요',
-  MEMBER_JOINED: '들어왔어요',
-  MEMBER_LEFT: '나갔어요',
-  MEMBER_REJOINED: '다시 들어왔어요',
-  ROOM_ENDED: '두 사람 모두 나가 채팅방이 종료됐어요',
+/** 기록 문구. actor는 행위자, target은 대상 회원(초대·내보내기)의 이름 */
+type LogText = (actor: string, target: string) => string
+
+/**
+ * 입장·퇴장 기록 문구. 대상이 있는 기록은 두 사람을 쓰고, 시스템 성격의 기록(방 종료·호스트 운영 불가·조회 만료)은
+ * 행위자 없이 쓴다
+ */
+const LOG_TEXT: Record<ChatRoomEventType, LogText> = {
+  ROOM_CREATED: (actor) => `${actor}님이 채팅방을 만들었어요`,
+  MEMBER_JOINED: (actor) => `${actor}님이 들어왔어요`,
+  MEMBER_LEFT: (actor) => `${actor}님이 나갔어요`,
+  MEMBER_REJOINED: (actor) => `${actor}님이 다시 들어왔어요`,
+  ROOM_ENDED: () => '두 사람 모두 나가 채팅방이 종료됐어요',
+  MEMBER_INVITED: (actor, target) => `${actor}님이 ${target}님을 초대했어요`,
+  MEMBER_KICKED: (actor, target) => `${actor}님이 ${target}님을 내보냈어요`,
+  ROOM_CLOSED: (actor) => `${actor}님이 채팅방을 폐쇄했어요`,
+  HOST_UNAVAILABLE: () =>
+    '호스트가 채팅방을 운영할 수 없게 되어 읽기 전용으로 바뀌었어요',
+  HISTORY_EXPIRED: () => '참여자 조회 기간이 끝나 이제 관리자만 볼 수 있어요',
+}
+
+/**
+ * 기록 한 줄. 이름은 관리자 화면의 이름 찾기(모르면 회원 번호)로 쓴다.
+ * FE가 아직 모르는 종류(BE가 새로 더한 기록)는 종류 이름을 그대로 보인다
+ */
+function logLine(
+  log: ChatRoomLog,
+  nickname: (userId: number | null) => string,
+) {
+  const actor = nickname(log.actorUserId)
+  if (!Object.hasOwn(LOG_TEXT, log.eventType))
+    return `${actor}님의 기록(${log.eventType})`
+  // 대상은 초대·내보내기에만 오고 BE가 늘 채운다. 그래도 비어 있으면 '시스템'이 아니라 모르는 회원으로 쓴다
+  // (다른 종류의 문구는 target을 쓰지 않는다)
+  const target =
+    log.targetUserId == null ? UNKNOWN_MEMBER : nickname(log.targetUserId)
+  return LOG_TEXT[log.eventType](actor, target)
 }
 
 /**
@@ -249,10 +281,7 @@ function HistoryView({
                 key={`log-${e.log.logId}`}
                 className={`${styles.item} ${styles.event}`}
               >
-                {formatDateTime(e.at)} ·{' '}
-                {e.log.eventType === 'ROOM_ENDED'
-                  ? EVENT_LABEL.ROOM_ENDED
-                  : `${nickname(e.log.actorUserId)}님이 ${EVENT_LABEL[e.log.eventType]}`}
+                {formatDateTime(e.at)} · {logLine(e.log, nickname)}
               </li>
             ) : (
               <MessageItem
