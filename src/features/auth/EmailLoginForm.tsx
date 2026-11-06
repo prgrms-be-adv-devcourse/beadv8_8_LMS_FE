@@ -14,12 +14,15 @@ export function EmailLoginForm({
   initialEmail = '',
   autoFocus = false,
   onSignup,
+  onForgotPassword,
 }: {
-  /** 가입한 뒤 돌아왔을 때 미리 채울 이메일 */
+  /** 가입·비밀번호 재설정 뒤 돌아왔을 때 미리 채울 이메일 */
   initialEmail?: string
   /** 가입 화면에서 돌아왔으면 첫 칸으로 포커스한다(누른 버튼이 사라져 포커스가 모달 밖으로 나가지 않게) */
   autoFocus?: boolean
   onSignup: () => void
+  /** 비밀번호 재설정으로 간다. 적던 이메일을 넘긴다 */
+  onForgotPassword: (email: string) => void
 }) {
   const firstRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -104,6 +107,13 @@ export function EmailLoginForm({
       </button>
       <button type="button" className="btn ghost sm" onClick={onSignup}>
         이메일로 가입하기
+      </button>
+      <button
+        type="button"
+        className="btn ghost sm"
+        onClick={() => onForgotPassword(values.email.trim())}
+      >
+        비밀번호를 잊으셨나요?
       </button>
     </form>
   )
