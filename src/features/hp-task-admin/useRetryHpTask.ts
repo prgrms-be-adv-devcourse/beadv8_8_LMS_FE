@@ -1,8 +1,4 @@
-import {
-  useIsMutating,
-  useMutation,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { hpTaskKeys, retryLectureHpTask } from '@/entities/hp-task/api'
 import { isApiError } from '@/shared/api/ApiError'
 import { toast } from '@/shared/ui/toastStore'
@@ -33,9 +29,7 @@ export function useRetryHpTask(taskId: number) {
     mutationKey: hpTaskKeys.retry(taskId),
     mutationFn: () => retryLectureHpTask(taskId),
     onSuccess: () =>
-      toast(
-        '재시도를 요청했어요. 다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내요.',
-      ),
+      toast('재시도를 요청했어요. 다음 재시도 배치(1분마다)가 다시 보내요.'),
     onError: (error) => {
       if (
         (isApiError(error) && error.sessionEnded) ||
@@ -47,12 +41,4 @@ export function useRetryHpTask(taskId: number) {
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: hpTaskKeys.all }),
   })
-}
-
-/**
- * 이 작업의 재시도가 진행 중인지. 화면 상태가 아니라 mutation 캐시로 본다. 모달을 닫았다 열거나
- * 다른 메뉴로 갔다 돌아와도 이전 요청이 끝날 때까지 다시 보내지 못한다.
- */
-export function useRetryingHpTask(taskId: number) {
-  return useIsMutating({ mutationKey: hpTaskKeys.retry(taskId) }) > 0
 }

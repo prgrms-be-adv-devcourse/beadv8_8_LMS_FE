@@ -8,10 +8,11 @@ const LABEL: Record<HpTaskStatus, StatusLabel> = {
   COMPLETED: ['ok', '완료'],
 }
 
-/** 끝난 작업은 성공이 아니면 결과(거절·건너뜀)까지 보여 준다 */
+/** 끝난 작업은 성공이 아니면 결과(거절·건너뜀·무효화)까지 보여 준다 */
 const OUTCOME: Partial<Record<HpTaskOutcome, string>> = {
   REJECTED: '완료 · 거절',
   SKIPPED: '완료 · 건너뜀',
+  VOIDED: '완료 · 무효화',
 }
 
 export function HpTaskStatusPill({
