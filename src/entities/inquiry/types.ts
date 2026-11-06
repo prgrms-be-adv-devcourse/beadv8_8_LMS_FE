@@ -10,6 +10,27 @@ export type InquirySort = 'LATEST' | 'OLDEST'
 /** 강의 내용 다름 이의 제기 판단: 인정(구매자에게 반환) / 기각(판매자에게 지급) */
 export type ObjectionResult = 'ACCEPTED' | 'REJECTED'
 
+/**
+ * 이의 제기의 강의 연동 상태(BE #279, D60·D71). 이의 제기 문의에만 있다.
+ * FILING → FILED(접수됨, 판매자 지급이 멈춤) 또는 FILE_REJECTED(접수 불가).
+ * FILED → RESOLUTION_PENDING → RESOLVED(판단 반영) 또는 RESOLUTION_FAILED(강의가 거절).
+ * FILED → WITHDRAWAL_PENDING → WITHDRAWN(문의 삭제) 또는 WITHDRAWAL_FAILED(강의가 거절).
+ * *_FAILED는 운영 복구(BE #267)를 기다린다.
+ */
+export type ObjectionLinkStatus =
+  | 'FILING'
+  | 'FILED'
+  | 'FILE_REJECTED'
+  | 'RESOLUTION_PENDING'
+  | 'RESOLVED'
+  | 'RESOLUTION_FAILED'
+  | 'WITHDRAWAL_PENDING'
+  | 'WITHDRAWN'
+  | 'WITHDRAWAL_FAILED'
+
+/** 인정한 이의 제기의 HP 반환 상태. PENDING → COMPLETED, 자동 처리가 멈추면 ACTION_REQUIRED. 되돌아가지 않는다 */
+export type HpReturnStatus = 'PENDING' | 'ACTION_REQUIRED' | 'COMPLETED'
+
 /** 목록 한 줄 */
 export type InquirySummary = {
   inquiryId: number
@@ -37,6 +58,16 @@ export type Inquiry = InquirySummary & {
   targetId: number | null
   objectionResult: ObjectionResult | null
   objectionResolvedAt: string | null
+  /** 이의 제기가 아니면 null */
+  objectionLinkStatus: ObjectionLinkStatus | null
+  /** 인정한 이의 제기에만 있다 */
+  hpReturnStatus: HpReturnStatus | null
+  /** 서버가 정한 사용자 안내. 접수 불가면 "접수 불가 · 사유", 판단·철회를 강의가 거절했으면 "처리 지연 · 확인 중" */
+  objectionNotice: string | null
+  /** 강의 거절 사유 코드. 관리자 응답에만 있다 */
+  objectionFailureCode: string | null
+  /** 지금(마지막으로) 강의에 보낸 명령 ID(예: RESOLVE:12). 관리자 응답에만 있다 */
+  objectionCommandId: string | null
 }
 
 export type InquiryInput = {

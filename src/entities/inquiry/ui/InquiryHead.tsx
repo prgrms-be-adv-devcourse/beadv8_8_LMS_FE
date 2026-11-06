@@ -2,11 +2,12 @@ import { formatDate, formatDateTime } from '@/shared/lib/date'
 import type { Inquiry } from '../types'
 import {
   CategoryPill,
+  HpReturnPill,
   InquiryStatusPill,
   ObjectionResultPill,
 } from './InquiryPills'
 
-/** 문의 상세 머리: 유형·상태·접수일, 제목, 이의 제기 대상과 판단 결과 */
+/** 문의 상세 머리: 유형·상태·접수일, 제목, 이의 제기 대상과 판단 결과·HP 반환 상태(회원·관리자 모두) */
 export function InquiryHead({
   inquiry,
   showUser,
@@ -28,6 +29,9 @@ export function InquiryHead({
         <InquiryStatusPill status={inquiry.status} />
         {inquiry.objectionResult && (
           <ObjectionResultPill result={inquiry.objectionResult} />
+        )}
+        {inquiry.hpReturnStatus && (
+          <HpReturnPill status={inquiry.hpReturnStatus} />
         )}
         <span className="fine">
           {showUser && `회원 #${inquiry.userId} · `}
