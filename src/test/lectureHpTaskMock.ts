@@ -7,7 +7,7 @@ import type { PagedModel, RsData } from '@/shared/api/types'
 import { ME_ID } from './renderApp'
 
 /**
- * 테스트 전용: 관리자 강의 HP 작업 목록·상세·재시도를 BE처럼 흉내 내는 MSW 핸들러(BE ApiV1LectureHpTaskAdminController).
+ * 테스트 전용: 관리자 강의 HP 작업 목록·상세·재시도·보류 무효화를 BE처럼 흉내 내는 MSW 핸들러(BE ApiV1LectureHpTaskAdminController).
  * 데이터는 메모리에 두고 테스트마다 resetLectureHpTaskDb()로 초기화한다. 응답 형식은 BE LectureHpTaskResponse·LectureHpTaskDetailResponse와 같다.
  */
 export const lectureHpTask = (
@@ -32,10 +32,50 @@ export const lectureHpTask = (
   lastFailedAt: null,
   lastRetriedByUserId: null,
   lastRetriedAt: null,
+  voidedByUserId: null,
   completedAt: null,
   createdAt: '2026-10-15T01:00:00',
   ...patch,
 })
+
+/**
+ * 결과를 확정하지 못해 멈춘 주문 보류(보류 무효화 대상). 기본 목록에는 없어 필요한 테스트가 더한다.
+ * 지갑 응답을 못 받아 자동 재시도 한도(10회)를 넘겼다.
+ */
+export const deadOrderHold = (patch: Partial<LectureHpTask> = {}) =>
+  lectureHpTask({
+    id: 75,
+    taskType: 'HOLD',
+    purpose: 'ORDER_HOLD',
+    requestId: 'LECTURE-HOLD-705',
+    orderId: 604,
+    orderItemId: 705,
+    receiverUserId: null,
+    amountHp: 8000,
+    attemptCount: 10,
+    totalAttemptCount: 10,
+    lastErrorCode: 'UNKNOWN_RESULT',
+    lastFailedAt: '2026-10-16T12:30:00',
+    createdAt: '2026-10-16T12:00:00',
+    ...patch,
+  })
+
+/** deadOrderHold를 보류 무효화하면 생기는 무효화 작업(BE OrderHoldSettlement.voidHold). 실행은 다음 재시도 배치가 한다 */
+export const holdVoidTask = (patch: Partial<LectureHpTask> = {}) =>
+  lectureHpTask({
+    id: 76,
+    status: 'PENDING',
+    taskType: 'VOID',
+    purpose: 'HOLD_VOID',
+    requestId: 'LECTURE-HOLD-VOID-705',
+    orderId: 604,
+    orderItemId: 705,
+    receiverUserId: null,
+    amountHp: 8000,
+    nextAttemptAt: '2026-10-17T09:30:00',
+    createdAt: '2026-10-17T09:30:00',
+    ...patch,
+  })
 
 const sample = (): LectureHpTask[] => [
   // HP 작업으로 옮기기 전 지급 배치에서 격리된 지급: 실패 횟수만 옮겨 와 시도 이력이 없다
@@ -143,6 +183,7 @@ export const lectureHpTaskDb = {
   /** 목록 요청의 검색어 */
   listCalls: [] as string[],
   retryCalls: [] as number[],
+  voidCalls: [] as number[],
 }
 
 export function resetLectureHpTaskDb(items = sample()) {
@@ -150,6 +191,7 @@ export function resetLectureHpTaskDb(items = sample()) {
   lectureHpTaskDb.attempts = sampleAttempts()
   lectureHpTaskDb.listCalls = []
   lectureHpTaskDb.retryCalls = []
+  lectureHpTaskDb.voidCalls = []
 }
 
 const ok = <T>(data: T) =>
@@ -228,5 +270,43 @@ export const lectureHpTaskHandlers: AnyHandler[] = [
       nextAttemptAt: '2026-10-17T09:00:00',
     } satisfies Partial<LectureHpTask>)
     return new HttpResponse(null, { status: 204 })
+  }),
+  http.post('*/api/v1/lectures/admin/hp-tasks/:taskId/void', ({ params }) => {
+    const id = Number(params.taskId)
+    lectureHpTaskDb.voidCalls.push(id)
+    const hold = find(id)
+    if (!hold)
+      return problem(404, 'HP_TASK_NOT_FOUND', 'HP 작업을 찾을 수 없습니다.')
+    // BE LectureHpTask.voidByAdmin과 같은 순서로 검사한다: 목적 → 상태
+    if (hold.purpose !== 'ORDER_HOLD')
+      return problem(
+        409,
+        'HP_TASK_NOT_VOIDABLE',
+        '주문 항목 보류 작업만 보류 무효화할 수 있습니다.',
+      )
+    if (hold.status !== 'DEAD')
+      return problem(
+        409,
+        'HP_TASK_NOT_DEAD',
+        '자동 처리가 멈춘(DEAD) HP 작업만 재시도할 수 있습니다.',
+      )
+    // 원래 보류는 COMPLETED·VOIDED로 닫고 관리자를 남긴다. 시각은 completedAt이다
+    Object.assign(hold, {
+      status: 'COMPLETED',
+      outcome: 'VOIDED',
+      voidedByUserId: ME_ID,
+      completedAt: '2026-10-17T09:30:00',
+    } satisfies Partial<LectureHpTask>)
+    // 무효화 작업을 등록한다(BE OrderHoldSettlement.voidHold). 실행은 다음 재시도 배치가 한다
+    const voidTask = holdVoidTask({
+      id: Math.max(...lectureHpTaskDb.items.map((t) => t.id)) + 1,
+      requestId: `LECTURE-HOLD-VOID-${hold.orderItemId}`,
+      orderId: hold.orderId,
+      orderItemId: hold.orderItemId,
+      payerUserId: hold.payerUserId,
+      amountHp: hold.amountHp,
+    })
+    lectureHpTaskDb.items.push(voidTask)
+    return ok(voidTask)
   }),
 ]

@@ -15,11 +15,15 @@ import type {
   LectureHpTaskDetail,
 } from '@/entities/hp-task/types'
 import { HpTaskStatusPill } from '@/entities/hp-task/ui/HpTaskStatusPill'
+import { useHpTaskActionBusy } from '@/features/hp-task-admin/useHpTaskActionBusy'
 import {
   isFinalRetryError,
   useRetryHpTask,
-  useRetryingHpTask,
 } from '@/features/hp-task-admin/useRetryHpTask'
+import {
+  isFinalVoidError,
+  useVoidHpTask,
+} from '@/features/hp-task-admin/useVoidHpTask'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import {
@@ -118,16 +122,28 @@ function Detail({
                   </dd>
                 </>
               )}
+              {task.voidedByUserId !== null && (
+                <>
+                  <dt>무효화한 관리자</dt>
+                  <dd>관리자 #{task.voidedByUserId}</dd>
+                </>
+              )}
             </dl>
             <p className="fine">
-              요청 ID는 지갑의 중복 방지 키예요. 재시도도 같은 요청 ID로 보내서
-              HP가 두 번 움직이지 않아요.
+              {task.taskType === 'VOID'
+                ? '무효화는 요청 ID를 지갑에 보내지 않아요. 지갑이 주문 항목으로 중복을 막아 재시도해도 HP가 두 번 움직이지 않아요.'
+                : '요청 ID는 지갑의 중복 방지 키예요. 재시도도 같은 요청 ID로 보내서 HP가 두 번 움직이지 않아요.'}
             </p>
           </section>
           <ProcessingState task={task} />
           <Attempts task={task} attempts={attempts} />
         </div>
-        {task.status === 'DEAD' && <Retry task={task} />}
+        {task.status === 'DEAD' && (
+          <div className="page sticky" style={{ gap: 16 }}>
+            <Retry task={task} />
+            {task.purpose === 'ORDER_HOLD' && <VoidHold task={task} />}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -255,11 +271,11 @@ function AttemptRow({ attempt }: { attempt: LectureHpTaskAttempt }) {
 function Retry({ task }: { task: LectureHpTask }) {
   const [open, setOpen] = useState(false)
   const retry = useRetryHpTask(task.id)
-  // 모달을 닫았다 열거나 화면을 다시 열어도, 진행 중인 재시도 요청이 있으면 다시 보내지 못한다.
-  const busy = useRetryingHpTask(task.id)
+  // 모달을 닫았다 열거나 화면을 다시 열어도, 진행 중인 재시도·무효화 요청이 있으면 다시 보내지 못한다.
+  const busy = useHpTaskActionBusy(task.id)
 
   return (
-    <section className="panel sticky" aria-labelledby="hp-task-retry">
+    <section className="panel" aria-labelledby="hp-task-retry">
       <h2 id="hp-task-retry">재시도</h2>
       <div className="notice bad">
         자동 처리가 멈췄어요. 마지막 실패와 시도 이력으로 원인을 확인하고 고친
@@ -306,17 +322,108 @@ function Retry({ task }: { task: LectureHpTask }) {
             </>
           }
         >
+          <p>{summary(task)}</p>
           <p>
-            {lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME} ·{' '}
-            {lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME} · 주문
-            #{task.orderId} · 항목 #{task.orderItemId} (
-            {formatNumber(task.amountHp)} HP)
+            바로 보내지 않고 대기로 바꿔요.{' '}
+            {task.taskType === 'VOID'
+              ? '다음 재시도 배치(1분마다)가 다시 보내요. 지갑이 주문 항목으로 중복을 막아 HP가 두 번 움직이지 않아요.'
+              : '다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내서 HP가 두 번 움직이지 않아요.'}{' '}
+            원인이 그대로면 다시 멈춰요.
+          </p>
+          {task.lastErrorCode && (
+            <p className={`fine ${styles.code}`}>
+              마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}
+            </p>
+          )}
+        </Modal>
+      )}
+    </section>
+  )
+}
+
+/** 확인 창의 작업 요약: 유형 · 목적 · 주문 · 항목 (금액) */
+function summary(task: LectureHpTask) {
+  const type = lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME
+  const purpose = lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME
+  return `${type} · ${purpose} · 주문 #${task.orderId} · 항목 #${task.orderItemId} (${formatNumber(task.amountHp)} HP)`
+}
+
+/**
+ * 멈춘 주문 보류의 보류 무효화(되돌릴 수 없음, BE D73). 성공하면 훅이 새 무효화 작업 상세로 옮긴다.
+ * 이미 처리됐거나(409 HP_TASK_NOT_DEAD) 주문 보류가 아니거나(409 HP_TASK_NOT_VOIDABLE) 작업이 없으면(404) 모달을 닫는다.
+ * 보류한 회원이 달라 멈춘 보류는 지갑이 무효화에서도 같은 코드로 거절한다. BE가 막지 않으므로 막지 않고 경고만 한다.
+ */
+function VoidHold({ task }: { task: LectureHpTask }) {
+  const [open, setOpen] = useState(false)
+  const voidHold = useVoidHpTask(task.id)
+  const busy = useHpTaskActionBusy(task.id)
+  const ownerWarning = task.lastErrorCode === 'HOLD_OWNER_MISMATCH' && (
+    <div className="notice bad">
+      보류한 회원이 구매자와 달라 멈춘 보류예요. 지갑이 무효화할 때도 소유를
+      확인해 같은 오류로 실패해요. 지갑의 보류 데이터를 먼저 확인하세요.
+    </div>
+  )
+
+  return (
+    <section className="panel" aria-labelledby="hp-task-void">
+      <h2 id="hp-task-void">보류 무효화</h2>
+      <div className="notice warn">
+        재시도해도 결과가 바뀌지 않는 보류만 무효화하세요. 되돌릴 수 없고 주문
+        전체가 결제 실패가 돼요. 지갑 응답 지연 같은 일시 장애면 재시도하세요.
+      </div>
+      {ownerWarning}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className="btn danger"
+          disabled={busy}
+          onClick={() => setOpen(true)}
+        >
+          보류 무효화
+        </button>
+      </div>
+      {open && (
+        <Modal
+          title="보류를 무효화할까요?"
+          onClose={() => setOpen(false)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setOpen(false)}
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                disabled={busy}
+                onClick={() =>
+                  voidHold.mutate(undefined, {
+                    onError: (e) => {
+                      if (isFinalVoidError(e)) setOpen(false)
+                    },
+                  })
+                }
+              >
+                보류 무효화
+              </button>
+            </>
+          }
+        >
+          <p>{summary(task)}</p>
+          <p>
+            <b>되돌릴 수 없어요.</b> 이 보류를 무효화로 끝내고 무효화 작업을
+            새로 만들어요. 다음 재시도 배치(1분마다)가 지갑에 보내 남은 보류
+            HP가 있으면 구매자에게 돌려줘요.
           </p>
           <p>
-            바로 보내지 않고 대기로 바꿔요. 다음 재시도 배치(1분마다)가 같은
-            요청 ID로 다시 보내서 HP가 두 번 움직이지 않아요. 원인이 그대로면
-            다시 멈춰요.
+            주문 #{task.orderId} 전체가 결제 실패가 돼요. 이미 보류된 다른
+            항목의 HP도 돌려주고, 구매자는 같은 강의를 다시 살 수 있어요.
           </p>
+          <p>지갑 응답 지연 같은 일시 장애면 무효화하지 말고 재시도하세요.</p>
+          {ownerWarning}
           {task.lastErrorCode && (
             <p className={`fine ${styles.code}`}>
               마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}

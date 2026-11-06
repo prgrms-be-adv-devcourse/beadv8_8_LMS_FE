@@ -21,8 +21,13 @@ export const hpTaskKeys = {
   list: (params: HpTaskListParams) =>
     [...hpTaskKeys.all, 'list', params] as const,
   detail: (taskId: number) => [...hpTaskKeys.all, 'detail', taskId] as const,
-  /** 재시도 mutation. 화면을 다시 열어도 진행 중인 요청을 알 수 있게 작업마다 키를 고정한다 */
-  retry: (taskId: number) => [...hpTaskKeys.all, 'retry', taskId] as const,
+  /**
+   * 작업 하나에 대한 관리자 처리(재시도·보류 무효화) mutation의 접두어. 화면을 다시 열어도 진행 중인 요청을 알 수 있게
+   * 작업마다 키를 고정하고, 어느 쪽이 진행 중이든 둘 다 막는다
+   */
+  action: (taskId: number) => [...hpTaskKeys.all, 'action', taskId] as const,
+  retry: (taskId: number) => [...hpTaskKeys.action(taskId), 'retry'] as const,
+  void: (taskId: number) => [...hpTaskKeys.action(taskId), 'void'] as const,
 }
 
 export const HP_TASK_PAGE_SIZE = 20
@@ -56,6 +61,18 @@ export const lectureHpTaskQuery = (taskId: number) =>
  */
 export function retryLectureHpTask(taskId: number) {
   return api<void>(`/lectures/admin/hp-tasks/${taskId}/retry`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * 결과를 확정하지 못한 주문 항목 보류(DEAD인 ORDER_HOLD)를 보류 무효화로 끝낸다(BE D73). 되돌릴 수 없다.
+ * 원래 보류는 COMPLETED·VOIDED로 닫히고(무효화한 관리자 기록) 주문은 결제 취소 처리 중이 된다. 응답은 새로 등록한
+ * 무효화 작업(VOID·HOLD_VOID)이고, 다음 재시도 배치(1분마다)가 지갑에 보낸다. 무효화와 다른 항목의 반환이 끝나면 주문은 결제 실패다.
+ * 없으면 404 HP_TASK_NOT_FOUND, ORDER_HOLD가 아니면 409 HP_TASK_NOT_VOIDABLE, DEAD가 아니면 409 HP_TASK_NOT_DEAD.
+ */
+export function voidLectureHpTask(taskId: number) {
+  return api<LectureHpTask>(`/lectures/admin/hp-tasks/${taskId}/void`, {
     method: 'POST',
   })
 }

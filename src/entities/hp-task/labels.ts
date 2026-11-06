@@ -30,6 +30,7 @@ export const HP_TASK_TYPE_LABEL: Record<HpTaskType, string> = {
   HOLD: '보류',
   RELEASE: '반환',
   PAYOUT: '지급',
+  VOID: '무효화',
 }
 
 export const HP_TASK_PURPOSE_LABEL: Record<HpTaskPurpose, string> = {
@@ -38,12 +39,14 @@ export const HP_TASK_PURPOSE_LABEL: Record<HpTaskPurpose, string> = {
   CANCEL: '구매 취소 반환',
   RETURN: '이의 제기 인정 반환',
   PAYOUT: '판매자 지급',
+  HOLD_VOID: '주문 보류 무효화',
 }
 
 export const HP_TASK_OUTCOME_LABEL: Record<HpTaskOutcome, string> = {
   SUCCEEDED: '성공',
   REJECTED: '거절(잔액 부족)',
   SKIPPED: '건너뜀(필요 없어진 보류)',
+  VOIDED: '무효화(관리자가 끝냄)',
 }
 
 export const HP_ATTEMPT_RESULT_LABEL: Record<HpAttemptResult, string> = {
