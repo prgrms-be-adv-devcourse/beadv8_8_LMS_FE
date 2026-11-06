@@ -6,7 +6,11 @@ import { queryClient } from '@/app/queryClient'
 import type { Me } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { EMAIL_TOKEN, mockEmailCodes, problem } from '@/test/emailCodeMock'
-import { expectFieldError } from '@/test/fieldError'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+} from '@/test/fieldError'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -346,6 +350,55 @@ describe('이메일 가입', () => {
     ])
     expect(codes.sent).toHaveLength(1)
     expect(codes.verified).toHaveLength(1)
+  })
+
+  it('닉네임 칸을 벗어나면 로그인 없이 중복을 확인해, 쓰고 있는 닉네임이면 칸 오류로 보이고 가입을 막는다', async () => {
+    mockEmailCodes()
+    const checks: { nickname: string | null; auth: string | null }[] = []
+    let signups = 0
+    server.use(
+      http.get('*/api/v1/members/nicknames/availability', ({ request }) => {
+        const nickname = new URL(request.url).searchParams.get('nickname')
+        checks.push({ nickname, auth: request.headers.get('Authorization') })
+        return rs({ available: nickname !== '새벽' })
+      }),
+      http.post('*/api/v1/members/signup', () => {
+        signups++
+        return rs(me(), 201)
+      }),
+    )
+    const dialog = await openSignup()
+    const form = await verifyAndOpenDetails(dialog, 'new@hapbang.kr')
+    await userEvent.type(within(form).getByLabelText('비밀번호'), 'abcd1234')
+    await userEvent.type(
+      within(form).getByLabelText('비밀번호 확인'),
+      'abcd1234',
+    )
+    const nickname = within(form).getByLabelText('닉네임')
+    await userEvent.type(nickname, ' 새벽 ')
+    await userEvent.tab()
+
+    await waitFor(() =>
+      expectFieldError(nickname, '이미 쓰고 있는 닉네임이에요.'),
+    )
+    expect(checks).toEqual([{ nickname: '새벽', auth: null }])
+    const submit = within(form).getByRole('button', { name: '가입하기' })
+    expectSubmitBlocked(submit)
+    await userEvent.click(submit)
+    expect(nickname).toHaveFocus()
+    expect(signups).toBe(0)
+
+    // 고치면 확인 결과를 지운다. 가입하기를 누르면 칸을 벗어나 새 값도 확인한다.
+    await userEvent.type(nickname, '별')
+    expectNoFieldError(nickname)
+    await userEvent.click(submit)
+    expect(
+      await within(dialog).findByText(
+        '가입했어요. 이메일과 비밀번호로 로그인해 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(signups).toBe(1)
+    expect(checks.map((c) => c.nickname)).toEqual(['새벽', '새벽 별'])
   })
 
   it('가입이 EMAIL_NOT_VERIFIED면 이메일 단계로 돌아가 이메일을 남기고 코드를 다시 받으라고 알린다', async () => {

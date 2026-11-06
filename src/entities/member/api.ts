@@ -29,6 +29,9 @@ export const memberKeys = {
     [...memberKeys.all, 'channel-reviews', status, page] as const,
   /** 채널 승인·반려 mutation. 화면을 다시 열어도 진행 중인 심사를 알 수 있게 키를 고정한다 */
   channelReview: () => [...memberKeys.all, 'channel-review'] as const,
+  /** 닉네임 중복 확인. 닉네임 없이 부르면 모든 확인의 앞부분 키 */
+  nicknameAvailability: (...nickname: [] | [string]) =>
+    [...memberKeys.all, 'nickname-availability', ...nickname] as const,
 }
 
 export const INFLUENCER_PAGE_SIZE = 12
@@ -54,6 +57,20 @@ export const myChannelsQuery = queryOptions({
   queryKey: memberKeys.myChannels(),
   queryFn: () => api<MyChannel[]>('/members/channels/me'),
 })
+
+/**
+ * 닉네임을 쓸 수 있는지 (로그인 없이 부른다, 대소문자 무시). 로그인 상태면 내 닉네임은 true다.
+ * 규칙에 맞지 않으면 400이므로 규칙에 맞는 값만 묻는다. 참고용이라 저장 때 409 DUPLICATE_NICKNAME이 다시 올 수 있다.
+ * 로그인·로그아웃하면 캐시가 지워져(replaceSession) 비회원과 회원의 결과가 섞이지 않는다.
+ */
+export const nicknameAvailabilityQuery = (nickname: string) =>
+  queryOptions({
+    queryKey: memberKeys.nicknameAvailability(nickname),
+    queryFn: () =>
+      api<{ available: boolean }>('/members/nicknames/availability', {
+        query: { nickname },
+      }),
+  })
 
 /** 닉네임 변경. 보내지 않은 값은 바꾸지 않는다. */
 export function updateMe(input: { nickname: string }) {
