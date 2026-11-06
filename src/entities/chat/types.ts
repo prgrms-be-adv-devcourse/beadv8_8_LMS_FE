@@ -273,7 +273,10 @@ export type ChatRoomLog = {
   logId: number
   /** 기록을 남긴 회원. 방 종료처럼 시스템 기록이면 null일 수 있다 */
   actorUserId: number | null
-  /** 행위 대상 회원(단체방 초대·내보내기). 대상이 행위자 자신이거나 없으면 null */
+  /**
+   * 행위 대상 회원. 단체방 초대·내보내기에만 값이 있고 다른 기록은 null이다.
+   * 호스트는 자신을 초대(이미 참여 중)하거나 내보낼(CANNOT_KICK_HOST) 수 없어 대상은 늘 행위자가 아닌 회원이다
+   */
   targetUserId?: number | null
   eventType: ChatRoomEventType
   occurredAt: string

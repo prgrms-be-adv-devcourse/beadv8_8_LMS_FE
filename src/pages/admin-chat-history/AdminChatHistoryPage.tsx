@@ -53,7 +53,8 @@ function logLine(
   const actor = nickname(log.actorUserId)
   if (!Object.hasOwn(LOG_TEXT, log.eventType))
     return `${actor}님의 기록(${log.eventType})`
-  // BE가 대상을 늘 채우지만, 비어 있으면 '시스템'이 아니라 모르는 회원으로 쓴다
+  // 대상은 초대·내보내기에만 오고 BE가 늘 채운다. 그래도 비어 있으면 '시스템'이 아니라 모르는 회원으로 쓴다
+  // (다른 종류의 문구는 target을 쓰지 않는다)
   const target =
     log.targetUserId == null ? UNKNOWN_MEMBER : nickname(log.targetUserId)
   return LOG_TEXT[log.eventType](actor, target)
