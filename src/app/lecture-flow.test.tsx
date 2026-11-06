@@ -565,6 +565,32 @@ describe('주문 완료', () => {
       '/library/orders',
     )
   })
+
+  it('결제 처리 중에 다시 불러오기가 실패해도 처리 중 안내를 그대로 둔다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await buyNow(holdOrder('HOLD_PENDING'), 202)
+    expect(
+      await screen.findByRole('heading', { name: '결제를 처리하고 있어요' }),
+    ).toBeInTheDocument()
+
+    server.use(
+      http.get('*/api/v1/lectures/orders/500', () =>
+        HttpResponse.json({ status: 503 }, { status: 503 }),
+      ),
+    )
+    // 다시 부른 요청이 재시도까지 모두 실패할 때까지 흘려보낸다.
+    await advance(5_000)
+    await advance(5_000)
+    await waitFor(() =>
+      expect(queryClient.getQueryState(orderQuery(500).queryKey)?.status).toBe(
+        'error',
+      ),
+    )
+    expect(
+      screen.getByRole('heading', { name: '결제를 처리하고 있어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/다시 주문하지 마세요/)).toBeInTheDocument()
+  })
 })
 
 describe('내 강의', () => {
@@ -777,6 +803,30 @@ describe('주문 내역', () => {
 
     await advance(20_000)
     expect(orders.detailCalls(600)).toBe(stuckCalls)
+  })
+
+  it('처리 중 주문을 다시 불러오다 실패해도 이미 받은 항목을 그대로 보인다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    mockOrders(numbered(holdOrder('HOLD_PENDING'), 500, '결제 중 강의'))
+    renderApp('/library/orders', 'USER')
+
+    const paying = await card(500)
+    expect(await within(paying).findByText('결제 처리 중')).toBeInTheDocument()
+
+    server.use(
+      http.get('*/api/v1/lectures/orders/500', () =>
+        HttpResponse.json({ status: 503 }, { status: 503 }),
+      ),
+    )
+    await advance(5_000)
+    await advance(5_000)
+    await waitFor(() =>
+      expect(queryClient.getQueryState(orderQuery(500).queryKey)?.status).toBe(
+        'error',
+      ),
+    )
+    expect(within(paying).getByText('결제 처리 중')).toBeInTheDocument()
+    expect(within(paying).getByText('결제 중 강의')).toBeInTheDocument()
   })
 
   it('구매 취소가 202로 끝나면 구매 취소 처리 중으로 보이고 취소 버튼을 숨긴다', async () => {

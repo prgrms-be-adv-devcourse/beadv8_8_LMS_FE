@@ -14,21 +14,17 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
  */
 export function OrderDonePage() {
   const orderId = Number(useParams().orderId)
-  const {
-    data: order,
-    error,
-    isPending,
-    refetch,
-  } = useQuery(orderQuery(orderId))
+  const { data: order, error, refetch } = useQuery(orderQuery(orderId))
 
+  // 다시 불러오다 실패해도(일시 오류) 이미 받은 주문을 그대로 보이고, 다음 다시 불러오기를 기다린다.
   return (
     <div className="page narrow">
-      {isPending ? (
-        <Loading />
+      {order ? (
+        <OrderResult order={order} />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : (
-        <OrderResult order={order} />
+        <Loading />
       )}
     </div>
   )

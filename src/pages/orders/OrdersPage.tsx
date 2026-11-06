@@ -75,6 +75,7 @@ const ORDER_NOTE: Record<OrderStatus, string | null> = {
 
 function OrderCard({ summary }: { summary: OrderSummary }) {
   // 처리 중인 주문은 주문 상세만 다시 부르므로(orderQuery), 상태는 불러온 주문 상세를 먼저 본다.
+  // 다시 불러오다 실패해도 이미 받은 주문 상세를 그대로 보인다.
   const { data: order, error, refetch } = useQuery(orderQuery(summary.orderId))
   const [canceling, setCanceling] = useState<OrderItem | null>(null)
   const status = order?.status ?? summary.status
@@ -95,9 +96,7 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
       <ProcessingNote
         status={order ? order.processingStatus : summary.processingStatus}
       />
-      {error ? (
-        <LoadError error={error} retry={refetch} />
-      ) : order ? (
+      {order ? (
         <div className="rows">
           {order.items.map((item) => (
             <div
@@ -128,6 +127,8 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
             </div>
           ))}
         </div>
+      ) : error ? (
+        <LoadError error={error} retry={refetch} />
       ) : (
         <p className="fine">
           {summary.representativeTitle}
