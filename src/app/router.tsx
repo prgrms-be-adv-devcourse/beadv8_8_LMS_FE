@@ -50,6 +50,7 @@ import { PromotePage } from '@/pages/promote/PromotePage'
 import { RecruitDetailPage } from '@/pages/recruit-detail/RecruitDetailPage'
 import { RecruitsPage } from '@/pages/recruits/RecruitsPage'
 import { SettingsPage } from '@/pages/settings/SettingsPage'
+import { WithdrawPage } from '@/pages/settings-withdraw/WithdrawPage'
 import { StudioPage } from '@/pages/studio/StudioPage'
 import { SupportPage } from '@/pages/support/SupportPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
@@ -142,6 +143,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/mypage': <ChzzkResultPage />,
   '/login': <LoginFailurePage />,
   '/settings': <SettingsPage />,
+  '/settings/withdraw': <WithdrawPage />,
   '/profile/edit': <MyProfilePage />,
   '/promote': <PromotePage />,
   '/appearances': <AppearancesPage />,

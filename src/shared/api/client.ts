@@ -10,8 +10,10 @@ import type { ProblemDetail, RsData } from './types'
 export { API_BASE }
 
 /**
- * 재발급 뒤 다시 보내지 않는 요청. 재발급·로그아웃은 refresh token 쿠키로 부르고, 로그인·가입의 401·403은 토큰 만료가
- * 아니라 결과(비밀번호 틀림 INVALID_CREDENTIALS, 이용할 수 없는 회원 LOGIN_NOT_ALLOWED)이므로 부른 쪽에 그대로 넘긴다.
+ * 재발급 뒤 다시 보내지 않는 요청. 재발급·로그아웃은 refresh token 쿠키로 부르고, 로그인·가입·탈퇴 회원 복구의 401·403은
+ * 토큰 만료가 아니라 결과(비밀번호 틀림 INVALID_CREDENTIALS, 이용할 수 없는 회원 LOGIN_NOT_ALLOWED, 복구 티켓 만료
+ * INVALID_RESTORE_TICKET)이므로 부른 쪽에 그대로 넘긴다. 비회원이 부르는 복구를 재발급하면 그것도 거절돼 로그인이 끝난
+ * 오류(sessionEnded)가 되고, 전역 처리가 '로그인이 필요해요.' 모달로 복구 안내를 덮는다.
  * 비밀번호 변경은 재발급을 멈춘 줄(pauseRefreshWhile) 안에서 바로 앞에 받은 토큰으로 보낸다(여기서 재발급을 기다리면 교착한다)
  */
 const AUTH_PATHS = new Set([
@@ -19,6 +21,7 @@ const AUTH_PATHS = new Set([
   '/members/auth/logout',
   '/members/login',
   '/members/signup',
+  '/members/restore',
   '/members/me/password',
 ])
 
