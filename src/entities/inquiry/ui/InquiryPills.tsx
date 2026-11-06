@@ -25,10 +25,13 @@ export function CategoryPill({ category }: { category: InquiryCategory }) {
   )
 }
 
+const OBJECTION_RESULT: Record<ObjectionResult, StatusLabel> = {
+  ACCEPTED: ['info', '이의 제기 인정 · 구매자 반환'],
+  REJECTED: ['mute', '이의 제기 기각 · 판매자 지급'],
+}
+
+/** 모르는 결과를 지급 확정처럼 보이지 않게 표에서 고른다 */
 export function ObjectionResultPill({ result }: { result: ObjectionResult }) {
-  return result === 'ACCEPTED' ? (
-    <span className="pill info">이의 제기 인정 · 구매자 반환</span>
-  ) : (
-    <span className="pill mute">이의 제기 기각 · 판매자 지급</span>
-  )
+  const [tone, label] = statusOf(OBJECTION_RESULT, result)
+  return <span className={`pill ${tone}`}>{label}</span>
 }
