@@ -9,7 +9,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
-import { logout, meQuery, passwordLogin, type Me } from './me'
+import { logout, meQuery, passwordLogin, withdraw, type Me } from './me'
 import { VIEWER_LABEL, type Role, type Viewer } from './role'
 import {
   clearAccessToken,
@@ -79,6 +79,28 @@ export function useLogout() {
 }
 
 /**
+ * 회원 탈퇴. 성공하면 BE가 refresh token을 폐기하고 쿠키를 지우므로 로그아웃처럼 이 탭의 토큰·데이터를 지우고
+ * 다른 탭에도 알린 뒤 첫 화면으로 간다. 막힌 이유·처리 중 같은 실패 안내는 탈퇴 화면이 그 자리에 보여 준다.
+ * 로그아웃과 달리 재발급을 멈추지 않는다(pauseRefreshWhile 안에서 탈퇴 요청이 401로 재발급을 기다리면 교착한다).
+ * 탈퇴와 겹친 재발급이 쿠키를 다시 넣어도 BE가 폐기한 토큰이라 다음 재발급에서 거절된다.
+ */
+export function useWithdraw() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return useMutation({
+    mutationFn: withdraw,
+    onSuccess: async () => {
+      // 탈퇴 화면은 회원 화면이라 그 자리에서 비회원이 되면 로그인 안내 모달이 뜬다(RoleGate). 첫 화면을 그린 뒤 지운다.
+      // 이동은 기본으로 startTransition이라 내 정보를 지우는 업데이트가 먼저 그려질 수 있어 flushSync로 바로 그린다.
+      await navigate('/', { replace: true, flushSync: true })
+      clearSession(queryClient)
+      broadcastLogout()
+      toast('탈퇴했어요. 30일 안에 다시 로그인하면 복구할 수 있어요.')
+    },
+  })
+}
+
+/**
  * 토큰을 버리고 비회원으로 바꾼 뒤(채팅 연결도 닫힌다) 다른 회원의 데이터가 남지 않도록 나머지 캐시를 지운다.
  * 내 정보까지 clear()로 지우면 화면이 구독하던 쿼리가 끊겨, 다시 그려지기 전까지 로그인 화면이 남는다.
  */
@@ -122,8 +144,9 @@ async function signIn(request: () => Promise<Me>) {
 /**
  * 이메일·비밀번호 로그인. 성공하면 모달을 닫고 지금 화면에 머문다.
  * 실패 안내(비밀번호 틀림·잠금·이용 불가)는 로그인 폼이 그 자리에 보여 준다.
+ * successMessage: 성공 안내(탈퇴 회원 복구 뒤 다시 로그인하면 복구했다고 알린다)
  */
-export function usePasswordLogin() {
+export function usePasswordLogin(successMessage = '로그인했어요.') {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: { email: string; password: string }) =>
@@ -131,7 +154,7 @@ export function usePasswordLogin() {
     onSuccess: (me) => {
       replaceSession(queryClient, me)
       closeLoginModal()
-      toast('로그인했어요.')
+      toast(successMessage)
     },
   })
 }

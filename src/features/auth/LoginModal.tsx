@@ -1,46 +1,90 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { cancelRestore } from '@/shared/auth/me'
 import { Modal } from '@/shared/ui/Modal'
-import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { startGoogleLogin } from '@/shared/auth/session'
-import { EmailLoginForm } from './EmailLoginForm'
+import {
+  closeLoginModal,
+  useLoginModalStore,
+  type GoogleRestore,
+} from '@/shared/ui/loginModal'
+import { startGoogleLogin, usePasswordLogin } from '@/shared/auth/session'
+import { EmailLoginForm, type RestorableLogin } from './EmailLoginForm'
 import styles from './LoginModal.module.css'
 import { PasswordResetForm } from './PasswordResetForm'
+import { RestorePrompt } from './RestorePrompt'
 import { SignupForm } from './SignupForm'
 import { TestAccountLogin } from './TestAccountLogin'
 
 export function LoginModal() {
-  const { open, reason } = useLoginModalStore()
+  const { open, reason, restore } = useLoginModalStore()
+  // 탈퇴 회원에게 복구할지 묻는 중인지(복구 티켓이 남아 있다)
+  const askingRestore = useRef(false)
+  const setAskingRestore = useCallback((asking: boolean) => {
+    askingRestore.current = asking
+  }, [])
   if (!open) return null
+  const close = () => {
+    // 고르지 않고 닫으면 복구하지 않은 것으로 보고 티켓을 지운다(공용 PC에 10분 동안 남지 않게).
+    if (askingRestore.current) void cancelRestore().catch(() => undefined)
+    closeLoginModal()
+  }
   return (
-    <Modal title="합방 시작하기" onClose={closeLoginModal}>
-      <LoginOptions reason={reason} />
+    <Modal title="합방 시작하기" onClose={close}>
+      {/* 열린 모달에서 복구 질문으로 바뀌어도 처음부터 다시 그린다. */}
+      <LoginOptions
+        key={restore ? 'restore' : 'login'}
+        reason={reason}
+        googleRestore={restore}
+        onRestoreAskingChange={setAskingRestore}
+      />
     </Modal>
   )
 }
 
-type View = 'login' | 'signup' | 'reset'
+type View = 'login' | 'signup' | 'reset' | 'restore'
+
+/** 복구할지 묻는 탈퇴 회원. 복구하면 로그인한 방식으로 다시 로그인한다 */
+type Restore =
+  ({ via: 'password' } & RestorableLogin) | ({ via: 'google' } & GoogleRestore)
 
 /**
  * 구글 로그인과 이메일·비밀번호 로그인, 이메일 가입, 비밀번호 재설정. 이메일 하나는 두 방식 중 하나로만 가입·로그인한다.
  * 가입·재설정은 로그인까지 하지 않으므로 끝나면 로그인 화면으로 돌아와 이메일을 채워 둔다.
+ * 복구할 수 있는 탈퇴 회원이 로그인하면 복구할지 묻고, 복구하면 같은 방식으로 다시 로그인한다.
  * 모달을 닫으면 처음(로그인) 화면으로 돌아간다.
  */
-function LoginOptions({ reason }: { reason?: string }) {
-  const [view, setView] = useState<View>('login')
-  // 가입·재설정을 마치고 돌아왔을 때 채울 이메일과 안내
-  const [done, setDone] = useState<{ email: string; message: string } | null>(
-    null,
-  )
+function LoginOptions({
+  reason,
+  googleRestore,
+  onRestoreAskingChange,
+}: {
+  reason?: string
+  googleRestore?: GoogleRestore
+  onRestoreAskingChange: (asking: boolean) => void
+}) {
+  const [view, setView] = useState<View>(googleRestore ? 'restore' : 'login')
+  // 가입·재설정·복구 질문에서 돌아왔을 때 채울 이메일과 안내(bad면 실패 안내)
+  const [done, setDone] = useState<{
+    email: string
+    message?: string
+    bad?: boolean
+  } | null>(null)
   // 비밀번호 재설정에 넘길, 로그인 폼에 적던 이메일
   const [resetEmail, setResetEmail] = useState('')
+  // 복구할지 묻는 탈퇴 회원의 로그인
+  const [restore, setRestore] = useState<Restore | null>(
+    googleRestore ? { via: 'google', ...googleRestore } : null,
+  )
+  const relogin = usePasswordLogin('계정을 복구하고 로그인했어요.')
+  // 복구하고 구글 로그인 화면으로 가는 중
+  const [leaving, setLeaving] = useState(false)
   // 화면을 바꿨는지. 바꾼 뒤에는 새 폼의 첫 칸으로 포커스한다(처음 열 때는 모달이 포커스를 정한다).
   const [switched, setSwitched] = useState(false)
   const show = (next: View) => {
     setSwitched(true)
     setView(next)
   }
-  const finish = (email: string, message: string) => {
-    setDone({ email, message })
+  const finish = (email: string, message?: string, bad?: boolean) => {
+    setDone({ email, message, bad })
     show('login')
   }
 
@@ -54,6 +98,29 @@ function LoginOptions({ reason }: { reason?: string }) {
         }
       />
     )
+  if (view === 'restore' && restore) {
+    const email = restore.via === 'password' ? restore.email : ''
+    return (
+      <RestorePrompt
+        restorableUntil={restore.restorableUntil}
+        busy={relogin.isPending || leaving}
+        onRestored={() => {
+          if (restore.via === 'google') {
+            setLeaving(true)
+            startGoogleLogin(restore.returnTo ?? undefined)
+            return
+          }
+          relogin.mutate(
+            { email: restore.email, password: restore.password },
+            { onError: (error) => finish(email, error.message, true) },
+          )
+        }}
+        onCancelled={() => finish(email)}
+        onFailed={(message) => finish(email, message, true)}
+        onAskingChange={onRestoreAskingChange}
+      />
+    )
+  }
   if (view === 'reset')
     return (
       <PasswordResetForm
@@ -69,12 +136,15 @@ function LoginOptions({ reason }: { reason?: string }) {
     )
   return (
     <>
-      {done ? (
-        <p className="notice" role="status">
+      {done?.message ? (
+        <p
+          className={done.bad ? 'notice bad' : 'notice'}
+          role={done.bad ? 'alert' : 'status'}
+        >
           {done.message}
         </p>
       ) : (
-        reason && <p>{reason}</p>
+        !done && reason && <p>{reason}</p>
       )}
       <button
         type="button"
@@ -98,6 +168,10 @@ function LoginOptions({ reason }: { reason?: string }) {
         onForgotPassword={(email) => {
           setResetEmail(email)
           show('reset')
+        }}
+        onRestorable={(login) => {
+          setRestore({ via: 'password', ...login })
+          show('restore')
         }}
       />
       {

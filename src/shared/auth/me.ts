@@ -38,9 +38,34 @@ export function logout() {
 }
 
 /**
+ * 회원 탈퇴. 성공하면 204와 함께 refresh token 쿠키를 지우고 모든 기기의 refresh token을 폐기한다(로그아웃과 같다).
+ * 이미 탈퇴했으면 그대로 204. 남은 HP·진행 중 거래가 있으면 409 WITHDRAWAL_BLOCKED + reasons(정리할 항목),
+ * 이미 처리 중이면 409 WITHDRAWAL_IN_PROGRESS, 다른 앱을 부를 수 없으면 503 WITHDRAWAL_UNAVAILABLE
+ */
+export function withdraw() {
+  return api<void>('/members/me', { method: 'DELETE' })
+}
+
+/**
+ * 탈퇴 회원 복구(로그인 없이, 본문 없이). 로그인 때 받은 복구 티켓은 BE가 HttpOnly 쿠키(RESTORE_TICKET, 10분,
+ * 경로 /api/v1/members/restore)로만 다루고 브라우저가 붙여 보낸다. 204면 계정만 되살아나고 로그인은 다시 한다.
+ * 티켓이 없거나 만료면 401 INVALID_RESTORE_TICKET, 복구 기한이 지났으면 403 LOGIN_NOT_ALLOWED(두 경우 쿠키를 지운다),
+ * 지갑을 열지 못하면 503 RESTORE_UNAVAILABLE(쿠키가 남아 그대로 다시 시도할 수 있다)
+ */
+export function restoreMember() {
+  return api<void>('/members/restore', { method: 'POST' })
+}
+
+/** 복구하지 않는다. 복구 티켓과 그 쿠키를 지운다(티켓이 없어도 204) */
+export function cancelRestore() {
+  return api<void>('/members/restore', { method: 'DELETE' })
+}
+
+/**
  * 이메일·비밀번호 로그인. 구글 로그인처럼 refresh token 쿠키만 주므로 access token은 이어서 재발급으로 받는다.
  * 없는 이메일·틀린 비밀번호(구글로 가입한 이메일 포함)는 401 INVALID_CREDENTIALS, 5번 연속 틀리면 15분 동안
- * 429 LOGIN_LOCKED, 정지·탈퇴 회원은 403 LOGIN_NOT_ALLOWED
+ * 429 LOGIN_LOCKED, 정지 회원·복구 기한이 지난 탈퇴 회원은 403 LOGIN_NOT_ALLOWED.
+ * 복구할 수 있는 탈퇴 회원은 409 WITHDRAWN_RESTORABLE + restorableUntil(복구 티켓은 쿠키로 온다)
  */
 export function passwordLogin(body: { email: string; password: string }) {
   return api<Me>('/members/login', { method: 'POST', body })

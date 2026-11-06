@@ -26,4 +26,8 @@ export type ProblemDetail = {
   errors?: { field: string; message: string }[]
   /** HP 충전 승인 거절(CHARGE_PAYMENT_REJECTED)일 때 PG 오류 코드 또는 PG 결제 상태 */
   pgCode?: string | null
+  /** 회원 탈퇴가 막혔을 때(WITHDRAWAL_BLOCKED) 정리할 항목 */
+  reasons?: { code: string; message: string; availableAt?: string | null }[]
+  /** 탈퇴 회원 로그인(WITHDRAWN_RESTORABLE)일 때 복구할 수 있는 마지막 시각(LocalDateTime, KST) */
+  restorableUntil?: string
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { isApiError } from '@/shared/api/ApiError'
 import { usePasswordLogin } from '@/shared/auth/session'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
@@ -6,15 +7,24 @@ import { Field } from '@/shared/ui/Field'
 const FIELD_ID = { email: 'login-email', password: 'login-password' } as const
 const FIELD_ORDER = ['email', 'password'] as const
 
+/** 복구할 수 있는 탈퇴 회원의 로그인. 복구한 뒤 같은 값으로 다시 로그인한다 */
+export type RestorableLogin = {
+  email: string
+  password: string
+  restorableUntil: string | null
+}
+
 /**
  * 이메일·비밀번호 로그인 폼. 실패하면(비밀번호 틀림·잠금·이용 불가) BE 문구를 폼 안에 보여 준다.
  * 구글로 가입한 이메일도 비밀번호가 없어 '이메일 또는 비밀번호가 올바르지 않습니다'가 된다(BE가 구분하지 않는다).
+ * 복구할 수 있는 탈퇴 회원이면(409 WITHDRAWN_RESTORABLE) onRestorable로 넘겨 복구할지 묻게 한다.
  */
 export function EmailLoginForm({
   initialEmail = '',
   autoFocus = false,
   onSignup,
   onForgotPassword,
+  onRestorable,
 }: {
   /** 가입·비밀번호 재설정 뒤 돌아왔을 때 미리 채울 이메일 */
   initialEmail?: string
@@ -23,6 +33,7 @@ export function EmailLoginForm({
   onSignup: () => void
   /** 비밀번호 재설정으로 간다. 적던 이메일을 넘긴다 */
   onForgotPassword: (email: string) => void
+  onRestorable: (login: RestorableLogin) => void
 }) {
   const firstRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -49,14 +60,17 @@ export function EmailLoginForm({
   const submit = (e: FormEvent) => {
     e.preventDefault()
     if (fields.blockSubmit() || login.isPending) return
-    login.mutate(
-      { email: values.email.trim(), password: values.password },
-      {
-        onError: (error) => {
-          if (!fields.applyServerErrors(error)) setFailure(error.message)
-        },
+    const body = { email: values.email.trim(), password: values.password }
+    login.mutate(body, {
+      onError: (error) => {
+        if (isApiError(error, 'WITHDRAWN_RESTORABLE'))
+          return onRestorable({
+            ...body,
+            restorableUntil: error.body?.restorableUntil ?? null,
+          })
+        if (!fields.applyServerErrors(error)) setFailure(error.message)
       },
-    )
+    })
   }
 
   return (

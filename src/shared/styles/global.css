@@ -726,6 +726,55 @@ ul.breakdown {
   accent-color: var(--ink);
 }
 
+/* 회원 탈퇴 */
+.claims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+.claims b {
+  font-size: 14px;
+}
+.plain {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.wd-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.wd-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.wd-row:first-child {
+  border-top: 0;
+}
+.wd-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+}
+.wd-mark.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
 /* 지갑 */
 .wallet-grid {
   display: grid;
