@@ -213,7 +213,10 @@ function StatusNote({ recruit, host }: { recruit: Recruit; host: boolean }) {
     case 'CANCELED':
       return (
         <>
-          <p className="fine">모집이 취소됐어요.</p>
+          <p className="fine">
+            모집이 취소됐어요.
+            {recruit.cancelReason && ` 사유: ${recruit.cancelReason}`}
+          </p>
           {release}
         </>
       )

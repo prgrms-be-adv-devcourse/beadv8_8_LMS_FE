@@ -532,6 +532,7 @@ describe('모집 전체 취소 (호스트)', () => {
     closeType: null,
     closedAt: null,
     canceledAt: null,
+    cancelReason: null,
     hpReleaseStatus: null,
     myApplication: null,
     version: 0,
@@ -582,6 +583,10 @@ describe('모집 전체 취소 (호스트)', () => {
     ).toBeInTheDocument()
     expect(
       within(dialog).getByText(/대기 중인 지원은 모두 미선정/),
+    ).toBeInTheDocument()
+    // 모집글 취소 사유는 모집 상세에서 글을 보는 회원 모두에게 보인다.
+    expect(
+      within(dialog).getByText(/모집글을 보는 모든 회원에게 보여요/),
     ).toBeInTheDocument()
     await userEvent.click(
       within(dialog).getByRole('button', { name: '모집 취소' }),
