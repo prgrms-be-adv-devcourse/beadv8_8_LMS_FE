@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { allPages } from '@/shared/api/allPages'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
+import { orderPollInterval } from './processing'
 import type { Order, OrderItem, OrderSummary, PurchasedLecture } from './types'
 
 export const orderKeys = {
@@ -24,6 +25,8 @@ export const orderQuery = (orderId: number) =>
   queryOptions({
     queryKey: orderKeys.detail(orderId),
     queryFn: () => api<Order>(`/lectures/orders/${orderId}`),
+    // 결제·구매 취소·반환 결과를 기다리는 주문은 끝날 때까지 다시 부른다.
+    refetchInterval: (query) => orderPollInterval(query.state.data),
   })
 
 /** 시청·리뷰 권한 판단에 사용하므로 모든 페이지를 조회한다. */
@@ -32,7 +35,11 @@ export const purchasedQuery = queryOptions({
   queryFn: () => allPages<PurchasedLecture>('/lectures/purchased'),
 })
 
-/** 장바구니 주문은 담은 강의 ID들, 바로 구매는 강의 ID 1개. HP 보류까지 끝난 뒤 응답한다. */
+/**
+ * 장바구니 주문은 담은 강의 ID들, 바로 구매는 강의 ID 1개.
+ * 모든 HP 보류가 성공하면 201 + PAID, 결과를 아직 모르면 202 + 결제 처리 중 주문이다(다시 주문하지 않고 주문 상세로 결과를 본다).
+ * 잔액이 부족하면 409 INSUFFICIENT_BALANCE이고 주문은 결제 실패로 남는다.
+ */
 export function createOrder(lectureIds: number[]) {
   return api<Order>('/lectures/orders', {
     method: 'POST',
@@ -55,7 +62,10 @@ export function consentToPlay(ref: ItemRef) {
   return api<OrderItem>(itemPath(ref, 'play-consent'), { method: 'POST' })
 }
 
-/** 구매 취소. PURCHASED이고 autoConfirmAt 전, 이의 제기 없음. HP 반환까지 끝난 뒤 응답한다. */
+/**
+ * 구매 취소. PURCHASED이고 autoConfirmAt 전, 이의 제기 없음.
+ * HP 반환이 끝나면 200 + CANCELED, 아직이면 202 + CANCEL_PENDING이다(다시 보내지 않는다).
+ */
 export function cancelOrderItem(ref: ItemRef) {
   return api<OrderItem>(itemPath(ref, 'cancel'), { method: 'POST' })
 }

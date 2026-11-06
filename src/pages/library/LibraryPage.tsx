@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
 import { orderQuery, purchasedQuery } from '@/entities/order/api'
+import { purchaseDatesOf } from '@/entities/order/item'
 import type { OrderItem, PurchasedLecture } from '@/entities/order/types'
 import { OrderItemStatusPill } from '@/entities/order/ui/OrderItemStatusPill'
 import {
@@ -94,14 +95,16 @@ function LibraryRow({
   // 기한(구매 취소·이의 제기·지급)은 주문 상세에만 있다. 같은 주문은 한 번만 부른다.
   const { data: order } = useQuery(orderQuery(lecture.orderId))
   const item = order?.items.find((i) => i.orderItemId === lecture.orderItemId)
+  // 내 강의에는 결제가 끝난 항목만 오므로 기한이 있다.
+  const dates = item && purchaseDatesOf(item)
   const before = lecture.itemStatus === 'PURCHASED'
   const cancelable =
     before &&
-    item !== undefined &&
-    item.objectionStatus === 'NONE' &&
-    !isPast(item.autoConfirmAt)
+    item?.objectionStatus === 'NONE' &&
+    dates !== undefined &&
+    !isPast(dates.autoConfirmAt)
   const objectionOpen =
-    !before && item !== undefined && !isPast(item.payoutScheduledAt)
+    !before && dates !== undefined && !isPast(dates.payoutScheduledAt)
 
   return (
     <div className="row-item">
@@ -126,22 +129,22 @@ function LibraryRow({
             <span className="pill mute">판매 종료</span>
           )}
         </div>
-        {item && (
+        {dates && (
           <>
             <span className="fine">
               {before
-                ? `${formatDate(item.autoConfirmAt)} 전까지 구매 취소할 수 있어요`
+                ? `${formatDate(dates.autoConfirmAt)} 전까지 구매 취소할 수 있어요`
                 : objectionOpen
-                  ? `내용 다름 이의 제기 ${formatDate(item.payoutScheduledAt)} 전까지`
+                  ? `내용 다름 이의 제기 ${formatDate(dates.payoutScheduledAt)} 전까지`
                   : '이의 제기 기간이 끝났어요'}
             </span>
             <div className="timeline">
-              <span>구매 {formatDate(item.purchasedAt)}</span>
+              <span>구매 {formatDate(dates.purchasedAt)}</span>
               <span className={before ? 'hit' : undefined}>
-                확정 기한 {formatDate(item.autoConfirmAt)}
+                확정 기한 {formatDate(dates.autoConfirmAt)}
               </span>
               <span className={objectionOpen ? 'hit' : undefined}>
-                판매자 지급 {formatDate(item.payoutScheduledAt)}
+                판매자 지급 {formatDate(dates.payoutScheduledAt)}
               </span>
             </div>
           </>

@@ -10,8 +10,8 @@ import { toast } from '@/shared/ui/toastStore'
 
 export type PurchaseRef = { orderId: number; orderItemId: number }
 
-function useOrderItemMutation(
-  mutationFn: (ref: PurchaseRef) => Promise<unknown>,
+function useOrderItemMutation<T>(
+  mutationFn: (ref: PurchaseRef) => Promise<T>,
   { movesHp = false } = {},
 ) {
   const queryClient = useQueryClient()
@@ -28,6 +28,6 @@ function useOrderItemMutation(
 
 export const useConfirmPurchase = () => useOrderItemMutation(confirmOrderItem)
 export const useConsentToPlay = () => useOrderItemMutation(consentToPlay)
-/** 구매 취소는 보류 HP를 돌려받으므로 지갑도 다시 불러온다. */
+/** 구매 취소는 보류 HP를 돌려받으므로 지갑도 다시 불러온다. 반환이 끝나지 않았으면 CANCEL_PENDING 항목을 받는다 */
 export const useCancelPurchase = () =>
   useOrderItemMutation(cancelOrderItem, { movesHp: true })

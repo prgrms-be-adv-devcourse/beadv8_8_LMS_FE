@@ -2,11 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { orderQuery, ordersQuery } from '@/entities/order/api'
-import type { OrderItem, OrderSummary } from '@/entities/order/types'
+import { itemProcessingStatus } from '@/entities/order/processing'
+import type {
+  OrderItem,
+  OrderStatus,
+  OrderSummary,
+} from '@/entities/order/types'
 import { OrderItemStatusPill } from '@/entities/order/ui/OrderItemStatusPill'
+import { ProcessingNote } from '@/entities/order/ui/ProcessingNote'
 import { CancelPurchaseModal } from '@/features/purchase/PurchaseModals'
 import { formatDate, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup } from '@/shared/lib/statusLabel'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -57,12 +64,25 @@ export function OrdersPage() {
   )
 }
 
+/** 주문 머리의 주문 상태 안내. 결제 처리 중과 결제 완료는 항목 상태 배지로 충분하다 */
+const ORDER_NOTE: Record<OrderStatus, string | null> = {
+  HOLD_PENDING: null,
+  HOLD_COMPENSATING: null,
+  HOLD_FAILED: '결제하지 못한 주문이에요 · 묶인 HP 없음',
+  PAID: null,
+  CANCELED: '전부 취소·반환됨',
+}
+
 function OrderCard({ summary }: { summary: OrderSummary }) {
+  // 처리 중인 주문은 주문 상세만 다시 부르므로(orderQuery), 상태는 불러온 주문 상세를 먼저 본다.
+  // 다시 불러오다 실패해도 이미 받은 주문 상세를 그대로 보인다.
   const { data: order, error, refetch } = useQuery(orderQuery(summary.orderId))
   const [canceling, setCanceling] = useState<OrderItem | null>(null)
+  const status = order?.status ?? summary.status
+  const orderNote = lookup(ORDER_NOTE, status)
 
   return (
-    <section className="panel">
+    <section className="panel" aria-label={`주문 번호 ${summary.orderId}`}>
       <div className="panel-head">
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <b>{formatDate(summary.orderedAt)} 주문</b>
@@ -70,14 +90,13 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
         </div>
         <div style={{ textAlign: 'right' }}>
           <b className="num">{formatNumber(summary.totalAmountHp)} HP</b>
-          {summary.status === 'CANCELED' && (
-            <div className="fine">전부 취소·반환됨</div>
-          )}
+          {orderNote && <div className="fine">{orderNote}</div>}
         </div>
       </div>
-      {error ? (
-        <LoadError error={error} retry={refetch} />
-      ) : order ? (
+      <ProcessingNote
+        status={order ? order.processingStatus : summary.processingStatus}
+      />
+      {order ? (
         <div className="rows">
           {order.items.map((item) => (
             <div
@@ -90,10 +109,12 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
                 <span className="fine num">
                   {formatNumber(item.priceHp)} HP
                 </span>
+                <ProcessingNote status={itemProcessingStatus(item)} />
               </div>
               <OrderItemStatusPill status={item.status} />
               {item.status === 'PURCHASED' &&
                 item.objectionStatus === 'NONE' &&
+                item.autoConfirmAt !== null &&
                 !isPast(item.autoConfirmAt) && (
                   <button
                     type="button"
@@ -106,6 +127,8 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
             </div>
           ))}
         </div>
+      ) : error ? (
+        <LoadError error={error} retry={refetch} />
       ) : (
         <p className="fine">
           {summary.representativeTitle}
