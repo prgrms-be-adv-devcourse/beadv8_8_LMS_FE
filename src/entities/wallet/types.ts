@@ -99,7 +99,9 @@ export type Refund = {
  * 환전 신청 상태 (BE ExchangeStatus).
  * REQUESTED 관리자 승인 전(회원이 취소 가능), APPROVED 관리자 승인(보류 유지·송금 대기, 취소 불가),
  * REJECTED 관리자 거절(보류 HP 반환), CANCELED 회원 취소(보류 HP 반환).
- * PROCESSING·COMPLETED·FAILED·UNKNOWN은 송금 단계(BE 후속 기능)다.
+ * 송금 단계: PROCESSING 송금 결과 대기(보류 유지), COMPLETED 송금 성공(보류 확정 차감),
+ * FAILED 은행 확정 실패(보류 유지, 관리자의 재송금·최종 실패 판단 대기), UNKNOWN 결과 불명·운영자 확인(보류 유지),
+ * FINAL_FAILED 관리자가 최종 실패로 종료(보류 HP 전부 반환).
  */
 export type ExchangeStatus =
   | 'REQUESTED'
@@ -108,6 +110,7 @@ export type ExchangeStatus =
   | 'PROCESSING'
   | 'COMPLETED'
   | 'FAILED'
+  | 'FINAL_FAILED'
   | 'UNKNOWN'
   | 'CANCELED'
 
@@ -181,6 +184,11 @@ export type AdminExchange = {
   rejectedAt: string | null
   /** 신청자에게 보이는 거절 사유 */
   rejectionReason: string | null
+  /** 최종 실패로 종료한 관리자 회원 ID */
+  finalFailedBy: number | null
+  finalFailedAt: string | null
+  /** 최종 실패 사유. 회원 응답에는 없다 */
+  finalFailureReason: string | null
   account: ExchangeAccount
   /** 복제본이 없으면 null이고 그 신청은 승인할 수 없다(409 EXCHANGE_APPLICANT_NOT_SYNCED). */
   applicant: ExchangeApplicant | null
