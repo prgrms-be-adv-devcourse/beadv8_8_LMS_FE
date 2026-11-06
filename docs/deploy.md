@@ -148,7 +148,9 @@ Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구�
 | `k8s/overlays/prod`, `k8s/overlays/local` | 운영(GHCR 이미지), 로컬 k3d(`hapbang/web:local`) |
 | `.github/workflows/ci.yml` | PR마다 format:check·lint·test·build, manifest schema 검사 |
 | `.github/workflows/pr-source.yml` | main으로 가는 PR이 dev에서 왔는지 검사(필수 체크 `source-branch`) |
+| `.github/workflows/claude-review.yml` | dev로 가는 PR에 Claude 리뷰 코멘트(필수 체크 아님). 기준은 dev의 `AGENTS.md`·`docs/` |
 | `.github/workflows/publish.yml` | `dev` push 때 이미지 발행(`:sha-<커밋>`) |
 | `.github/workflows/deploy.yml` | 운영 배포(Publish image 성공 시 자동)·롤백(수동), OIDC → SSM |
 | `.github/scripts/k3s-deploy.sh` | large에서 실행하는 적용·rollout·자동 롤백 스크립트 |
 | `.github/scripts/ssm-run.sh` | 스크립트를 SSM Run Command로 large에 보내 실행(BE 레포와 같은 파일) |
+| `.github/scripts/claude-review-summary.jq` | Claude 리뷰 실행 수치(turn·비용·도구 호출)를 Summary·로그용 표로 만든다(BE 레포와 같은 파일) |
