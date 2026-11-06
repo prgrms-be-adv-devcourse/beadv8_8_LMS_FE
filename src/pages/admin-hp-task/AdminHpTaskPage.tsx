@@ -122,7 +122,8 @@ function Detail({
                   </dd>
                 </>
               )}
-              {task.voidedByUserId !== null && (
+              {/* 필드가 없는 응답(undefined)도 숨긴다 */}
+              {task.voidedByUserId != null && (
                 <>
                   <dt>무효화한 관리자</dt>
                   <dd>관리자 #{task.voidedByUserId}</dd>

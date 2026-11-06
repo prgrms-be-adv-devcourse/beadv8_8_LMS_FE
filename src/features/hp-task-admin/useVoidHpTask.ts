@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { hpTaskKeys, voidLectureHpTask } from '@/entities/hp-task/api'
 import { isApiError } from '@/shared/api/ApiError'
@@ -25,12 +26,21 @@ function errorMessage(error: Error) {
 /**
  * 멈춘 주문 보류의 보류 무효화(되돌릴 수 없음). 성공하면 새로 생긴 무효화 작업 상세로 간다.
  * 지갑에 실제로 보내는 일(대기 → 완료·멈춤)은 그 작업에서 확인한다. 원래 보류는 완료 · 무효화로 닫힌다.
+ * 응답 전에 관리자가 다른 화면으로 갔으면(이 훅을 쓰는 화면이 내려감) 끌고 가지 않고 토스트로만 알린다.
  * 처리하면(실패해도) 강의 HP 작업 조회 전체를 다시 불러온다. 다른 관리자의 재시도·무효화와 겹쳤을 수 있다.
  * 401·403 안내는 queryClient의 MutationCache가 맡는다.
  */
 export function useVoidHpTask(taskId: number) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  // 훅 수준 onSuccess는 화면이 내려가도 불리므로, 이동은 화면이 남아 있을 때만 한다.
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   return useMutation({
     mutationKey: hpTaskKeys.void(taskId),
     mutationFn: () => voidLectureHpTask(taskId),
@@ -38,7 +48,7 @@ export function useVoidHpTask(taskId: number) {
       toast(
         `보류를 무효화했어요. 무효화 작업 #${voidTask.id}을 다음 재시도 배치(1분마다)가 지갑에 보내요.`,
       )
-      navigate(`/admin/hp-tasks/${voidTask.id}`)
+      if (mounted.current) navigate(`/admin/hp-tasks/${voidTask.id}`)
     },
     onError: (error) => {
       if (

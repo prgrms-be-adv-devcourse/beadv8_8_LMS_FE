@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import type { LectureHpTask } from '@/entities/hp-task/types'
 import {
   deadOrderHold,
   holdVoidTask,
@@ -318,6 +319,17 @@ describe('관리자 강의 HP 작업 상세', () => {
     expect(summary).toHaveTextContent('무효화한 관리자관리자 #5')
     expect(screen.queryByRole('region', { name: '재시도' })).toBeNull()
     expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
+  })
+
+  it('무효화한 관리자 필드가 없는 응답이면 그 줄을 숨긴다', async () => {
+    // BE가 voidedByUserId를 싣기 전의 응답
+    delete (
+      lectureHpTaskDb.items.find((t) => t.id === 74) as Partial<LectureHpTask>
+    ).voidedByUserId
+    renderApp('/admin/hp-tasks/74', 'ADMIN')
+    const summary = await region('작업')
+    expect(summary).toHaveTextContent('결과성공')
+    expect(summary).not.toHaveTextContent('무효화한 관리자')
   })
 
   it('멈춘 주문 보류에는 재시도와 함께 보류 무효화가 있다', async () => {
@@ -717,6 +729,30 @@ describe('관리자 강의 HP 작업 보류 무효화', () => {
       '다음 재시도 배치(1분마다)가 다시 보내요. 지갑이 주문 항목으로 중복을 막아 HP가 두 번 움직이지 않아요.',
     )
     expect(dialog).not.toHaveTextContent('같은 요청 ID')
+  })
+
+  it('응답 전에 다른 화면으로 가면 새 무효화 작업으로 끌고 가지 않고 안내만 한다', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/75/void', async () => {
+        lectureHpTaskDb.voidCalls.push(75)
+        await gate
+        return rs(holdVoidTask())
+      }),
+    )
+    const router = renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await confirmVoid()
+    await waitFor(() => expect(lectureHpTaskDb.voidCalls).toEqual([75]))
+
+    await router.navigate('/admin/hp-tasks')
+    await item(72)
+    release()
+
+    expect(await screen.findByText(VOIDED)).toBeInTheDocument()
+    await settle()
+    expect(router.state.location.pathname).toBe('/admin/hp-tasks')
+    expect(lectureHpTaskDb.voidCalls).toEqual([75])
   })
 })
 
