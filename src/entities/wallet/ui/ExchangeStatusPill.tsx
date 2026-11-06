@@ -8,6 +8,7 @@ const LABEL: Record<ExchangeStatus, StatusLabel> = {
   PROCESSING: ['warn', '송금 중'],
   COMPLETED: ['ok', '송금 완료'],
   FAILED: ['bad', '송금 실패'],
+  FINAL_FAILED: ['bad', '송금 실패 · HP 반환'],
   UNKNOWN: ['warn', '확인 중'],
   CANCELED: ['mute', '신청 취소'],
 }

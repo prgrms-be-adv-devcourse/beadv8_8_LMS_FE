@@ -36,7 +36,7 @@ const row = async (exchangeId: number) =>
 /** 상세 화면의 처리 영역. 레일 메뉴 "환전 승인"과 이름이 겹쳐 영역 안에서 찾는다 */
 const actions = () => screen.findByRole('region', { name: '처리' })
 const statusPill = () =>
-  screen.findByText(/승인 대기|승인 · 송금 대기|거절|신청 취소/, {
+  screen.findByText(/승인 대기|승인 · 송금 대기|거절|신청 취소|송금 실패/, {
     selector: '.ph-actions .pill',
   })
 
@@ -146,6 +146,43 @@ describe('관리자 환전 목록', () => {
     })
   })
 
+  it('최종 실패 필터를 누르면 URL ?status=FINAL_FAILED로 그 상태 목록을 요청한다', async () => {
+    resetAdminExchangeDb([
+      adminExchange({ exchangeId: 11 }),
+      adminExchange({
+        exchangeId: 51,
+        status: 'FINAL_FAILED',
+        approvedBy: 9,
+        approvedAt: '2026-10-15T05:00:00Z',
+        finalFailedBy: 7,
+        finalFailedAt: '2026-11-10T06:00:00Z',
+        finalFailureReason: '계좌가 해지되어 송금할 수 없어요',
+      }),
+    ])
+    const router = renderApp('/admin/exchanges', 'ADMIN')
+    const user = userEvent.setup()
+    await row(11)
+    const group = screen.getByRole('group', { name: '환전 상태' })
+
+    await user.click(within(group).getByRole('button', { name: '최종 실패' }))
+
+    expect(router.state.location.search).toBe('?status=FINAL_FAILED')
+    await waitFor(() =>
+      expect(
+        within(group).getByRole('button', { name: '최종 실패' }),
+      ).toHaveAttribute('aria-pressed', 'true'),
+    )
+    expect(within(await row(51)).getByText('송금 실패 · HP 반환')).toHaveClass(
+      'pill',
+      'bad',
+    )
+    expect(adminExchangeDb.listCalls).toContainEqual({
+      status: 'FINAL_FAILED',
+      page: '0',
+      size: '20',
+    })
+  })
+
   it('신청이 없으면 상태에 맞는 빈 상태를 보여 준다', async () => {
     resetAdminExchangeDb([])
     renderApp('/admin/exchanges?status=REJECTED', 'ADMIN')
@@ -248,6 +285,30 @@ describe('관리자 환전 상세', () => {
     expect(history).toHaveTextContent('10/15(목) 14:00')
     expect(history).toHaveTextContent('관리자 #9')
     expect(history).toHaveTextContent('예금주가 신청자와 달라요')
+    expect(screen.queryByRole('region', { name: '처리' })).toBeNull()
+  })
+
+  it('최종 실패한 신청은 처리 기록에 최종 실패 시각·처리 관리자·사유를 보여 준다', async () => {
+    resetAdminExchangeDb([
+      adminExchange({
+        exchangeId: 51,
+        status: 'FINAL_FAILED',
+        approvedBy: 9,
+        approvedAt: '2026-10-15T05:00:00Z',
+        finalFailedBy: 7,
+        finalFailedAt: '2026-11-10T06:00:00Z',
+        finalFailureReason: '계좌가 해지되어 송금할 수 없어요',
+      }),
+    ])
+    renderApp('/admin/exchanges/51', 'ADMIN')
+
+    expect(await statusPill()).toHaveTextContent('송금 실패 · HP 반환')
+    const history = screen.getByRole('region', { name: '처리 기록' })
+    expect(history).toHaveTextContent('최종 실패11/10(화) 15:00 · 관리자 #7')
+    expect(history).toHaveTextContent(
+      '최종 실패 사유계좌가 해지되어 송금할 수 없어요',
+    )
+    expect(history).toHaveTextContent('승인10/15(목) 14:00 · 관리자 #9')
     expect(screen.queryByRole('region', { name: '처리' })).toBeNull()
   })
 

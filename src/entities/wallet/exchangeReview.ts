@@ -8,7 +8,10 @@ import type { AdminExchange, ExchangeApplicant, ExchangeStatus } from './types'
 
 export const REJECTION_REASON_MAX = 500
 
-/** 관리자 목록의 상태 필터. 송금 단계(PROCESSING 이후)는 BE 후속 기능이라 두지 않는다. */
+/**
+ * 관리자 목록의 상태 필터. 송금 단계 중에는 최종 실패만 둔다.
+ * 나머지(송금 중·확인 중·송금 실패·송금 완료)는 송금 처리 관리자 화면과 함께 정한다(#185).
+ */
 export const ADMIN_EXCHANGE_FILTERS = [
   {
     status: 'REQUESTED',
@@ -21,6 +24,11 @@ export const ADMIN_EXCHANGE_FILTERS = [
     status: 'CANCELED',
     label: '회원 취소',
     empty: '회원이 취소한 신청이 없어요',
+  },
+  {
+    status: 'FINAL_FAILED',
+    label: '최종 실패',
+    empty: '최종 실패한 신청이 없어요',
   },
 ] as const satisfies readonly {
   status: ExchangeStatus

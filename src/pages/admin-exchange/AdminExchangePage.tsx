@@ -50,7 +50,10 @@ export function AdminExchangePage() {
 
 function Detail({ exchange }: { exchange: AdminExchange }) {
   const { applicant } = exchange
-  const reviewed = exchange.approvedAt !== null || exchange.rejectedAt !== null
+  const reviewed =
+    exchange.approvedAt !== null ||
+    exchange.rejectedAt !== null ||
+    exchange.finalFailedAt !== null
 
   return (
     <div className="page">
@@ -112,6 +115,19 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
                     <dt>거절 사유</dt>
                     <dd className={styles.reason}>
                       {exchange.rejectionReason}
+                    </dd>
+                  </>
+                )}
+                {exchange.finalFailedAt && (
+                  <>
+                    <dt>최종 실패</dt>
+                    <dd>
+                      {formatDateTime(exchange.finalFailedAt)} · 관리자 #
+                      {exchange.finalFailedBy}
+                    </dd>
+                    <dt>최종 실패 사유</dt>
+                    <dd className={styles.reason}>
+                      {exchange.finalFailureReason}
                     </dd>
                   </>
                 )}
