@@ -26,6 +26,9 @@ export const adminExchange = (
   rejectedBy: null,
   rejectedAt: null,
   rejectionReason: null,
+  finalFailedBy: null,
+  finalFailedAt: null,
+  finalFailureReason: null,
   account: {
     bankCode: '004',
     accountNumberMasked: '**********1234',

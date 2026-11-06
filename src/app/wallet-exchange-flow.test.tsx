@@ -444,6 +444,24 @@ describe('환전 내역', () => {
     expect(within(rejected).getByText('거절')).toHaveClass('pill', 'bad')
   })
 
+  it('최종 실패한 신청은 HP를 돌려받았다는 상태 배지로 보여 준다', async () => {
+    mockExchanges([
+      exchange({
+        exchangeId: 3,
+        status: 'FINAL_FAILED',
+        failedAt: '2026-11-10T06:00:00Z',
+      }),
+    ])
+    renderApp('/wallet', 'INFLUENCER')
+
+    const history = await screen.findByRole('region', { name: '환전 내역' })
+    const [, finalFailed] = await within(history).findAllByRole('row')
+    expect(within(finalFailed).getByText('송금 실패 · HP 반환')).toHaveClass(
+      'pill',
+      'bad',
+    )
+  })
+
   it('내역이 없으면 빈 상태를 보여 준다', async () => {
     mockExchanges([])
     renderApp('/wallet', 'INFLUENCER')
@@ -481,11 +499,14 @@ describe('환전 상세·취소', () => {
     ).toBeInTheDocument()
   })
 
-  it.each(['CANCELED', 'PROCESSING', 'COMPLETED'] as const)(
+  it.each(['CANCELED', 'PROCESSING', 'COMPLETED', 'FINAL_FAILED'] as const)(
     '%s 상태에는 취소 버튼이 없다',
     async (status) => {
       const { dialog } = await openDetail([exchange({ status })])
       await within(dialog).findByText('004 **********1234')
+      expect(
+        within(dialog).queryByText('알 수 없는 상태', { selector: '.pill' }),
+      ).toBeNull()
       expect(
         within(dialog).queryByRole('button', { name: '환전 신청 취소' }),
       ).toBeNull()
