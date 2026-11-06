@@ -18,6 +18,7 @@ pnpm format         # Prettier 적용 / format:check는 검사만
 ```
 
 CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 dev 커밋만 이미지가 발행되고 운영에 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
+dev로 가는 PR에는 커밋마다 Claude Review(`.github/workflows/claude-review.yml`)가 리뷰 코멘트를 단다. 기준은 PR이 아니라 dev의 이 파일과 `docs/`다(PR이 고친 기준은 리뷰 대상). 재리뷰는 새 지적이 없으면 코멘트를 달지 않고, 실행 수치(turn·비용·도구 호출)는 run Summary와 로그에 남는다. 필수 체크가 아니다.
 Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 
 ## 화면 명세: `docs/mockup-ui.html`
@@ -26,7 +27,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 - `<style>`(6–642행): 디자인 토큰(`:root` CSS 변수, 다크 모드 포함)과 컴포넌트 클래스(`.btn.primary`, `.pill.ok`, `.panel` …). 앱 CSS는 이것을 그대로 옮긴다(Tailwind·UI 키트로 재작성하지 않는다). 534행 이후 `--fx-*`/에디터 셸은 목업 뷰어용이라 옮기지 않는다.
 - 스크립트의 `/* ───── … ───── */` 주석이 섹션 경계다: 샘플 데이터, `ROLES`/`NAV`(역할별 메뉴·접근 권한), 공용 컴포넌트(`Pill`, `Head`, `Field`, `Tabs`, `Modal`, `Empty`), 화면별 컴포넌트, 프레임 정의(`route:`, API 안).
-- 모바일 대응은 `@media`가 아니라 `@container app`이다.
+- 목업의 모바일 대응은 `@container app`이다. 앱은 뷰포트 기준 `@media`로 옮긴다(예: `@media (max-width: 960px)`).
 - 역할: 비회원 / 유저 / 인플루언서 / 인증된 인플루언서 / 관리자. HP 종류는 색으로 고정한다(충전=`--charge` 파랑, 수익=`--earn` 초록, 보류=`--hold` 호박색).
 - 목업의 `ctx` 전역 상태(지갑, 장부, 장바구니, 출연 등)와 `hold`/`unhold` 같은 잔액 계산은 프로토타입용이다. 실제로는 서버 데이터이므로 TanStack Query로 다루고 계산은 BE가 한다. 라우트·검색어·필터는 URL에 둔다.
 
