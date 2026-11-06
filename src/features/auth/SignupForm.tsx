@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { nicknameError } from '@/entities/member/nickname'
+import { NICKNAME_TAKEN, nicknameError } from '@/entities/member/nickname'
+import { useNicknameAvailability } from '@/entities/member/useNicknameAvailability'
 import { passwordError } from '@/entities/member/password'
 import { isApiError } from '@/shared/api/ApiError'
 import { signup } from '@/shared/auth/me'
@@ -94,6 +95,7 @@ function SignupDetailsForm({
   useEffect(() => {
     firstRef.current?.focus()
   }, [])
+  const availability = useNicknameAvailability(values.nickname)
   const fields = useFieldErrors({
     ids: FIELD_ID,
     order: FIELD_ORDER,
@@ -104,7 +106,9 @@ function SignupDetailsForm({
         : values.passwordConfirm !== values.password
           ? '비밀번호가 서로 달라요.'
           : undefined,
-      nickname: nicknameError(values.nickname) ?? undefined,
+      nickname:
+        nicknameError(values.nickname) ??
+        (availability.taken ? NICKNAME_TAKEN : undefined),
     },
   })
   const save = useMutation({
@@ -140,6 +144,8 @@ function SignupDetailsForm({
       emailVerificationToken: verified.token,
     })
   }
+
+  const nicknameProps = fields.inputProps('nickname')
 
   return (
     <form
@@ -200,7 +206,11 @@ function SignupDetailsForm({
           autoComplete="nickname"
           value={values.nickname}
           maxLength={20}
-          {...fields.inputProps('nickname')}
+          {...nicknameProps}
+          onBlur={() => {
+            nicknameProps.onBlur()
+            availability.check()
+          }}
           onChange={(e) => set('nickname')(e.target.value)}
         />
       </Field>

@@ -3,9 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { memberKeys } from '@/entities/member/api'
 import type { MyChannel } from '@/entities/member/types'
 import type { Me } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { problem } from '@/test/emailCodeMock'
+import { expectFieldError, expectNoFieldError } from '@/test/fieldError'
 import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -291,6 +294,104 @@ describe('계정 설정', () => {
         name: '새벽 기타 메뉴',
       }),
     ).toBeInTheDocument()
+  })
+
+  it('저장이 409 DUPLICATE_NICKNAME이면 토스트 대신 닉네임 칸 오류로 보이고, 고치면 지운 뒤 다시 저장한다', async () => {
+    const saved: unknown[] = []
+    server.use(
+      http.patch('*/api/v1/members/me', async ({ request }) => {
+        const body = (await request.json()) as { nickname: string }
+        saved.push(body)
+        return body.nickname === '새벽'
+          ? problem(409, 'DUPLICATE_NICKNAME', '이미 쓰고 있는 닉네임이에요.')
+          : rs(me({ nickname: body.nickname }))
+      }),
+    )
+    renderApp('/settings', 'USER')
+
+    const input = await screen.findByRole('textbox', { name: '닉네임' })
+    const save = screen.getByRole('button', { name: '저장' })
+    await userEvent.clear(input)
+    await userEvent.type(input, '새벽')
+    await userEvent.click(save)
+
+    await waitFor(() => expectFieldError(input, '이미 쓰고 있는 닉네임이에요.'))
+    expect(input).toHaveFocus()
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      '이미 쓰고 있는 닉네임이에요.',
+    )
+    expect(
+      screen
+        .queryAllByRole('status')
+        .filter((el) => el.classList.contains('toast')),
+    ).toHaveLength(0)
+    expect(save).toBeDisabled()
+
+    await userEvent.type(input, '별')
+    expectNoFieldError(input)
+    await userEvent.click(save)
+    expect(await screen.findByText('닉네임을 바꿨어요.')).toBeInTheDocument()
+    expect(saved).toEqual([{ nickname: '새벽' }, { nickname: '새벽별' }])
+  })
+
+  it('닉네임 칸을 벗어나면 중복을 확인해, 다른 회원이 쓰는 닉네임이면 칸 오류로 보이고 저장을 막는다', async () => {
+    const checks: { nickname: string | null; auth: string | null }[] = []
+    server.use(
+      http.get('*/api/v1/members/nicknames/availability', ({ request }) => {
+        const nickname = new URL(request.url).searchParams.get('nickname')
+        checks.push({ nickname, auth: request.headers.get('Authorization') })
+        return rs({ available: nickname !== '새벽' })
+      }),
+    )
+    renderApp('/settings', 'USER')
+
+    const input = await screen.findByRole('textbox', { name: '닉네임' })
+    const save = screen.getByRole('button', { name: '저장' })
+    await userEvent.clear(input)
+    await userEvent.type(input, ' 새벽 ')
+    await userEvent.tab()
+
+    await waitFor(() => expectFieldError(input, '이미 쓰고 있는 닉네임이에요.'))
+    expect(save).toBeDisabled()
+    // 로그인한 회원으로 부른다(BE가 내 닉네임은 쓸 수 있다고 답한다).
+    expect(checks).toEqual([
+      { nickname: '새벽', auth: `Bearer ${TEST_ACCESS_TOKEN}` },
+    ])
+
+    // 고치면 확인 결과를 지우고, 다시 칸을 벗어나면 새 값으로 확인한다.
+    await userEvent.type(input, '별')
+    expectNoFieldError(input)
+    expect(save).toBeEnabled()
+    await userEvent.tab()
+    await waitFor(() => expect(checks).toHaveLength(2))
+    expect(checks[1].nickname).toBe('새벽 별')
+    expectNoFieldError(input)
+    expect(save).toBeEnabled()
+  })
+
+  it('내 닉네임 그대로거나 규칙에 맞지 않으면 중복 확인을 부르지 않는다', async () => {
+    let checks = 0
+    server.use(
+      http.get('*/api/v1/members/nicknames/availability', () => {
+        checks++
+        return rs({ available: false })
+      }),
+    )
+    renderApp('/settings', 'USER')
+
+    const input = await screen.findByRole('textbox', { name: '닉네임' })
+    await userEvent.click(input)
+    await userEvent.tab()
+    await userEvent.clear(input)
+    await userEvent.type(input, '새')
+    await userEvent.tab()
+    expectFieldError(input, '닉네임은 2~12자로 입력해 주세요.')
+
+    // 보내는 중인 요청도 없다(응답 전이면 checks만으로는 알 수 없다).
+    expect(
+      queryClient.isFetching({ queryKey: memberKeys.nicknameAvailability() }),
+    ).toBe(0)
+    expect(checks).toBe(0)
   })
 
   it('지원하지 않는 형식의 사진은 올리지 않는다', async () => {

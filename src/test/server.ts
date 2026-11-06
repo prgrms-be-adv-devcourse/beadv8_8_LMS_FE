@@ -156,9 +156,23 @@ const chatTicketDefault = [
   ),
 ]
 
+/**
+ * 닉네임 중복 확인. 가입·계정 설정의 닉네임 칸을 벗어나면 부른다. 기본은 쓸 수 있는 닉네임이다.
+ */
+const nicknameAvailabilityDefault = [
+  http.get('*/api/v1/members/nicknames/availability', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: { available: true },
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
 export const server = setupServer(
   ...authDefaults,
+  ...nicknameAvailabilityDefault,
   ...chatTicketDefault,
   ...appShellCartDefault,
   ...appShellDefaults,
