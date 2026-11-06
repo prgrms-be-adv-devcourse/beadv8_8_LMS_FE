@@ -70,6 +70,6 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 ## 코드 규칙
 
 - import는 `@/`(= `src/`) 별칭을 쓴다. TS `strict`가 켜져 있다.
-- BE가 주는 상태·종류 값은 이름 표에서 바로 꺼내지 않는다(`LABEL[status]`). BE가 새 값을 더하면 화면이 깨지거나 빈칸이 된다. `@/shared/lib/statusLabel`을 거친다: 상태 배지는 `statusOf`(`switch`로 고르면 `default`에 `unknownStatus`), 이름은 `lookup(...) ?? UNKNOWN_STATUS_NAME`·`UNKNOWN_NAME`, 안내 문장은 `lookup`이 없으면 숨긴다. 모르는 값 표시는 `src/entities/unknownStatus.test.tsx`에 한 줄 더한다.
+- BE가 주는 상태·종류 값은 이름 표에서 바로 꺼내지 않는다(`LABEL[status]`). BE가 새 값을 더하면 화면이 깨지거나 빈칸이 된다. `@/shared/lib/statusLabel`을 거친다: 상태 배지는 `statusOf`(`switch`로 고르면 `default`에 `unknownStatus`. 삼항으로 나머지 값을 한 이름에 몰지 않는다), 이름은 `lookup(...) ?? UNKNOWN_STATUS_NAME`·`UNKNOWN_NAME`, 안내 문장은 `lookup`이 없으면 숨긴다. 새 상태 배지·이름 표시는 `src/entities/unknownStatus.test.tsx`에 모르는 값 한 줄을 더한다(안내 문장 숨김은 더하지 않는다).
 - Prettier: 세미콜론 없음, 작은따옴표. 마크다운과 `docs/mockup-ui.html`은 포맷 대상이 아니다.
 - 문서·주석·커밋 메시지는 한국어. 커밋은 `Chore:`/`Docs:` 같은 접두어 + 요약, PR은 `dev`로 올리고 squash로 병합한다(dev 커밋 하나 = PR 하나). dev → main은 merge commit이다.
