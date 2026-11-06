@@ -322,7 +322,7 @@ export function CancelRecruitModal({
       <ReasonField
         id="recruit-cancel-reason"
         label="취소 사유 (선택)"
-        hint="성립한 출연의 게스트에게 보여요."
+        hint="모집글을 보는 모든 회원에게 보여요."
         value={reason}
         onChange={setReason}
       />

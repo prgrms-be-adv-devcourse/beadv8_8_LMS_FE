@@ -116,6 +116,8 @@ export type Recruit = RecruitSummary & {
   closeType: RecruitCloseType | null
   closedAt: string | null
   canceledAt: string | null
+  /** 모집 전체 취소 사유 (선택). 취소된 경우에만 있고, 글을 볼 수 있는 회원 모두에게 같은 값이 온다 */
+  cancelReason: string | null
   /** 마감 반환 진행 상태. 호스트에게만 있고, 반환할 금액이 없거나 마감 전이면 null */
   hpReleaseStatus: HpReleaseStatus | null
   /** 조회한 회원의 이 모집글 지원 (상태 그대로). 지원한 적이 없거나 호스트 본인이면 null */

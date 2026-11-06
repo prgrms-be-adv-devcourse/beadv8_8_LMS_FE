@@ -61,6 +61,7 @@ const recruit = (patch: Partial<Recruit> = {}): Recruit => ({
   closeType: null,
   closedAt: null,
   canceledAt: null,
+  cancelReason: null,
   hpReleaseStatus: null,
   myApplication: null,
   version: 0,
@@ -580,6 +581,34 @@ describe('모집 상세 공통', () => {
     mockRecruit(current)
     renderApp('/recruits/7', 'INFLUENCER')
     expect(await screen.findByText('기한 마감')).toHaveClass('pill', 'mute')
+  })
+
+  it('취소된 모집글은 취소 사유를 함께 보여 준다', async () => {
+    mockRecruit({
+      value: recruit({
+        status: 'CANCELED',
+        canceledAt: '2999-10-19T00:00:00',
+        cancelReason: '방송 일정이 바뀌었어요',
+      }),
+    })
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(
+      await screen.findByText(
+        '모집이 취소됐어요. 사유: 방송 일정이 바뀌었어요',
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('취소 사유가 없으면 취소 안내만 보여 준다', async () => {
+    mockRecruit({
+      value: recruit({
+        status: 'CANCELED',
+        canceledAt: '2999-10-19T00:00:00',
+      }),
+    })
+    renderApp('/recruits/7', 'INFLUENCER')
+    expect(await screen.findByText('모집이 취소됐어요.')).toBeInTheDocument()
+    expect(screen.queryByText(/사유:/)).toBeNull()
   })
 
   it('없는 모집글(404)이면 없거나 처리 중이라는 안내를 보여 준다', async () => {
