@@ -15,7 +15,9 @@ import { groupStatusLabel } from './chat/group'
 import { HpTaskStatusPill } from './hp-task/ui/HpTaskStatusPill'
 import {
   CategoryPill,
+  HpReturnPill,
   InquiryStatusPill,
+  ObjectionLinkPill,
   ObjectionResultPill,
 } from './inquiry/ui/InquiryPills'
 import { MyLectureStatusPill } from './lecture/ui/MyLectureStatusPill'
@@ -68,6 +70,8 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
     ],
     ['InquiryStatusPill', () => <InquiryStatusPill status={NEW} />],
     ['ObjectionResultPill', () => <ObjectionResultPill result={NEW} />],
+    ['ObjectionLinkPill', () => <ObjectionLinkPill status={NEW} />],
+    ['HpReturnPill', () => <HpReturnPill status={NEW} />],
   ]
 
   it.each(pills)('%s는 모르는 값에도 대체 표시를 그린다', (_, pill) => {

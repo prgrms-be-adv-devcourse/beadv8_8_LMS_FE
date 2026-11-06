@@ -2,8 +2,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { adminInquiryQuery } from '@/entities/inquiry/api'
-import type { Inquiry, InquiryReply } from '@/entities/inquiry/types'
+import { adminFormOf, isWithdrawn } from '@/entities/inquiry/objection'
+import type {
+  Inquiry,
+  InquiryReply,
+  ObjectionLinkStatus,
+} from '@/entities/inquiry/types'
 import { InquiryHead } from '@/entities/inquiry/ui/InquiryHead'
+import { ObjectionLinkPill } from '@/entities/inquiry/ui/InquiryPills'
 import { InquiryThread } from '@/entities/inquiry/ui/InquiryThread'
 import {
   useDeleteReply,
@@ -11,29 +17,97 @@ import {
   useReplyInquiry,
   useResolveObjection,
 } from '@/features/inquiry/useInquiryActions'
+import { lookup } from '@/shared/lib/statusLabel'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
+import { EmptyState } from '@/shared/ui/EmptyState'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 export function AdminInquiryPage() {
   const inquiryId = Number(useParams().inquiryId)
-  const { data, error, isPending, refetch } = useQuery(
-    adminInquiryQuery(inquiryId),
-  )
+  const { data, error, refetch } = useQuery(adminInquiryQuery(inquiryId))
+  // 다시 불러오다 실패해도(일시 오류) 이미 받은 문의를 그대로 보이고, 다음 다시 불러오기를 기다린다.
+  // 철회 처리 중이던 문의가 사라졌으면(404) 회원 철회로 삭제된 것이다.
   return (
     <div className="page narrow">
       <Link className="back" to="/admin/inquiries">
         ← 문의 답변
       </Link>
-      {isPending ? (
-        <Loading />
+      {isWithdrawn(data, error) ? (
+        <EmptyState
+          title="삭제된 문의예요"
+          action={
+            <Link className="btn" to="/admin/inquiries">
+              문의 목록
+            </Link>
+          }
+        >
+          회원이 이의 제기를 철회해 문의가 삭제됐어요.
+        </EmptyState>
+      ) : data ? (
+        <Detail inquiry={data} />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : (
-        <Detail inquiry={data} />
+        <Loading />
       )}
     </div>
+  )
+}
+
+/** 연동 상태별 관리자 안내. 접수됨·판단 완료·철회됨은 상태 배지로 충분하다. 모르는 상태는 숨긴다 */
+const LINK_HINT: Record<ObjectionLinkStatus, string | null> = {
+  FILING:
+    '강의에 접수하는 중이에요. 서버가 매분 다시 시도하고, 접수되면 판단할 수 있어요. 결과가 나오면 이 화면이 바뀌어요.',
+  FILED: null,
+  FILE_REJECTED:
+    '강의가 접수를 거절해 판매자 지급은 멈추지 않았어요. 일반 문의처럼 답변할 수 있어요.',
+  RESOLUTION_PENDING:
+    '판단을 강의에 반영하는 중이에요. 반영되면 판단 안내가 답변으로 달리고 이 화면이 바뀌어요.',
+  RESOLVED: null,
+  RESOLUTION_FAILED:
+    '강의가 판단을 거절했어요. 같은 판단을 다시 보내도 같은 결과라 운영 복구를 기다려요.',
+  WITHDRAWAL_PENDING:
+    '회원이 이의 제기를 철회하는 중이에요. 철회가 끝나면 문의가 삭제되므로 답변할 수 없어요.',
+  WITHDRAWN: null,
+  WITHDRAWAL_FAILED:
+    '강의가 철회를 거절했어요. 운영 복구를 기다리는 동안에는 판단·답변하지 않아요.',
+}
+
+/** 이의 제기의 강의 연동 상태. 실패 코드·명령 ID는 관리자 응답에만 있다(BE D60 (4)) */
+function ObjectionLinkPanel({ inquiry }: { inquiry: Inquiry }) {
+  const status = inquiry.objectionLinkStatus
+  if (status === null) return null
+  const hint = lookup(LINK_HINT, status)
+  return (
+    <section className="panel" aria-label="이의 제기 연동">
+      <dl className="kv">
+        <dt>연동 상태</dt>
+        <dd>
+          <ObjectionLinkPill status={status} />
+        </dd>
+        {inquiry.objectionNotice && (
+          <>
+            <dt>회원 안내</dt>
+            <dd>{inquiry.objectionNotice}</dd>
+          </>
+        )}
+        {inquiry.objectionFailureCode && (
+          <>
+            <dt>실패 코드</dt>
+            <dd className="num">{inquiry.objectionFailureCode}</dd>
+          </>
+        )}
+        {inquiry.objectionCommandId && (
+          <>
+            <dt>명령 ID</dt>
+            <dd className="num">{inquiry.objectionCommandId}</dd>
+          </>
+        )}
+      </dl>
+      {hint && <p className="fine">{hint}</p>}
+    </section>
   )
 }
 
@@ -45,9 +119,8 @@ function Detail({ inquiry }: { inquiry: Inquiry }) {
   const [deleting, setDeleting] = useState<InquiryReply | null>(null)
   const edit = useEditReply(inquiry.inquiryId)
   const remove = useDeleteReply(inquiry.inquiryId)
-  // 판단 전 이의 제기는 일반 답변 대신 판단으로 안내를 단다.
-  const needsResolution =
-    inquiry.category === 'LECTURE_CONTENT_DISPUTE' && !inquiry.objectionResult
+  // 접수된 이의 제기는 일반 답변 대신 판단으로 안내를 단다. 연동 처리 중·강의 거절이면 폼을 열지 않는다.
+  const form = adminFormOf(inquiry)
 
   const saveEdit = (e: FormEvent) => {
     e.preventDefault()
@@ -61,6 +134,7 @@ function Detail({ inquiry }: { inquiry: Inquiry }) {
   return (
     <>
       <InquiryHead inquiry={inquiry} showUser />
+      <ObjectionLinkPanel inquiry={inquiry} />
       <InquiryThread
         inquiry={inquiry}
         author={`회원 #${inquiry.userId}`}
@@ -122,11 +196,10 @@ function Detail({ inquiry }: { inquiry: Inquiry }) {
           ) : undefined
         }
       />
-      {needsResolution ? (
+      {form === 'resolve' && (
         <ResolveObjectionForm inquiryId={inquiry.inquiryId} />
-      ) : (
-        <ReplyForm inquiryId={inquiry.inquiryId} />
       )}
+      {form === 'reply' && <ReplyForm inquiryId={inquiry.inquiryId} />}
       {deleting && (
         <Modal
           title="답변을 삭제할까요?"
