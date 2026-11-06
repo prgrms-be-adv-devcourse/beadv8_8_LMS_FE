@@ -22,6 +22,11 @@ import {
 } from '@/features/hp-task-admin/useRetryHpTask'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import {
+  lookup,
+  UNKNOWN_NAME,
+  UNKNOWN_STATUS_NAME,
+} from '@/shared/lib/statusLabel'
 import { Modal } from '@/shared/ui/Modal'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -77,8 +82,8 @@ function Detail({
             <dl className="kv">
               <dt>유형</dt>
               <dd>
-                {HP_TASK_TYPE_LABEL[task.taskType]} ·{' '}
-                {HP_TASK_PURPOSE_LABEL[task.purpose]}
+                {lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME} ·{' '}
+                {lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME}
               </dd>
               <dt>금액</dt>
               <dd className="num">{formatNumber(task.amountHp)} HP</dd>
@@ -107,7 +112,10 @@ function Detail({
               {task.outcome && (
                 <>
                   <dt>결과</dt>
-                  <dd>{HP_TASK_OUTCOME_LABEL[task.outcome]}</dd>
+                  <dd>
+                    {lookup(HP_TASK_OUTCOME_LABEL, task.outcome) ??
+                      UNKNOWN_STATUS_NAME}
+                  </dd>
                 </>
               )}
             </dl>
@@ -222,7 +230,10 @@ function AttemptRow({ attempt }: { attempt: LectureHpTaskAttempt }) {
     <tr aria-label={`${attempt.attemptNo}회차 시도`}>
       <td className="num">{attempt.attemptNo}</td>
       <td>
-        {attempt.result ? HP_ATTEMPT_RESULT_LABEL[attempt.result] : '실행 중'}
+        {attempt.result
+          ? (lookup(HP_ATTEMPT_RESULT_LABEL, attempt.result) ??
+            UNKNOWN_STATUS_NAME)
+          : '실행 중'}
       </td>
       <td className={styles.code}>
         {attempt.errorCode ?? '—'}
@@ -296,9 +307,10 @@ function Retry({ task }: { task: LectureHpTask }) {
           }
         >
           <p>
-            {HP_TASK_TYPE_LABEL[task.taskType]} ·{' '}
-            {HP_TASK_PURPOSE_LABEL[task.purpose]} · 주문 #{task.orderId} · 항목
-            #{task.orderItemId} ({formatNumber(task.amountHp)} HP)
+            {lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME} ·{' '}
+            {lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME} · 주문
+            #{task.orderId} · 항목 #{task.orderItemId} (
+            {formatNumber(task.amountHp)} HP)
           </p>
           <p>
             바로 보내지 않고 대기로 바꿔요. 다음 재시도 배치(1분마다)가 같은

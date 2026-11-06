@@ -14,10 +14,10 @@ import {
 import type {
   Appearance,
   AppearanceCancelRequest,
-  AppearanceCancelRequestStatus,
   HpReleaseStatus,
 } from '@/entities/appearance/types'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
+import { CancelRequestStatusPill } from '@/entities/appearance/ui/CancelRequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import {
   AcceptCancelModal,
@@ -33,6 +33,7 @@ import { AppearanceReviewSection } from '@/features/appearance-review/Appearance
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup } from '@/shared/lib/statusLabel'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AppearanceDetailPage.module.css'
 
@@ -242,17 +243,6 @@ function Detail({
   )
 }
 
-const REQUEST_STATUS: Record<
-  AppearanceCancelRequestStatus,
-  [tone: string, label: string]
-> = {
-  REQUESTED: ['warn', '처리 중'],
-  ACCEPTED: ['ok', '수락 · 합의 취소'],
-  REJECTED: ['mute', '거절'],
-  AUTO_REJECTED: ['mute', '응답 없어 자동 거절'],
-  CLOSED_BY_HOST_CANCEL: ['mute', '호스트 취소로 종료'],
-}
-
 /** 출연 취소 요청 이력 (최대 2건) */
 function CancelHistory({ requests }: { requests: AppearanceCancelRequest[] }) {
   if (requests.length === 0) return null
@@ -260,30 +250,26 @@ function CancelHistory({ requests }: { requests: AppearanceCancelRequest[] }) {
     <section className="panel">
       <h2>출연 취소 요청</h2>
       <ul className={`rows ${styles.history}`} aria-label="출연 취소 요청 이력">
-        {requests.map((r) => {
-          const [tone, label] = REQUEST_STATUS[r.status]
-          return (
-            <li key={r.id} className="row-item">
-              <div className="row-main">
-                <div className={styles.historyHead}>
-                  <b>{r.sequence}번째 요청</b>
-                  <span className={`pill ${tone}`}>{label}</span>
-                  <span className="fine">
-                    {formatDateTime(r.requestedAt)} 요청
-                    {r.respondedAt &&
-                      ` · ${formatDateTime(r.respondedAt)} 응답`}
-                  </span>
-                </div>
-                <span className={styles.reason}>사유: {r.reason}</span>
-                {r.rejectReason && (
-                  <span className={`fine ${styles.reason}`}>
-                    거절 사유: {r.rejectReason}
-                  </span>
-                )}
+        {requests.map((r) => (
+          <li key={r.id} className="row-item">
+            <div className="row-main">
+              <div className={styles.historyHead}>
+                <b>{r.sequence}번째 요청</b>
+                <CancelRequestStatusPill status={r.status} />
+                <span className="fine">
+                  {formatDateTime(r.requestedAt)} 요청
+                  {r.respondedAt && ` · ${formatDateTime(r.respondedAt)} 응답`}
+                </span>
               </div>
-            </li>
-          )
-        })}
+              <span className={styles.reason}>사유: {r.reason}</span>
+              {r.rejectReason && (
+                <span className={`fine ${styles.reason}`}>
+                  거절 사유: {r.rejectReason}
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
       </ul>
     </section>
   )
@@ -295,6 +281,7 @@ const HP_TASK: Record<HpReleaseStatus, string> = {
   DEAD: '처리하지 못했어요. 고객센터로 문의해 주세요.',
 }
 
+/** 모르는 처리 상태면 안내를 숨긴다 */
 function TaskNote({
   label,
   status,
@@ -302,9 +289,11 @@ function TaskNote({
   label: string
   status: HpReleaseStatus
 }) {
+  const note = lookup(HP_TASK, status)
+  if (!note) return null
   return (
     <p className={status === 'DEAD' ? 'fine c-bad' : 'fine'}>
-      {label} {HP_TASK[status]}
+      {label} {note}
     </p>
   )
 }

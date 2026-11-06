@@ -1,6 +1,7 @@
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { HpTaskOutcome, HpTaskStatus } from '../types'
 
-const LABEL: Record<HpTaskStatus, [tone: string, label: string]> = {
+const LABEL: Record<HpTaskStatus, StatusLabel> = {
   DEAD: ['bad', '멈춤'],
   PENDING: ['warn', '대기'],
   PROCESSING: ['info', '처리 중'],
@@ -20,7 +21,7 @@ export function HpTaskStatusPill({
   status: HpTaskStatus
   outcome: HpTaskOutcome | null
 }) {
-  const [tone, label] = LABEL[status]
+  const [tone, label] = statusOf(LABEL, status)
   const finished = status === 'COMPLETED' && outcome && OUTCOME[outcome]
   return (
     <span className={`pill ${finished ? 'mute' : tone}`}>

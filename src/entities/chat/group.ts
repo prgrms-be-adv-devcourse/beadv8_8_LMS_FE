@@ -1,4 +1,5 @@
 import { formatDateTime, parseServerDate } from '@/shared/lib/date'
+import { lookup, UNKNOWN_STATUS_NAME } from '@/shared/lib/statusLabel'
 import type {
   ChatGroupSummary,
   ChatInviteFailure,
@@ -15,6 +16,11 @@ export const GROUP_STATUS_LABEL: Record<ChatRoomStatus, string> = {
   ENDED: '종료',
 }
 
+/** 단체방 상태 이름. 모르는 상태도 이름으로 */
+export function groupStatusLabel(status: ChatRoomStatus) {
+  return lookup(GROUP_STATUS_LABEL, status) ?? UNKNOWN_STATUS_NAME
+}
+
 /** 한 번에 초대할 수 있는 회원 수(BE 기본값, 넘으면 400 INVALID_REQUEST) */
 export const INVITE_MAX = 50
 
@@ -27,10 +33,7 @@ export const INVITE_FAILURE_LABEL: Record<ChatInviteFailure, string> = {
 
 /** 모르는 사유도 문구로 */
 export function inviteFailureLabel(reason: string | null | undefined) {
-  return (
-    (reason && INVITE_FAILURE_LABEL[reason as ChatInviteFailure]) ??
-    '초대하지 못했어요'
-  )
+  return lookup(INVITE_FAILURE_LABEL, reason) ?? '초대하지 못했어요'
 }
 
 /**

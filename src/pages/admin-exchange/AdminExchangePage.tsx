@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { adminExchangeQuery } from '@/entities/wallet/adminExchangeApi'
 import {
-  APPLICANT_STATUS_LABEL,
+  applicantStatusLabel,
   approveBlockReason,
   isExchangeReviewable,
 } from '@/entities/wallet/exchangeReview'
@@ -13,7 +13,7 @@ import { ApproveExchangeModal } from '@/features/exchange-review/ApproveExchange
 import { RejectExchangeModal } from '@/features/exchange-review/RejectExchangeModal'
 import { useReviewingExchange } from '@/features/exchange-review/useExchangeReview'
 import { ExchangeSummary } from '@/features/wallet-exchange/ExchangeSummary'
-import { VIEWER_LABEL } from '@/shared/auth/role'
+import { viewerLabel } from '@/shared/auth/role'
 import { formatDateTime } from '@/shared/lib/date'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -76,9 +76,9 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
               {applicant ? (
                 <>
                   <dt>역할</dt>
-                  <dd>{VIEWER_LABEL[applicant.role]}</dd>
+                  <dd>{viewerLabel(applicant.role)}</dd>
                   <dt>회원 상태</dt>
-                  <dd>{APPLICANT_STATUS_LABEL[applicant.status]}</dd>
+                  <dd>{applicantStatusLabel(applicant.status)}</dd>
                 </>
               ) : (
                 <>

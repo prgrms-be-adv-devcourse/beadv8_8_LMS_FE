@@ -21,6 +21,7 @@ import type { Viewer } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
 import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup } from '@/shared/lib/statusLabel'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
@@ -176,9 +177,11 @@ const RELEASE_LABEL: Record<HpReleaseStatus, string> = {
 /** 지금 상태에서 무슨 일이 일어나는지 */
 function StatusNote({ recruit, host }: { recruit: Recruit; host: boolean }) {
   // 보류 HP는 호스트 것이라 반환 상태는 호스트에게만 보여 준다.
-  const release = host && recruit.hpReleaseStatus && (
+  // 모르는 반환 상태면 안내를 숨긴다.
+  const releaseNote = lookup(RELEASE_LABEL, recruit.hpReleaseStatus)
+  const release = host && releaseNote && (
     <p className={recruit.hpReleaseStatus === 'DEAD' ? 'fine c-bad' : 'fine'}>
-      {RELEASE_LABEL[recruit.hpReleaseStatus]}
+      {releaseNote}
     </p>
   )
   switch (recruit.status) {

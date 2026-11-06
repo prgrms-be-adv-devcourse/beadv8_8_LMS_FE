@@ -1,3 +1,5 @@
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+
 /** BE member Role */
 export type Role = 'USER' | 'INFLUENCER' | 'VERIFIED_INFLUENCER' | 'ADMIN'
 
@@ -10,6 +12,11 @@ export const VIEWER_LABEL: Record<Viewer, string> = {
   INFLUENCER: '인플루언서',
   VERIFIED_INFLUENCER: '인증된 인플루언서',
   ADMIN: '관리자',
+}
+
+/** 역할 이름. BE가 모르는 역할을 보내도 이름으로 */
+export function viewerLabel(viewer: Viewer) {
+  return lookup(VIEWER_LABEL, viewer) ?? UNKNOWN_NAME
 }
 
 // 메뉴·라우트 권한에 자주 쓰는 묶음 (BE AGENTS.md 6장 권한표)

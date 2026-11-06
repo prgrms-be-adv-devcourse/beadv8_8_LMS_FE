@@ -13,6 +13,7 @@ import type { EarningAmount, EarningSummary } from '@/entities/wallet/types'
 import { EarningStatusPill } from '@/entities/wallet/ui/EarningStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Pager } from '@/shared/ui/Pager'
@@ -105,7 +106,10 @@ export function EarningsPanel() {
                       <tr
                         key={`${item.sourceType}-${item.sourceId}-${item.earningType}`}
                       >
-                        <td>{EARNING_TYPE_LABEL[item.earningType]}</td>
+                        <td>
+                          {lookup(EARNING_TYPE_LABEL, item.earningType) ??
+                            UNKNOWN_NAME}
+                        </td>
                         <td>{item.title}</td>
                         <td className="r num c-earn">
                           {formatNumber(item.amountHp)}

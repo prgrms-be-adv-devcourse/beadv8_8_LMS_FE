@@ -23,6 +23,7 @@ import {
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, formatDday, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup } from '@/shared/lib/statusLabel'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AppearanceRequestPage.module.css'
 
@@ -187,9 +188,11 @@ function StatusNote({
 }) {
   const host = side === 'host'
   // 보류 HP는 호스트 것이라 반환 상태는 호스트에게만 보여 준다.
-  const release = host && request.hpReleaseStatus && (
+  // 모르는 반환 상태면 안내를 숨긴다.
+  const releaseNote = lookup(RELEASE_LABEL, request.hpReleaseStatus)
+  const release = host && releaseNote && (
     <p className={request.hpReleaseStatus === 'DEAD' ? 'fine c-bad' : 'fine'}>
-      {RELEASE_LABEL[request.hpReleaseStatus]}
+      {releaseNote}
     </p>
   )
   switch (request.status) {

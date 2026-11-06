@@ -2,7 +2,8 @@
  * 관리자 환전 승인·거절 규칙. 검사는 BE(EXCHANGE_ALREADY_REVIEWED·EXCHANGE_APPLICANT_*·EXCHANGE_REJECTION_REASON_INVALID)와 같고,
  * 최종 판단은 BE가 한다.
  */
-import { VIEWER_LABEL } from '@/shared/auth/role'
+import { viewerLabel } from '@/shared/auth/role'
+import { lookup, UNKNOWN_STATUS_NAME } from '@/shared/lib/statusLabel'
 import type { AdminExchange, ExchangeApplicant, ExchangeStatus } from './types'
 
 export const REJECTION_REASON_MAX = 500
@@ -45,6 +46,11 @@ export const APPLICANT_STATUS_LABEL: Record<
   WITHDRAWN: '탈퇴',
 }
 
+/** 신청자 회원 상태 이름. 모르는 상태도 이름으로 */
+export function applicantStatusLabel(status: ExchangeApplicant['status']) {
+  return lookup(APPLICANT_STATUS_LABEL, status) ?? UNKNOWN_STATUS_NAME
+}
+
 /** 승인할 수 없으면 그 이유(거절은 할 수 있다). 신청자의 현재 회원 정보(복제본)로 정한다. */
 export function approveBlockReason({
   applicant,
@@ -54,8 +60,8 @@ export function approveBlockReason({
   if (applicant.approvable) return null
   const why =
     applicant.status !== 'ACTIVE'
-      ? APPLICANT_STATUS_LABEL[applicant.status]
-      : VIEWER_LABEL[applicant.role]
+      ? applicantStatusLabel(applicant.status)
+      : viewerLabel(applicant.role)
   return `정상 상태의 인플루언서가 아니라 승인할 수 없어요(${why}).`
 }
 
@@ -74,5 +80,5 @@ export function applicantLabel({
   applicant,
 }: Pick<AdminExchange, 'userId' | 'applicant'>): string {
   if (!applicant) return `회원 #${userId} · 정보 동기화 전`
-  return `${applicant.nickname} · 회원 #${userId} · ${VIEWER_LABEL[applicant.role]}`
+  return `${applicant.nickname} · 회원 #${userId} · ${viewerLabel(applicant.role)}`
 }

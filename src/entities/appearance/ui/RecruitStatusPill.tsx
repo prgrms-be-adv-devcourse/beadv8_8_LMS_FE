@@ -1,4 +1,5 @@
 import { formatDday } from '@/shared/lib/date'
+import { unknownStatus, type StatusLabel } from '@/shared/lib/statusLabel'
 import { isDeadlineSoon } from '../recruit'
 import type {
   Recruit,
@@ -46,7 +47,7 @@ function labelOf(
   status: RecruitStatus,
   recruitDeadline?: string,
   closeType?: RecruitCloseType | null,
-): [string, string] {
+): StatusLabel {
   switch (status) {
     case 'RECRUITING':
       return [
@@ -70,5 +71,7 @@ function labelOf(
       return ['warn', '포인트 확인 중']
     case 'HOLD_FAILED':
       return ['bad', '등록되지 않음']
+    default:
+      return unknownStatus(status)
   }
 }

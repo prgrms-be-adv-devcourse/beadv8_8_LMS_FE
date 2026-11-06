@@ -17,6 +17,7 @@ import {
 } from '@/features/upgrade/useUpgradeReview'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -136,8 +137,8 @@ function ReviewItem({ review }: { review: UpgradeReview }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                {PLATFORM_LABEL[c.platform]} · {c.channelName} · 팔로워{' '}
-                {formatNumber(c.followerCount)}
+                {lookup(PLATFORM_LABEL, c.platform) ?? UNKNOWN_NAME} ·{' '}
+                {c.channelName} · 팔로워 {formatNumber(c.followerCount)}
               </a>
             ))}
           </div>

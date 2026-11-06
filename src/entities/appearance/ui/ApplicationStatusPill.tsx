@@ -1,6 +1,7 @@
+import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { ApplicationStatus } from '../types'
 
-const LABEL: Record<ApplicationStatus, [string, string]> = {
+const LABEL: Record<ApplicationStatus, StatusLabel> = {
   APPLIED: ['info', '대기'],
   SELECTED: ['ok', '출연 성립'],
   NOT_SELECTED: ['mute', '미선정'],
@@ -12,6 +13,6 @@ export function ApplicationStatusPill({
 }: {
   status: ApplicationStatus
 }) {
-  const [tone, label] = LABEL[status]
+  const [tone, label] = statusOf(LABEL, status)
   return <span className={`pill ${tone}`}>{label}</span>
 }

@@ -19,6 +19,7 @@ import {
 } from '@/features/channel/useChannelReview'
 import { formatDate, formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Field } from '@/shared/ui/Field'
@@ -174,7 +175,8 @@ function ReviewItem({
           target="_blank"
           rel="noreferrer"
         >
-          {PLATFORM_LABEL[review.platform]} · {review.channelName}
+          {lookup(PLATFORM_LABEL, review.platform) ?? UNKNOWN_NAME} ·{' '}
+          {review.channelName}
         </a>
         <span className="fine">
           팔로워 {formatNumber(review.followerCount)}명
@@ -261,7 +263,8 @@ function ApproveDialog({
         </dd>
         <dt>채널</dt>
         <dd>
-          {PLATFORM_LABEL[review.platform]} · {review.channelName}
+          {lookup(PLATFORM_LABEL, review.platform) ?? UNKNOWN_NAME} ·{' '}
+          {review.channelName}
         </dd>
         <dt>팔로워</dt>
         <dd className="num">{formatNumber(review.followerCount)}명</dd>
@@ -318,7 +321,8 @@ function RejectDialog({
       }
     >
       <p>
-        {review.nickname}님의 {PLATFORM_LABEL[review.platform]} 채널 「
+        {review.nickname}님의{' '}
+        {lookup(PLATFORM_LABEL, review.platform) ?? UNKNOWN_NAME} 채널 「
         {review.channelName}」
       </p>
       <div className="tpl-chips">
