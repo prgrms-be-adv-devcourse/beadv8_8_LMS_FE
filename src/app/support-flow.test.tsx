@@ -469,6 +469,38 @@ describe('고객센터 (회원)', () => {
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
+  it('처리 중 문의를 다시 불러오다 4xx가 나면 받은 문의를 그대로 보이고 더 부르지 않는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    let calls = 0
+    server.use(
+      http.get('*/api/v1/inquiries/5', () => {
+        calls++
+        return calls === 1
+          ? rs(dispute({ objectionLinkStatus: 'FILING' }))
+          : HttpResponse.json(
+              { status: 400, code: 'INVALID_REQUEST', detail: '잘못된 요청' },
+              { status: 400 },
+            )
+      }),
+    )
+    renderApp('/support/inquiries/5', 'USER')
+    expect(
+      await screen.findByText(/이의 제기 접수를 처리하고 있어요/),
+    ).toBeInTheDocument()
+
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    await waitFor(() => expect(calls).toBe(2))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect(
+      screen.getByText(/이의 제기 접수를 처리하고 있어요/),
+    ).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTimeAsync(20_000))
+    expect(calls).toBe(2)
+  })
+
   it('접수 불가 이의 제기는 서버 안내를 보이고 바로 삭제할 수 있다', async () => {
     let deleted = false
     server.use(

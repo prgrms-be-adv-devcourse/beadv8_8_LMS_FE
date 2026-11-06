@@ -18,6 +18,9 @@ export function isObjectionInProgress(inquiry: Inquiry) {
   return IN_PROGRESS.has(inquiry.objectionLinkStatus)
 }
 
+/** 지워졌거나 없는 문의(404). BE 고객센터 CustomerSupportErrorCode의 enum 이름이 응답 code다 */
+const INQUIRY_NOT_FOUND = 'INQUIRY_NOT_FOUND'
+
 /**
  * 철회 처리 중이던 문의가 사라졌다(404). 강의가 철회를 반영해 BE가 문의를 지웠다.
  * 다시 부르기가 실패해도 TanStack Query는 마지막으로 받은 문의를 남겨 두므로 둘을 함께 본다.
@@ -25,16 +28,20 @@ export function isObjectionInProgress(inquiry: Inquiry) {
 export function isWithdrawn(inquiry: Inquiry | undefined, error: unknown) {
   return (
     inquiry?.objectionLinkStatus === 'WITHDRAWAL_PENDING' &&
-    isApiError(error, 'INQUIRY_NOT_FOUND')
+    isApiError(error, INQUIRY_NOT_FOUND)
   )
 }
 
-/** 문의 상세를 다시 부를 간격. 연동 결과를 기다리는 동안만 다시 부르고, 문의가 사라지면(404) 멈춘다 */
+/**
+ * 문의 상세를 다시 부를 간격. 연동 결과를 기다리는 동안만 다시 부른다.
+ * 4xx(문의가 사라짐 404, 로그인 끝남 401, 권한 403 등)는 다시 불러도 같아서 멈춘다.
+ * 5xx·네트워크 오류는 일시 오류로 보고 계속 부른다(queryClient의 재시도 규칙과 같다).
+ */
 export function inquiryPollInterval(
   inquiry: Inquiry | undefined,
   error: unknown,
 ): number | false {
-  if (!inquiry || isApiError(error, 'INQUIRY_NOT_FOUND')) return false
+  if (!inquiry || (isApiError(error) && error.status < 500)) return false
   return isObjectionInProgress(inquiry) ? OBJECTION_POLL_MS : false
 }
 
