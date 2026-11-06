@@ -3,7 +3,10 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import type { LectureHpTask } from '@/entities/hp-task/types'
 import {
+  deadOrderHold,
+  holdVoidTask,
   lectureHpTask,
   lectureHpTaskDb,
   lectureHpTaskHandlers,
@@ -38,8 +41,9 @@ const statusPill = () =>
     selector: '.ph-actions .pill',
   })
 const region = (name: string) => screen.findByRole('region', { name })
-const RETRIED =
-  '재시도를 요청했어요. 다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내요.'
+const RETRIED = '재시도를 요청했어요. 다음 재시도 배치(1분마다)가 다시 보내요.'
+const VOIDED =
+  '보류를 무효화했어요. 무효화 작업 #76을 다음 재시도 배치(1분마다)가 지갑에 보내요.'
 
 /** 상세 재시도 영역의 재시도 → 확인 모달의 재시도 */
 async function confirmRetry() {
@@ -134,6 +138,25 @@ describe('관리자 강의 HP 작업 목록', () => {
       // 전체는 상태를 보내지 않는다
       'taskType=HOLD&page=0&size=20',
     ])
+  })
+
+  it('유형 필터에 무효화가 있고 고르면 taskType=VOID로 요청하고 무효화 작업을 보여 준다', async () => {
+    lectureHpTaskDb.items.push(holdVoidTask())
+    const router = renderApp('/admin/hp-tasks?status=ALL', 'ADMIN')
+    await item(74)
+
+    const type = screen.getByLabelText('작업 유형')
+    expect(
+      within(type).getByRole('option', { name: '무효화' }),
+    ).toHaveAttribute('value', 'VOID')
+    await userEvent.selectOptions(type, 'VOID')
+    expect(router.state.location.search).toBe('?status=ALL&taskType=VOID')
+    const voiding = await item(76)
+    expect(voiding).toHaveTextContent('#76 무효화 · 주문 보류 무효화')
+    expect(within(await list()).getAllByRole('listitem')).toHaveLength(1)
+    expect(lectureHpTaskDb.listCalls.at(-1)).toBe(
+      'taskType=VOID&page=0&size=20',
+    )
   })
 
   it('페이지는 URL ?page=로 두고 그 페이지를 요청한다', async () => {
@@ -275,6 +298,80 @@ describe('관리자 강의 HP 작업 상세', () => {
     expect(screen.queryByRole('region', { name: '재시도' })).toBeNull()
   })
 
+  it('보류 무효화로 끝난 보류는 결과와 무효화한 관리자를 보여 주고 처리 영역이 없다', async () => {
+    lectureHpTaskDb.items.push(
+      deadOrderHold({
+        status: 'COMPLETED',
+        outcome: 'VOIDED',
+        voidedByUserId: 5,
+        completedAt: '2026-10-17T09:30:00',
+      }),
+    )
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+
+    const pill = await statusPill()
+    expect(pill).toHaveTextContent('완료 · 무효화')
+    expect(pill).toHaveClass('pill', 'mute')
+    const summary = await region('작업')
+    expect(summary).toHaveTextContent('보류 · 주문 보류')
+    expect(summary).toHaveTextContent('끝난 시각10/17(토) 09:30')
+    expect(summary).toHaveTextContent('결과무효화(관리자가 끝냄)')
+    expect(summary).toHaveTextContent('무효화한 관리자관리자 #5')
+    expect(screen.queryByRole('region', { name: '재시도' })).toBeNull()
+    expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
+  })
+
+  it('무효화한 관리자 필드가 없는 응답이면 그 줄을 숨긴다', async () => {
+    // BE가 voidedByUserId를 싣기 전의 응답
+    delete (
+      lectureHpTaskDb.items.find((t) => t.id === 74) as Partial<LectureHpTask>
+    ).voidedByUserId
+    renderApp('/admin/hp-tasks/74', 'ADMIN')
+    const summary = await region('작업')
+    expect(summary).toHaveTextContent('결과성공')
+    expect(summary).not.toHaveTextContent('무효화한 관리자')
+  })
+
+  it('멈춘 주문 보류에는 재시도와 함께 보류 무효화가 있다', async () => {
+    lectureHpTaskDb.items.push(deadOrderHold())
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+
+    const voiding = await region('보류 무효화')
+    expect(voiding).toHaveTextContent(
+      '재시도해도 결과가 바뀌지 않는 보류만 무효화하세요. 되돌릴 수 없고 주문 전체가 결제 실패가 돼요. 지갑 응답 지연 같은 일시 장애면 재시도하세요.',
+    )
+    expect(
+      within(voiding).getByRole('button', { name: '보류 무효화' }),
+    ).toBeEnabled()
+    expect(
+      within(await region('재시도')).getByRole('button', { name: '재시도' }),
+    ).toBeEnabled()
+  })
+
+  it.each([
+    ['멈춘 반환', 72],
+    ['멈춘 무효화 작업', 76],
+    ['끝난 주문 보류', 74],
+  ])('%s(#%i)에는 보류 무효화가 없다', async (_, taskId) => {
+    lectureHpTaskDb.items.push(
+      holdVoidTask({
+        status: 'DEAD',
+        lastErrorCode: 'HOLD_STATE_INCONSISTENT',
+      }),
+    )
+    renderApp(`/admin/hp-tasks/${taskId}`, 'ADMIN')
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: `HP 작업 #${taskId}`,
+      }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
+    expect(
+      screen.queryByRole('button', { name: '보류 무효화' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('없는 작업이면(404) 안내한다', async () => {
     renderApp('/admin/hp-tasks/999', 'ADMIN')
     expect(await screen.findByText(/찾을 수 없/)).toBeInTheDocument()
@@ -397,6 +494,265 @@ describe('관리자 강의 HP 작업 상세', () => {
     release()
     await settle()
     expect(lectureHpTaskDb.retryCalls).toEqual([72])
+  })
+})
+
+/** 상세 보류 무효화 영역의 버튼 → 확인 모달의 보류 무효화 */
+async function confirmVoid() {
+  await userEvent.click(
+    within(await region('보류 무효화')).getByRole('button', {
+      name: '보류 무효화',
+    }),
+  )
+  const dialog = screen.getByRole('dialog', { name: '보류를 무효화할까요?' })
+  await userEvent.click(
+    within(dialog).getByRole('button', { name: '보류 무효화' }),
+  )
+}
+
+describe('관리자 강의 HP 작업 보류 무효화', () => {
+  beforeEach(() => {
+    lectureHpTaskDb.items.push(deadOrderHold())
+  })
+
+  it('보류를 무효화하면 확인을 거쳐 새 무효화 작업으로 가고 원래 보류는 무효화로 끝난다', async () => {
+    const router = renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await userEvent.click(
+      within(await region('보류 무효화')).getByRole('button', {
+        name: '보류 무효화',
+      }),
+    )
+    const dialog = screen.getByRole('dialog', { name: '보류를 무효화할까요?' })
+    expect(dialog).toHaveTextContent(
+      '보류 · 주문 보류 · 주문 #604 · 항목 #705 (8,000 HP)',
+    )
+    expect(dialog).toHaveTextContent('되돌릴 수 없어요.')
+    expect(dialog).toHaveTextContent(
+      '남은 보류 HP가 있으면 구매자에게 돌려줘요.',
+    )
+    expect(dialog).toHaveTextContent(
+      '주문 #604 전체가 결제 실패가 돼요. 이미 보류된 다른 항목의 HP도 돌려주고, 구매자는 같은 강의를 다시 살 수 있어요.',
+    )
+    expect(dialog).toHaveTextContent(
+      '일시 장애면 무효화하지 말고 재시도하세요.',
+    )
+    expect(dialog).toHaveTextContent(
+      '마지막 실패: 지갑이 처리했는지 알 수 없어요(일시 오류) (UNKNOWN_RESULT)',
+    )
+    expect(dialog).not.toHaveTextContent('보류한 회원이 구매자와 달라')
+    expect(lectureHpTaskDb.voidCalls).toEqual([])
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '보류 무효화' }),
+    )
+
+    // 새로 생긴 무효화 작업으로 간다
+    expect(await screen.findByText(VOIDED)).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'HP 작업 #76' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/admin/hp-tasks/76')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(await statusPill()).toHaveTextContent('대기')
+    const created = await region('작업')
+    expect(created).toHaveTextContent('무효화 · 주문 보류 무효화')
+    expect(created).toHaveTextContent('주문 #604 · 항목 #705')
+    expect(created).toHaveTextContent('LECTURE-HOLD-VOID-705')
+    expect(lectureHpTaskDb.voidCalls).toEqual([75])
+
+    // 뒤로 가면 원래 보류는 무효화로 끝나 있고 처리 영역이 없다
+    await router.navigate(-1)
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'HP 작업 #75' }),
+    ).toBeInTheDocument()
+    await waitFor(async () =>
+      expect(await statusPill()).toHaveTextContent('완료 · 무효화'),
+    )
+    expect(await region('작업')).toHaveTextContent('무효화한 관리자관리자 #1')
+    expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
+    expect(screen.queryByRole('region', { name: '재시도' })).toBeNull()
+  })
+
+  it('이미 처리된 보류면(409 HP_TASK_NOT_DEAD) 안내하고 최신 상태를 다시 불러온다', async () => {
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await region('보류 무효화')
+    // 화면을 그린 뒤 다른 관리자가 먼저 재시도했다.
+    lectureHpTaskDb.items.find((t) => t.id === 75)!.status = 'PENDING'
+    await confirmVoid()
+
+    expect(
+      await screen.findByText(
+        '이미 재시도했거나 무효화한 작업이에요. 최신 상태를 불러왔어요.',
+      ),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(async () =>
+      expect(await statusPill()).toHaveTextContent('대기'),
+    )
+    expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
+    expect(lectureHpTaskDb.voidCalls).toEqual([75])
+  })
+
+  it.each([
+    [
+      '작업이 없으면(404)',
+      () => {
+        lectureHpTaskDb.items = lectureHpTaskDb.items.filter((t) => t.id !== 75)
+      },
+      'HP 작업을 찾을 수 없어요.',
+    ],
+    [
+      '주문 보류가 아니라고 거절하면(409 HP_TASK_NOT_VOIDABLE)',
+      () =>
+        server.use(
+          http.post('*/api/v1/lectures/admin/hp-tasks/75/void', () =>
+            HttpResponse.json(
+              { status: 409, code: 'HP_TASK_NOT_VOIDABLE', detail: '거절' },
+              { status: 409 },
+            ),
+          ),
+        ),
+      '주문 보류 작업만 무효화할 수 있어요.',
+    ],
+  ])('%s 안내하고 모달을 닫는다', async (_, arrange, message) => {
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await region('보류 무효화')
+    arrange()
+    await confirmVoid()
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('보류한 회원이 달라 멈춘 보류는 무효화도 같은 오류로 실패한다고 경고하되 막지는 않는다', async () => {
+    lectureHpTaskDb.items.find((t) => t.id === 75)!.lastErrorCode =
+      'HOLD_OWNER_MISMATCH'
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    const warning =
+      '보류한 회원이 구매자와 달라 멈춘 보류예요. 지갑이 무효화할 때도 소유를 확인해 같은 오류로 실패해요. 지갑의 보류 데이터를 먼저 확인하세요.'
+
+    const voiding = await region('보류 무효화')
+    expect(voiding).toHaveTextContent(warning)
+    await userEvent.click(
+      within(voiding).getByRole('button', { name: '보류 무효화' }),
+    )
+    const dialog = screen.getByRole('dialog', { name: '보류를 무효화할까요?' })
+    expect(dialog).toHaveTextContent(warning)
+    expect(
+      within(dialog).getByRole('button', { name: '보류 무효화' }),
+    ).toBeEnabled()
+  })
+
+  it('재시도를 보내는 중에는 보류 무효화도 보내지 못한다', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/75/retry', async () => {
+        lectureHpTaskDb.retryCalls.push(75)
+        await gate
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await confirmRetry()
+    await waitFor(() => expect(lectureHpTaskDb.retryCalls).toEqual([75]))
+    await userEvent.keyboard('{Escape}')
+    expect(
+      within(await region('보류 무효화')).getByRole('button', {
+        name: '보류 무효화',
+      }),
+    ).toBeDisabled()
+
+    release()
+    expect(await screen.findByText(RETRIED)).toBeInTheDocument()
+    await settle()
+    expect(lectureHpTaskDb.voidCalls).toEqual([])
+  })
+
+  it('보류 무효화를 보내는 중에는 모달을 닫고 다시 열어도 또 보내지 못하고 재시도도 막힌다', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/75/void', async () => {
+        lectureHpTaskDb.voidCalls.push(75)
+        await gate
+        return HttpResponse.json(
+          {
+            statusCode: 200,
+            message: 'mock',
+            data: holdVoidTask(),
+          },
+          { status: 200 },
+        )
+      }),
+    )
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await confirmVoid()
+    await waitFor(() => expect(lectureHpTaskDb.voidCalls).toEqual([75]))
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(
+      within(await region('재시도')).getByRole('button', { name: '재시도' }),
+    ).toBeDisabled()
+    expect(
+      within(await region('보류 무효화')).getByRole('button', {
+        name: '보류 무효화',
+      }),
+    ).toBeDisabled()
+
+    release()
+    await settle()
+    expect(lectureHpTaskDb.voidCalls).toEqual([75])
+    expect(lectureHpTaskDb.retryCalls).toEqual([])
+  })
+
+  it('무효화 작업은 요청 ID가 아니라 주문 항목으로 중복을 막는다고 안내한다', async () => {
+    lectureHpTaskDb.items.push(
+      holdVoidTask({
+        status: 'DEAD',
+        lastErrorCode: 'HOLD_STATE_INCONSISTENT',
+      }),
+    )
+    renderApp('/admin/hp-tasks/76', 'ADMIN')
+    const summary = await region('작업')
+    expect(summary).toHaveTextContent(
+      '무효화는 요청 ID를 지갑에 보내지 않아요. 지갑이 주문 항목으로 중복을 막아 재시도해도 HP가 두 번 움직이지 않아요.',
+    )
+    expect(summary).not.toHaveTextContent('요청 ID는 지갑의 중복 방지 키예요.')
+
+    await userEvent.click(
+      within(await region('재시도')).getByRole('button', { name: '재시도' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: 'HP 작업을 재시도할까요?',
+    })
+    expect(dialog).toHaveTextContent(
+      '다음 재시도 배치(1분마다)가 다시 보내요. 지갑이 주문 항목으로 중복을 막아 HP가 두 번 움직이지 않아요.',
+    )
+    expect(dialog).not.toHaveTextContent('같은 요청 ID')
+  })
+
+  it('응답 전에 다른 화면으로 가면 새 무효화 작업으로 끌고 가지 않고 안내만 한다', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/75/void', async () => {
+        lectureHpTaskDb.voidCalls.push(75)
+        await gate
+        return rs(holdVoidTask())
+      }),
+    )
+    const router = renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await confirmVoid()
+    await waitFor(() => expect(lectureHpTaskDb.voidCalls).toEqual([75]))
+
+    await router.navigate('/admin/hp-tasks')
+    await item(72)
+    release()
+
+    expect(await screen.findByText(VOIDED)).toBeInTheDocument()
+    await settle()
+    expect(router.state.location.pathname).toBe('/admin/hp-tasks')
+    expect(lectureHpTaskDb.voidCalls).toEqual([75])
   })
 })
 

@@ -11,15 +11,26 @@
  */
 export type HpTaskStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'DEAD'
 
-/** 끝난 작업의 결과: 지갑이 처리함, 보류 확정 거절(잔액 부족), 실행 전에 필요 없어진 보류 */
-export type HpTaskOutcome = 'SUCCEEDED' | 'REJECTED' | 'SKIPPED'
+/**
+ * 끝난 작업의 결과: 지갑이 처리함, 보류 확정 거절(잔액 부족), 실행 전에 필요 없어진 보류,
+ * 결과를 확정하지 못한 보류를 관리자가 보류 무효화로 끝냄(지갑 처리는 새 무효화 작업이 한다)
+ */
+export type HpTaskOutcome = 'SUCCEEDED' | 'REJECTED' | 'SKIPPED' | 'VOIDED'
 
-/** 지갑에 보내는 요청 종류: 구매자 HP 보류, 보류 HP 반환(구매자에게), 보류 HP 지급(판매자에게) */
-export type HpTaskType = 'HOLD' | 'RELEASE' | 'PAYOUT'
+/**
+ * 지갑에 보내는 요청 종류: 구매자 HP 보류, 보류 HP 반환(구매자에게), 보류 HP 지급(판매자에게),
+ * 주문 항목 보류 무효화(남은 보류는 구매자에게 반환하고, 보류가 없으면 뒤늦은 보류를 막는다)
+ */
+export type HpTaskType = 'HOLD' | 'RELEASE' | 'PAYOUT' | 'VOID'
 
-/** 작업을 만든 업무. 유형은 목적에서 정해진다(ORDER_HOLD는 보류, PAYOUT은 지급, 나머지는 반환) */
+/** 작업을 만든 업무. 유형은 목적에서 정해진다(ORDER_HOLD는 보류, PAYOUT은 지급, HOLD_VOID는 무효화, 나머지는 반환) */
 export type HpTaskPurpose =
-  'ORDER_HOLD' | 'HOLD_COMPENSATION' | 'CANCEL' | 'RETURN' | 'PAYOUT'
+  | 'ORDER_HOLD'
+  | 'HOLD_COMPENSATION'
+  | 'CANCEL'
+  | 'RETURN'
+  | 'PAYOUT'
+  | 'HOLD_VOID'
 
 /** 시도 한 번의 결과 (BE LectureHpAttemptResult) */
 export type HpAttemptResult =
@@ -38,7 +49,7 @@ export type LectureHpTask = {
   outcome: HpTaskOutcome | null
   taskType: HpTaskType
   purpose: HpTaskPurpose
-  /** 지갑 요청 ID(멱등 키). 관리자 재시도도 같은 값으로 보내 HP가 두 번 움직이지 않는다 */
+  /** 지갑 요청 ID(멱등 키). 관리자 재시도도 같은 값으로 보내 HP가 두 번 움직이지 않는다. 무효화(VOID)는 지갑에 보내지 않고 지갑이 주문 항목으로 중복을 막는다 */
   requestId: string
   orderId: number
   orderItemId: number
@@ -60,6 +71,8 @@ export type LectureHpTask = {
   lastFailedAt: string | null
   lastRetriedByUserId: number | null
   lastRetriedAt: string | null
+  /** 이 보류를 보류 무효화로 끝낸 관리자. 결과가 VOIDED일 때만 있고 시각은 completedAt이다 */
+  voidedByUserId: number | null
   completedAt: string | null
   createdAt: string
 }
