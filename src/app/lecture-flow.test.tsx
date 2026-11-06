@@ -566,6 +566,25 @@ describe('주문 완료', () => {
     )
   })
 
+  it.each([
+    ['HOLD_PENDING', '결제를 처리하고 있어요'],
+    ['HOLD_COMPENSATING', '결제를 취소하고 있어요'],
+  ] as const)(
+    '자동 처리가 멈춘 %s 주문은 화면이 바뀐다고 안내하지 않고 주문 내역으로 안내한다',
+    async (status, heading) => {
+      await buyNow(holdOrder(status, 'ACTION_REQUIRED'), 202)
+
+      expect(
+        await screen.findByRole('heading', { name: heading }),
+      ).toBeInTheDocument()
+      expect(screen.getByText(/자동 처리가 멈춰/)).toBeInTheDocument()
+      expect(
+        screen.getByText(/결과는 주문 내역에서 확인해 주세요/),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/화면이 바뀌어요/)).not.toBeInTheDocument()
+    },
+  )
+
   it('결제 처리 중에 다시 불러오기가 실패해도 처리 중 안내를 그대로 둔다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     await buyNow(holdOrder('HOLD_PENDING'), 202)

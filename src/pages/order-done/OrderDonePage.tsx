@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { orderQuery } from '@/entities/order/api'
+import { orderPollInterval } from '@/entities/order/processing'
 import type { Order } from '@/entities/order/types'
 import { ProcessingNote } from '@/entities/order/ui/ProcessingNote'
 import { formatDate } from '@/shared/lib/date'
@@ -35,6 +36,12 @@ const ordersLink = (primary = false) => (
     주문 내역
   </Link>
 )
+
+/** 결과를 기다리는 동안의 안내. 자동 처리가 멈추면 다시 부르지 않으므로 화면이 저절로 바뀌지 않는다 */
+const followUp = (order: Order) =>
+  orderPollInterval(order)
+    ? '결과가 나오면 이 화면이 바뀌어요.'
+    : '결과는 주문 내역에서 확인해 주세요.'
 
 function OrderResult({ order }: { order: Order }) {
   switch (order.status) {
@@ -70,7 +77,7 @@ function OrderResult({ order }: { order: Order }) {
           order={order}
           tone="wait"
           title="결제를 처리하고 있어요"
-          text="HP 결제 결과를 확인하고 있어요. 결과가 나오면 이 화면이 바뀌어요. 다시 주문하지 마세요."
+          text={`HP 결제 결과를 확인하고 있어요. ${followUp(order)} 다시 주문하지 마세요.`}
           note={<ProcessingNote status={order.processingStatus} />}
           actions={ordersLink()}
         />
@@ -81,7 +88,7 @@ function OrderResult({ order }: { order: Order }) {
           order={order}
           tone="wait"
           title="결제를 취소하고 있어요"
-          text="결제하지 못해 이미 묶인 HP를 돌려주고 있어요. 끝나면 이 화면이 바뀌어요."
+          text={`결제하지 못해 이미 묶인 HP를 돌려주고 있어요. ${followUp(order)}`}
           note={<ProcessingNote status={order.processingStatus} />}
           actions={ordersLink()}
         />
