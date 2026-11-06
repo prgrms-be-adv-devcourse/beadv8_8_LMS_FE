@@ -250,18 +250,31 @@ export type ChatError = {
   clientMessageId?: string | null
 }
 
-/** 입장·퇴장 기록 종류 */
+/**
+ * 입장·퇴장 기록 종류
+ * - 1:1 방·단체방: ROOM_CREATED, MEMBER_JOINED(생성 때만, 단체방은 호스트), MEMBER_LEFT
+ * - 1:1 방만: MEMBER_REJOINED, ROOM_ENDED(두 사람 모두 나감)
+ * - 단체방만: MEMBER_INVITED·MEMBER_KICKED(호스트가 대상 회원을 초대(재초대 포함)·내보냄), ROOM_CLOSED(호스트가 폐쇄),
+ *   HOST_UNAVAILABLE(호스트가 탈퇴·자격 상실로 읽기 전용), HISTORY_EXPIRED(참여자 조회 만료. 행위자는 방 주인, 시각은 만료 시각)
+ */
 export type ChatRoomEventType =
   | 'ROOM_CREATED'
   | 'MEMBER_JOINED'
   | 'MEMBER_LEFT'
   | 'MEMBER_REJOINED'
   | 'ROOM_ENDED'
+  | 'MEMBER_INVITED'
+  | 'MEMBER_KICKED'
+  | 'ROOM_CLOSED'
+  | 'HOST_UNAVAILABLE'
+  | 'HISTORY_EXPIRED'
 
 export type ChatRoomLog = {
   logId: number
   /** 기록을 남긴 회원. 방 종료처럼 시스템 기록이면 null일 수 있다 */
   actorUserId: number | null
+  /** 행위 대상 회원(단체방 초대·내보내기). 대상이 행위자 자신이거나 없으면 null */
+  targetUserId?: number | null
   eventType: ChatRoomEventType
   occurredAt: string
 }

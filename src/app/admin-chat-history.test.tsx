@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import type { ChatRoomHistory } from '@/entities/chat/types'
+import type {
+  ChatRoomEventType,
+  ChatRoomHistory,
+  ChatRoomLog,
+} from '@/entities/chat/types'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -200,6 +204,114 @@ describe('관리자 채팅 기록', () => {
     expect(list).toHaveTextContent(
       '하루(회원 #7)님이 회원 #40님을 내보냈습니다.',
     )
+  })
+
+  it('단체방 기록 10종을 undefined 없이 문구로 보인다', async () => {
+    const log = (
+      logId: number,
+      eventType: ChatRoomEventType,
+      actorUserId: number,
+      targetUserId: number | null = null,
+    ): ChatRoomLog => ({
+      logId,
+      actorUserId,
+      targetUserId,
+      eventType,
+      occurredAt: `2026-10-10T10:${String(logId).padStart(2, '0')}:00`,
+    })
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', () =>
+        rs({
+          ...history,
+          members: [
+            {
+              userId: 7,
+              nickname: '하루',
+              active: true,
+              participationVersion: 1,
+            },
+            {
+              userId: 8,
+              nickname: '새벽',
+              active: true,
+              participationVersion: 1,
+            },
+            {
+              userId: 9,
+              nickname: '별',
+              active: false,
+              participationVersion: 1,
+            },
+          ],
+          // 한 방에 모두 남지는 않지만(재입장·종료는 1:1 방만) 종류마다 문구를 보려고 나란히 둔다.
+          logs: [
+            log(1, 'ROOM_CREATED', 7),
+            log(2, 'MEMBER_JOINED', 7),
+            log(3, 'MEMBER_INVITED', 7, 8),
+            // 이름을 모르는 대상은 회원 번호로 보인다.
+            log(4, 'MEMBER_INVITED', 7, 40),
+            log(5, 'MEMBER_KICKED', 7, 9),
+            log(6, 'MEMBER_LEFT', 8),
+            log(7, 'MEMBER_REJOINED', 8),
+            log(8, 'ROOM_CLOSED', 7),
+            // 시스템 성격의 기록은 행위자(호스트·방 주인)를 쓰지 않는다.
+            log(9, 'HOST_UNAVAILABLE', 7),
+            log(10, 'HISTORY_EXPIRED', 7),
+            log(11, 'ROOM_ENDED', 8),
+          ],
+          messages: [],
+        }),
+      ),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    const items = within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.textContent)
+    expect(items).toEqual([
+      expect.stringMatching(/· 하루님이 채팅방을 만들었어요$/),
+      expect.stringMatching(/· 하루님이 들어왔어요$/),
+      expect.stringMatching(/· 하루님이 새벽님을 초대했어요$/),
+      expect.stringMatching(/· 하루님이 회원 #40님을 초대했어요$/),
+      expect.stringMatching(/· 하루님이 별님을 내보냈어요$/),
+      expect.stringMatching(/· 새벽님이 나갔어요$/),
+      expect.stringMatching(/· 새벽님이 다시 들어왔어요$/),
+      expect.stringMatching(/· 하루님이 채팅방을 폐쇄했어요$/),
+      expect.stringMatching(
+        /· 호스트가 채팅방을 운영할 수 없게 되어 읽기 전용으로 바뀌었어요$/,
+      ),
+      expect.stringMatching(
+        /· 참여자 조회 기간이 끝나 이제 관리자만 볼 수 있어요$/,
+      ),
+      expect.stringMatching(/· 두 사람 모두 나가 채팅방이 종료됐어요$/),
+    ])
+    for (const item of items) expect(item).not.toMatch(/undefined/)
+  })
+
+  it('FE가 아직 모르는 기록 종류는 종류 이름으로 보인다', async () => {
+    server.use(
+      http.get('*/api/v1/chats/admin/42/history', () =>
+        rs({
+          ...history,
+          logs: [
+            {
+              logId: 1,
+              actorUserId: 7,
+              // BE가 나중에 더할 수 있는 종류
+              eventType: 'ROOM_ARCHIVED' as ChatRoomEventType,
+              occurredAt: '2026-10-10T10:00:00',
+            },
+          ],
+          messages: [],
+        }),
+      ),
+    )
+    renderApp('/admin/chats/42', 'ADMIN')
+
+    const list = await screen.findByRole('list', { name: '채팅 기록' })
+    const [item] = within(list).getAllByRole('listitem')
+    expect(item.textContent).toMatch(/· 하루님의 기록\(ROOM_ARCHIVED\)$/)
   })
 
   it('여러 페이지에 나뉜 기록을 이어 받아 빠짐·중복 없이 시간순으로 보여 준다', async () => {
