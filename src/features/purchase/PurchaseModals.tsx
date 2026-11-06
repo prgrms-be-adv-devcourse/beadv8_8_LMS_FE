@@ -19,7 +19,7 @@ export function ConfirmPurchaseModal({
   item,
   payoutScheduledAt,
   onClose,
-}: BaseProps & { payoutScheduledAt?: string }) {
+}: BaseProps & { payoutScheduledAt?: string | null }) {
   const confirm = useConfirmPurchase()
   return (
     <Modal
@@ -82,9 +82,14 @@ export function CancelPurchaseModal({
             disabled={cancel.isPending}
             onClick={() =>
               cancel.mutate(item, {
-                onSuccess: () => {
+                onSuccess: (canceled) => {
                   onClose()
-                  toast('구매를 취소했어요. 결제한 HP를 돌려받았어요.')
+                  // 반환이 끝나지 않았으면 202 + 구매 취소 처리 중이다(주문 내역이 결과를 다시 불러온다).
+                  toast(
+                    canceled.status === 'CANCELED'
+                      ? '구매를 취소했어요. 결제한 HP를 돌려받았어요.'
+                      : '구매 취소를 처리하고 있어요. HP 반환이 끝나면 주문 내역에 반영돼요.',
+                  )
                 },
               })
             }
@@ -116,7 +121,7 @@ export function PlayConsentModal({
   payoutScheduledAt,
   onClose,
   onConsented,
-}: BaseProps & { payoutScheduledAt?: string; onConsented: () => void }) {
+}: BaseProps & { payoutScheduledAt?: string | null; onConsented: () => void }) {
   const [agreed, setAgreed] = useState(false)
   const consent = useConsentToPlay()
   return (

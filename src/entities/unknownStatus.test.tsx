@@ -75,14 +75,16 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
     expect(screen.getByText('알 수 없는 상태')).toHaveClass('pill', 'mute')
   })
 
-  // 판매 상태는 saleStateOf가 FE 상태로 바꾼 뒤 그린다. 모르는 판매 상태의 이름은 #184가 정한다.
-  it('SaleStatusPill은 모르는 판매 상태에도 오류 없이 그린다', () => {
-    const { container } = render(
+  // 판매 상태는 saleStateOf가 FE 상태로 바꾼 뒤 그린다. 모르는 판매 상태를 지급 예정으로 몰지 않는다(#184).
+  it('SaleStatusPill은 모르는 판매 상태를 알 수 없는 상태로 그린다', () => {
+    render(
       <SaleStatusPill
-        sale={{ status: NEW, objectionStatus: null, paidOutAt: null } as never}
+        sale={
+          { status: NEW, objectionStatus: 'NONE', paidOutAt: null } as never
+        }
       />,
     )
-    expect(container.querySelector('.pill')).toHaveTextContent(/\S/)
+    expect(screen.getByText('알 수 없는 상태')).toHaveClass('pill', 'mute')
   })
 })
 

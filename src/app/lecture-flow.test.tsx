@@ -5,7 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { orderQuery, purchasedQuery } from '@/entities/order/api'
 import type { LectureDetail, LectureSummary } from '@/entities/lecture/types'
-import type { Order, OrderItemStatus } from '@/entities/order/types'
+import type {
+  Order,
+  OrderItemStatus,
+  OrderStatus,
+  ProcessingStatus,
+} from '@/entities/order/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { mockOrders } from '@/test/lectureOrders'
 import { renderApp, rs } from '@/test/renderApp'
@@ -71,7 +76,9 @@ function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
     totalAmountHp: 30000,
     status: 'PAID',
     progress: 'IN_PROGRESS',
+    processingStatus: null,
     orderedAt: '2026-10-14T10:00:00',
+    paidAt: '2026-10-14T10:00:00',
     canceledAt: null,
     items: [
       {
@@ -80,6 +87,7 @@ function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
         lectureTitle: '첫 방송 세팅',
         priceHp: 30000,
         status,
+        processingStatus: null,
         purchasedAt: '2026-10-14T10:00:00',
         confirmedAt: null,
         confirmationType: null,
@@ -91,6 +99,68 @@ function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
       },
     ],
   }
+}
+
+/** 강의 7 주문이 결제 단계(처리 중·실패)에 있다. 항목은 주문과 같은 상태이고 기한이 없다. */
+function holdOrder(
+  status: Extract<OrderStatus, `HOLD_${string}`>,
+  processingStatus: ProcessingStatus | null = status === 'HOLD_FAILED'
+    ? null
+    : 'PROCESSING',
+): Order {
+  const paid = purchasedOrder()
+  return {
+    ...paid,
+    status,
+    progress: null,
+    processingStatus,
+    paidAt: null,
+    items: paid.items.map((item) => ({
+      ...item,
+      status,
+      processingStatus,
+      purchasedAt: null,
+      autoConfirmAt: null,
+      payoutScheduledAt: null,
+    })),
+  }
+}
+
+/** 주문 하나를 다른 번호·강의로 바꾼다. 항목 번호는 주문 번호 + 1, 강의 ID는 주문 번호다 */
+function numbered(order: Order, orderId: number, title: string): Order {
+  return {
+    ...order,
+    orderId,
+    items: order.items.map((item) => ({
+      ...item,
+      orderItemId: orderId + 1,
+      lectureId: orderId,
+      lectureTitle: title,
+    })),
+  }
+}
+
+const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+/** 강의 7을 바로 구매한다. 주문 요청에는 order를 status로 응답한다 */
+async function buyNow(order: Order, status: number) {
+  mockLectureDetail()
+  let orders: ReturnType<typeof mockOrders> | undefined
+  server.use(
+    http.post('*/api/v1/lectures/orders', () => {
+      orders = mockOrders(order)
+      return rs(order, status)
+    }),
+  )
+  renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
+  await userEvent.click(
+    await screen.findByRole('button', { name: '바로 구매' }),
+  )
+  const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+  await userEvent.click(
+    within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+  )
+  return () => orders!
 }
 
 function mockLectureDetail() {
@@ -400,6 +470,101 @@ describe('바로 구매', () => {
       screen.queryByRole('button', { name: '바로 구매' }),
     ).not.toBeInTheDocument()
   })
+
+  it.each([
+    [409, 'WALLET_CLOSED', '탈퇴한 회원의 지갑이에요.'],
+    [
+      429,
+      'TOO_MANY_REQUESTS',
+      '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+    ],
+  ])(
+    '주문이 %i %s로 거절되면 BE 안내를 보이고 주문 확인 창에 머문다',
+    async (status, code, detail) => {
+      mockLectureDetail()
+      server.use(
+        http.post('*/api/v1/lectures/orders', () =>
+          HttpResponse.json(
+            { status, code, detail },
+            {
+              status,
+              headers: {
+                'Content-Type': 'application/problem+json',
+                ...(status === 429 && { 'Retry-After': '30' }),
+              },
+            },
+          ),
+        ),
+      )
+      renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
+
+      await userEvent.click(
+        await screen.findByRole('button', { name: '바로 구매' }),
+      )
+      const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+      )
+
+      expect(await screen.findByText(detail)).toBeInTheDocument()
+      expect(dialog).toBeInTheDocument()
+      // 실패해도 지갑을 다시 불러오므로, 잔액을 확인한 뒤 다시 결제할 수 있다.
+      expect(
+        await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
+      ).toBeEnabled()
+    },
+  )
+})
+
+describe('주문 완료', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('202로 끝난 주문은 결제 처리 중을 보이고, 결제가 끝나면 완료 화면으로 바뀐다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const orders = await buyNow(holdOrder('HOLD_PENDING'), 202)
+
+    expect(
+      await screen.findByRole('heading', { name: '결제를 처리하고 있어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/다시 주문하지 마세요/)).toBeInTheDocument()
+    expect(screen.getByText('주문 금액')).toBeInTheDocument()
+
+    orders().set(purchasedOrder())
+    await advance(5_000)
+    expect(
+      await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('결제한 HP')).toBeInTheDocument()
+  })
+
+  it('결제 취소 처리 중이던 주문이 결제 실패로 끝나면 실패 안내와 다시 살 길을 보인다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const orders = await buyNow(holdOrder('HOLD_COMPENSATING', 'DELAYED'), 202)
+
+    expect(
+      await screen.findByRole('heading', { name: '결제를 취소하고 있어요' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        '처리가 늦어지고 있어요. 자동으로 다시 시도하고 있어요.',
+      ),
+    ).toBeInTheDocument()
+
+    orders().set(holdOrder('HOLD_FAILED'))
+    await advance(5_000)
+    expect(
+      await screen.findByRole('heading', { name: '결제하지 못했어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/묶인 HP는 없어요/)).toBeInTheDocument()
+    // 바로 구매한 강의는 장바구니에 없으므로 강의로 돌려보낸다.
+    expect(
+      screen.getByRole('link', { name: '강의로 돌아가기' }),
+    ).toHaveAttribute('href', '/lectures/7')
+    expect(screen.getByRole('link', { name: '주문 내역' })).toHaveAttribute(
+      'href',
+      '/library/orders',
+    )
+  })
 })
 
 describe('내 강의', () => {
@@ -456,6 +621,34 @@ describe('내 강의', () => {
     )
   })
 
+  it('지급 처리 중 강의도 구매 확정으로 보이고 재생·리뷰할 수 있다', async () => {
+    // 지급은 지급 예정 시각이 지나야 시작한다.
+    const paying = purchasedOrder('PAYOUT_PENDING')
+    paying.items[0] = {
+      ...paying.items[0],
+      purchasedAt: '2025-12-14T10:00:00',
+      autoConfirmAt: '2025-12-22T00:00:00',
+      payoutScheduledAt: '2026-01-14T00:00:00',
+      processingStatus: 'DELAYED',
+    }
+    mockOrders(paying)
+    renderApp('/library', 'USER')
+
+    expect(await screen.findByText('구매 확정')).toHaveClass('pill', 'ok')
+    expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '리뷰' })).toHaveAttribute(
+      'href',
+      '/library/7/review',
+    )
+    expect(
+      await screen.findByText('이의 제기 기간이 끝났어요'),
+    ).toBeInTheDocument()
+    for (const name of ['구매 확정', '구매 취소'])
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    // 판매자 지급이 늦어지는 것은 구매자에게 안내하지 않는다.
+    expect(screen.queryByText(/처리가 늦어지고 있어요/)).not.toBeInTheDocument()
+  })
+
   it('보유하지 않은 강의의 시청 화면은 안내만 보여 준다', async () => {
     mockLectureDetail()
     server.use(
@@ -500,6 +693,123 @@ describe('주문 내역', () => {
     expect(await screen.findByText('주문 번호 500')).toBeInTheDocument()
     expect(router.state.location.search).toBe('?page=2')
     expect(screen.queryByText('주문 내역이 없어요')).not.toBeInTheDocument()
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  const card = (orderId: number) =>
+    screen.findByRole('region', { name: `주문 번호 ${orderId}` })
+
+  it('결제 처리 중·결제 실패·구매 취소 처리 중 항목에 이름을 붙이고 지연·멈춤 안내를 보인다', async () => {
+    const canceling = numbered(purchasedOrder(), 700, '취소 중 강의')
+    canceling.items[0] = {
+      ...canceling.items[0],
+      status: 'CANCEL_PENDING',
+      processingStatus: 'ACTION_REQUIRED',
+    }
+    mockOrders(
+      numbered(holdOrder('HOLD_PENDING', 'DELAYED'), 500, '결제 중 강의'),
+      numbered(holdOrder('HOLD_FAILED'), 600, '실패한 강의'),
+      canceling,
+    )
+    renderApp('/library/orders', 'USER')
+
+    const paying = await card(500)
+    expect(await within(paying).findByText('결제 처리 중')).toHaveClass(
+      'pill',
+      'warn',
+    )
+    expect(
+      within(paying).getByText(
+        '처리가 늦어지고 있어요. 자동으로 다시 시도하고 있어요.',
+      ),
+    ).toBeInTheDocument()
+
+    const failed = await card(600)
+    expect(await within(failed).findByText('결제 실패')).toHaveClass(
+      'pill',
+      'bad',
+    )
+    expect(
+      within(failed).getByText('결제하지 못한 주문이에요 · 묶인 HP 없음'),
+    ).toBeInTheDocument()
+
+    const canceled = await card(700)
+    expect(await within(canceled).findByText('구매 취소 처리 중')).toHaveClass(
+      'pill',
+      'warn',
+    )
+    expect(
+      within(canceled).getByText(/자동 처리가 멈춰 관리자가 확인하고 있어요/),
+    ).toBeInTheDocument()
+    expect(
+      within(canceled).getByRole('link', { name: '고객센터' }),
+    ).toHaveAttribute('href', '/support')
+    expect(
+      within(canceled).queryByRole('button', { name: '구매 취소' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('처리 중 주문은 다시 불러와 결과로 바꾸고, 자동 처리가 멈춘 주문은 다시 부르지 않는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const orders = mockOrders(
+      numbered(holdOrder('HOLD_PENDING'), 500, '결제 중 강의'),
+      numbered(holdOrder('HOLD_PENDING', 'ACTION_REQUIRED'), 600, '멈춘 강의'),
+    )
+    renderApp('/library/orders', 'USER')
+
+    const paying = await card(500)
+    expect(await within(paying).findByText('결제 처리 중')).toBeInTheDocument()
+    const stuck = await card(600)
+    expect(
+      await within(stuck).findByText(/자동 처리가 멈춰/),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    const stuckCalls = orders.detailCalls(600)
+
+    // 주문 목록은 다시 부르지 않으므로 머리의 결제 실패 안내는 다시 부른 주문 상세에서 온다.
+    orders.set(numbered(holdOrder('HOLD_FAILED'), 500, '결제 중 강의'))
+    await advance(5_000)
+    expect(await within(paying).findByText('결제 실패')).toBeInTheDocument()
+    expect(
+      within(paying).getByText('결제하지 못한 주문이에요 · 묶인 HP 없음'),
+    ).toBeInTheDocument()
+
+    await advance(20_000)
+    expect(orders.detailCalls(600)).toBe(stuckCalls)
+  })
+
+  it('구매 취소가 202로 끝나면 구매 취소 처리 중으로 보이고 취소 버튼을 숨긴다', async () => {
+    const orders = mockOrders(purchasedOrder())
+    orders.cancelLater()
+    renderApp('/library/orders', 'USER')
+
+    const order = await card(500)
+    await userEvent.click(
+      await within(order).findByRole('button', { name: '구매 취소' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: '구매를 취소할까요?',
+    })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '구매 취소' }),
+    )
+
+    expect(
+      await screen.findByText(
+        '구매 취소를 처리하고 있어요. HP 반환이 끝나면 주문 내역에 반영돼요.',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('구매를 취소했어요. 결제한 HP를 돌려받았어요.'),
+    ).not.toBeInTheDocument()
+    expect(
+      await within(order).findByText('구매 취소 처리 중'),
+    ).toBeInTheDocument()
+    expect(
+      within(order).queryByRole('button', { name: '구매 취소' }),
+    ).not.toBeInTheDocument()
+    expect(orders.item(501)?.status).toBe('CANCEL_PENDING')
   })
 })
 

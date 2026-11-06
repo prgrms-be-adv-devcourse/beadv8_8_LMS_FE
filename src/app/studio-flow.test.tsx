@@ -312,6 +312,55 @@ describe('강의 판매 화면', () => {
     ).toBeInTheDocument()
   })
 
+  it('구매 취소·반환·지급 처리 중인 판매를 지급 예정과 나눠 보여 준다', async () => {
+    serveStudio({
+      sales: [
+        sale({
+          orderItemId: 1,
+          lectureTitle: '취소 중 강의',
+          status: 'CANCEL_PENDING',
+        }),
+        sale({
+          orderItemId: 2,
+          lectureTitle: '반환 중 강의',
+          status: 'RETURN_PENDING',
+          objectionStatus: 'ACCEPTED',
+        }),
+        sale({
+          orderItemId: 3,
+          lectureTitle: '지급 중 강의',
+          status: 'PAYOUT_PENDING',
+        }),
+      ],
+    })
+    renderApp('/studio', 'VERIFIED_INFLUENCER')
+
+    const table = await screen.findByRole('table')
+    const row = (title: string) =>
+      within(table).getByRole('row', { name: new RegExp(title) })
+    const payout = formatDate('2026-11-11T00:00:00')
+
+    // 돌려주는 중인 판매는 지급하지 않으므로 지급 예정일이 없다.
+    const canceling = row('취소 중 강의')
+    expect(within(canceling).getByText('구매 취소 · 반환 중')).toHaveClass(
+      'pill',
+      'mute',
+    )
+    expect(within(canceling).getByText('—')).toBeInTheDocument()
+
+    const returning = row('반환 중 강의')
+    expect(within(returning).getByText('이의 제기 인정 · 반환 중')).toHaveClass(
+      'pill',
+      'info',
+    )
+    expect(within(returning).getByText('—')).toBeInTheDocument()
+
+    const paying = row('지급 중 강의')
+    expect(within(paying).getByText('지급 처리 중')).toHaveClass('pill', 'warn')
+    expect(within(paying).getByText(payout)).toBeInTheDocument()
+    expect(within(table).queryByText('지급 예정')).not.toBeInTheDocument()
+  })
+
   it('두 목록의 페이지를 page와 salesPage로 따로 넘긴다', async () => {
     const requested = serveStudio({
       lectures: [myLecture({ title: '판매 중 강의' })],
