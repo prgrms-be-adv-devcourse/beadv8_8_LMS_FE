@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { adminCouponsQuery } from '@/entities/coupon/api'
 import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import { channelReviewsQuery, upgradeReviewsQuery } from '@/entities/member/api'
@@ -32,6 +33,11 @@ export function AdminDashboardPage() {
   )
   const hpTasks = useQuery(lectureHpTasksQuery({ status: 'DEAD', page: 0 }))
   const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
+  // 쿠폰 목록은 페이지 없는 배열이라 길이를 전체 건수로 바꿔 다른 카드와 같은 모양으로 둔다(캐시는 목록 화면과 같다).
+  const coupons = useQuery({
+    ...adminCouponsQuery('REVIEW'),
+    select: (list) => ({ page: { totalElements: list.length } }),
+  })
 
   return (
     <div className="page">
@@ -69,6 +75,11 @@ export function AdminDashboardPage() {
           label="환전 승인 대기"
           to="/admin/exchanges"
           query={exchanges}
+        />
+        <SummaryCard
+          label="쿠폰 심사 대기"
+          to="/admin/coupons"
+          query={coupons}
         />
       </section>
     </div>

@@ -37,6 +37,7 @@ export const NAV: NavGroup[] = [
       { path: '/admin/exchanges', label: '환전 승인', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },
+      { path: '/admin/coupons', label: '쿠폰 운영', roles: ADMIN },
     ],
   },
   {
@@ -52,6 +53,7 @@ export const NAV: NavGroup[] = [
     items: [
       { path: '/appearances', label: '내 출연', roles: INFLUENCER },
       { path: '/library', label: '내 강의', roles: MEMBER },
+      { path: '/library/coupons', label: '쿠폰함', roles: MEMBER },
       { path: '/chat', label: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
       { path: '/wallet', label: '지갑', roles: MEMBER },
       { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
@@ -61,6 +63,11 @@ export const NAV: NavGroup[] = [
     title: '판매·인증',
     items: [
       { path: '/studio', label: '강의 판매', roles: ['VERIFIED_INFLUENCER'] },
+      {
+        path: '/studio/coupons',
+        label: '쿠폰 신청',
+        roles: ['VERIFIED_INFLUENCER'],
+      },
       {
         path: '/verify',
         label: '채널 인증',

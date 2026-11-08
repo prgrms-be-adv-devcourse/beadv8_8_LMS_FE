@@ -60,6 +60,9 @@ import { LecturesPage } from '@/pages/lectures/LecturesPage'
 import { LectureEditPage } from '@/pages/lecture-edit/LectureEditPage'
 import { LectureNewPage } from '@/pages/lecture-new/LectureNewPage'
 import { LibraryPage } from '@/pages/library/LibraryPage'
+import { CouponsPage } from '@/pages/coupons/CouponsPage'
+import { StudioCouponsPage } from '@/pages/studio-coupons/StudioCouponsPage'
+import { AdminCouponsPage } from '@/pages/admin-coupons/AdminCouponsPage'
 import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
 import { OrdersPage } from '@/pages/orders/OrdersPage'
 import { ReviewWritePage } from '@/pages/review-write/ReviewWritePage'
@@ -116,6 +119,12 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/admin/inquiries/:inquiryId', title: '문의 답변', roles: ADMIN },
   { path: '/admin/exchanges/:exchangeId', title: '환전 승인', roles: ADMIN },
   { path: '/admin/hp-tasks/:taskId', title: '강의 HP 작업', roles: ADMIN },
+  {
+    path: '/studio/coupons/:couponId',
+    title: '쿠폰 신청',
+    roles: ['VERIFIED_INFLUENCER'],
+  },
+  { path: '/admin/coupons/:couponId', title: '쿠폰 운영', roles: ADMIN },
 ]
 
 const PAGES: PageDef[] = [
@@ -168,6 +177,11 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/exchanges': <AdminExchangesPage />,
   '/admin/exchanges/:exchangeId': <AdminExchangePage />,
   '/admin/promotions': <AdminPromotionsPage />,
+  '/admin/coupons': <AdminCouponsPage />,
+  '/admin/coupons/:couponId': <AdminCouponsPage />,
+  '/library/coupons': <CouponsPage />,
+  '/studio/coupons': <StudioCouponsPage />,
+  '/studio/coupons/:couponId': <StudioCouponsPage />,
   '/admin/lectures/:lectureId': <AdminLecturePage />,
   '/admin/inquiries': <AdminInquiriesPage />,
   '/admin/inquiries/:inquiryId': <AdminInquiryPage />,

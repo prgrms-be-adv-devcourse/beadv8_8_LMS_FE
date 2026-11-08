@@ -1,0 +1,22 @@
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+/* 할인은 쿠폰에서 가장 먼저 보는 값이라 크게 */
+.discount {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--signal);
+}

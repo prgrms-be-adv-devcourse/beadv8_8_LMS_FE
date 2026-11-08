@@ -9,12 +9,14 @@ import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { Rating, Stars } from '@/entities/lecture/ui/Rating'
 import { useAddToCart } from '@/features/cart/useCartActions'
 import { CheckoutModal } from '@/features/checkout/CheckoutModal'
+import { LectureCoupons } from '@/features/coupon-issue/LectureCoupons'
 import { ContentPreviewModal } from '@/features/lecture-preview/ContentPreviewModal'
 import {
   useBuyerState,
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
 import { meQuery } from '@/shared/auth/me'
+import { MEMBER } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -50,6 +52,8 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
   const { data: me } = useQuery(meQuery)
   // 판매자 본인은 사는 대신 상태를 보고 고치며, 강을 미리 볼 수 있다(목업 v-own).
   const seller = !!me && me.id === lecture.sellerUserId
+  // 쿠폰은 살 수 있는 회원만 받는다(비회원·관리자·판매자 본인은 보지 않는다).
+  const couponViewer = !!me && MEMBER.includes(me.role) && !seller
   const [preview, setPreview] = useState<LectureContent | null>(null)
   return (
     <div className="split">
@@ -67,6 +71,7 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
           <span className={styles.spacer} />
           <Rating average={lecture.averageRating} count={lecture.reviewCount} />
         </div>
+        {couponViewer && <LectureCoupons lectureId={lecture.lectureId} />}
         {lecture.description && (
           <section className="panel">
             <h2>강의 소개</h2>

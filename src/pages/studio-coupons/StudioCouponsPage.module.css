@@ -1,0 +1,32 @@
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.reason {
+  color: var(--bad);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}

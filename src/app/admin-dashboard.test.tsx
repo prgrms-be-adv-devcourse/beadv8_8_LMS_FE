@@ -1,8 +1,9 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { delay, http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { coupon } from '@/test/couponMock'
 import {
   channelReviewHandlers,
   resetChannelReviewDb,
@@ -17,6 +18,8 @@ const API = {
   inquiries: '*/api/v1/inquiries/admin',
   hpTasks: '*/api/v1/lectures/admin/hp-tasks',
   exchanges: '*/api/v1/settlements/admin/exchanges',
+  /** 쿠폰 목록은 페이지 없는 배열이다 */
+  coupons: '*/api/v1/coupons/admin',
 } as const
 
 const paged = (totalElements: number) =>
@@ -30,14 +33,25 @@ const paged = (totalElements: number) =>
     },
   })
 
+/** 쿠폰 목록(배열)은 길이가 건수다 */
+const couponList = (n: number) =>
+  rs(Array.from({ length: n }, (_, i) => coupon({ couponId: i + 1 })))
+
 /** 각 관리 목록 API가 page 0에 줄 전체 건수 */
 function mockCounts(counts: Partial<Record<keyof typeof API, number>>) {
   server.use(
     ...Object.entries(counts).map(([key, n]) =>
-      http.get(API[key as keyof typeof API], () => paged(n)),
+      http.get(API[key as keyof typeof API], () =>
+        key === 'coupons' ? couponList(n) : paged(n),
+      ),
     ),
   )
 }
+
+// 쿠폰 심사 대기 카드의 기본 응답(없음). 테스트마다 mockCounts로 덮어쓴다.
+beforeEach(() => {
+  server.use(http.get(API.coupons, () => couponList(0)))
+})
 
 /** 대시보드 요약 카드. 레일 메뉴에도 같은 이름의 링크가 있어 카드 영역 안에서 찾는다 */
 const cards = () => screen.findByRole('region', { name: '업무별 대기 건수' })
@@ -57,7 +71,7 @@ afterEach(async () => {
 })
 
 describe('관리자 운영 대시보드', () => {
-  it('관리자 첫 화면에서 여섯 업무의 대기 건수를 보여 준다', async () => {
+  it('관리자 첫 화면에서 일곱 업무의 대기 건수를 보여 준다', async () => {
     mockCounts({
       channels: 3,
       promotions: 1,
@@ -65,6 +79,7 @@ describe('관리자 운영 대시보드', () => {
       inquiries: 4,
       hpTasks: 5,
       exchanges: 6,
+      coupons: 7,
     })
     renderApp('/admin', 'ADMIN')
 
@@ -77,6 +92,7 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('답변 대기 문의')).toHaveTextContent('4건')
     expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
     expect(await card('환전 승인 대기')).toHaveTextContent('6건')
+    expect(await card('쿠폰 심사 대기')).toHaveTextContent('7건')
   })
 
   it('처리할 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지, 강의 HP 작업은 멈춘 작업)', async () => {
@@ -86,12 +102,12 @@ describe('관리자 운영 대시보드', () => {
         http.get(path, ({ request }) => {
           const url = new URL(request.url)
           seen.push(`${url.pathname}?${url.searchParams}`)
-          return paged(1)
+          return path === API.coupons ? couponList(1) : paged(1)
         }),
       ),
     )
     renderApp('/admin', 'ADMIN')
-    await waitFor(() => expect(seen).toHaveLength(6))
+    await waitFor(() => expect(seen).toHaveLength(7))
 
     const query = (path: string) => seen.find((s) => s.startsWith(path))
     expect(query('/api/v1/members/admin/channels')).toMatch(
@@ -112,6 +128,9 @@ describe('관리자 운영 대시보드', () => {
     expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
       /status=REQUESTED&page=0/,
     )
+    expect(query('/api/v1/coupons/admin')).toBe(
+      '/api/v1/coupons/admin?status=REVIEW',
+    )
   })
 
   it.each([
@@ -121,6 +140,7 @@ describe('관리자 운영 대시보드', () => {
     ['답변 대기 문의', '/admin/inquiries'],
     ['멈춘 강의 HP 작업', '/admin/hp-tasks'],
     ['환전 승인 대기', '/admin/exchanges'],
+    ['쿠폰 심사 대기', '/admin/coupons'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
     mockCounts({
       channels: 1,
@@ -129,6 +149,7 @@ describe('관리자 운영 대시보드', () => {
       inquiries: 1,
       hpTasks: 1,
       exchanges: 1,
+      coupons: 1,
     })
     const router = renderApp('/admin', 'ADMIN')
 
