@@ -74,7 +74,9 @@ export const receivedAppearanceReviewsQuery = (
         `/members/${memberId}/appearance-reviews`,
         { query: { page, size: APPEARANCE_REVIEW_PAGE_SIZE } },
       ),
-    placeholderData: keepPreviousData,
+    // 같은 회원의 페이지를 옮길 때만 이전 목록을 둔다. 다른 회원으로 옮기면 앞 회원의 리뷰가 남지 않게 비운다.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === memberId ? previous : undefined,
   })
 
 export const myChannelsQuery = queryOptions({

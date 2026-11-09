@@ -1,9 +1,9 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { memberKeys } from '@/entities/member/api'
+import { memberKeys, memberProfileQuery } from '@/entities/member/api'
 import type {
   MemberProfileDetail,
   MyChannel,
@@ -336,10 +336,58 @@ describe('인플루언서', () => {
       expect(screen.getByText('리뷰 없음')).toBeInTheDocument()
     })
 
+    it('다른 회원 프로필로 옮기면 그 회원의 리뷰가 올 때까지 앞 회원의 리뷰를 남기지 않는다', async () => {
+      const OTHER_ID = 9
+      let releaseOther = () => {}
+      const otherReviews = new Promise<void>((resolve) => {
+        releaseOther = resolve
+      })
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
+        http.get(`*/api/v1/members/${OTHER_ID}`, () =>
+          rs(detail({ id: OTHER_ID, nickname: '새내기 수달' })),
+        ),
+        http.get(`*/api/v1/members/${MEMBER_ID}/appearance-reviews`, () =>
+          rs(reviewPage([review({ content: '고래가 받은 리뷰' })])),
+        ),
+        http.get(
+          `*/api/v1/members/${OTHER_ID}/appearance-reviews`,
+          async () => {
+            await otherReviews
+            return rs(reviewPage([review({ content: '수달이 받은 리뷰' })]))
+          },
+        ),
+      )
+      const router = renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+      expect(
+        await within(await reviewsRegion()).findByText('고래가 받은 리뷰'),
+      ).toBeInTheDocument()
+
+      // 옮길 회원의 프로필이 이미 캐시에 있으면 프로필 화면이 불러오는 중으로 바뀌지 않는다(뒤로·앞으로 이동 등)
+      await queryClient.prefetchQuery(memberProfileQuery(OTHER_ID))
+      await act(() => router.navigate(`/influencers/${OTHER_ID}`))
+
+      expect(
+        await screen.findByRole('heading', { name: '새내기 수달' }),
+      ).toBeInTheDocument()
+      const region = await reviewsRegion()
+      expect(
+        within(region).queryByText('고래가 받은 리뷰'),
+      ).not.toBeInTheDocument()
+      releaseOther()
+      expect(
+        await within(region).findByText('수달이 받은 리뷰'),
+      ).toBeInTheDocument()
+    })
+
     it('받은 리뷰를 불러오지 못해도(503) 프로필과 평점은 보이고, 다시 시도하면 리뷰를 불러온다', async () => {
       queryClient.setQueryDefaults(memberKeys.appearanceReviews(), {
         retry: false,
       })
+      // 기본값은 queryClient.clear()로 지워지지 않으므로 이 테스트가 끝나면 되돌린다
+      onTestFinished(() =>
+        queryClient.setQueryDefaults(memberKeys.appearanceReviews(), {}),
+      )
       let down = true
       server.use(
         http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
