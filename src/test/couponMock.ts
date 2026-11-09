@@ -96,6 +96,25 @@ export const memberCoupon = (
   ...patch,
 })
 
+const emptyLecturePage = (size: number) =>
+  rs({
+    content: [],
+    page: { size, number: 0, totalElements: 0, totalPages: 0 },
+  })
+
+/**
+ * 쿠폰 화면 테스트가 다루지 않는 곁 요청(구매 목록·내 강의·판매 내역)을 빈 페이지로 받는다.
+ * 핸들러가 없으면 MSW 경고가 나고, 늦게 끝난 요청이 다음 테스트 로그에 섞인다. beforeEach에서 부르고,
+ * 테스트가 직접 넣는 핸들러(server.use)가 앞에 붙으므로 그쪽이 우선한다.
+ */
+export function quietLectureRequests() {
+  server.use(
+    http.get('*/api/v1/lectures/purchased', () => emptyLecturePage(100)),
+    http.get('*/api/v1/lectures/me', () => emptyLecturePage(20)),
+    http.get('*/api/v1/lectures/sales', () => emptyLecturePage(20)),
+  )
+}
+
 export type CouponMockState = {
   /** 내 쿠폰함 */
   mine: MemberCoupon[]

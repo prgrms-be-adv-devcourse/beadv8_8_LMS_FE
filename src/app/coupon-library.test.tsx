@@ -1,10 +1,16 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureDetail } from '@/entities/lecture/types'
-import { couponProblem, memberCoupon, mockCoupons } from '@/test/couponMock'
+import {
+  couponProblem,
+  memberCoupon,
+  mockCoupons,
+  quietLectureRequests,
+} from '@/test/couponMock'
+import { mockOrders } from '@/test/lectureOrders'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -38,6 +44,8 @@ function recordMyCouponRequests() {
 }
 
 const item = (name: string) => screen.findByRole('listitem', { name })
+
+beforeEach(quietLectureRequests)
 
 afterEach(() => queryClient.clear())
 
@@ -174,16 +182,19 @@ describe('쿠폰함', () => {
     expect(router.state.location.search).toBe('?status=EXPIRED')
 
     // 기본값으로 돌아가면 URL에서 빼고, 오래된 목록이라 다시 불러온다.
+    // 캐시의 목록이 먼저 보이고 다시 부르는 요청은 그 뒤에 나가므로, 화면이 아니라 요청 기록을 기다린다.
     await user.click(screen.getByRole('button', { name: '사용 가능' }))
     expect(await item('쓸 수 있는 쿠폰')).toBeInTheDocument()
     expect(router.state.location.search).toBe('')
 
-    expect(seen).toEqual([
-      '?status=AVAILABLE',
-      '?status=USED',
-      '?status=EXPIRED',
-      '?status=AVAILABLE',
-    ])
+    await waitFor(() =>
+      expect(seen).toEqual([
+        '?status=AVAILABLE',
+        '?status=USED',
+        '?status=EXPIRED',
+        '?status=AVAILABLE',
+      ]),
+    )
   })
 
   it('받은 쿠폰이 없으면 빈 안내와 강의 둘러보기를 보여 준다', async () => {
@@ -230,6 +241,38 @@ describe('쿠폰함', () => {
       'href',
       '/library/coupons',
     )
+  })
+
+  it.each([
+    ['/library/coupons', 'USER', '쿠폰함', '내 강의'],
+    ['/studio/coupons', 'VERIFIED_INFLUENCER', '쿠폰 신청', '강의 판매'],
+  ] as const)(
+    '%s에서는 하위 메뉴만 켜지고 상위 메뉴는 꺼진다',
+    async (path, viewer, child, parent) => {
+      mockCoupons()
+      renderApp(path, viewer)
+      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+      expect(within(nav).getByRole('link', { name: child })).toHaveAttribute(
+        'aria-current',
+        'page',
+      )
+      expect(
+        within(nav).getByRole('link', { name: parent }),
+      ).not.toHaveAttribute('aria-current')
+    },
+  )
+
+  it('상위 메뉴의 다른 하위 경로에서는 상위 메뉴가 켜진다', async () => {
+    mockOrders()
+    renderApp('/library/orders', 'USER')
+    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).getByRole('link', { name: '내 강의' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(
+      within(nav).getByRole('link', { name: '쿠폰함' }),
+    ).not.toHaveAttribute('aria-current')
   })
 
   it.each(['GUEST', 'ADMIN'] as const)(

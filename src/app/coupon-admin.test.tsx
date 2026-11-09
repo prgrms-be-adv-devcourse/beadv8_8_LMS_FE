@@ -1,12 +1,22 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { resetCouponRetries } from '@/features/coupon-admin/retryStore'
-import { coupon, couponProblem, mockCoupons } from '@/test/couponMock'
+import {
+  resetCouponRetries,
+  useCouponRetryStore,
+} from '@/features/coupon-admin/retryStore'
+import {
+  coupon,
+  couponProblem,
+  mockCoupons,
+  quietLectureRequests,
+} from '@/test/couponMock'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+
+beforeEach(quietLectureRequests)
 
 afterEach(() => {
   server.events.removeAllListeners('request:start')
@@ -16,12 +26,14 @@ afterEach(() => {
 
 /**
  * BE가 상태(OPEN)를 먼저 저장한 뒤 발급 저장소 갱신에서 503으로 실패하는 경우를 흉내 낸다.
- * 처음 요청은 상태만 OPEN으로 바꾸고 503, 같은 요청을 다시 보내면 마무리되어 성공한다.
+ * 처음 요청은 상태만 OPEN으로 바꾸고 503(또는 first가 준 응답), 같은 요청을 다시 보내면 마무리되어 성공한다.
  */
 function failAfterCommit(
   state: ReturnType<typeof mockCoupons>,
   couponId: number,
   action: string,
+  first: () => Response = () =>
+    couponProblem(503, 'COUPON_ISSUE_STORE_UNAVAILABLE'),
 ) {
   let calls = 0
   server.use(
@@ -30,9 +42,7 @@ function failAfterCommit(
       state.actions.push(`${action} ${couponId}`)
       const target = state.admin.find((c) => c.couponId === couponId)!
       target.status = 'OPEN'
-      return calls === 1
-        ? couponProblem(503, 'COUPON_ISSUE_STORE_UNAVAILABLE')
-        : rs(target)
+      return calls === 1 ? first() : rs(target)
     }),
   )
 }
@@ -413,6 +423,51 @@ describe('관리자 쿠폰 운영', () => {
       await within(row).findByText('잠시 후 다시 시도해 주세요.'),
     ).toBeInTheDocument()
   })
+
+  it('응답을 받지 못했는데 상태가 이미 발급 중이면 다시 시도로 남겨 같은 승인으로 마무리한다', async () => {
+    const state = mockCoupons({ admin: [review()] })
+    failAfterCommit(state, 3, 'approve', () => HttpResponse.error())
+    renderApp('/admin/coupons/3', 'ADMIN')
+
+    await userEvent.click(await screen.findByRole('button', { name: '승인' }))
+    await waitFor(() => expect(statusPill()).toHaveTextContent(/^발급 중$/))
+    expect(
+      screen.getByText('응답을 받지 못했어요. 잠시 후 다시 시도해 주세요.'),
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      screen.getByRole('button', { name: '다시 시도(승인)' }),
+    )
+    expect(
+      await screen.findByText('승인했어요. 지금부터 발급돼요.'),
+    ).toBeInTheDocument()
+    expect(state.actions).toEqual(['approve 3', 'approve 3'])
+  })
+
+  it.each([
+    [409, 'INVALID_COUPON_STATUS'],
+    [404, 'COUPON_NOT_FOUND'],
+  ] as const)(
+    '다시 보내도 같은 실패(%i %s)는 다시 시도로 기록하지 않고 바로 알린다',
+    async (status, code) => {
+      mockCoupons({
+        admin: [review()],
+        failNext: {
+          'POST /coupons/admin/3/approve': couponProblem(status, code, '실패'),
+        },
+      })
+      renderApp('/admin/coupons', 'ADMIN')
+
+      const row = await item('가을맞이 10% 할인')
+      await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+      expect(await within(row).findByRole('alert')).toBeInTheDocument()
+      expect(screen.queryByText(/요청을 마치지 못했어요/)).toBeNull()
+      expect(
+        screen.queryByRole('button', { name: '다시 시도(승인)' }),
+      ).toBeNull()
+      expect(useCouponRetryStore.getState()).toEqual({})
+    },
+  )
 
   it('승인이 503으로 실패했는데 상태가 이미 발급 중이면 상세에서 같은 승인을 다시 보내 마무리한다', async () => {
     const state = mockCoupons({ admin: [review()] })

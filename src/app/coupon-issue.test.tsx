@@ -1,13 +1,18 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { couponKeys } from '@/entities/coupon/api'
 import type { CouponSummary } from '@/entities/coupon/types'
 import type { LectureDetail } from '@/entities/lecture/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { couponProblem, couponSummary, mockCoupons } from '@/test/couponMock'
+import {
+  couponProblem,
+  couponSummary,
+  mockCoupons,
+  quietLectureRequests,
+} from '@/test/couponMock'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -65,6 +70,8 @@ async function openLecture(
 
 const issueButton = (card: HTMLElement) =>
   within(card).getByRole('button', { name: '발급받기' })
+
+beforeEach(quietLectureRequests)
 
 afterEach(() => {
   vi.useRealTimers()

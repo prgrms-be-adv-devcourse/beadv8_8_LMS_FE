@@ -1,10 +1,15 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { MyLecture } from '@/entities/lecture/types'
-import { coupon, couponProblem, mockCoupons } from '@/test/couponMock'
+import {
+  coupon,
+  couponProblem,
+  mockCoupons,
+  quietLectureRequests,
+} from '@/test/couponMock'
 import { expectFieldError } from '@/test/fieldError'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -64,6 +69,8 @@ async function fillValidForm() {
     target: { value: '2999-12-31T23:59' },
   })
 }
+
+beforeEach(quietLectureRequests)
 
 afterEach(() => {
   queryClient.clear()
@@ -188,6 +195,19 @@ describe('판매자 쿠폰 신청', () => {
     expect(
       within(panel).queryByRole('button', { name: '심사 요청' }),
     ).not.toBeInTheDocument()
+
+    // 승인·반려 등으로 심사 중이 아니게 되면 '심사를 요청했어요'로 단정하지 않고 실제 상태를 보인다.
+    for (const [next, label] of [
+      ['OPEN', '발급 중'],
+      ['REJECTED', '반려'],
+      ['BRAND_NEW', '알 수 없는 상태'],
+    ] as const) {
+      state.seller[0].status = next as never
+      await queryClient.invalidateQueries()
+      expect(await within(panel).findByText(label)).toHaveClass('pill')
+      expect(panel).not.toHaveTextContent('쿠폰 심사를 요청했어요.')
+      expect(panel).toHaveTextContent('쿠폰 상태가 바뀌었어요.')
+    }
   })
 
   it('고정 만료는 만료 일수 대신 만료 일시를 보낸다', async () => {
@@ -380,9 +400,12 @@ describe('판매자 쿠폰 신청', () => {
     ).toHaveAttribute('aria-pressed', 'true')
     await userEvent.click(within(filters).getByRole('button', { name: '반려' }))
     expect(router.state.location.search).toBe('?status=REJECTED')
-    expect(
-      within(filters).getByRole('button', { name: '반려' }),
-    ).toHaveAttribute('aria-pressed', 'true')
+    // URL은 바로 바뀌지만 버튼은 다음 렌더에서 바뀐다(느린 CI에서는 그 사이에 단언할 수 있다).
+    await waitFor(() =>
+      expect(
+        within(filters).getByRole('button', { name: '반려' }),
+      ).toHaveAttribute('aria-pressed', 'true'),
+    )
     await waitFor(() =>
       expect(within(list).getAllByRole('listitem')).toHaveLength(1),
     )

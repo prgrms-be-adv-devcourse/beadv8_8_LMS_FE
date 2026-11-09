@@ -100,6 +100,18 @@ function ApplyPanel({ lectures }: { lectures: MyLectureOptions }) {
 }
 
 /**
+ * 신청 결과 문구. 신청(DRAFT)·심사 요청(REVIEW) 뒤에는 할 일을 안내하고,
+ * 그 밖(승인돼 발급 중·반려·중단·종료, 모르는 상태)은 심사 요청으로 단정하지 않는다.
+ * 실제 상태는 바로 아래 CouponFacts의 CouponStatusPill이 보인다(모르는 상태는 '알 수 없음').
+ */
+function createdMessage(status: Coupon['status']) {
+  if (status === 'DRAFT')
+    return '쿠폰을 신청했어요. 심사를 요청해야 관리자가 확인해요.'
+  if (status === 'REVIEW') return '쿠폰 심사를 요청했어요.'
+  return '쿠폰 상태가 바뀌었어요. 아래에서 지금 상태를 확인해 주세요.'
+}
+
+/**
  * 신청 결과. 신청 응답으로 시작하고 그 쿠폰의 상세 쿼리를 구독해, 아래 목록에서 심사를 요청하는 등 상태가 바뀌면 함께 바뀐다
  * (조작은 상세 캐시를 고치고 판매자 쿠폰 쿼리를 다시 부른다)
  */
@@ -123,10 +135,7 @@ function CreatedResult({
   return (
     <div className={styles.result}>
       <p role="status">
-        <b>{coupon.name}</b>{' '}
-        {coupon.status === 'DRAFT'
-          ? '쿠폰을 신청했어요. 심사를 요청해야 관리자가 확인해요.'
-          : '쿠폰 심사를 요청했어요.'}
+        <b>{coupon.name}</b> {createdMessage(coupon.status)}
       </p>
       <CouponFacts
         coupon={coupon}

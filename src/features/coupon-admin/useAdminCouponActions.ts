@@ -11,6 +11,7 @@ import { isApiError } from '@/shared/api/ApiError'
 import { toast } from '@/shared/ui/toastStore'
 import {
   forgetRetry,
+  isRetryableFailure,
   rememberRetry,
   RETRYABLE,
   type RetryableAction,
@@ -38,7 +39,8 @@ export const ACTION_TEXT: Record<
  * 조작 실패 문구. 화면 분기는 code로만 한다.
  * - 예산 거절(409 PROMOTION_BUDGET_REJECTED): 상태는 그대로라 같은 버튼으로 다시 시도한다
  * - 동시 변경(409 COUPON_CONCURRENT_UPDATE): 다른 변경이 먼저 반영됐다. 목록·상세는 끝나면 다시 불러온다
- * - 503: 잠깐 쓸 수 없는 상태(예산·강의 조회 등)
+ * - 5xx: 잠깐 쓸 수 없는 상태(예산·강의 조회 등)
+ * - 응답을 받지 못함(네트워크): BE가 처리했는지 모르므로 다시 시도하게 한다
  */
 export function couponActionMessage(
   error: unknown,
@@ -52,11 +54,10 @@ export function couponActionMessage(
     return '다른 변경과 겹쳤어요. 다시 시도해 주세요.'
   if (isApiError(error, 'INVALID_COUPON_STATUS'))
     return '지금 상태에서는 할 수 없어요. 새로 불러온 상태를 확인해 주세요.'
-  if (isApiError(error) && error.status === 503)
+  if (isApiError(error) && error.status >= 500)
     return '잠시 후 다시 시도해 주세요.'
-  return error instanceof Error
-    ? error.message
-    : '요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.'
+  if (isApiError(error)) return error.message
+  return '응답을 받지 못했어요. 잠시 후 다시 시도해 주세요.'
 }
 
 /**
@@ -76,7 +77,8 @@ function useSettle() {
 
 /**
  * 열기·승인·중단·재개·종료. name은 실패한 열기·승인·재개를 다시 시도하라고 안내할 때 쓴다.
- * 열기·승인·재개가 실패하면 다시 시도할 조작으로 기억하고(BE가 상태를 먼저 저장했을 수 있다), 성공하면 지운다.
+ * 열기·승인·재개가 다시 보내면 마무리될 수 있는 오류(isRetryableFailure)로 실패하면 다시 시도할 조작으로 기억하고
+ * (BE가 상태를 먼저 저장했을 수 있다), 성공하면 지운다.
  */
 export function useAdminCouponAction(couponId: number, name: string) {
   const { saved, onSettled } = useSettle()
@@ -88,12 +90,14 @@ export function useAdminCouponAction(couponId: number, name: string) {
       saved(coupon, ACTION_TEXT[action].done)
     },
     onError: (error, action) => {
-      if (RETRYABLE.has(action))
-        rememberRetry(couponId, {
-          action: action as RetryableAction,
-          name,
-          message: couponActionMessage(error, action),
-        })
+      if (!RETRYABLE.has(action)) return
+      // 다시 보내도 같은 실패(상태 불일치·권한·없음)는 기록하지 않고, 남은 기록도 지운다. 문구는 버튼 아래에 바로 보인다.
+      if (!isRetryableFailure(error)) return forgetRetry(couponId)
+      rememberRetry(couponId, {
+        action: action as RetryableAction,
+        name,
+        message: couponActionMessage(error, action),
+      })
     },
     onSettled,
   })

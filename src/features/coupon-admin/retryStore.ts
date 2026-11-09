@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AdminCouponAction } from '@/entities/coupon/api'
+import { isApiError } from '@/shared/api/ApiError'
 
 /** 실패하면 같은 요청을 다시 보내 마무리하는 조작(발급을 여는 쪽) */
 export type RetryableAction = Extract<
@@ -11,6 +12,24 @@ export const RETRYABLE = new Set<AdminCouponAction>([
   'approve',
   'resume',
 ])
+
+/**
+ * 같은 요청을 다시 보내면 마무리될 수 있는 실패 code.
+ * - COUPON_ISSUE_STORE_UNAVAILABLE(503): 상태를 저장한 뒤 발급 저장소(Redis) 반영에 실패했다
+ * - COUPON_CONCURRENT_UPDATE(409): 다른 변경과 겹쳤다
+ * 그 밖의 5xx(예산·강의 조회 등 일시 장애, 게이트웨이 오류)와 응답을 받지 못한 실패(네트워크)는 BE가 상태를
+ * 저장했는지 알 수 없으므로 다시 보내 마무리할 수 있게 남긴다.
+ * 409 INVALID_COUPON_STATUS·403·404처럼 BE가 확정해 거절한 4xx는 다시 보내도 같으므로 기록하지 않는다.
+ */
+export const RETRY_CODES = new Set([
+  'COUPON_ISSUE_STORE_UNAVAILABLE',
+  'COUPON_CONCURRENT_UPDATE',
+])
+
+export function isRetryableFailure(error: unknown) {
+  if (!isApiError(error)) return true
+  return error.status >= 500 || RETRY_CODES.has(error.code)
+}
 
 export type PendingRetry = {
   action: RetryableAction
