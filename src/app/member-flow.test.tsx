@@ -1,14 +1,19 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { memberKeys } from '@/entities/member/api'
-import type { MyChannel } from '@/entities/member/types'
+import { memberKeys, memberProfileQuery } from '@/entities/member/api'
+import type {
+  MemberProfileDetail,
+  MyChannel,
+  ReceivedAppearanceReview,
+} from '@/entities/member/types'
 import type { Me } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { problem } from '@/test/emailCodeMock'
 import { expectFieldError, expectNoFieldError } from '@/test/fieldError'
+import { noAppearanceRating, noRating } from '@/test/memberProfile'
 import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -52,6 +57,7 @@ describe('인플루언서', () => {
               nickname: '편집하는 고래',
               role: 'VERIFIED_INFLUENCER',
               profileImageUrl: null,
+              appearanceRating: noRating,
             },
           ],
           page: { size: 12, number: 0, totalElements: 1, totalPages: 1 },
@@ -79,6 +85,7 @@ describe('인플루언서', () => {
               followerCountAt: null,
             },
           ],
+          appearanceRating: noAppearanceRating,
         }),
       ),
     )
@@ -111,6 +118,7 @@ describe('인플루언서', () => {
                     nickname: `둘째 페이지 고래 ${p + 1}`,
                     role: 'VERIFIED_INFLUENCER',
                     profileImageUrl: null,
+                    appearanceRating: noRating,
                   },
                 ]
               : [],
@@ -127,6 +135,293 @@ describe('인플루언서', () => {
     expect(
       screen.queryByText('아직 인증된 인플루언서가 없어요'),
     ).not.toBeInTheDocument()
+  })
+
+  it('목록 카드에 받은 출연 리뷰 전체 평점을 보여 준다', async () => {
+    server.use(
+      http.get('*/api/v1/members/influencers', () =>
+        rs({
+          content: [
+            {
+              id: 8,
+              nickname: '편집하는 고래',
+              role: 'VERIFIED_INFLUENCER',
+              profileImageUrl: null,
+              appearanceRating: { average: 4.5, count: 12 },
+            },
+            {
+              id: 9,
+              nickname: '새내기 수달',
+              role: 'INFLUENCER',
+              profileImageUrl: null,
+              appearanceRating: noRating,
+            },
+          ],
+          page: { size: 12, number: 0, totalElements: 2, totalPages: 1 },
+        }),
+      ),
+    )
+    renderApp('/influencers', 'INFLUENCER')
+
+    const rated = await screen.findByRole('link', { name: /편집하는 고래/ })
+    expect(
+      within(rated).getByLabelText('평점 4.5점, 리뷰 12개'),
+    ).toBeInTheDocument()
+    const unrated = screen.getByRole('link', { name: /새내기 수달/ })
+    expect(within(unrated).getByText('리뷰 없음')).toBeInTheDocument()
+  })
+
+  describe('프로필의 출연 평점과 받은 출연 리뷰 (#176)', () => {
+    const MEMBER_ID = 8
+
+    const detail = (
+      patch: Partial<MemberProfileDetail> = {},
+    ): MemberProfileDetail => ({
+      id: MEMBER_ID,
+      nickname: '편집하는 고래',
+      role: 'VERIFIED_INFLUENCER',
+      profileImageUrl: null,
+      channels: [],
+      appearanceRating: {
+        total: { average: 4.5, count: 12 },
+        asHost: { average: 4.7, count: 7 },
+        asGuest: { average: 4.2, count: 5 },
+      },
+      ...patch,
+    })
+
+    const review = (
+      patch: Partial<ReceivedAppearanceReview> = {},
+    ): ReceivedAppearanceReview => ({
+      reviewId: 31,
+      appearanceId: 120,
+      revieweeRole: 'HOST',
+      rating: 5,
+      content: '준비를 잘해 오셨어요',
+      publishedAt: '2026-11-03T21:10:00',
+      reviewer: { id: 42, nickname: '민규', profileImageUrl: null },
+      ...patch,
+    })
+
+    const reviewPage = (
+      content: ReceivedAppearanceReview[],
+      number = 0,
+      totalElements = content.length,
+    ) => ({
+      content,
+      page: {
+        size: 10,
+        number,
+        totalElements,
+        totalPages: Math.ceil(totalElements / 10),
+      },
+    })
+
+    const reviewsRegion = () =>
+      screen.findByRole('region', { name: '받은 출연 리뷰' })
+
+    it('프로필에 출연 평점을 전체와 호스트·게스트로 나눠 보여 준다', async () => {
+      server.use(http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())))
+      renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+
+      expect(
+        await screen.findByLabelText('평점 4.5점, 리뷰 12개'),
+      ).toBeInTheDocument()
+      const region = await reviewsRegion()
+      expect(
+        within(
+          within(region).getByRole('group', { name: '호스트로 받은 평점' }),
+        ).getByLabelText('평점 4.7점, 리뷰 7개'),
+      ).toBeInTheDocument()
+      expect(
+        within(
+          within(region).getByRole('group', { name: '게스트로 받은 평점' }),
+        ).getByLabelText('평점 4.2점, 리뷰 5개'),
+      ).toBeInTheDocument()
+    })
+
+    it('받은 리뷰마다 쓴 회원·별점·받은 역할·본문을 보여 주고, 쓴 회원 프로필로 잇지 않는다', async () => {
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
+        http.get(`*/api/v1/members/${MEMBER_ID}/appearance-reviews`, () =>
+          rs(
+            reviewPage([
+              review(),
+              review({
+                reviewId: 32,
+                appearanceId: 121,
+                revieweeRole: 'GUEST',
+                rating: 3,
+                content: null,
+                reviewer: {
+                  id: 43,
+                  nickname: '탈퇴한 회원',
+                  profileImageUrl: null,
+                },
+              }),
+            ]),
+          ),
+        ),
+      )
+      renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+
+      const region = await reviewsRegion()
+      const [first, second] = await within(region).findAllByRole('article')
+      expect(within(first).getByText('민규')).toBeInTheDocument()
+      expect(within(first).getByLabelText('5점')).toBeInTheDocument()
+      expect(within(first).getByText('호스트로 받음')).toBeInTheDocument()
+      expect(
+        within(first).getByText('준비를 잘해 오셨어요'),
+      ).toBeInTheDocument()
+
+      expect(within(second).getByText('탈퇴한 회원')).toBeInTheDocument()
+      expect(within(second).getByLabelText('3점')).toBeInTheDocument()
+      expect(within(second).getByText('게스트로 받음')).toBeInTheDocument()
+
+      expect(within(region).queryByRole('link')).not.toBeInTheDocument()
+    })
+
+    it('받은 리뷰의 다음 페이지를 누르면 URL에 페이지를 두고 그 페이지를 불러온다', async () => {
+      const requested: string[] = []
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
+        http.get(
+          `*/api/v1/members/${MEMBER_ID}/appearance-reviews`,
+          ({ request }) => {
+            const params = new URL(request.url).searchParams
+            requested.push(`${params.get('page')}/${params.get('size')}`)
+            const page = Number(params.get('page'))
+            return rs(
+              reviewPage(
+                [
+                  review({
+                    reviewId: 40 + page,
+                    content: `${page + 1}쪽 리뷰`,
+                  }),
+                ],
+                page,
+                11,
+              ),
+            )
+          },
+        ),
+      )
+      const router = renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+
+      const region = await reviewsRegion()
+      expect(await within(region).findByText('1쪽 리뷰')).toBeInTheDocument()
+      await userEvent.click(
+        within(region).getByRole('button', { name: '다음' }),
+      )
+
+      expect(await within(region).findByText('2쪽 리뷰')).toBeInTheDocument()
+      expect(router.state.location.search).toBe('?page=2')
+      expect(requested).toEqual(['0/10', '1/10'])
+    })
+
+    it('받은 리뷰가 없으면 평점 대신 리뷰 없음과 빈 안내를 보여 준다', async () => {
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () =>
+          rs(detail({ appearanceRating: noAppearanceRating })),
+        ),
+      )
+      renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+
+      const region = await reviewsRegion()
+      expect(
+        await within(region).findByText('아직 받은 출연 리뷰가 없어요.'),
+      ).toBeInTheDocument()
+      // 리뷰가 없으면 호스트·게스트로 나눈 평점은 두지 않는다
+      expect(within(region).queryByRole('group')).not.toBeInTheDocument()
+      expect(screen.getByText('리뷰 없음')).toBeInTheDocument()
+    })
+
+    it('다른 회원 프로필로 옮기면 그 회원의 리뷰가 올 때까지 앞 회원의 리뷰를 남기지 않는다', async () => {
+      const OTHER_ID = 9
+      let releaseOther = () => {}
+      const otherReviews = new Promise<void>((resolve) => {
+        releaseOther = resolve
+      })
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
+        http.get(`*/api/v1/members/${OTHER_ID}`, () =>
+          rs(detail({ id: OTHER_ID, nickname: '새내기 수달' })),
+        ),
+        http.get(`*/api/v1/members/${MEMBER_ID}/appearance-reviews`, () =>
+          rs(reviewPage([review({ content: '고래가 받은 리뷰' })])),
+        ),
+        http.get(
+          `*/api/v1/members/${OTHER_ID}/appearance-reviews`,
+          async () => {
+            await otherReviews
+            return rs(reviewPage([review({ content: '수달이 받은 리뷰' })]))
+          },
+        ),
+      )
+      const router = renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+      expect(
+        await within(await reviewsRegion()).findByText('고래가 받은 리뷰'),
+      ).toBeInTheDocument()
+
+      // 옮길 회원의 프로필이 이미 캐시에 있으면 프로필 화면이 불러오는 중으로 바뀌지 않는다(뒤로·앞으로 이동 등)
+      await queryClient.prefetchQuery(memberProfileQuery(OTHER_ID))
+      await act(() => router.navigate(`/influencers/${OTHER_ID}`))
+
+      expect(
+        await screen.findByRole('heading', { name: '새내기 수달' }),
+      ).toBeInTheDocument()
+      const region = await reviewsRegion()
+      expect(
+        within(region).queryByText('고래가 받은 리뷰'),
+      ).not.toBeInTheDocument()
+      releaseOther()
+      expect(
+        await within(region).findByText('수달이 받은 리뷰'),
+      ).toBeInTheDocument()
+    })
+
+    it('받은 리뷰를 불러오지 못해도(503) 프로필과 평점은 보이고, 다시 시도하면 리뷰를 불러온다', async () => {
+      queryClient.setQueryDefaults(memberKeys.appearanceReviews(), {
+        retry: false,
+      })
+      // 기본값은 queryClient.clear()로 지워지지 않으므로 이 테스트가 끝나면 되돌린다
+      onTestFinished(() =>
+        queryClient.setQueryDefaults(memberKeys.appearanceReviews(), {}),
+      )
+      let down = true
+      server.use(
+        http.get(`*/api/v1/members/${MEMBER_ID}`, () => rs(detail())),
+        http.get(`*/api/v1/members/${MEMBER_ID}/appearance-reviews`, () =>
+          down
+            ? problem(
+                503,
+                'APPEARANCE_REVIEW_UNAVAILABLE',
+                '지금은 출연 리뷰를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.',
+              )
+            : rs(reviewPage([review()])),
+        ),
+      )
+      renderApp(`/influencers/${MEMBER_ID}`, 'INFLUENCER')
+
+      const region = await reviewsRegion()
+      expect(
+        await within(region).findByText(
+          /지금은 출연 리뷰를 불러올 수 없습니다/,
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: '편집하는 고래' }),
+      ).toBeInTheDocument()
+      expect(screen.getByLabelText('평점 4.5점, 리뷰 12개')).toBeInTheDocument()
+
+      down = false
+      await userEvent.click(
+        within(region).getByRole('button', { name: '다시 시도' }),
+      )
+      expect(
+        await within(region).findByText('준비를 잘해 오셨어요'),
+      ).toBeInTheDocument()
+    })
   })
 })
 

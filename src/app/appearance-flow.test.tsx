@@ -14,6 +14,7 @@ import {
   expectSubmitBlocked,
   expectSubmitOpen,
 } from '@/test/fieldError'
+import { noAppearanceRating } from '@/test/memberProfile'
 import { server } from '@/test/server'
 import { expectSuccessToast } from '@/test/toast'
 
@@ -26,6 +27,7 @@ const profile = (id: number, nickname: string) => ({
   role: 'INFLUENCER',
   profileImageUrl: null,
   channels: [],
+  appearanceRating: noAppearanceRating,
 })
 
 const myChannel: MyChannel = {

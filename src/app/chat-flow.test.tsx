@@ -19,6 +19,7 @@ import { READ_RETRY_DELAY_MS } from '@/features/chat/useChatUnread'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { deliver } from '@/test/chatServer'
+import { noAppearanceRating } from '@/test/memberProfile'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -124,6 +125,7 @@ describe('채팅', () => {
           role: 'INFLUENCER',
           profileImageUrl: null,
           channels: [],
+          appearanceRating: noAppearanceRating,
         }),
       ),
       http.post('*/api/v1/chats', async ({ request }) => {
@@ -582,6 +584,7 @@ describe('채팅', () => {
           role: 'VERIFIED_INFLUENCER',
           profileImageUrl: null,
           channels: [],
+          appearanceRating: noAppearanceRating,
         }),
       ),
       http.post('*/api/v1/chats', async ({ request }) => {
