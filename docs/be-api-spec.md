@@ -32,40 +32,55 @@ BE에 생긴 API·응답 필드·상태 값을 FE가 쓰는지 한 번에 본다
 
 1. 위 6개 모듈의 명세 JSON을 받는다.
 2. FE `src`에서 테스트를 뺀 파일의 식별자를 모은다.
-3. 공개 경로(`/internal/`·`backfill` 제외)가 참조하는 스키마를 따라가며, 속성 이름과 enum 값 중 2에 없는 것을 뽑는다.
+3. 공개 경로(`/internal/`·`backfill` 제외)와 그 경로가 참조하는 스키마를 따라가며, 스키마의 속성 이름과 enum 값(배열 항목·별도 enum 스키마·경로 파라미터 포함) 중 2에 없는 것을 뽑는다.
 
-남는 것이 FE가 쓰지 않는 응답 필드·상태 값이고, 그 필드가 속한 경로가 FE 화면이 없는 API다. 걸러 볼 것:
+남는 것은 FE가 쓰지 않는 응답 필드·상태 값의 후보이고, 그 필드가 속한 경로가 FE 화면이 없는 API의 후보다. 전수 검사가 아니다.
+
+놓치는 것:
+
+- 식별자 파일은 FE 소스의 모든 단어를 스키마와 상관없이 모은 것이다. `id`·`status`·`type`·`name`처럼 FE 어딘가에 있는 단어는, 그 이름의 BE 필드를 FE가 쓰지 않아도 "쓰는 것"으로 판정된다. 흔한 이름의 새 필드는 남지 않으니 BE 변경 기록(커밋·PR)과 함께 본다.
+- 같은 이유로 `PENDING`·`COMPLETED`처럼 다른 도메인에서 쓰는 상태 값도 남지 않는다.
+
+잘못 뽑는 것:
 
 - 이름이 다르게 쓰이거나 화면에 필요 없는 필드일 수 있다. 하나씩 BE 설명을 읽고 판단한다.
 - 일부 템플릿은 필드를 읽지 않고 종류만으로 문구를 만든다(예: 단체방 `GROUP_HOST_UNAVAILABLE`).
 - 명세의 enum이 실제 응답보다 넓을 수 있다. 쿠폰 발급 접수 `result`는 명세에 `SOLD_OUT` 등도 있지만, 성공 응답으로는 `ACCEPTED`·`ALREADY_ACCEPTED`만 오고 나머지는 오류 코드로 온다(BE `IssueRequestResult` 주석).
-- FE가 호출하는 경로는 `src`에서 `/members`·`/lectures` 같은 문자열을 모아 BE 경로와 맞춰 본다. `${...}`는 경로 변수로 바꿔 비교한다.
+
+FE가 호출하는 경로는 `src`에서 `/members`·`/lectures` 같은 문자열을 모아 BE 경로와 맞춰 본다. `${...}`는 경로 변수로 바꿔 비교한다.
 
 ```python
 # python3 -I check.py <명세 폴더> <FE 식별자 파일>
+# 출력: 모듈, 경로 또는 스키마, FE에 없는 속성, FE에 없는 enum 값
 import json, os, sys
 spec_dir, ident_file = sys.argv[1], sys.argv[2]
 idents = set(open(ident_file).read().split())
+
+def collect(o, refs, enums):
+    """$ref 이름과 enum 값을 어디에 있든(배열 items, 파라미터 schema 포함) 모은다"""
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k == '$ref': refs.add(v.split('/')[-1])
+            elif k == 'enum': enums.update(x for x in v if isinstance(x, str))
+            else: collect(v, refs, enums)
+    elif isinstance(o, list):
+        for v in o: collect(v, refs, enums)
+
 for m in ['members', 'wallets', 'appearances', 'lectures', 'chats', 'inquiries']:
     d = json.load(open(os.path.join(spec_dir, m + '.json')))
-    schemas, refs = d['components']['schemas'], set()
-    def walk(o):
-        if isinstance(o, dict):
-            for k, v in o.items():
-                refs.add(v.split('/')[-1]) if k == '$ref' else walk(v)
-        elif isinstance(o, list):
-            for v in o: walk(v)
+    schemas, refs, rows = d['components']['schemas'], set(), []
     for p, ops in d['paths'].items():
-        if '/internal/' not in p and 'backfill' not in p: walk(ops)
-    while True:  # 참조한 스키마 안의 참조까지
-        n = len(refs)
-        for r in list(refs): walk(schemas.get(r, {}))
-        if len(refs) == n: break
-    for name in sorted(refs):
-        props = schemas.get(name, {}).get('properties', {})
-        fields = [k for k in props if k not in idents]
-        enums = [v for p in props.values() for v in p.get('enum', []) if v not in idents]
-        if fields or enums: print(m, name, fields, enums, sep='\t')
+        if '/internal/' in p or 'backfill' in p: continue
+        enums = set(); collect(ops, refs, enums)
+        if enums - idents: rows.append((p, [], sorted(enums - idents)))
+    done = set()
+    while refs - done:  # 참조한 스키마 안의 참조까지
+        name = (refs - done).pop(); done.add(name)
+        s = schemas.get(name, {}); enums = set()
+        collect(s, refs, enums)
+        fields = [k for k in s.get('properties', {}) if k not in idents]
+        if fields or enums - idents: rows.append((name, fields, sorted(enums - idents)))
+    for where, fields, enums in sorted(rows): print(m, where, fields, enums, sep='\t')
 ```
 
 FE 식별자 파일은 예를 들어 이렇게 만든다(zsh에서는 `grep`이 다른 도구일 수 있어 `command grep`).
