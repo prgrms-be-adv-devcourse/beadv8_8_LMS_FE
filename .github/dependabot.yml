@@ -1,7 +1,8 @@
-# workflow의 외부 액션은 커밋 SHA로 고정한다(태그가 다른 커밋으로 옮겨져도 영향받지 않게). 이 설정이 고정한 SHA를 새 릴리스로 올리는 PR을 연다.
+# workflow 외부 액션(커밋 SHA로 고정)과 npm 의존성을 새 릴리스로 올리는 PR을 dev로 연다. 자동 병합하지 않는다(dev 병합이 곧 운영 배포).
 # 나온 지 14일이 지난 릴리스만 올린다(갓 나온 릴리스가 문제일 때 바로 받지 않게).
 version: 2
 updates:
+  # 태그가 다른 커밋으로 옮겨져도 영향받지 않게 액션은 SHA로 고정한다. 이 설정이 고정한 SHA를 새 릴리스로 올린다.
   - package-ecosystem: github-actions
     directory: /
     target-branch: dev
@@ -12,5 +13,28 @@ updates:
     groups:
       actions:
         patterns: ['*']
+    commit-message:
+      prefix: 'Chore:'
+
+  # pnpm lockfile을 갱신한다(#205). minor·patch는 PR 하나로 묶고, 메이저는 패키지마다 따로 PR을 연다.
+  # @types/node는 Node 버전(.node-version, Dockerfile node:24)을 따르므로 메이저를 올리지 않는다.
+  # package.json의 범위 최솟값도 새 버전으로 올린다(pnpm update와 같은 방식).
+  # pnpm 12가 pnpm 버전을 고정한 lockfile을 YAML 문서 두 개로 써서 dependency graph가 npm 의존성을 읽지 못한다.
+  # 그래서 이 설정은 정기 갱신만 하고, npm 의존성의 Dependabot alerts·security updates는 생기지 않는다.
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    versioning-strategy: increase
+    groups:
+      npm-minor-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: 'Chore:'
