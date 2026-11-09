@@ -45,6 +45,9 @@ function recordMyCouponRequests() {
 
 const item = (name: string) => screen.findByRole('listitem', { name })
 
+/** 화면 요청이 모두 끝날 때까지 기다린다(메뉴만 보는 테스트가 끝난 뒤 요청이 다음 테스트로 넘어가지 않게) */
+const settled = () => waitFor(() => expect(queryClient.isFetching()).toBe(0))
+
 beforeEach(quietLectureRequests)
 
 afterEach(() => queryClient.clear())
@@ -259,6 +262,7 @@ describe('쿠폰함', () => {
       expect(
         within(nav).getByRole('link', { name: parent }),
       ).not.toHaveAttribute('aria-current')
+      await settled()
     },
   )
 
@@ -273,6 +277,7 @@ describe('쿠폰함', () => {
     expect(
       within(nav).getByRole('link', { name: '쿠폰함' }),
     ).not.toHaveAttribute('aria-current')
+    await settled()
   })
 
   it.each(['GUEST', 'ADMIN'] as const)(

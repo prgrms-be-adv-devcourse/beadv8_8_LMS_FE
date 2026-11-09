@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { couponKeys } from '@/entities/coupon/api'
 import type { MyLecture } from '@/entities/lecture/types'
 import {
   coupon,
@@ -203,7 +204,8 @@ describe('판매자 쿠폰 신청', () => {
       ['BRAND_NEW', '알 수 없는 상태'],
     ] as const) {
       state.seller[0].status = next as never
-      await queryClient.invalidateQueries()
+      // 쿠폰 쿼리만 다시 부른다(전체를 무효화하면 /members/me까지 다시 불러 핸들러 없는 요청이 생긴다).
+      await queryClient.invalidateQueries({ queryKey: couponKeys.all })
       expect(await within(panel).findByText(label)).toHaveClass('pill')
       expect(panel).not.toHaveTextContent('쿠폰 심사를 요청했어요.')
       expect(panel).toHaveTextContent('쿠폰 상태가 바뀌었어요.')
