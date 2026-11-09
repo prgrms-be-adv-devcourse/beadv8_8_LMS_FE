@@ -37,6 +37,7 @@ export const NAV: NavGroup[] = [
       { path: '/admin/exchanges', label: '환전 승인', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },
+      { path: '/admin/coupons', label: '쿠폰 운영', roles: ADMIN },
     ],
   },
   {
@@ -52,6 +53,7 @@ export const NAV: NavGroup[] = [
     items: [
       { path: '/appearances', label: '내 출연', roles: INFLUENCER },
       { path: '/library', label: '내 강의', roles: MEMBER },
+      { path: '/library/coupons', label: '쿠폰함', roles: MEMBER },
       { path: '/chat', label: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
       { path: '/wallet', label: '지갑', roles: MEMBER },
       { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
@@ -61,6 +63,11 @@ export const NAV: NavGroup[] = [
     title: '판매·인증',
     items: [
       { path: '/studio', label: '강의 판매', roles: ['VERIFIED_INFLUENCER'] },
+      {
+        path: '/studio/coupons',
+        label: '쿠폰 신청',
+        roles: ['VERIFIED_INFLUENCER'],
+      },
       {
         path: '/verify',
         label: '채널 인증',
@@ -97,4 +104,21 @@ export function navFor(viewer: Viewer): NavGroup[] {
     ...g,
     items: g.items.filter((it) => it.roles.includes(viewer)),
   })).filter((g) => g.items.length > 0)
+}
+
+const within = (pathname: string, path: string) =>
+  pathname === path || pathname.startsWith(`${path}/`)
+
+/**
+ * 하위 경로에 따로 메뉴가 있고 지금 그 메뉴 안에 있으면 true(그 메뉴만 켜지게 한다).
+ * 예: /library/coupons에서는 '쿠폰함'만 켜지고 '내 강의'(/library)는 꺼진다. /library/7/watch에서는 '내 강의'가 켜진다.
+ */
+export function shadowedByChild(
+  path: string,
+  pathname: string,
+  paths: string[],
+) {
+  return paths.some(
+    (other) => other !== path && within(other, path) && within(pathname, other),
+  )
 }

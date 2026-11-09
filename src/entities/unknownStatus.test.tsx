@@ -25,6 +25,10 @@ import { SaleStatusPill } from './lecture/ui/SaleStatusPill'
 import { ChannelCard } from './member/ui/ChannelCard'
 import { ChannelStatusPill } from './member/ui/ChannelStatusPill'
 import { UpgradeStatusPill } from './member/ui/UpgradeStatusPill'
+import {
+  CouponStatusPill,
+  MemberCouponStatusPill,
+} from './coupon/ui/CouponStatusPill'
 import { OrderItemStatusPill } from './order/ui/OrderItemStatusPill'
 import { EarningStatusPill } from './wallet/ui/EarningStatusPill'
 import { ExchangeStatusPill } from './wallet/ui/ExchangeStatusPill'
@@ -41,6 +45,8 @@ beforeEach(() => {
 describe('모르는 상태 값의 상태 표시 (#183)', () => {
   const pills: [name: string, pill: () => ReactElement][] = [
     ['OrderItemStatusPill', () => <OrderItemStatusPill status={NEW} />],
+    ['CouponStatusPill', () => <CouponStatusPill status={NEW} />],
+    ['MemberCouponStatusPill', () => <MemberCouponStatusPill status={NEW} />],
     ['ExchangeStatusPill', () => <ExchangeStatusPill status={NEW} />],
     [
       'HpTaskStatusPill',

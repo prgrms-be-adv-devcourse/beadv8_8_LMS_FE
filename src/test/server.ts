@@ -24,6 +24,14 @@ const appShellDefaults = [
   http.get('*/api/v1/chats', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),
   ),
+  // 강의 상세의 받을 수 있는 쿠폰(기본은 없음). 쿠폰 화면 테스트는 src/test/couponMock.ts로 덮어쓴다.
+  http.get('*/api/v1/coupons', () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: [] }),
+  ),
+  // 관리자 대시보드의 쿠폰 심사 대기 카드(목록은 페이지 없는 배열)
+  http.get('*/api/v1/coupons/admin', () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: [] }),
+  ),
   http.get('*/api/v1/chats/groups', ({ request }) =>
     HttpResponse.json({
       statusCode: 200,

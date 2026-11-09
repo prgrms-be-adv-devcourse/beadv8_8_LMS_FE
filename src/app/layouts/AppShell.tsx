@@ -7,7 +7,7 @@ import {
   useMatches,
   useNavigation,
 } from 'react-router'
-import { MY_ACTIVITY, navFor } from '@/app/nav'
+import { MY_ACTIVITY, navFor, shadowedByChild } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import type { RouteHandle } from '@/app/routeHandle'
 import { walletQuery } from '@/entities/wallet/api'
@@ -335,13 +335,16 @@ function HpPill() {
 
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
   const unreadChats = useChatUnreadTotal(CHAT_VIEWERS.includes(viewer))
+  const { pathname } = useLocation()
+  const groups = navFor(viewer)
+  const paths = groups.flatMap((g) => g.items.map((it) => it.path))
   return (
     <nav
       id={NAV_ID}
       className={open ? `${styles.side} ${styles.sideOpen}` : styles.side}
       aria-label="주 메뉴"
     >
-      {navFor(viewer).map((group, i) => (
+      {groups.map((group, i) => (
         <div
           key={group.title}
           className={styles.navGroup}
@@ -356,8 +359,11 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
             <NavLink
               key={item.path}
               to={item.path}
-              // 운영 대시보드는 하위 경로에서 켜지지 않게 한다.
-              end={item.path === '/admin'}
+              // 운영 대시보드는 하위 경로에서 켜지지 않게 한다. 하위 메뉴(쿠폰함 등) 안에서는 상위 메뉴를 끈다.
+              end={
+                item.path === '/admin' ||
+                shadowedByChild(item.path, pathname, paths)
+              }
               className={({ isActive }) =>
                 isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
               }
