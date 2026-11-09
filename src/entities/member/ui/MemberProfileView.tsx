@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import { Avatar } from '@/shared/ui/Avatar'
 import { formatNumber } from '@/shared/lib/money'
-import type { MemberProfileDetail } from '../types'
+import type { MemberProfileDetail, RatingSummary } from '../types'
 import { ChannelCard } from './ChannelCard'
+import { ReceivedAppearanceReviews } from './ReceivedAppearanceReviews'
 
 type MemberProfileViewProps = {
   profile: MemberProfileDetail
@@ -64,6 +65,7 @@ export function MemberProfileView({ profile, aside }: MemberProfileViewProps) {
               <span>인증된 채널</span>
               <b>{profile.channels.length}개</b>
             </div>
+            <RatingSum rating={profile.appearanceRating.total} />
           </div>
           <section className="panel">
             <h2>채널</h2>
@@ -77,9 +79,37 @@ export function MemberProfileView({ profile, aside }: MemberProfileViewProps) {
               </div>
             )}
           </section>
+          <ReceivedAppearanceReviews
+            memberId={profile.id}
+            rating={profile.appearanceRating}
+          />
         </div>
         {aside && <aside className="panel sticky">{aside}</aside>}
       </div>
     </>
+  )
+}
+
+/**
+ * 요약 카드의 받은 출연 리뷰 전체 평점. 카드 글자(.sum span·b) 크기를 따르려고 Rating 대신 직접 그린다.
+ */
+function RatingSum({ rating: { average, count } }: { rating: RatingSummary }) {
+  if (average === null || count === 0)
+    return (
+      <div className="sum">
+        <span>출연 평점</span>
+        <b style={{ color: 'var(--ink-3)' }}>리뷰 없음</b>
+      </div>
+    )
+  return (
+    <div className="sum">
+      <span>출연 평점 · 리뷰 {formatNumber(count)}개</span>
+      <b
+        style={{ color: 'var(--hold)' }}
+        aria-label={`평점 ${average.toFixed(1)}점, 리뷰 ${count}개`}
+      >
+        ★ {average.toFixed(1)}
+      </b>
+    </div>
   )
 }

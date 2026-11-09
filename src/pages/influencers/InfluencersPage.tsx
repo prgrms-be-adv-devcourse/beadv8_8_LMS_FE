@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { Rating } from '@/entities/lecture/ui/Rating'
 import { influencersQuery } from '@/entities/member/api'
 import { useViewer } from '@/shared/auth/session'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
@@ -21,7 +22,7 @@ export function InfluencersPage() {
     <div className="page">
       <PageHead
         title="인플루언서"
-        lede="채널 인증을 마친 인플루언서예요. 프로필에서 채널과 팔로워 수를 확인할 수 있어요."
+        lede="채널 인증을 마친 인플루언서예요. 프로필에서 채널·팔로워 수와 받은 출연 리뷰를 확인할 수 있어요."
       />
       {viewer === 'USER' && (
         <div className="notice">
@@ -59,6 +60,9 @@ export function InfluencersPage() {
                     ) : (
                       <span className="pill mute">인플루언서</span>
                     )}
+                  </span>
+                  <span className={styles.rating}>
+                    <Rating {...member.appearanceRating} />
                   </span>
                 </div>
               </Link>

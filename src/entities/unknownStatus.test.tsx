@@ -22,6 +22,7 @@ import {
 } from './inquiry/ui/InquiryPills'
 import { MyLectureStatusPill } from './lecture/ui/MyLectureStatusPill'
 import { SaleStatusPill } from './lecture/ui/SaleStatusPill'
+import { revieweeRoleLabel } from './member/appearanceReview'
 import { ChannelCard } from './member/ui/ChannelCard'
 import { ChannelStatusPill } from './member/ui/ChannelStatusPill'
 import { UpgradeStatusPill } from './member/ui/UpgradeStatusPill'
@@ -105,6 +106,10 @@ describe('모르는 값의 이름 (#183)', () => {
 
   it('회원 역할은 알 수 없음으로 부른다', () => {
     expect(viewerLabel(NEW)).toBe('알 수 없음')
+  })
+
+  it('받은 출연 리뷰의 받은 역할은 알 수 없음으로 부른다', () => {
+    expect(revieweeRoleLabel(NEW)).toBe('알 수 없음')
   })
 
   it('문의 분류 배지는 알 수 없음을 그린다', () => {

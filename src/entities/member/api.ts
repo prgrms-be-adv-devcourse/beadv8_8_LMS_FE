@@ -12,6 +12,7 @@ import type {
   MemberProfile,
   MemberProfileDetail,
   MyChannel,
+  ReceivedAppearanceReview,
 } from './types'
 
 export const memberKeys = {
@@ -20,6 +21,9 @@ export const memberKeys = {
     [...memberKeys.all, 'influencers', page] as const,
   profile: (memberId: number) =>
     [...memberKeys.all, 'profile', memberId] as const,
+  /** 받은 출연 리뷰 한 페이지. 인자 없이 부르면 모든 회원·페이지의 앞부분 키 */
+  appearanceReviews: (...args: [] | [memberId: number, page: number]) =>
+    [...memberKeys.all, 'appearance-reviews', ...args] as const,
   myChannels: () => [...memberKeys.all, 'channels', 'me'] as const,
   myUpgradeRequests: () =>
     [...memberKeys.all, 'upgrade-requests', 'me'] as const,
@@ -51,6 +55,26 @@ export const memberProfileQuery = (memberId: number) =>
   queryOptions({
     queryKey: memberKeys.profile(memberId),
     queryFn: () => api<MemberProfileDetail>(`/members/${memberId}`),
+  })
+
+export const APPEARANCE_REVIEW_PAGE_SIZE = 10
+
+/**
+ * 회원이 받은 출연 리뷰 (공개된 것만, 최신 공개순 고정).
+ * BE가 출연 앱에서 읽어 오므로 출연 앱 장애면 503 APPEARANCE_REVIEW_UNAVAILABLE이다(프로필·평점은 그대로 열린다)
+ */
+export const receivedAppearanceReviewsQuery = (
+  memberId: number,
+  page: number,
+) =>
+  queryOptions({
+    queryKey: memberKeys.appearanceReviews(memberId, page),
+    queryFn: () =>
+      api<PagedModel<ReceivedAppearanceReview>>(
+        `/members/${memberId}/appearance-reviews`,
+        { query: { page, size: APPEARANCE_REVIEW_PAGE_SIZE } },
+      ),
+    placeholderData: keepPreviousData,
   })
 
 export const myChannelsQuery = queryOptions({

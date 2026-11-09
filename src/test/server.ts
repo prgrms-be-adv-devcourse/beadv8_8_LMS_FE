@@ -177,10 +177,27 @@ const nicknameAvailabilityDefault = [
   ),
 ]
 
+/**
+ * 회원 프로필의 받은 출연 리뷰. 프로필 화면(/influencers/:memberId, /profile/edit)을 열면 부른다. 기본은 리뷰 없음이다.
+ */
+const appearanceReviewsDefault = [
+  http.get('*/api/v1/members/:memberId/appearance-reviews', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        content: [],
+        page: { size: 10, number: 0, totalElements: 0, totalPages: 0 },
+      },
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
 export const server = setupServer(
   ...authDefaults,
   ...nicknameAvailabilityDefault,
+  ...appearanceReviewsDefault,
   ...chatTicketDefault,
   ...appShellCartDefault,
   ...appShellDefaults,
