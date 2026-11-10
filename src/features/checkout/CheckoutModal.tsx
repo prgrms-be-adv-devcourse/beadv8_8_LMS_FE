@@ -46,7 +46,11 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
       ),
     onSuccess: (created) => {
       // 쓴 쿠폰은 예약·사용되므로 쿠폰함·사용 가능 쿠폰을 다시 불러온다(202 결제 처리 중 포함)
-      void queryClient.invalidateQueries({ queryKey: couponKeys.all })
+      // 열린 주문 확인의 미리보기를 다시 부르지 않도록 표시만 하고, 다음에 볼 때 다시 불러온다
+      void queryClient.invalidateQueries({
+        queryKey: couponKeys.all,
+        refetchType: 'none',
+      })
       navigate(`/library/orders/${created.orderId}/done`)
     },
     // 쿠폰 오류(금액 바뀜·쿠폰 거절·플랫폼 쿠폰·쿠폰 확인 불가)는 쿠폰 영역에 보이고 다시 계산한다. 그 밖은 기존대로 알린다
@@ -79,6 +83,11 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
             <button type="button" className="btn primary" disabled>
               {spend.error ? '잔액을 확인하지 못했어요' : '잔액 확인 중…'}
             </button>
+          ) : coupons.pending ? (
+            // 쿠폰 할인을 계산하는 동안에는 결제액이 정해지지 않아 막는다(그 사이 정가로 충전을 권하지 않는다).
+            <button type="button" className="btn primary" disabled>
+              할인 계산 중…
+            </button>
           ) : spend.short > 0 ? (
             <Link className="btn primary" to={chargeHref(spend.short)}>
               HP 충전하러 가기
@@ -87,10 +96,7 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
             <button
               type="button"
               className="btn primary"
-              // 쿠폰 할인을 계산하는 동안에는 금액이 정해지지 않아 막는다.
-              disabled={
-                order.isPending || coupons.pending || items.length === 0
-              }
+              disabled={order.isPending || items.length === 0}
               onClick={() => order.mutate(coupons.orderCoupons)}
             >
               {order.isPending ? (
@@ -98,8 +104,6 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
                   <span className="spinner sm" aria-hidden="true" />
                   결제하는 중…
                 </>
-              ) : coupons.pending ? (
-                '할인 계산 중…'
               ) : coupons.failed ? (
                 `쿠폰 없이 ${formatNumber(total)} HP 결제`
               ) : (
@@ -132,11 +136,14 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           결제할 HP가 없어 바로 주문이 끝나요.
         </p>
       )}
-      <HpSpendBreakdown
-        spend={spend}
-        label="결제할 HP"
-        note="수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일 다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로 돌려받아요."
-      />
+      {/* 쿠폰을 바꾸면 결제할 HP가 바뀌므로 읽히게 한다 */}
+      <div aria-live="polite">
+        <HpSpendBreakdown
+          spend={spend}
+          label="결제할 HP"
+          note="수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일 다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로 돌려받아요."
+        />
+      </div>
     </Modal>
   )
 }

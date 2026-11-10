@@ -24,10 +24,7 @@ export function CheckoutCoupons({
   const { view, pending, failed, selections, orderError, quoteError } = coupons
   const [picking, setPicking] = useState(false)
   const manual = selections !== null
-  const rejectedName =
-    orderError?.memberCouponId != null
-      ? coupons.couponName(orderError.memberCouponId)
-      : undefined
+  const rejectedName = orderError?.couponName
 
   return (
     <section
@@ -80,18 +77,21 @@ export function CheckoutCoupons({
         </p>
       )}
       {view?.applied && !pending && (
-        <>
-          <div className="rows">
-            {view.rows.map((row) => (
-              <CouponLine
-                key={row.lectureId}
-                row={row}
-                manual={manual}
-                rejected={orderError}
-              />
-            ))}
-          </div>
-          <div className="breakdown" aria-live="polite">
+        <div className="rows">
+          {view.rows.map((row) => (
+            <CouponLine
+              key={row.lectureId}
+              row={row}
+              manual={manual}
+              rejected={orderError}
+            />
+          ))}
+        </div>
+      )}
+      {/* 합계는 바뀔 때 읽히도록 영역을 늘 두고 내용만 바꾼다 */}
+      <div className="breakdown" aria-live="polite">
+        {view?.applied && !pending && (
+          <>
             <div className="row sub">
               <span>할인 전 합</span>
               <span className="num">{formatNumber(view.totalPrice)}</span>
@@ -100,9 +100,9 @@ export function CheckoutCoupons({
               <span>쿠폰 할인</span>
               <span className="num">−{formatNumber(view.totalDiscount)}</span>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
       {coupons.hasUsable && (
         <div className="row-actions">
           <button
@@ -280,10 +280,14 @@ function SlotPicker({
           {c.couponName} · {discountLabel(c)}
           {!c.stackable && <span className="pill mute">단독 사용</span>}
           {coupons.orderError?.memberCouponId === c.memberCouponId && (
-            <span className="fine c-bad">{coupons.orderError.message}</span>
+            <span className="fine c-bad" role="alert">
+              {coupons.orderError.message}
+            </span>
           )}
           {coupons.quoteError?.memberCouponId === c.memberCouponId && (
-            <span className="fine c-bad">{coupons.quoteError.message}</span>
+            <span className="fine c-bad" role="alert">
+              {coupons.quoteError.message}
+            </span>
           )}
         </label>
       ))}

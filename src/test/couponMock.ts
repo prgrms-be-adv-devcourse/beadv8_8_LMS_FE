@@ -229,6 +229,8 @@ export type CouponMockState = {
   quoteRequests: QuoteRequest[]
   /** 쿠폰 상세 요청 수(키: 쿠폰 ID). 종류를 캐시로 다시 쓰는지 본다 */
   detailCalls: Record<number, number>
+  /** 사용 가능 쿠폰 요청 수(키: 강의 ID). 주문 거절 뒤 다시 부르는지 본다 */
+  usableCalls: Record<number, number>
 }
 
 /** 상태 전이(BE Coupon 도메인과 같은 규칙만 흉내 낸다. 맞지 않으면 409 INVALID_COUPON_STATUS) */
@@ -264,6 +266,7 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
     quotePrices: {},
     quoteRequests: [],
     detailCalls: {},
+    usableCalls: {},
     ...init,
   }
 
@@ -321,6 +324,7 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
       const lectureId = Number(
         new URL(request.url).searchParams.get('lectureId'),
       )
+      state.usableCalls[lectureId] = (state.usableCalls[lectureId] ?? 0) + 1
       return (
         failure(`GET /coupons/me/usable?lectureId=${lectureId}`) ??
         rs(state.usable[lectureId] ?? [])

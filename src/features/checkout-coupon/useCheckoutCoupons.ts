@@ -1,4 +1,9 @@
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   couponKeys,
@@ -52,7 +57,9 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     null,
   )
   // 마지막 주문의 쿠폰 오류(매핑을 바꾸면 지운다)
-  const [orderError, setOrderError] = useState<CouponOrderError | null>(null)
+  const [orderError, setOrderError] = useState<
+    (CouponOrderError & { couponName?: string }) | null
+  >(null)
   const setSelections = (next: CouponSelection[] | null) => {
     setOrderError(null)
     setSelectionState(next)
@@ -70,6 +77,8 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
   const quote = useQuery({
     ...couponQuoteQuery(lectureIds, selections ?? platformFallback),
     enabled,
+    // 다시 계산하는 동안 직전 결과의 결제액을 유지한다(그 사이 정가로 돌아가 충전 안내가 뜨지 않게). 결제는 계산이 끝난 뒤에만 된다
+    placeholderData: keepPreviousData,
   })
 
   const usable = useQueries({
@@ -100,16 +109,20 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
 
   const pending =
     quote.isFetching || (selections === null && recommend.isFetching)
-  const settled = quote.isSuccess && !pending
-  const view: CouponView | undefined = quote.data
-    ? quoteView(quote.data, lines, (id) => find(id)?.couponName)
+  const settled = quote.isSuccess && !pending && !quote.isPlaceholderData
+  // 다시 부르다 실패하면 남아 있는 이전 결과를 쓰지 않는다(정가 결제 안내와 어긋나지 않게)
+  const shown = quote.isError ? undefined : quote.data
+  const view: CouponView | undefined = shown
+    ? quoteView(shown, lines, (id) => find(id)?.couponName)
     : undefined
   // 결제는 마지막으로 성공한 미리보기에서만 쿠폰을 가져온다(실패·계산 중이면 쿠폰 없음)
   const orderCoupons = settled ? orderCouponsOf(quote.data) : null
   const listTotal = lines.reduce((sum, l) => sum + l.priceHp, 0)
+  // 계산 중에는 직전 결과(쿠폰을 적용했으면 그 결제액)를 보인다. 결제 버튼은 그동안 막힌다
+  const shownCoupons = orderCoupons ?? (pending ? orderCouponsOf(shown) : null)
   // 지금 화면에 적용된 매핑(고를 때 이 매핑에서 바꾼다)
-  const current = quote.data
-    ? selectionsOf(quote.data)
+  const current = shown
+    ? selectionsOf(shown)
     : (selections ?? platformFallback ?? [])
 
   return {
@@ -123,7 +136,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     platformRemoved: platformFallback !== null,
     orderCoupons,
     /** 결제할 HP. 쿠폰을 적용했으면 미리보기 결제액, 아니면 강의 가격 합(쿠폰 없는 주문과 같다) */
-    amount: orderCoupons ? quote.data!.totalBuyerAmount : listTotal,
+    amount: shownCoupons ? shownCoupons.expectedBuyerAmountHp : listTotal,
     current,
     /** 이 주문에 쓸 수 있는 내 쿠폰이 한 장이라도 있거나 목록을 못 불러왔다(직접 선택을 보인다) */
     // 목록을 못 불러온 강의가 있어도 직접 선택을 열어 그 자리에서 다시 불러오게 한다
@@ -195,6 +208,8 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
             .map((c) => c.memberCouponId),
         ),
       )
+      // 거절된 쿠폰 자체도 뺀다(종류를 사용 가능 쿠폰 목록으로만 알았을 때도 빠지게)
+      if (handled.memberCouponId) platformIds.add(handled.memberCouponId)
       const dropped =
         handled.drop === 'rejected'
           ? current.filter((s) => s.memberCouponId !== handled.memberCouponId)
@@ -202,16 +217,25 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
             ? current.filter((s) => !platformIds.has(s.memberCouponId))
             : null
       // 추천 모드에서 거절된 쿠폰은 다시 추천하면 빠지므로 그대로 둔다. 직접 고른 매핑·플랫폼 쿠폰은 빼고 계산한다
-      if (dropped && (selections !== null || handled.drop === 'platform'))
-        setSelectionState(dropped)
-      setOrderError(handled)
+      const remap =
+        dropped !== null && (selections !== null || handled.drop === 'platform')
+      if (remap) setSelectionState(dropped)
+      // 쿠폰이 목록에서 빠져도 이름을 보일 수 있게 지금 이름을 남긴다
+      setOrderError({
+        ...handled,
+        couponName: handled.memberCouponId
+          ? find(handled.memberCouponId)?.couponName
+          : undefined,
+      })
       if (handled.requote)
         void Promise.all([
           queryClient.invalidateQueries({
             queryKey: [...couponKeys.all, 'usable'],
           }),
+          // 매핑을 바꿨으면 거절된 매핑을 다시 부르지 않도록 표시만 한다(새 매핑은 바뀐 키로 새로 부른다)
           queryClient.invalidateQueries({
             queryKey: [...couponKeys.all, 'quote'],
+            refetchType: remap ? 'none' : 'active',
           }),
         ])
       return true

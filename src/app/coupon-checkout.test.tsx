@@ -549,6 +549,14 @@ describe('쿠폰 주문 오류', () => {
       '가을맞이 10% 할인: 이미 쓰였거나 만료된 쿠폰이에요.',
     )
     await waitFor(() => expect(quoteCalls()).toBe(2))
+    // 사용 가능 쿠폰도 다시 부른다
+    await waitFor(() => expect(coupons.usableCalls[7]).toBe(2))
+    // 추천 모드라 쿠폰은 그대로 남고, 그 쿠폰 옆에도 사유를 보인다
+    expect(
+      await within(
+        within(dialog).getByRole('group', { name: '첫 방송 세팅' }),
+      ).findByText(/이미 쓰였거나 만료된 쿠폰이에요/),
+    ).toHaveAttribute('role', 'alert')
   })
 
   it('쿠폰 예약이 거절되면(COUPON_RESERVATION_REJECTED) 사유를 보이고, 직접 고른 매핑에서 그 쿠폰을 빼고 다시 계산한다', async () => {
@@ -586,13 +594,20 @@ describe('쿠폰 주문 오류', () => {
 
   it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알린다', async () => {
     mockCreateOrder(orderProblem(409, 'COUPON_PLATFORM_FUNDING_UNAVAILABLE'))
-    const { dialog, pay } = await openWithCoupon()
+    const { coupons, dialog, pay } = await openWithCoupon()
     await userEvent.click(pay)
     expect(
       await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
         selector: '[role="alert"]',
       }),
     ).toBeInTheDocument()
+    // 플랫폼 쿠폰을 뺀 매핑(여기서는 판매자 쿠폰만)으로 다시 계산한다
+    await waitFor(() =>
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7],
+        selections: [{ memberCouponId: 11, lectureId: 7 }],
+      }),
+    )
   })
 
   it('쿠폰을 확인할 수 없으면(503 COUPON_UNAVAILABLE) 잠시 후 다시 하라고 하고 다시 계산하지 않는다', async () => {
@@ -800,5 +815,108 @@ describe('쿠폰 할인 계산 실패', () => {
     expect(
       within(dialog).queryByRole('radio', { name: /가을맞이 10% 할인/ }),
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('잔액과 쿠폰 할인', () => {
+  /** 미리보기 응답을 붙잡아 두었다가 release()로 흉내 BE에 넘긴다 */
+  function holdQuotes() {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.post('*/api/v1/coupons/me/quote', async () => {
+        await gate
+      }),
+    )
+    return () => release()
+  }
+
+  it('잔액이 할인 뒤 금액만큼이면 계산하는 동안 충전을 권하지 않고, 계산이 끝나면 결제할 수 있다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    const release = holdQuotes()
+    renderApp('/lectures/7', 'USER', { availableTotalHp: 27000 })
+    await userEvent.click(
+      await screen.findByRole('button', { name: '바로 구매' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    expect(
+      await within(dialog).findByRole('button', { name: '할인 계산 중…' }),
+    ).toBeDisabled()
+    expect(
+      within(dialog).queryByRole('link', { name: 'HP 충전하러 가기' }),
+    ).not.toBeInTheDocument()
+    release()
+    expect(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
+  it('잔액이 0이어도 100% 쿠폰이면 0 HP로 결제할 수 있다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [quoteFor({ 11: { discount: 30000 } }, [11])],
+    })
+    const created = mockCreateOrder(paidOrder(30000))
+    renderApp('/lectures/7', 'USER', {
+      availableTotalHp: 0,
+      revenueBalanceHp: 0,
+    })
+    await userEvent.click(
+      await screen.findByRole('button', { name: '바로 구매' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '0 HP 결제' }),
+    )
+    await waitFor(() =>
+      expect(created.bodies[0]).toMatchObject({ expectedBuyerAmountHp: 0 }),
+    )
+  })
+
+  it('직접 고르는 동안 다시 계산하면 직전 결제액을 유지하고 결제는 막는다', async () => {
+    mockLectureDetail()
+    const second = memberCoupon({
+      memberCouponId: 12,
+      couponId: 2,
+      couponName: '5천 HP 할인',
+      stackable: true,
+    })
+    mockCoupons({
+      usable: { 7: [sellerCoupon, second] },
+      quotes: [
+        quoteFor({ 11: { discount: 3000 }, 12: { discount: 5000 } }, [11]),
+      ],
+    })
+    renderApp('/lectures/7', 'USER', { availableTotalHp: 27000 })
+    await userEvent.click(
+      await screen.findByRole('button', { name: '바로 구매' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    await within(dialog).findByRole('button', { name: '27,000 HP 결제' })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    const release = holdQuotes()
+    await userEvent.click(
+      within(dialog).getByRole('radio', { name: /5천 HP 할인/ }),
+    )
+    expect(
+      await within(dialog).findByRole('button', { name: '할인 계산 중…' }),
+    ).toBeDisabled()
+    expect(within(dialog).getByText('결제할 HP').nextSibling).toHaveTextContent(
+      '27,000 HP',
+    )
+    expect(
+      within(dialog).queryByRole('link', { name: 'HP 충전하러 가기' }),
+    ).not.toBeInTheDocument()
+    release()
+    expect(
+      await within(dialog).findByRole('button', { name: '25,000 HP 결제' }),
+    ).toBeEnabled()
   })
 })
