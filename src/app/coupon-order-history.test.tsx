@@ -1,10 +1,13 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import type { Sale } from '@/entities/lecture/types'
 import type { Order, OrderItem, OrderStatus } from '@/entities/order/types'
 import { mockOrders } from '@/test/lectureOrders'
-import { renderApp } from '@/test/renderApp'
+import { renderApp, rs } from '@/test/renderApp'
+import { server } from '@/test/server'
 
 afterEach(() => queryClient.clear())
 
@@ -168,5 +171,75 @@ describe('쿠폰을 쓴 주문의 금액', () => {
       name: '구매를 취소할까요?',
     })
     expect(await within(dialog).findByText('27,000 HP')).toBeInTheDocument()
+  })
+})
+
+const sale = (patch: Partial<Sale>): Sale => ({
+  orderItemId: 1,
+  lectureId: 7,
+  lectureTitle: '첫 방송 세팅',
+  priceHp: 30000,
+  discountHp: 0,
+  sellerDiscountHp: 0,
+  platformDiscountHp: 0,
+  sellerPayoutHp: 30000,
+  status: 'PURCHASED',
+  purchasedAt: '2026-11-10T10:00:00',
+  payoutScheduledAt: '2026-12-11T00:00:00',
+  paidOutAt: null,
+  objectionStatus: 'NONE',
+  ...patch,
+})
+
+const page = <T,>(content: T[]) => ({
+  content,
+  page: { size: 20, number: 0, totalElements: content.length, totalPages: 1 },
+})
+
+function serveSales(sales: Sale[]) {
+  server.use(
+    http.get('*/api/v1/lectures/me', () => rs(page([]))),
+    http.get('*/api/v1/lectures/sales', () => rs(page(sales))),
+  )
+}
+
+describe('판매자 판매 내역의 쿠폰 할인', () => {
+  it('원가격·할인(판매자·플랫폼 부담)·지급액을 보이고, 플랫폼 부담은 지급액에서 빠지지 않는다고 안내한다', async () => {
+    serveSales([
+      // 판매자 쿠폰 3,000 + 플랫폼 쿠폰 1,500: 지급액은 가격 − 판매자 부담
+      sale({
+        orderItemId: 1,
+        discountHp: 4500,
+        sellerDiscountHp: 3000,
+        platformDiscountHp: 1500,
+        sellerPayoutHp: 27000,
+      }),
+      sale({ orderItemId: 2, lectureId: 8, lectureTitle: '드럼 입문' }),
+    ])
+    renderApp('/studio', 'VERIFIED_INFLUENCER')
+
+    const table = await screen.findByRole('table')
+    const discounted = within(table).getByRole('row', { name: /첫 방송 세팅/ })
+    const cells = within(discounted).getAllByRole('cell')
+    expect(cells[2]).toHaveTextContent('30,000')
+    expect(cells[3]).toHaveTextContent('−4,500')
+    expect(cells[3]).toHaveTextContent('판매자 부담 3,000 · 플랫폼 부담 1,500')
+    expect(cells[4]).toHaveTextContent('27,000')
+
+    const plain = within(table).getByRole('row', { name: /드럼 입문/ })
+    expect(within(plain).getAllByRole('cell')[3]).toHaveTextContent(/^0$/)
+    expect(within(plain).getAllByRole('cell')[4]).toHaveTextContent('30,000')
+
+    expect(
+      screen.getByText(/플랫폼 부담은 지급액에서 빠지지 않아요/),
+    ).toBeInTheDocument()
+  })
+
+  it('할인 있는 판매가 없으면 부담 안내를 보이지 않는다', async () => {
+    serveSales([sale({})])
+    renderApp('/studio', 'VERIFIED_INFLUENCER')
+
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+    expect(screen.queryByText(/플랫폼 부담은/)).not.toBeInTheDocument()
   })
 })
