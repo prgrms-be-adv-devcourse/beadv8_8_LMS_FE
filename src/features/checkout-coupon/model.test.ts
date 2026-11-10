@@ -328,3 +328,43 @@ describe('미리보기 실패 문구', () => {
     expect(quoteFailure(undefined)).toBe('쿠폰 할인을 계산하지 못했어요.')
   })
 })
+
+describe('계산 거절 사유(couponDetail)', () => {
+  it('플랫폼 재원 비활성이면 쿠폰 종류를 몰라도(판매자로 보여도) 플랫폼 문구를 먼저 고른다', () => {
+    const body = {
+      couponCode: 'COUPON_NOT_USABLE',
+      memberCouponId: 11,
+      couponDetail: 'PLATFORM_FUNDING_DISABLED',
+    }
+    for (const type of ['SELLER', undefined] as const)
+      expect(
+        couponOrderError('COUPON_CALCULATION_REJECTED', body, () => type),
+      ).toEqual({
+        message: PLATFORM_UNAVAILABLE,
+        memberCouponId: 11,
+        requote: true,
+        drop: 'platform',
+      })
+  })
+
+  it('사유가 없거나 다른 값이면 지금처럼 쿠폰 종류로 고른다. 예약 거절에는 사유를 보지 않는다', () => {
+    const base = { couponCode: 'COUPON_NOT_USABLE', memberCouponId: 11 }
+    expect(
+      couponOrderError('COUPON_CALCULATION_REJECTED', base, () => 'SELLER'),
+    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+    expect(
+      couponOrderError(
+        'COUPON_CALCULATION_REJECTED',
+        { ...base, couponDetail: 'SOMETHING_ELSE' },
+        () => 'SELLER',
+      ),
+    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+    expect(
+      couponOrderError(
+        'COUPON_RESERVATION_REJECTED',
+        { ...base, couponDetail: 'PLATFORM_FUNDING_DISABLED' },
+        () => 'SELLER',
+      ),
+    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+  })
+})

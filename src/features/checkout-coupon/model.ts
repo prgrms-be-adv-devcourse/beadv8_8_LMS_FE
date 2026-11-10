@@ -200,13 +200,20 @@ export type CouponOrderError = {
 
 export const PLATFORM_UNAVAILABLE = '플랫폼 쿠폰은 아직 사용할 수 없어요.'
 
+/** 쿠폰 계산 거절의 사유 코드(couponDetail): 플랫폼 재원이 없어 플랫폼 쿠폰을 쓸 수 없다 */
+export const PLATFORM_FUNDING_DISABLED = 'PLATFORM_FUNDING_DISABLED'
+
 /**
  * 주문 오류 code → 쿠폰 영역 처리. 쿠폰과 관계없는 오류(잔액 부족 등)는 null(기존대로 알린다).
  * 자동으로 다시 주문하지 않는다
  */
 export function couponOrderError(
   code: string,
-  body: { couponCode?: string; memberCouponId?: number | null } | null,
+  body: {
+    couponCode?: string
+    memberCouponId?: number | null
+    couponDetail?: string
+  } | null,
   typeOf: (memberCouponId: number) => CouponType | undefined = () => undefined,
 ): CouponOrderError | null {
   switch (code) {
@@ -219,11 +226,16 @@ export function couponOrderError(
       }
     case 'COUPON_CALCULATION_REJECTED':
     case 'COUPON_RESERVATION_REJECTED':
-      // 플랫폼 재원이 없는 동안 BE는 플랫폼 쿠폰을 COUPON_NOT_USABLE로 거절한다(만료와 구분되지 않아 종류로 가린다)
-      if (body?.memberCouponId && typeOf(body.memberCouponId) === 'PLATFORM')
+      // 플랫폼 재원이 없는 동안 BE는 플랫폼 쿠폰을 COUPON_NOT_USABLE로 거절한다. 계산 거절은 사유(couponDetail)를
+      // 실으므로 그것을 먼저 보고, 없으면(예약 거절·옛 응답) 거절된 쿠폰의 종류로 가린다
+      if (
+        (code === 'COUPON_CALCULATION_REJECTED' &&
+          body?.couponDetail === PLATFORM_FUNDING_DISABLED) ||
+        (body?.memberCouponId && typeOf(body.memberCouponId) === 'PLATFORM')
+      )
         return {
           message: PLATFORM_UNAVAILABLE,
-          memberCouponId: body.memberCouponId,
+          memberCouponId: body?.memberCouponId ?? null,
           requote: true,
           drop: 'platform',
         }

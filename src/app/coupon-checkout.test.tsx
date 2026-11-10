@@ -480,7 +480,11 @@ describe('주문 확인 쿠폰 직접 선택', () => {
 const orderProblem = (
   status: number,
   code: string,
-  extra: { couponCode?: string; memberCouponId?: number } = {},
+  extra: {
+    couponCode?: string
+    memberCouponId?: number
+    couponDetail?: string
+  } = {},
 ) =>
   HttpResponse.json(
     { status, code, detail: `BE 문구 ${code}`, ...extra },
@@ -585,6 +589,34 @@ describe('쿠폰 주문 오류', () => {
     expect(
       await within(dialog).findAllByText(/쿠폰이나 강의 가격이 바뀌었어요/),
     ).not.toHaveLength(0)
+    await waitFor(() =>
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7],
+        selections: [],
+      }),
+    )
+  })
+
+  it('계산 거절에 플랫폼 재원 비활성 사유(couponDetail)가 오면 플랫폼 쿠폰은 아직 쓸 수 없다고 알린다', async () => {
+    mockCreateOrder(
+      orderProblem(409, 'COUPON_CALCULATION_REJECTED', {
+        couponCode: 'COUPON_NOT_USABLE',
+        memberCouponId: 11,
+        couponDetail: 'PLATFORM_FUNDING_DISABLED',
+      }),
+    )
+    // 미리보기에서 쿠폰 11은 판매자 쿠폰으로 왔지만, BE가 준 사유를 먼저 본다
+    const { coupons, dialog, pay } = await openWithCoupon()
+    await userEvent.click(pay)
+    expect(
+      await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
+        selector: '[role="alert"]',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).queryByText(/이미 쓰였거나 만료된 쿠폰이에요/),
+    ).not.toBeInTheDocument()
+    // 거절된 쿠폰 11을 빼고(남은 쿠폰 없음) 다시 계산한다
     await waitFor(() =>
       expect(coupons.quoteRequests.at(-1)).toEqual({
         lectureIds: [7],

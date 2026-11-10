@@ -23,6 +23,8 @@ const VIEWABLE = new Set([
 export function mockOrders(...seed: Order[]) {
   const orders = structuredClone(seed)
   let cancelLater = false
+  // 주문 목록에 할인 필드(discountHp·buyerAmountHp)가 없던 옛 응답을 흉내 낸다
+  let legacySummary = false
   const detailCalls = new Map<number, number>()
   const item = (orderItemId: number): OrderItem | undefined =>
     orders.flatMap((o) => o.items).find((i) => i.orderItemId === orderItemId)
@@ -61,6 +63,9 @@ export function mockOrders(...seed: Order[]) {
       const content: OrderSummary[] = orders.map((o) => ({
         orderId: o.orderId,
         totalAmountHp: o.totalAmountHp,
+        ...(legacySummary
+          ? {}
+          : { discountHp: o.discountHp, buyerAmountHp: o.buyerAmountHp }),
         status: o.status,
         progress: o.progress,
         processingStatus: o.processingStatus,
@@ -124,6 +129,10 @@ export function mockOrders(...seed: Order[]) {
     /** 이후 구매 취소를 반환이 끝나지 않은 202 + CANCEL_PENDING으로 응답한다 */
     cancelLater() {
       cancelLater = true
+    },
+    /** 이후 주문 목록을 할인 필드 없는 옛 응답으로 준다 */
+    legacySummary() {
+      legacySummary = true
     },
   }
 }

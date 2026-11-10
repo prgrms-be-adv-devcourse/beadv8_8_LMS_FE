@@ -97,11 +97,15 @@ export type Order = {
   items: OrderItem[]
 }
 
-/** GET /lectures/orders 한 줄. 할인 필드가 없다(결제액은 주문 상세에서 본다) */
+/** GET /lectures/orders 한 줄 */
 export type OrderSummary = {
   orderId: number
   /** 할인 전 가격의 합 */
   totalAmountHp: number
+  /** 쿠폰 할인 합. 이 필드가 없는 옛 응답이면 결제액은 주문 상세에서 본다 */
+  discountHp?: number
+  /** 구매자가 낸 HP의 합 = totalAmountHp − discountHp. 없는 옛 응답이면 주문 상세에서 본다 */
+  buyerAmountHp?: number
   status: OrderStatus
   progress: OrderProgress | null
   /** 결제 단계(결제 처리 중·결제 취소 처리 중)일 때만 있다 */

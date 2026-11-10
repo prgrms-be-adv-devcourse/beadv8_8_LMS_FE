@@ -119,17 +119,35 @@ describe('쿠폰을 쓴 주문의 금액', () => {
     renderApp('/library/orders', 'USER')
 
     const card = await screen.findByRole('region', { name: '주문 번호 700' })
-    expect(await within(card).findByText('47,000 HP')).toBeInTheDocument()
-    expect(within(card).getByText('3,000 HP 할인')).toBeInTheDocument()
+    // 항목 줄은 상세에만 있으므로 상세가 올 때까지 기다린다
     expect(
-      within(card).getByText('30,000 HP · 3,000 HP 할인 · 결제 27,000 HP'),
+      await within(card).findByText(
+        '30,000 HP · 3,000 HP 할인 · 결제 27,000 HP',
+      ),
     ).toBeInTheDocument()
+    expect(within(card).getByText('47,000 HP')).toBeInTheDocument()
+    expect(within(card).getByText('3,000 HP 할인')).toBeInTheDocument()
     expect(within(card).getByText('20,000 HP')).toBeInTheDocument()
   })
 
-  it('주문 상세가 오기 전과 실패하면 카드 머리에 할인 전 합임을 밝히고 굵게 보이지 않는다', async () => {
+  it('목록과 상세의 결제액이 다르면 상세 값을 보인다(처리 중 주문은 상세만 다시 부른다)', async () => {
     mockOrders(discountedOrder())
-    // 상세를 붙잡아 두었다가 실패시킨다(4xx라 다시 시도하지 않는다)
+    // 목록은 47,000(할인 3,000), 상세는 그 뒤 바뀐 44,000(할인 6,000)
+    server.use(
+      http.get('*/api/v1/lectures/orders/700', () =>
+        rs({ ...discountedOrder(), discountHp: 6000, buyerAmountHp: 44000 }),
+      ),
+    )
+    renderApp('/library/orders', 'USER')
+
+    const card = await screen.findByRole('region', { name: '주문 번호 700' })
+    expect((await within(card).findByText('44,000 HP')).tagName).toBe('B')
+    expect(within(card).getByText('6,000 HP 할인')).toBeInTheDocument()
+    expect(within(card).queryByText('47,000 HP')).not.toBeInTheDocument()
+  })
+
+  /** 주문 700의 상세를 붙잡아 두었다가 release()로 실패시킨다(4xx라 다시 시도하지 않는다) */
+  function holdThenFailDetail() {
     let release: () => void = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))
     server.use(
@@ -141,6 +159,32 @@ describe('쿠폰을 쓴 주문의 금액', () => {
         )
       }),
     )
+    return () => release()
+  }
+
+  it('주문 목록 응답만으로 결제액과 할인을 굵게 보인다(상세가 늦거나 실패해도)', async () => {
+    mockOrders(discountedOrder())
+    const release = holdThenFailDetail()
+    renderApp('/library/orders', 'USER')
+
+    const card = await screen.findByRole('region', { name: '주문 번호 700' })
+    const paid = await within(card).findByText('47,000 HP')
+    expect(paid.tagName).toBe('B')
+    expect(within(card).getByText('3,000 HP 할인')).toBeInTheDocument()
+    expect(
+      within(card).queryByText(/주문 금액\(할인 전\)/),
+    ).not.toBeInTheDocument()
+
+    release()
+    expect(
+      await within(card).findByText('불러오지 못했어요'),
+    ).toBeInTheDocument()
+    expect(within(card).getByText('47,000 HP').tagName).toBe('B')
+  })
+
+  it('목록에 결제액이 없는 옛 응답이면 상세 전·실패 때 할인 전 합임을 밝히고 굵게 보이지 않는다', async () => {
+    mockOrders(discountedOrder()).legacySummary()
+    const release = holdThenFailDetail()
     renderApp('/library/orders', 'USER')
 
     const card = await screen.findByRole('region', { name: '주문 번호 700' })

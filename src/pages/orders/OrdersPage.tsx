@@ -81,7 +81,11 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
   const [canceling, setCanceling] = useState<OrderItem | null>(null)
   const status = order?.status ?? summary.status
   const orderNote = lookup(ORDER_NOTE, status)
-  const discounted = order !== undefined && order.discountHp > 0
+  // 결제액·할인은 목록 응답에 있다. 상세를 받으면 상세 값을 쓰고(처리 중 주문은 상세만 다시 부른다),
+  // 둘 다 없으면(필드가 없는 옛 목록 응답 + 상세 전·실패) 할인 전 합임을 밝힌다
+  const paidHp = order?.buyerAmountHp ?? summary.buyerAmountHp
+  const discountHp = order?.discountHp ?? summary.discountHp ?? 0
+  const discounted = discountHp > 0
 
   return (
     <section className="panel" aria-label={`주문 번호 ${summary.orderId}`}>
@@ -91,18 +95,15 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
           <span className="fine num">주문 번호 {summary.orderId}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          {/* 목록 한 줄에는 할인이 없다. 상세를 받으면 결제액(할인 뒤)을 굵게, 그 전·실패하면 할인 전 합임을 밝힌다 */}
-          {order ? (
-            <b className="num">{formatNumber(order.buyerAmountHp)} HP</b>
+          {paidHp != null ? (
+            <b className="num">{formatNumber(paidHp)} HP</b>
           ) : (
             <span className="num">
               주문 금액(할인 전) {formatNumber(summary.totalAmountHp)} HP
             </span>
           )}
           {discounted && (
-            <div className="fine num">
-              {formatNumber(order.discountHp)} HP 할인
-            </div>
+            <div className="fine num">{formatNumber(discountHp)} HP 할인</div>
           )}
           {orderNote && (
             <div className="fine">
