@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { orderQuery } from '@/entities/order/api'
+import { COUPON_RETRY } from '@/entities/order/discount'
 import { orderPollInterval } from '@/entities/order/processing'
-import type { Order } from '@/entities/order/types'
+import type { Order, OrderItem } from '@/entities/order/types'
 import { ProcessingNote } from '@/entities/order/ui/ProcessingNote'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -99,7 +100,7 @@ function OrderResult({ order }: { order: Order }) {
           order={order}
           tone="bad"
           title="결제하지 못했어요"
-          text="묶인 HP는 없어요. 잔액을 확인하고 다시 주문해 주세요."
+          text={failedText(order)}
           actions={
             <>
               <RetryLink order={order} />
@@ -121,6 +122,14 @@ function OrderResult({ order }: { order: Order }) {
   }
 }
 
+/**
+ * 결제 실패 안내. 실패 사유는 응답에 없다. 쿠폰을 쓴 주문은 쿠폰 예약이 거절됐을 수 있어 쿠폰을 다시 고르라고 덧붙인다
+ */
+function failedText(order: Order) {
+  const base = '묶인 HP는 없어요. 잔액을 확인하고 다시 주문해 주세요.'
+  return order.discountHp > 0 ? `${base} ${COUPON_RETRY}` : base
+}
+
 /** 결제 실패 주문을 다시 살 곳. 바로 구매는 장바구니에 없으므로 1건이면 강의로, 여러 건(장바구니 주문)이면 장바구니로 보낸다 */
 function RetryLink({ order }: { order: Order }) {
   const [only] = order.items
@@ -132,6 +141,33 @@ function RetryLink({ order }: { order: Order }) {
     <Link className="btn primary" to="/cart">
       장바구니로
     </Link>
+  )
+}
+
+/** 항목 금액. 쿠폰을 쓴 항목은 가격·할인·결제액을 나눠 보인다 */
+function OrderItemAmount({ item }: { item: OrderItem }) {
+  if (item.discountHp === 0)
+    return (
+      <div className="row sub">
+        <span>{item.lectureTitle}</span>
+        <span className="num">{formatNumber(item.priceHp)}</span>
+      </div>
+    )
+  return (
+    <div role="group" aria-label={`${item.lectureTitle} 금액`}>
+      <div className="row sub">
+        <span>{item.lectureTitle}</span>
+        <span className="num">{formatNumber(item.priceHp)}</span>
+      </div>
+      <div className="row sub">
+        <span>쿠폰 할인</span>
+        <span className="num">−{formatNumber(item.discountHp)}</span>
+      </div>
+      <div className="row sub">
+        <span>결제액</span>
+        <span className="num">{formatNumber(item.buyerAmountHp)}</span>
+      </div>
+    </div>
   )
 }
 
@@ -173,14 +209,17 @@ function ResultPanel({
           <span className="num">{order.orderId}</span>
         </div>
         {order.items.map((item) => (
-          <div key={item.orderItemId} className="row sub">
-            <span>{item.lectureTitle}</span>
-            <span className="num">{formatNumber(item.priceHp)}</span>
-          </div>
+          <OrderItemAmount key={item.orderItemId} item={item} />
         ))}
+        {order.discountHp > 0 && (
+          <div className="row sub">
+            <span>쿠폰 할인 합</span>
+            <span className="num">−{formatNumber(order.discountHp)}</span>
+          </div>
+        )}
         <div className="row total">
           <span>{order.status === 'PAID' ? '결제한 HP' : '주문 금액'}</span>
-          <b className="num">{formatNumber(order.totalAmountHp)} HP</b>
+          <b className="num">{formatNumber(order.buyerAmountHp)} HP</b>
         </div>
       </div>
       <div className="result-actions">{actions}</div>

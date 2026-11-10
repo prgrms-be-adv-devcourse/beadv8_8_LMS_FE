@@ -61,11 +61,12 @@ export function ConfirmPurchaseModal({
   )
 }
 
+/** refundHp: 돌려받는 HP = 그 항목의 결제액(가격 − 쿠폰 할인, buyerAmountHp). 항목을 아직 못 불러왔으면 없다 */
 export function CancelPurchaseModal({
   item,
-  priceHp,
+  refundHp,
   onClose,
-}: BaseProps & { priceHp?: number }) {
+}: BaseProps & { refundHp?: number }) {
   const cancel = useCancelPurchase()
   return (
     <Modal
@@ -103,11 +104,11 @@ export function CancelPurchaseModal({
         <b>{item.title}</b> 구매를 취소하면 보류된 HP를 결제한 HP 종류(수익
         HP·충전 HP) 그대로 돌려받아요. 현금 환불은 지갑에서 따로 신청해요.
       </p>
-      {priceHp !== undefined && (
+      {refundHp !== undefined && (
         <div className="breakdown">
           <div className="row total">
             <span>돌려받는 HP</span>
-            <b className="num">{formatNumber(priceHp)} HP</b>
+            <b className="num">{formatNumber(refundHp)} HP</b>
           </div>
         </div>
       )}

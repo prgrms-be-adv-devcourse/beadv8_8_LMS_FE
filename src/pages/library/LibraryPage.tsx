@@ -225,7 +225,7 @@ function LibraryModal({
   return (
     <CancelPurchaseModal
       item={ref}
-      priceHp={modal.item?.priceHp}
+      refundHp={modal.item?.buyerAmountHp}
       onClose={onClose}
     />
   )
