@@ -88,10 +88,10 @@ export function CheckoutCoupons({
           ))}
         </div>
       )}
-      {/* 합계는 바뀔 때 읽히도록 영역을 늘 두고 내용만 바꾼다 */}
-      <div className="breakdown" aria-live="polite">
+      {/* 합계는 바뀔 때 읽히도록 영역(스타일 없음)을 늘 두고 내용만 바꾼다 */}
+      <div aria-live="polite">
         {view?.applied && !pending && (
-          <>
+          <div className="breakdown">
             <div className="row sub">
               <span>할인 전 합</span>
               <span className="num">{formatNumber(view.totalPrice)}</span>
@@ -100,7 +100,7 @@ export function CheckoutCoupons({
               <span>쿠폰 할인</span>
               <span className="num">−{formatNumber(view.totalDiscount)}</span>
             </div>
-          </>
+          </div>
         )}
       </div>
       {coupons.hasUsable && (

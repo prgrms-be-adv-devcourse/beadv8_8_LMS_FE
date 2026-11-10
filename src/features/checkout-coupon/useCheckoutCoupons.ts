@@ -111,7 +111,11 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     quote.isFetching || (selections === null && recommend.isFetching)
   const settled = quote.isSuccess && !pending && !quote.isPlaceholderData
   // 다시 부르다 실패하면 남아 있는 이전 결과를 쓰지 않는다(정가 결제 안내와 어긋나지 않게)
-  const shown = quote.isError ? undefined : quote.data
+  // 계산이 멈춰 있는데(오프라인 등) 남은 직전 결과도 쓰지 않는다(버튼은 정가인데 화면에 할인이 보이지 않게)
+  const shown =
+    quote.isError || (quote.isPlaceholderData && !pending)
+      ? undefined
+      : quote.data
   const view: CouponView | undefined = shown
     ? quoteView(shown, lines, (id) => find(id)?.couponName)
     : undefined
@@ -220,6 +224,11 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
       const remap =
         dropped !== null && (selections !== null || handled.drop === 'platform')
       if (remap) setSelectionState(dropped)
+      // 매핑이 실제로 바뀌어 키가 달라질 때만 새 키가 알아서 부른다. 같으면 지금 미리보기를 다시 불러야 한다
+      const keyChanged =
+        remap &&
+        JSON.stringify(dropped) !==
+          JSON.stringify(selections ?? platformFallback)
       // 쿠폰이 목록에서 빠져도 이름을 보일 수 있게 지금 이름을 남긴다
       setOrderError({
         ...handled,
@@ -232,11 +241,16 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
           queryClient.invalidateQueries({
             queryKey: [...couponKeys.all, 'usable'],
           }),
-          // 매핑을 바꿨으면 거절된 매핑을 다시 부르지 않도록 표시만 한다(새 매핑은 바뀐 키로 새로 부른다)
-          queryClient.invalidateQueries({
-            queryKey: [...couponKeys.all, 'quote'],
-            refetchType: remap ? 'none' : 'active',
-          }),
+          // 매핑이 바뀌면 새 키가 알아서 부른다(거절된 매핑은 다시 부르지 않는다). 같으면 지금 미리보기만 다시 부른다
+          keyChanged
+            ? Promise.resolve()
+            : queryClient.invalidateQueries({
+                queryKey: couponKeys.quote(
+                  lectureIds,
+                  selections ?? platformFallback,
+                ),
+                exact: true,
+              }),
         ])
       return true
     },

@@ -551,7 +551,8 @@ describe('쿠폰 주문 오류', () => {
     await waitFor(() => expect(quoteCalls()).toBe(2))
     // 사용 가능 쿠폰도 다시 부른다
     await waitFor(() => expect(coupons.usableCalls[7]).toBe(2))
-    // 추천 모드라 쿠폰은 그대로 남고, 그 쿠폰 옆에도 사유를 보인다
+    // 이 흉내 BE는 같은 쿠폰을 다시 추천하므로 쿠폰 줄이 남는다. 그 쿠폰 옆에도 사유를 보인다
+    // (실제 BE는 쓸 수 없는 쿠폰을 다시 추천하지 않아 위의 알림만 남는다)
     expect(
       await within(
         within(dialog).getByRole('group', { name: '첫 방송 세팅' }),
@@ -592,22 +593,56 @@ describe('쿠폰 주문 오류', () => {
     )
   })
 
-  it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알린다', async () => {
-    mockCreateOrder(orderProblem(409, 'COUPON_PLATFORM_FUNDING_UNAVAILABLE'))
-    const { coupons, dialog, pay } = await openWithCoupon()
+  it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알리고, 플랫폼 쿠폰을 뺀 매핑으로 다시 계산한다', async () => {
+    mockLectureDetail()
+    // BE가 플랫폼 쿠폰을 담아 계산하는 경우(재원 설정이 켜졌다 꺼지는 사이 등): 어떤 매핑을 보내도 플랫폼 쿠폰 21을 함께 담는다
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [
+        ({ selections }: QuoteRequest) =>
+          couponQuote(
+            [
+              {
+                lectureId: 7,
+                price: 30000,
+                coupons: [
+                  quoteCoupon({ memberCouponId: 11, discount: 3000 }),
+                  quoteCoupon({
+                    memberCouponId: 21,
+                    couponType: 'PLATFORM',
+                    discount: 2000,
+                  }),
+                ],
+              },
+            ],
+            { recommended: selections === null, optimal: true },
+          ),
+      ],
+    })
+    const created = mockCreateOrder(
+      orderProblem(409, 'COUPON_PLATFORM_FUNDING_UNAVAILABLE'),
+    )
+    const dialog = await openCheckout()
+    const pay = await within(dialog).findByRole('button', {
+      name: '25,000 HP 결제',
+    })
+    const before = coupons.quoteRequests.length
     await userEvent.click(pay)
+    expect(created.bodies[0]?.coupons).toEqual([
+      { memberCouponId: 11, lectureId: 7 },
+      { memberCouponId: 21, lectureId: 7 },
+    ])
     expect(
       await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
         selector: '[role="alert"]',
       }),
     ).toBeInTheDocument()
-    // 플랫폼 쿠폰을 뺀 매핑(여기서는 판매자 쿠폰만)으로 다시 계산한다
-    await waitFor(() =>
-      expect(coupons.quoteRequests.at(-1)).toEqual({
-        lectureIds: [7],
-        selections: [{ memberCouponId: 11, lectureId: 7 }],
-      }),
-    )
+    // 플랫폼 쿠폰을 뺀 매핑(판매자 쿠폰만)이 지금 키와 같아도 다시 계산한다
+    await waitFor(() => expect(coupons.quoteRequests.length).toBe(before + 1))
+    expect(coupons.quoteRequests.at(-1)).toEqual({
+      lectureIds: [7],
+      selections: [{ memberCouponId: 11, lectureId: 7 }],
+    })
   })
 
   it('쿠폰을 확인할 수 없으면(503 COUPON_UNAVAILABLE) 잠시 후 다시 하라고 하고 다시 계산하지 않는다', async () => {
@@ -874,7 +909,11 @@ describe('잔액과 쿠폰 할인', () => {
       await within(dialog).findByRole('button', { name: '0 HP 결제' }),
     )
     await waitFor(() =>
-      expect(created.bodies[0]).toMatchObject({ expectedBuyerAmountHp: 0 }),
+      expect(created.bodies[0]).toEqual({
+        lectureIds: [7],
+        coupons: [{ memberCouponId: 11, lectureId: 7 }],
+        expectedBuyerAmountHp: 0,
+      }),
     )
   })
 

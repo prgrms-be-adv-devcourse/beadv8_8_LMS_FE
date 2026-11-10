@@ -21,6 +21,19 @@ type CheckoutModalProps = {
   onClose: () => void
 }
 
+/** 화면에는 보이지 않고 스크린 리더만 읽는 글 */
+const VISUALLY_HIDDEN = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  margin: -1,
+  padding: 0,
+  overflow: 'hidden',
+  clip: 'rect(0 0 0 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+} as const
+
 /** 주문 요청의 쿠폰 부분. 쿠폰이 없으면 null(기존 주문과 같다) */
 type OrderCoupons = {
   coupons: CouponSelection[]
@@ -136,14 +149,15 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           결제할 HP가 없어 바로 주문이 끝나요.
         </p>
       )}
-      {/* 쿠폰을 바꾸면 결제할 HP가 바뀌므로 읽히게 한다 */}
-      <div aria-live="polite">
-        <HpSpendBreakdown
-          spend={spend}
-          label="결제할 HP"
-          note="수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일 다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로 돌려받아요."
-        />
-      </div>
+      <HpSpendBreakdown
+        spend={spend}
+        label="결제할 HP"
+        note="수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일 다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로 돌려받아요."
+      />
+      {/* 쿠폰을 바꾸면 결제할 HP가 바뀌므로 화면에는 보이지 않는 한 줄로 읽힌다(계산이 끝난 금액만) */}
+      <p aria-live="polite" style={VISUALLY_HIDDEN}>
+        {coupons.pending ? '' : `결제할 HP ${formatNumber(total)} HP`}
+      </p>
     </Modal>
   )
 }
