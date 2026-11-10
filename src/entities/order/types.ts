@@ -56,6 +56,10 @@ export type OrderItem = {
   lectureTitle: string
   /** 주문 시점 가격 */
   priceHp: number
+  /** 쿠폰 할인 합. 쿠폰을 쓰지 않았으면 0 */
+  discountHp: number
+  /** 구매자가 낸 HP = 가격 − 할인. 구매 취소·반환하면 이 금액이 돌아온다 */
+  buyerAmountHp: number
   status: OrderItemStatus
   /** 결제 단계는 주문의 처리 상태와 같고, 구매 취소·반환·지급 처리 중은 그 항목의 처리 상태다 */
   processingStatus: ProcessingStatus | null
@@ -75,7 +79,12 @@ export type OrderItem = {
 /** GET /lectures/orders/{orderId}, POST /lectures/orders */
 export type Order = {
   orderId: number
+  /** 주문 시점 가격의 합(할인 전). 결제액이 아니다 */
   totalAmountHp: number
+  /** 항목 쿠폰 할인의 합. 쿠폰을 쓰지 않았으면 0 */
+  discountHp: number
+  /** 구매자가 낸 HP의 합 = 가격 합 − 할인 합 */
+  buyerAmountHp: number
   status: OrderStatus
   progress: OrderProgress | null
   /** 결제 단계(결제 처리 중·결제 취소 처리 중)일 때만 있다 */
@@ -88,9 +97,10 @@ export type Order = {
   items: OrderItem[]
 }
 
-/** GET /lectures/orders 한 줄 */
+/** GET /lectures/orders 한 줄. 할인 필드가 없다(결제액은 주문 상세에서 본다) */
 export type OrderSummary = {
   orderId: number
+  /** 할인 전 가격의 합 */
   totalAmountHp: number
   status: OrderStatus
   progress: OrderProgress | null

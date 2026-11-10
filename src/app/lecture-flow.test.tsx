@@ -74,6 +74,8 @@ function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
   return {
     orderId: 500,
     totalAmountHp: 30000,
+    discountHp: 0,
+    buyerAmountHp: 30000,
     status: 'PAID',
     progress: 'IN_PROGRESS',
     processingStatus: null,
@@ -86,6 +88,8 @@ function purchasedOrder(status: OrderItemStatus = 'PURCHASED'): Order {
         lectureId: 7,
         lectureTitle: '첫 방송 세팅',
         priceHp: 30000,
+        discountHp: 0,
+        buyerAmountHp: 30000,
         status,
         processingStatus: null,
         purchasedAt: '2026-10-14T10:00:00',

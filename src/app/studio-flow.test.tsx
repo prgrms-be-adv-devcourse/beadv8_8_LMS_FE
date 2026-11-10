@@ -27,6 +27,11 @@ const sale = (overrides: Partial<Sale>): Sale => ({
   lectureId: 1,
   lectureTitle: '통기타 라이브 세팅',
   priceHp: 16000,
+  // 쿠폰 없는 판매: 할인 0, 지급액 = 가격
+  discountHp: 0,
+  sellerDiscountHp: 0,
+  platformDiscountHp: 0,
+  sellerPayoutHp: overrides.priceHp ?? 16000,
   status: 'PURCHASED',
   purchasedAt: '2026-10-11T14:00:00',
   payoutScheduledAt: '2026-11-11T00:00:00',
