@@ -1,7 +1,7 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureDetail } from '@/entities/lecture/types'
 import type { Order } from '@/entities/order/types'
@@ -42,6 +42,13 @@ function mockLectureDetail() {
     http.get('*/api/v1/lectures/7', () => rs(detail)),
     http.get('*/api/v1/lectures/cart', () =>
       rs({ items: [], purchasableTotalHp: 0 }),
+    ),
+    // 바로 구매 버튼이 보유 여부를 보려고 부른다(산 강의 없음)
+    http.get('*/api/v1/lectures/purchased', () =>
+      rs({
+        content: [],
+        page: { size: 100, number: 0, totalElements: 0, totalPages: 0 },
+      }),
     ),
     http.get('*/api/v1/lectures/7/reviews', () =>
       rs({
@@ -320,11 +327,16 @@ describe('주문 확인 쿠폰 직접 선택', () => {
     await waitFor(() => expect(created.bodies).toEqual([{ lectureIds: [7] }]))
   })
 
-  it('직접 고른 매핑으로 다시 계산하고, 추천으로 돌아갈 수 있다. 종류는 쿠폰 상세에서 한 번만 가져온다', async () => {
+  it('직접 고른 매핑으로 다시 계산하고, 추천으로 돌아갈 수 있다. 목록에 종류가 없으면 쿠폰 상세에서 한 번만 가져온다', async () => {
     mockLectureDetail()
     const coupons = mockCoupons({
-      // 회원 쿠폰 목록에 종류가 없으면(BE 선행 작업 전) 쿠폰 상세의 type으로 칸을 나눈다
-      usable: { 7: [sellerCoupon, second] },
+      // 회원 쿠폰 목록에 종류가 없는 응답이면 쿠폰 상세의 type으로 칸을 나눈다(대체 조회)
+      usable: {
+        7: [sellerCoupon, second].map((c) => ({
+          ...c,
+          couponType: undefined,
+        })),
+      },
       couponTypes: { 1: 'SELLER', 2: 'SELLER' },
       quotes: [
         quoteFor({ 11: { discount: 3000 }, 12: { discount: 3000 } }, [11]),
@@ -461,5 +473,170 @@ describe('주문 확인 쿠폰 직접 선택', () => {
         /이 강의에서는 할인되지 않지만 쿠폰은 사용돼요/,
       ),
     ).toBeInTheDocument()
+  })
+})
+
+/** 주문 거절 ProblemDetail(쿠폰 오류는 couponCode·memberCouponId 속성을 싣는다) */
+const orderProblem = (
+  status: number,
+  code: string,
+  extra: { couponCode?: string; memberCouponId?: number } = {},
+) =>
+  HttpResponse.json(
+    { status, code, detail: `BE 문구 ${code}`, ...extra },
+    { status, headers: { 'Content-Type': 'application/problem+json' } },
+  )
+
+describe('쿠폰 주문 오류', () => {
+  afterEach(() => vi.useRealTimers())
+
+  /** 추천으로 판매자 쿠폰 11(3,000 HP 할인)을 적용한 주문 확인을 연다 */
+  async function openWithCoupon() {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      couponTypes: { 1: 'SELLER' },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    const dialog = await openCheckout()
+    const pay = await within(dialog).findByRole('button', {
+      name: '27,000 HP 결제',
+    })
+    return { coupons, dialog, pay }
+  }
+
+  it('결제 금액이 바뀌면(ORDER_QUOTE_CHANGED) 알리고 같은 모드로 다시 계산한다. 자동으로 다시 주문하지 않는다', async () => {
+    const created = mockCreateOrder(orderProblem(409, 'ORDER_QUOTE_CHANGED'))
+    const { coupons, dialog, pay } = await openWithCoupon()
+    await userEvent.click(pay)
+
+    expect(
+      await within(dialog).findByText(
+        '결제 금액이 바뀌었어요. 다시 확인해 주세요.',
+      ),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(coupons.quoteRequests).toHaveLength(2))
+    expect(coupons.quoteRequests[1]).toEqual({
+      lectureIds: [7],
+      selections: null,
+    })
+    expect(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    ).toBeEnabled()
+    expect(created.bodies).toHaveLength(1)
+    // 쿠폰 오류는 BE 문구가 아니라 code에 맞는 문구로 보인다
+    expect(screen.queryByText(/BE 문구/)).not.toBeInTheDocument()
+  })
+
+  it('쿠폰 계산이 거절되면(COUPON_CALCULATION_REJECTED) 그 쿠폰 옆에 사유를 보이고 쿠폰을 다시 부른다', async () => {
+    mockCreateOrder(
+      orderProblem(409, 'COUPON_CALCULATION_REJECTED', {
+        couponCode: 'COUPON_NOT_USABLE',
+        memberCouponId: 11,
+      }),
+    )
+    const { coupons, dialog, pay } = await openWithCoupon()
+    const quoteCalls = () => coupons.quoteRequests.length
+    await userEvent.click(pay)
+
+    const alert = await within(dialog).findByText(
+      '이미 쓰였거나 만료된 쿠폰이에요.',
+      {
+        selector: '[role="alert"]',
+      },
+    )
+    expect(alert).toHaveTextContent(
+      '가을맞이 10% 할인: 이미 쓰였거나 만료된 쿠폰이에요.',
+    )
+    await waitFor(() => expect(quoteCalls()).toBe(2))
+  })
+
+  it('쿠폰 예약이 거절되면(COUPON_RESERVATION_REJECTED) 사유를 보이고, 직접 고른 매핑에서 그 쿠폰을 빼고 다시 계산한다', async () => {
+    mockCreateOrder(
+      orderProblem(409, 'COUPON_RESERVATION_REJECTED', {
+        couponCode: 'COUPON_POLICY_VERSION_CHANGED',
+        memberCouponId: 11,
+      }),
+    )
+    const { coupons, dialog } = await openWithCoupon()
+    // 직접 고른 매핑으로 바꾼다(쿠폰 11을 다시 고른다)
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    await userEvent.click(
+      within(dialog).getByRole('radio', { name: '쓰지 않음', checked: false }),
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('radio', { name: /가을맞이 10% 할인/ }),
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    )
+
+    expect(
+      await within(dialog).findAllByText(/쿠폰이나 강의 가격이 바뀌었어요/),
+    ).not.toHaveLength(0)
+    await waitFor(() =>
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7],
+        selections: [],
+      }),
+    )
+  })
+
+  it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알린다', async () => {
+    mockCreateOrder(orderProblem(409, 'COUPON_PLATFORM_FUNDING_UNAVAILABLE'))
+    const { dialog, pay } = await openWithCoupon()
+    await userEvent.click(pay)
+    expect(
+      await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
+        selector: '[role="alert"]',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('쿠폰을 확인할 수 없으면(503 COUPON_UNAVAILABLE) 잠시 후 다시 하라고 하고 다시 계산하지 않는다', async () => {
+    mockCreateOrder(orderProblem(503, 'COUPON_UNAVAILABLE'))
+    const { coupons, dialog, pay } = await openWithCoupon()
+    await userEvent.click(pay)
+    expect(
+      await within(dialog).findByText(
+        '지금은 쿠폰을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(coupons.quoteRequests).toHaveLength(1)
+    // 실패 뒤 지갑을 다시 불러오므로 버튼이 다시 열릴 때까지 기다린다
+    expect(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
+  it('202면 완료 화면에서 결제 처리 중을 보이고, 결제가 끝나면 결제한 HP(할인 뒤)를 보인다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const pending: Order = {
+      ...paidOrder(3000),
+      status: 'HOLD_PENDING',
+      progress: null,
+      processingStatus: 'PROCESSING',
+      paidAt: null,
+    }
+    const created = mockCreateOrder(pending)
+    const { pay } = await openWithCoupon()
+    await userEvent.click(pay)
+
+    expect(
+      await screen.findByRole('heading', { name: '결제를 처리하고 있어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('주문 금액').nextSibling).toHaveTextContent(
+      '27,000 HP',
+    )
+    created.orders()!.set(paidOrder(3000))
+    await act(() => vi.advanceTimersByTimeAsync(5_000))
+    expect(
+      await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('결제한 HP').nextSibling).toHaveTextContent(
+      '27,000 HP',
+    )
   })
 })

@@ -1,11 +1,13 @@
 import { useId, useState } from 'react'
 import { discountLabel } from '@/entities/coupon/rules'
 import { formatNumber } from '@/shared/lib/money'
-import type { CheckoutLine, CouponRow, CouponSlot } from './model'
+import {
+  PLATFORM_UNAVAILABLE,
+  type CheckoutLine,
+  type CouponRow,
+  type CouponSlot,
+} from './model'
 import type { CheckoutCoupons as State } from './useCheckoutCoupons'
-
-/** 플랫폼 쿠폰은 재원이 없는 동안 주문에 쓸 수 없다(BE 409 COUPON_PLATFORM_FUNDING_UNAVAILABLE) */
-export const PLATFORM_UNAVAILABLE = '플랫폼 쿠폰은 아직 사용할 수 없어요.'
 
 /**
  * 주문 확인의 쿠폰 할인 영역. 적용 결과(강의별 쿠폰·할인 뒤 금액)와 할인 전 합·할인 합, 직접 선택을 보인다.
@@ -18,9 +20,13 @@ export function CheckoutCoupons({
   coupons: State
   lines: CheckoutLine[]
 }) {
-  const { view, pending, failed, selections } = coupons
+  const { view, pending, failed, selections, orderError } = coupons
   const [picking, setPicking] = useState(false)
   const manual = selections !== null
+  const rejectedName =
+    orderError?.memberCouponId != null
+      ? coupons.couponName(orderError.memberCouponId)
+      : undefined
 
   return (
     <section
@@ -36,6 +42,12 @@ export function CheckoutCoupons({
           </span>
         )}
       </div>
+      {orderError && (
+        <div className="notice bad" role="alert">
+          {rejectedName && <b>{rejectedName}: </b>}
+          {orderError.message}
+        </div>
+      )}
       {pending ? (
         <p className="fine" role="status">
           쿠폰 할인을 계산하고 있어요…
@@ -67,7 +79,12 @@ export function CheckoutCoupons({
         <>
           <div className="rows">
             {view.rows.map((row) => (
-              <CouponLine key={row.lectureId} row={row} manual={manual} />
+              <CouponLine
+                key={row.lectureId}
+                row={row}
+                manual={manual}
+                rejected={orderError}
+              />
             ))}
           </div>
           <div className="breakdown" aria-live="polite">
@@ -122,7 +139,15 @@ export function CheckoutCoupons({
   )
 }
 
-function CouponLine({ row, manual }: { row: CouponRow; manual: boolean }) {
+function CouponLine({
+  row,
+  manual,
+  rejected,
+}: {
+  row: CouponRow
+  manual: boolean
+  rejected: State['orderError']
+}) {
   return (
     <div
       className="row-item"
@@ -138,6 +163,12 @@ function CouponLine({ row, manual }: { row: CouponRow; manual: boolean }) {
             {/* 직접 고른 쿠폰이 이 강의에서 할인되지 않아도 쿠폰은 사용된다(0 할인을 따로 다루지 않는다) */}
             {manual && c.discount === 0 && (
               <> · 이 강의에서는 할인되지 않지만 쿠폰은 사용돼요</>
+            )}
+            {rejected?.memberCouponId === c.memberCouponId && (
+              <span className="c-bad" role="alert">
+                {' '}
+                · {rejected.message}
+              </span>
             )}
           </span>
         ))}
@@ -234,6 +265,9 @@ function SlotPicker({
           />
           {c.couponName} · {discountLabel(c)}
           {!c.stackable && <span className="pill mute">단독 사용</span>}
+          {coupons.orderError?.memberCouponId === c.memberCouponId && (
+            <span className="fine c-bad">{coupons.orderError.message}</span>
+          )}
         </label>
       ))}
       {(loading || typing) && (

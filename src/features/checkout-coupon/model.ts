@@ -167,3 +167,87 @@ export const hasPlatformCoupon = (quote: CouponQuote) =>
   quote.items.some((item) =>
     item.coupons.some((c) => c.couponType === 'PLATFORM'),
   )
+
+/** 쿠폰 거절 사유(쿠폰 모듈 오류 코드 → 문구). 모르는 코드는 기본 문구 */
+export function couponRejectReason(couponCode: string | undefined) {
+  switch (couponCode) {
+    case 'COUPON_NOT_USABLE':
+      return '이미 쓰였거나 만료된 쿠폰이에요.'
+    case 'COUPON_NOT_APPLICABLE':
+      return '이 강의에 쓸 수 없는 쿠폰이에요.'
+    case 'COUPON_STACKING_VIOLATION':
+      return '함께 쓸 수 없는 쿠폰이에요.'
+    case 'COUPON_GENERATION_MISMATCH':
+    case 'COUPON_POLICY_VERSION_CHANGED':
+    case 'COUPON_AMOUNT_MISMATCH':
+    case 'COUPON_LECTURE_PRICE_MISMATCH':
+      return '쿠폰이나 강의 가격이 바뀌었어요. 다시 확인해 주세요.'
+    default:
+      return '이 쿠폰을 쓸 수 없어요. 쿠폰을 다시 골라 주세요.'
+  }
+}
+
+/** 쿠폰 주문 오류를 화면에서 어떻게 다룰지 */
+export type CouponOrderError = {
+  message: string
+  /** 그 오류가 특정 쿠폰 때문이면 그 쿠폰(옆에 사유를 보인다) */
+  memberCouponId: number | null
+  /** 미리보기를 다시 부른다(금액이 바뀜·쿠폰 거절) */
+  requote: boolean
+  /** 매핑에서 뺄 쿠폰(거절된 쿠폰, 플랫폼 쿠폰) */
+  drop: 'rejected' | 'platform' | null
+}
+
+export const PLATFORM_UNAVAILABLE = '플랫폼 쿠폰은 아직 사용할 수 없어요.'
+
+/**
+ * 주문 오류 code → 쿠폰 영역 처리. 쿠폰과 관계없는 오류(잔액 부족 등)는 null(기존대로 알린다).
+ * 자동으로 다시 주문하지 않는다
+ */
+export function couponOrderError(
+  code: string,
+  body: { couponCode?: string; memberCouponId?: number | null } | null,
+  typeOf: (memberCouponId: number) => CouponType | undefined = () => undefined,
+): CouponOrderError | null {
+  switch (code) {
+    case 'ORDER_QUOTE_CHANGED':
+      return {
+        message: '결제 금액이 바뀌었어요. 다시 확인해 주세요.',
+        memberCouponId: null,
+        requote: true,
+        drop: null,
+      }
+    case 'COUPON_CALCULATION_REJECTED':
+    case 'COUPON_RESERVATION_REJECTED':
+      // 플랫폼 재원이 없는 동안 BE는 플랫폼 쿠폰을 COUPON_NOT_USABLE로 거절한다(만료와 구분되지 않아 종류로 가린다)
+      if (body?.memberCouponId && typeOf(body.memberCouponId) === 'PLATFORM')
+        return {
+          message: PLATFORM_UNAVAILABLE,
+          memberCouponId: body.memberCouponId,
+          requote: true,
+          drop: 'platform',
+        }
+      return {
+        message: couponRejectReason(body?.couponCode),
+        memberCouponId: body?.memberCouponId ?? null,
+        requote: true,
+        drop: body?.memberCouponId ? 'rejected' : null,
+      }
+    case 'COUPON_PLATFORM_FUNDING_UNAVAILABLE':
+      return {
+        message: PLATFORM_UNAVAILABLE,
+        memberCouponId: null,
+        requote: true,
+        drop: 'platform',
+      }
+    case 'COUPON_UNAVAILABLE':
+      return {
+        message: '지금은 쿠폰을 확인할 수 없어요. 잠시 후 다시 시도해 주세요.',
+        memberCouponId: null,
+        requote: false,
+        drop: null,
+      }
+    default:
+      return null
+  }
+}

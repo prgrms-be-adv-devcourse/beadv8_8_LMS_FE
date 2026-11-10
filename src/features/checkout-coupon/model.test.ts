@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { couponQuote, quoteCoupon } from '@/test/couponMock'
 import {
   chooseCoupon,
+  couponOrderError,
+  couponRejectReason,
   hasPlatformCoupon,
   orderCouponsOf,
+  PLATFORM_UNAVAILABLE,
   quoteView,
   selectionsOf,
   UNNAMED_COUPON,
@@ -228,5 +231,84 @@ describe('직접 선택 규칙', () => {
     expect(withoutPlatform(quote)).toEqual([
       { memberCouponId: 11, lectureId: 7 },
     ])
+  })
+})
+
+describe('쿠폰 주문 오류', () => {
+  it('쿠폰 오류 코드별 사유, 모르는 코드는 기본 문구', () => {
+    expect(couponRejectReason('COUPON_NOT_USABLE')).toBe(
+      '이미 쓰였거나 만료된 쿠폰이에요.',
+    )
+    expect(couponRejectReason('COUPON_NOT_APPLICABLE')).toBe(
+      '이 강의에 쓸 수 없는 쿠폰이에요.',
+    )
+    expect(couponRejectReason('COUPON_STACKING_VIOLATION')).toBe(
+      '함께 쓸 수 없는 쿠폰이에요.',
+    )
+    for (const code of [
+      'COUPON_GENERATION_MISMATCH',
+      'COUPON_POLICY_VERSION_CHANGED',
+      'COUPON_AMOUNT_MISMATCH',
+      'COUPON_LECTURE_PRICE_MISMATCH',
+    ])
+      expect(couponRejectReason(code)).toBe(
+        '쿠폰이나 강의 가격이 바뀌었어요. 다시 확인해 주세요.',
+      )
+    expect(couponRejectReason('BRAND_NEW')).toBe(
+      '이 쿠폰을 쓸 수 없어요. 쿠폰을 다시 골라 주세요.',
+    )
+    expect(couponRejectReason(undefined)).toBe(
+      '이 쿠폰을 쓸 수 없어요. 쿠폰을 다시 골라 주세요.',
+    )
+  })
+
+  it('주문 오류 code별 처리: 다시 계산·뺄 쿠폰. 쿠폰과 관계없는 오류는 null', () => {
+    expect(couponOrderError('ORDER_QUOTE_CHANGED', null)).toMatchObject({
+      requote: true,
+      drop: null,
+    })
+    expect(
+      couponOrderError('COUPON_RESERVATION_REJECTED', {
+        couponCode: 'COUPON_NOT_USABLE',
+        memberCouponId: 11,
+      }),
+    ).toEqual({
+      message: '이미 쓰였거나 만료된 쿠폰이에요.',
+      memberCouponId: 11,
+      requote: true,
+      drop: 'rejected',
+    })
+    expect(
+      couponOrderError('COUPON_PLATFORM_FUNDING_UNAVAILABLE', null),
+    ).toMatchObject({ message: PLATFORM_UNAVAILABLE, drop: 'platform' })
+    expect(couponOrderError('COUPON_UNAVAILABLE', null)).toMatchObject({
+      requote: false,
+    })
+    expect(couponOrderError('INSUFFICIENT_BALANCE', null)).toBeNull()
+  })
+})
+
+describe('플랫폼 쿠폰 주문 거절', () => {
+  const body = { couponCode: 'COUPON_NOT_USABLE', memberCouponId: 21 }
+
+  it('거절된 쿠폰이 플랫폼 쿠폰이면 플랫폼 쿠폰은 아직 쓸 수 없다고 하고 그 쿠폰을 뺀다', () => {
+    expect(
+      couponOrderError('COUPON_CALCULATION_REJECTED', body, () => 'PLATFORM'),
+    ).toEqual({
+      message: PLATFORM_UNAVAILABLE,
+      memberCouponId: 21,
+      requote: true,
+      drop: 'platform',
+    })
+  })
+
+  it('판매자 쿠폰이거나 종류를 모르면 일반 사용 불가 문구', () => {
+    for (const type of ['SELLER', undefined] as const)
+      expect(
+        couponOrderError('COUPON_CALCULATION_REJECTED', body, () => type),
+      ).toMatchObject({
+        message: '이미 쓰였거나 만료된 쿠폰이에요.',
+        drop: 'rejected',
+      })
   })
 })

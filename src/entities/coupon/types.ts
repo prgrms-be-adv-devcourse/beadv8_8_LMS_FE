@@ -102,8 +102,8 @@ export type MemberCoupon = {
   maxDiscountAmount: number | null
   stackable: boolean
   /**
-   * 쿠폰 종류. BE 선행 작업(회원 쿠폰 목록에 종류 추가)이 끝나기 전에는 오지 않는다.
-   * 없으면 쿠폰 상세(GET /coupons/{couponId})의 `type`으로 채운다
+   * 쿠폰 종류(`/coupons/me`·`/coupons/me/usable`). 결제 화면은 이것으로 판매자·플랫폼 칸을 나눈다.
+   * 이 필드가 없는 응답이면 쿠폰 상세(GET /coupons/{couponId})의 `type`으로 채운다(대체 조회)
    */
   couponType?: CouponType
 }

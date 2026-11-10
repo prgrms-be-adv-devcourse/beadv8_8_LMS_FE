@@ -1,6 +1,7 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
+  couponKeys,
   couponQuery,
   couponQuoteQuery,
   usableCouponsQuery,
@@ -10,8 +11,10 @@ import type {
   CouponType,
   MemberCoupon,
 } from '@/entities/coupon/types'
+import { isApiError } from '@/shared/api/ApiError'
 import {
   chooseCoupon,
+  couponOrderError,
   hasPlatformCoupon,
   orderCouponsOf,
   quoteView,
@@ -19,6 +22,7 @@ import {
   withoutPlatform,
   type CheckoutLine,
   type CouponInfo,
+  type CouponOrderError,
   type CouponSlot,
   type CouponView,
 } from './model'
@@ -41,8 +45,17 @@ export type PickableCoupon = MemberCoupon & {
 export function useCheckoutCoupons(lines: CheckoutLine[]) {
   const lectureIds = lines.map((l) => l.lectureId)
   const enabled = lines.length > 0
+  const queryClient = useQueryClient()
   // null: 추천, []: 쿠폰 안 쓰기, 값: 직접 고른 매핑
-  const [selections, setSelections] = useState<CouponSelection[] | null>(null)
+  const [selections, setSelectionState] = useState<CouponSelection[] | null>(
+    null,
+  )
+  // 마지막 주문의 쿠폰 오류(매핑을 바꾸면 지운다)
+  const [orderError, setOrderError] = useState<CouponOrderError | null>(null)
+  const setSelections = (next: CouponSelection[] | null) => {
+    setOrderError(null)
+    setSelectionState(next)
+  }
 
   // 추천 결과. 플랫폼 쿠폰이 섞여 있으면 뺀 매핑을 대신 계산한다(플랫폼 재원이 없는 동안의 방어)
   const recommend = useQuery({
@@ -63,7 +76,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     combine: (results) => results,
   })
   const allUsable = usable.flatMap((r) => r.data ?? [])
-  // 종류가 목록에 없으면(BE 선행 작업 전) 쿠폰 상세로 채운다. 같은 쿠폰은 한 번만 부르고 오래 캐시한다
+  // 종류는 회원 쿠폰 목록의 couponType을 쓴다. 없을 때만(이전 응답 등) 쿠폰 상세로 채운다. 같은 쿠폰은 한 번만 부르고 오래 캐시한다
   const missingType = [
     ...new Set(allUsable.filter((c) => !c.couponType).map((c) => c.couponId)),
   ]
@@ -137,6 +150,52 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
           lectureIds,
         ),
       )
+    },
+    orderError,
+    /** 회원 쿠폰 이름(사용 가능 쿠폰 목록에서). 못 찾으면 undefined */
+    couponName: (memberCouponId: number) => find(memberCouponId)?.couponName,
+    /**
+     * 주문 오류를 쿠폰 영역에서 다룬다. 쿠폰 오류면 문구를 남기고, 필요하면 거절된 쿠폰·플랫폼 쿠폰을 빼고
+     * 사용 가능 쿠폰·미리보기를 다시 부른다(같은 모드로 다시 계산한다. 자동으로 다시 주문하지 않는다).
+     * 쿠폰과 관계없는 오류면 false
+     */
+    handleOrderError(error: unknown) {
+      if (!isApiError(error)) return false
+      // 거절된 쿠폰의 종류: 주문에 쓴 미리보기 결과에서, 없으면 사용 가능 쿠폰 목록에서
+      const typeOf = (memberCouponId: number) =>
+        quote.data?.items
+          .flatMap((item) => item.coupons)
+          .find((c) => c.memberCouponId === memberCouponId)?.couponType ??
+        infoOf(memberCouponId)?.couponType
+      const handled = couponOrderError(error.code, error.body, typeOf)
+      if (!handled) return false
+      const platformIds = new Set(
+        quote.data?.items.flatMap((item) =>
+          item.coupons
+            .filter((c) => c.couponType === 'PLATFORM')
+            .map((c) => c.memberCouponId),
+        ),
+      )
+      const dropped =
+        handled.drop === 'rejected'
+          ? current.filter((s) => s.memberCouponId !== handled.memberCouponId)
+          : handled.drop === 'platform'
+            ? current.filter((s) => !platformIds.has(s.memberCouponId))
+            : null
+      // 추천 모드에서 거절된 쿠폰은 다시 추천하면 빠지므로 그대로 둔다. 직접 고른 매핑·플랫폼 쿠폰은 빼고 계산한다
+      if (dropped && (selections !== null || handled.drop === 'platform'))
+        setSelectionState(dropped)
+      setOrderError(handled)
+      if (handled.requote)
+        void Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: [...couponKeys.all, 'usable'],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: [...couponKeys.all, 'quote'],
+          }),
+        ])
+      return true
     },
     /** 쿠폰 없이 계산한다 */
     skipCoupons: () => setSelections([]),

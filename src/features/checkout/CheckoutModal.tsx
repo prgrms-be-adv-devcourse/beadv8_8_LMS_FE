@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router'
 import { cartKeys } from '@/entities/cart/api'
+import { couponKeys } from '@/entities/coupon/api'
 import { createOrder, orderKeys } from '@/entities/order/api'
 import { walletKeys } from '@/entities/wallet/api'
 import { chargeHref } from '@/entities/wallet/charge'
@@ -44,9 +45,14 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
         withCoupons?.expectedBuyerAmountHp,
       ),
     onSuccess: (created) => {
+      // 쓴 쿠폰은 예약·사용되므로 쿠폰함·사용 가능 쿠폰을 다시 불러온다(202 결제 처리 중 포함)
+      void queryClient.invalidateQueries({ queryKey: couponKeys.all })
       navigate(`/library/orders/${created.orderId}/done`)
     },
-    onError: (error) => toast(error.message),
+    // 쿠폰 오류(금액 바뀜·쿠폰 거절·플랫폼 쿠폰·쿠폰 확인 불가)는 쿠폰 영역에 보이고 다시 계산한다. 그 밖은 기존대로 알린다
+    onError: (error) => {
+      if (!coupons.handleOrderError(error)) toast(error.message)
+    },
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: cartKeys.all }),

@@ -98,6 +98,7 @@ export const memberCoupon = (
   discountValue: 10,
   maxDiscountAmount: null,
   stackable: false,
+  couponType: 'SELLER',
   ...patch,
 })
 
