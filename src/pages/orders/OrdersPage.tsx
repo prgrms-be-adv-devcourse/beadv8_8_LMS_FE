@@ -91,11 +91,14 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
           <span className="fine num">주문 번호 {summary.orderId}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          {/* 목록 한 줄에는 할인이 없다. 상세를 받으면 결제액(할인 뒤)을 보인다 */}
-          <b className="num">
-            {formatNumber(order ? order.buyerAmountHp : summary.totalAmountHp)}{' '}
-            HP
-          </b>
+          {/* 목록 한 줄에는 할인이 없다. 상세를 받으면 결제액(할인 뒤)을 굵게, 그 전·실패하면 할인 전 합임을 밝힌다 */}
+          {order ? (
+            <b className="num">{formatNumber(order.buyerAmountHp)} HP</b>
+          ) : (
+            <span className="num">
+              주문 금액(할인 전) {formatNumber(summary.totalAmountHp)} HP
+            </span>
+          )}
           {discounted && (
             <div className="fine num">
               {formatNumber(order.discountHp)} HP 할인

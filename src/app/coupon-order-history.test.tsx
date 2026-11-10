@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { Sale } from '@/entities/lecture/types'
@@ -125,6 +125,36 @@ describe('쿠폰을 쓴 주문의 금액', () => {
       within(card).getByText('30,000 HP · 3,000 HP 할인 · 결제 27,000 HP'),
     ).toBeInTheDocument()
     expect(within(card).getByText('20,000 HP')).toBeInTheDocument()
+  })
+
+  it('주문 상세가 오기 전과 실패하면 카드 머리에 할인 전 합임을 밝히고 굵게 보이지 않는다', async () => {
+    mockOrders(discountedOrder())
+    // 상세를 붙잡아 두었다가 실패시킨다(4xx라 다시 시도하지 않는다)
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.get('*/api/v1/lectures/orders/700', async () => {
+        await gate
+        return HttpResponse.json(
+          { status: 400, code: 'BAD_REQUEST', detail: '실패' },
+          { status: 400 },
+        )
+      }),
+    )
+    renderApp('/library/orders', 'USER')
+
+    const card = await screen.findByRole('region', { name: '주문 번호 700' })
+    const pending = within(card).getByText('주문 금액(할인 전) 50,000 HP')
+    expect(pending.tagName).not.toBe('B')
+    expect(within(card).queryByText('47,000 HP')).not.toBeInTheDocument()
+
+    release()
+    expect(
+      await within(card).findByText('불러오지 못했어요'),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText('주문 금액(할인 전) 50,000 HP').tagName,
+    ).not.toBe('B')
   })
 
   it('쿠폰을 쓴 결제 실패 주문은 내역 카드에도 쿠폰을 다시 고르라고 한다', async () => {
