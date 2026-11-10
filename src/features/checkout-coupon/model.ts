@@ -104,3 +104,66 @@ export function orderCouponsOf(
     ? { coupons, expectedBuyerAmountHp: quote.totalBuyerAmount }
     : null
 }
+
+/** 강의마다 쿠폰 칸 두 개(중첩 A): 판매자 쿠폰 1장, 플랫폼 쿠폰 1장. 판매자 먼저 적용한다 */
+export type CouponSlot = CouponType
+
+/** 고를 때 필요한 쿠폰 정보(종류·단독 사용) */
+export type CouponInfo = { couponType: CouponType; stackable: boolean }
+
+/**
+ * 직접 선택 규칙. 지금 매핑(current)에서 한 강의의 한 칸을 바꾼 새 매핑을 돌려준다.
+ * - 같은 칸은 교체한다(칸마다 최대 1장)
+ * - 한 쿠폰은 한 강의에만: 다른 강의에 쓰던 쿠폰을 고르면 그쪽에서 빠진다
+ * - 단독 사용(stackable=false) 쿠폰은 같은 강의의 다른 칸과 함께 쓰지 않는다(새로 고른 쪽만 남긴다)
+ * - memberCouponId가 null이면 그 칸을 비운다
+ * 순서는 주문 강의 순서, 강의 안은 판매자 → 플랫폼이다
+ */
+export function chooseCoupon(
+  current: CouponSelection[],
+  choice: {
+    lectureId: number
+    slot: CouponSlot
+    memberCouponId: number | null
+  },
+  infoOf: (memberCouponId: number) => CouponInfo | undefined,
+  lectureOrder: number[],
+): CouponSelection[] {
+  const slotOf = (s: CouponSelection) => infoOf(s.memberCouponId)?.couponType
+  const chosen =
+    choice.memberCouponId === null ? undefined : infoOf(choice.memberCouponId)
+  const next = current.filter((s) => {
+    if (s.memberCouponId === choice.memberCouponId) return false
+    if (s.lectureId !== choice.lectureId) return true
+    if (slotOf(s) === choice.slot) return false
+    // 같은 강의의 다른 칸: 새로 고른 쿠폰이나 그 칸 쿠폰이 단독 사용이면 뺀다
+    if (chosen && !chosen.stackable) return false
+    return chosen === undefined || infoOf(s.memberCouponId)?.stackable !== false
+  })
+  if (choice.memberCouponId !== null)
+    next.push({
+      memberCouponId: choice.memberCouponId,
+      lectureId: choice.lectureId,
+    })
+  const rank = (s: CouponSelection) =>
+    lectureOrder.indexOf(s.lectureId) * 2 + (slotOf(s) === 'PLATFORM' ? 1 : 0)
+  return next.sort((a, b) => rank(a) - rank(b))
+}
+
+/** 플랫폼 쿠폰을 뺀 매핑(플랫폼 재원이 없는 동안 추천에 섞여 오면 이 매핑으로 다시 계산한다) */
+export function withoutPlatform(quote: CouponQuote): CouponSelection[] {
+  return quote.items.flatMap((item) =>
+    [...item.coupons]
+      .sort((a, b) => a.applyOrder - b.applyOrder)
+      .filter((c) => c.couponType !== 'PLATFORM')
+      .map((c) => ({
+        memberCouponId: c.memberCouponId,
+        lectureId: item.lectureId,
+      })),
+  )
+}
+
+export const hasPlatformCoupon = (quote: CouponQuote) =>
+  quote.items.some((item) =>
+    item.coupons.some((c) => c.couponType === 'PLATFORM'),
+  )

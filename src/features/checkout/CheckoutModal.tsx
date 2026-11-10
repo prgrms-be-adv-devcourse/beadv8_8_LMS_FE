@@ -120,7 +120,7 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           ))}
         </div>
       )}
-      <CheckoutCoupons coupons={coupons} />
+      <CheckoutCoupons coupons={coupons} lines={items} />
       {applied && total === 0 && (
         <p className="fine" role="status">
           결제할 HP가 없어 바로 주문이 끝나요.

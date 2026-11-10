@@ -10,6 +10,7 @@ import {
   memberCoupon,
   mockCoupons,
   quoteCoupon,
+  type QuoteRequest,
 } from '@/test/couponMock'
 import { mockCreateOrder } from '@/test/lectureOrders'
 import { renderApp, rs } from '@/test/renderApp'
@@ -250,5 +251,215 @@ describe('주문 확인 쿠폰 추천', () => {
     expect(
       await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
     ).toBeEnabled()
+  })
+})
+
+/**
+ * 강의 7(30,000 HP)의 미리보기 흉내. 추천(null)은 recommend 쿠폰들을, 매핑을 주면 그 쿠폰들을 적용한다.
+ * 쿠폰별 할인·종류는 table에서 찾는다
+ */
+function quoteFor(
+  table: Record<number, { discount: number; type?: 'SELLER' | 'PLATFORM' }>,
+  recommend: number[],
+  flags = { optimal: true },
+) {
+  return ({ selections }: QuoteRequest) => {
+    const ids = selections?.map((s) => s.memberCouponId) ?? recommend
+    return couponQuote(
+      [
+        {
+          lectureId: 7,
+          price: 30000,
+          coupons: ids.map((id) =>
+            quoteCoupon({
+              memberCouponId: id,
+              couponType: table[id].type ?? 'SELLER',
+              discount: table[id].discount,
+            }),
+          ),
+        },
+      ],
+      { recommended: selections === null, optimal: flags.optimal },
+    )
+  }
+}
+
+describe('주문 확인 쿠폰 직접 선택', () => {
+  const second = memberCoupon({
+    memberCouponId: 12,
+    couponId: 2,
+    couponName: '3천 HP 할인',
+    discountType: 'AMOUNT',
+    discountValue: 3000,
+    stackable: true,
+  })
+
+  it('쿠폰 안 쓰기는 쿠폰 없이 계산하고, 주문에도 쿠폰을 보내지 않는다', async () => {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      couponTypes: { 1: 'SELLER' },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    const created = mockCreateOrder(paidOrder(0))
+    const dialog = await openCheckout()
+
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 안 쓰기' }),
+    )
+    expect(
+      await within(dialog).findByText('쿠폰을 쓰지 않아요.'),
+    ).toBeInTheDocument()
+    expect(coupons.quoteRequests.at(-1)).toEqual({
+      lectureIds: [7],
+      selections: [],
+    })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+    )
+    await waitFor(() => expect(created.bodies).toEqual([{ lectureIds: [7] }]))
+  })
+
+  it('직접 고른 매핑으로 다시 계산하고, 추천으로 돌아갈 수 있다. 종류는 쿠폰 상세에서 한 번만 가져온다', async () => {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      // 회원 쿠폰 목록에 종류가 없으면(BE 선행 작업 전) 쿠폰 상세의 type으로 칸을 나눈다
+      usable: { 7: [sellerCoupon, second] },
+      couponTypes: { 1: 'SELLER', 2: 'SELLER' },
+      quotes: [
+        quoteFor({ 11: { discount: 3000 }, 12: { discount: 3000 } }, [11]),
+      ],
+    })
+    const created = mockCreateOrder(paidOrder(3000))
+    const dialog = await openCheckout()
+
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    const seller = within(dialog).getByRole('group', { name: '판매자 쿠폰' })
+    const pickSecond = await within(seller).findByRole('radio', {
+      name: /3천 HP 할인/,
+    })
+    expect(
+      within(seller).getByRole('radio', { name: /가을맞이 10% 할인/ }),
+    ).toBeChecked()
+    expect(within(seller).getByText('단독 사용')).toBeInTheDocument()
+    await userEvent.click(pickSecond)
+
+    await waitFor(() =>
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7],
+        selections: [{ memberCouponId: 12, lectureId: 7 }],
+      }),
+    )
+    expect(
+      await within(dialog).findByText('3천 HP 할인 · −3,000 HP'),
+    ).toBeInTheDocument()
+    // 직접 고른 결과에는 추천 배지를 달지 않는다
+    expect(within(dialog).queryByText('최대 할인')).not.toBeInTheDocument()
+    expect(coupons.detailCalls).toEqual({ 1: 1, 2: 1 })
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '추천으로 돌아가기' }),
+    )
+    expect(await within(dialog).findByText('최대 할인')).toBeInTheDocument()
+    expect(coupons.quoteRequests.at(-1)?.selections).toBeNull()
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '27,000 HP 결제' }),
+    )
+    await waitFor(() =>
+      expect(created.bodies[0]).toEqual({
+        lectureIds: [7],
+        coupons: [{ memberCouponId: 11, lectureId: 7 }],
+        expectedBuyerAmountHp: 27000,
+      }),
+    )
+  })
+
+  it('플랫폼 쿠폰 칸은 막아 두고 이유를 알린다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: {
+        7: [
+          sellerCoupon,
+          memberCoupon({
+            memberCouponId: 21,
+            couponId: 5,
+            couponName: '전 강의 2천',
+            couponType: 'PLATFORM',
+          }),
+        ],
+      },
+      couponTypes: { 1: 'SELLER' },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    const platform = within(dialog).getByRole('group', { name: '플랫폼 쿠폰' })
+    expect(platform).toBeDisabled()
+    expect(platform).toHaveAccessibleDescription(
+      '플랫폼 쿠폰은 아직 사용할 수 없어요.',
+    )
+    expect(
+      within(platform).getByRole('radio', { name: /전 강의 2천/ }),
+    ).toBeDisabled()
+  })
+
+  it('추천에 플랫폼 쿠폰이 섞여 오면 그 쿠폰만 빼고 다시 계산해 알린다', async () => {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      couponTypes: { 1: 'SELLER' },
+      quotes: [
+        quoteFor(
+          { 11: { discount: 3000 }, 21: { discount: 2000, type: 'PLATFORM' } },
+          [11, 21],
+        ),
+      ],
+    })
+    const created = mockCreateOrder(paidOrder(3000))
+    const dialog = await openCheckout()
+
+    expect(
+      await within(dialog).findByText(
+        /플랫폼 쿠폰은 아직 사용할 수 없어요\. 플랫폼 쿠폰을 빼고/,
+      ),
+    ).toBeInTheDocument()
+    expect(coupons.quoteRequests).toEqual([
+      { lectureIds: [7], selections: null },
+      { lectureIds: [7], selections: [{ memberCouponId: 11, lectureId: 7 }] },
+    ])
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    )
+    await waitFor(() =>
+      expect(created.bodies[0]?.coupons).toEqual([
+        { memberCouponId: 11, lectureId: 7 },
+      ]),
+    )
+  })
+
+  it('직접 고른 쿠폰이 할인되지 않아도 쿠폰은 사용된다고 알린다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: { 7: [sellerCoupon, second] },
+      couponTypes: { 1: 'SELLER', 2: 'SELLER' },
+      quotes: [quoteFor({ 11: { discount: 3000 }, 12: { discount: 0 } }, [11])],
+    })
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('radio', { name: /3천 HP 할인/ }),
+    )
+    expect(
+      await within(dialog).findByText(
+        /이 강의에서는 할인되지 않지만 쿠폰은 사용돼요/,
+      ),
+    ).toBeInTheDocument()
   })
 })
