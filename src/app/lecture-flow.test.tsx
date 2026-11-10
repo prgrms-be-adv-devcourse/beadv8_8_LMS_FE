@@ -162,7 +162,7 @@ async function buyNow(order: Order, status: number) {
   )
   const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
   await userEvent.click(
-    within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+    await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
   )
   return () => orders!
 }
@@ -365,7 +365,7 @@ describe('바로 구매', () => {
     expect(within(dialog).getByText('20,000')).toBeInTheDocument()
 
     await userEvent.click(
-      within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+      await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
     )
     expect(
       await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
@@ -507,7 +507,7 @@ describe('바로 구매', () => {
       )
       const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
       await userEvent.click(
-        within(dialog).getByRole('button', { name: '30,000 HP 결제' }),
+        await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
       )
 
       expect(await screen.findByText(detail)).toBeInTheDocument()
