@@ -959,3 +959,73 @@ describe('잔액과 쿠폰 할인', () => {
     ).toBeEnabled()
   })
 })
+
+describe('추천 모드 주문 거절 뒤 다시 추천', () => {
+  it('추천에 플랫폼 쿠폰이 섞여 뺀 매핑으로 주문했다가 거절되면, 추천을 다시 받아 거절된 쿠폰이 빠진 결과로 계산한다', async () => {
+    mockLectureDetail()
+    const second = memberCoupon({
+      memberCouponId: 12,
+      couponId: 2,
+      couponName: '2천 HP 할인',
+      stackable: true,
+    })
+    const discount: Record<number, number> = { 11: 3000, 12: 2000, 21: 1000 }
+    let recommendCalls = 0
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon, second] },
+      quotes: [
+        ({ selections }: QuoteRequest) => {
+          // 처음 추천은 판매자 쿠폰 11 + 플랫폼 쿠폰 21, 쿠폰 11이 쓰인 뒤의 추천은 12 + 21
+          if (selections === null) recommendCalls++
+          const ids =
+            selections?.map((s) => s.memberCouponId) ??
+            (recommendCalls === 1 ? [11, 21] : [12, 21])
+          return couponQuote(
+            [
+              {
+                lectureId: 7,
+                price: 30000,
+                coupons: ids.map((id) =>
+                  quoteCoupon({
+                    memberCouponId: id,
+                    couponType: id === 21 ? 'PLATFORM' : 'SELLER',
+                    discount: discount[id],
+                  }),
+                ),
+              },
+            ],
+            { recommended: selections === null, optimal: true },
+          )
+        },
+      ],
+    })
+    const created = mockCreateOrder(
+      orderProblem(409, 'COUPON_CALCULATION_REJECTED', {
+        couponCode: 'COUPON_NOT_USABLE',
+        memberCouponId: 11,
+      }),
+    )
+    const dialog = await openCheckout()
+    // 플랫폼 쿠폰을 뺀 매핑(쿠폰 11)으로 계산해 주문한다
+    const pay = await within(dialog).findByRole('button', {
+      name: '27,000 HP 결제',
+    })
+    const before = coupons.quoteRequests.length
+    await userEvent.click(pay)
+    expect(created.bodies[0]?.coupons).toEqual([
+      { memberCouponId: 11, lectureId: 7 },
+    ])
+
+    // 추천을 다시 받아(쿠폰 12 + 21) 플랫폼 쿠폰을 뺀 쿠폰 12로 계산한다. 정가 결제로 떨어지지 않는다
+    expect(
+      await within(dialog).findByRole('button', { name: '28,000 HP 결제' }),
+    ).toBeEnabled()
+    expect(coupons.quoteRequests.slice(before)).toEqual([
+      { lectureIds: [7], selections: null },
+      { lectureIds: [7], selections: [{ memberCouponId: 12, lectureId: 7 }] },
+    ])
+    expect(
+      within(dialog).queryByText(/쿠폰을 확인할 수 없어 정가로 결제돼요/),
+    ).not.toBeInTheDocument()
+  })
+})

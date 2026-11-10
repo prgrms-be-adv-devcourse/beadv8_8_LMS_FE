@@ -236,22 +236,38 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
           ? find(handled.memberCouponId)?.couponName
           : undefined,
       })
-      if (handled.requote)
+      if (handled.requote) {
+        const quoteKey = (picked: CouponSelection[] | null) =>
+          couponKeys.quote(lectureIds, picked)
         void Promise.all([
           queryClient.invalidateQueries({
             queryKey: [...couponKeys.all, 'usable'],
           }),
-          // 매핑이 바뀌면 새 키가 알아서 부른다(거절된 매핑은 다시 부르지 않는다). 같으면 지금 미리보기만 다시 부른다
           keyChanged
-            ? Promise.resolve()
-            : queryClient.invalidateQueries({
-                queryKey: couponKeys.quote(
-                  lectureIds,
-                  selections ?? platformFallback,
-                ),
-                exact: true,
-              }),
+            ? // 매핑이 바뀌면 새 키가 알아서 부른다(거절된 매핑은 다시 부르지 않는다)
+              Promise.resolve()
+            : !remap && selections === null
+              ? // 추천 모드: 추천을 다시 받는다. 플랫폼 제외 매핑은 새 추천에서 다시 만들어지므로, 거절된 쿠폰이 든
+                // 지금 매핑을 다시 계산하지 않고 표시만 한다
+                Promise.all([
+                  queryClient.invalidateQueries({
+                    queryKey: quoteKey(null),
+                    exact: true,
+                  }),
+                  platformFallback &&
+                    queryClient.invalidateQueries({
+                      queryKey: quoteKey(platformFallback),
+                      exact: true,
+                      refetchType: 'none',
+                    }),
+                ])
+              : // 계산할 매핑이 그대로면(직접 고른 매핑, 뺀 결과가 같은 매핑) 그 미리보기만 다시 부른다
+                queryClient.invalidateQueries({
+                  queryKey: quoteKey(remap ? dropped : selections),
+                  exact: true,
+                }),
         ])
+      }
       return true
     },
     /** 쿠폰 없이 계산한다 */
