@@ -480,7 +480,11 @@ describe('주문 확인 쿠폰 직접 선택', () => {
 const orderProblem = (
   status: number,
   code: string,
-  extra: { couponCode?: string; memberCouponId?: number } = {},
+  extra: {
+    couponCode?: string
+    memberCouponId?: number
+    couponDetail?: string
+  } = {},
 ) =>
   HttpResponse.json(
     { status, code, detail: `BE 문구 ${code}`, ...extra },
@@ -591,6 +595,27 @@ describe('쿠폰 주문 오류', () => {
         selections: [],
       }),
     )
+  })
+
+  it('계산 거절에 플랫폼 재원 비활성 사유(couponDetail)가 오면 플랫폼 쿠폰은 아직 쓸 수 없다고 알린다', async () => {
+    mockCreateOrder(
+      orderProblem(409, 'COUPON_CALCULATION_REJECTED', {
+        couponCode: 'COUPON_NOT_USABLE',
+        memberCouponId: 11,
+        couponDetail: 'PLATFORM_FUNDING_DISABLED',
+      }),
+    )
+    // 미리보기에서 쿠폰 11은 판매자 쿠폰으로 왔지만, BE가 준 사유를 먼저 본다
+    const { dialog, pay } = await openWithCoupon()
+    await userEvent.click(pay)
+    expect(
+      await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
+        selector: '[role="alert"]',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).queryByText(/이미 쓰였거나 만료된 쿠폰이에요/),
+    ).not.toBeInTheDocument()
   })
 
   it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알리고, 플랫폼 쿠폰을 뺀 매핑으로 다시 계산한다', async () => {
