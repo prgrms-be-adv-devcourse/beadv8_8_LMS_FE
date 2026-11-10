@@ -9,6 +9,7 @@ import {
   type CouponSlot,
 } from './model'
 import type { CheckoutCoupons as State } from './useCheckoutCoupons'
+import styles from './CheckoutCoupons.module.css'
 
 /**
  * 주문 확인의 쿠폰 할인 영역. 적용 결과(강의별 쿠폰·할인 뒤 금액)와 할인 전 합·할인 합, 직접 선택을 보인다.
@@ -27,12 +28,8 @@ export function CheckoutCoupons({
   const rejectedName = orderError?.couponName
 
   return (
-    <section
-      className="checkout-coupons"
-      aria-label="쿠폰 할인"
-      aria-busy={pending}
-    >
-      <div className="row" style={{ alignItems: 'center' }}>
+    <section className={styles.area} aria-label="쿠폰 할인" aria-busy={pending}>
+      <div className={styles.head}>
         <b>쿠폰</b>
         {view?.applied && view.recommended && !pending && (
           <span className="pill ok">
@@ -203,7 +200,7 @@ function LecturePicker({
   coupons: State
 }) {
   return (
-    <fieldset className="coupon-picker">
+    <fieldset className={styles.lecture}>
       <legend>{line.title}</legend>
       {SLOTS.map(({ slot, label }) => (
         <SlotPicker
@@ -251,6 +248,7 @@ function SlotPicker({
   const blocked = slot === 'PLATFORM'
   return (
     <fieldset
+      className={styles.slot}
       disabled={blocked || coupons.pending}
       aria-describedby={blocked ? noteId : undefined}
     >
@@ -260,7 +258,7 @@ function SlotPicker({
           {PLATFORM_UNAVAILABLE}
         </p>
       )}
-      <label>
+      <label className={styles.option}>
         <input
           type="radio"
           name={name}
@@ -270,7 +268,7 @@ function SlotPicker({
         쓰지 않음
       </label>
       {list.map((c) => (
-        <label key={c.memberCouponId}>
+        <label key={c.memberCouponId} className={styles.option}>
           <input
             type="radio"
             name={name}

@@ -1,0 +1,62 @@
+/* 주문 확인의 쿠폰 영역 */
+.area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/*
+ * 직접 선택: 강의 단위 fieldset 안에 판매자·플랫폼 칸 fieldset이 들어간다.
+ * 브라우저 기본 테두리·여백·최소 폭을 지우고, 바깥 강의 단위만 위쪽에 얇은 구분선을 둔다.
+ * legend는 float로 일반 흐름에 넣어 구분선 위에 걸치지 않게 한다.
+ */
+.lecture,
+.slot {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+}
+.lecture {
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.lecture > legend,
+.slot > legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+}
+.lecture > legend {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.slot {
+  gap: 6px;
+}
+.slot > legend {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.option {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.slot:disabled .option {
+  color: var(--ink-3);
+}
