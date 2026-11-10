@@ -27,6 +27,11 @@ const sale = (overrides: Partial<Sale>): Sale => ({
   lectureId: 1,
   lectureTitle: '통기타 라이브 세팅',
   priceHp: 16000,
+  // 쿠폰 없는 판매: 할인 0, 지급액 = 가격
+  discountHp: 0,
+  sellerDiscountHp: 0,
+  platformDiscountHp: 0,
+  sellerPayoutHp: overrides.priceHp ?? 16000,
   status: 'PURCHASED',
   purchasedAt: '2026-10-11T14:00:00',
   payoutScheduledAt: '2026-11-11T00:00:00',
@@ -272,7 +277,15 @@ describe('강의 판매 화면', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((th) => th.textContent),
-    ).toEqual(['구매일', '강의', '금액', '지급 예정일', '상태'])
+    ).toEqual([
+      '구매일',
+      '강의',
+      '원가격',
+      '할인',
+      '지급액',
+      '지급 예정일',
+      '상태',
+    ])
 
     const row = (title: string) =>
       within(table).getByRole('row', { name: new RegExp(title) })
@@ -281,7 +294,8 @@ describe('강의 판매 화면', () => {
 
     const scheduled = row('예정 강의')
     expect(within(scheduled).getByText(purchased)).toBeInTheDocument()
-    expect(within(scheduled).getByText('16,000')).toBeInTheDocument()
+    // 쿠폰 없는 판매는 원가격 = 지급액
+    expect(within(scheduled).getAllByText('16,000')).toHaveLength(2)
     expect(within(scheduled).getByText(payout)).toBeInTheDocument()
     expect(within(scheduled).getByText('지급 예정')).toHaveClass('pill', 'warn')
 

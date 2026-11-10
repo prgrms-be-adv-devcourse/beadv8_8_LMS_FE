@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { myLecturesQuery, salesQuery } from '@/entities/lecture/api'
-import { isRefunded } from '@/entities/lecture/sale'
+import { isRefunded, saleShareLabel } from '@/entities/lecture/sale'
 import type { MyLecture, Sale } from '@/entities/lecture/types'
 import { LectureThumb } from '@/entities/lecture/ui/LectureThumb'
 import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
@@ -170,7 +170,9 @@ function Sales() {
                 <tr>
                   <th>구매일</th>
                   <th>강의</th>
-                  <th className="r">금액</th>
+                  <th className="r">원가격</th>
+                  <th className="r">할인</th>
+                  <th className="r">지급액</th>
                   <th>지급 예정일</th>
                   <th>상태</th>
                 </tr>
@@ -182,6 +184,12 @@ function Sales() {
               </tbody>
             </table>
           </div>
+          {data.content.some((sale) => sale.discountHp > 0) && (
+            <p className="fine">
+              쿠폰 할인 중 판매자 부담만 지급액에서 빠져요. 플랫폼 부담은
+              지급액에서 빠지지 않아요.
+            </p>
+          )}
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
@@ -194,11 +202,23 @@ function Sales() {
 }
 
 function SaleRow({ sale }: { sale: Sale }) {
+  const share = saleShareLabel(sale)
   return (
     <tr>
       <td>{formatDate(sale.purchasedAt)}</td>
       <td>{sale.lectureTitle}</td>
       <td className="r num">{formatNumber(sale.priceHp)}</td>
+      <td className="r">
+        {share ? (
+          <>
+            <span className="num">−{formatNumber(sale.discountHp)}</span>
+            <div className="fine num">{share}</div>
+          </>
+        ) : (
+          <span className="num muted">0</span>
+        )}
+      </td>
+      <td className="r num">{formatNumber(sale.sellerPayoutHp)}</td>
       <td>{isRefunded(sale) ? '—' : formatDate(sale.payoutScheduledAt)}</td>
       <td>
         <SaleStatusPill sale={sale} />

@@ -3,6 +3,8 @@ import { api } from '@/shared/api/client'
 import type {
   Coupon,
   CouponCreateInput,
+  CouponQuote,
+  CouponSelection,
   CouponStatus,
   CouponSummary,
   IssueRequestResult,
@@ -34,6 +36,15 @@ export const couponKeys = {
     [...couponKeys.all, 'admin', status] as const,
   adminDetail: (couponId: number) =>
     [...couponKeys.all, 'admin', 'detail', couponId] as const,
+  /** 회원이 보는 쿠폰 정책 한 장(종류 확인용) */
+  detail: (couponId: number) =>
+    [...couponKeys.all, 'detail', couponId] as const,
+  /** 그 강의에 지금 쓸 수 있는 내 쿠폰 */
+  usable: (lectureId: number) =>
+    [...couponKeys.all, 'usable', lectureId] as const,
+  /** 할인 미리보기. selections가 null이면 추천, []면 쿠폰 없이 */
+  quote: (lectureIds: number[], selections: CouponSelection[] | null) =>
+    [...couponKeys.all, 'quote', lectureIds, selections] as const,
 }
 
 // ── 회원 ──
@@ -53,6 +64,52 @@ export const lectureCouponsQuery = (lectureId: number) =>
   queryOptions({
     queryKey: couponKeys.forLecture(lectureId),
     queryFn: () => api<CouponSummary[]>('/coupons', { query: { lectureId } }),
+  })
+
+/**
+ * 쿠폰 정책 한 장(CouponSummaryView). 결제 화면에서 내 쿠폰의 종류(type)를 알 때 쓴다.
+ * 종류는 바뀌지 않으므로 오래 캐시한다
+ */
+export const couponQuery = (couponId: number) =>
+  queryOptions({
+    queryKey: couponKeys.detail(couponId),
+    queryFn: () => api<CouponSummary>(`/coupons/${couponId}`),
+    staleTime: 30 * 60_000,
+  })
+
+/** 그 강의에 지금 쓸 수 있는 내 쿠폰(AVAILABLE). 결제 화면의 직접 선택 목록 */
+export const usableCouponsQuery = (lectureId: number) =>
+  queryOptions({
+    queryKey: couponKeys.usable(lectureId),
+    queryFn: () =>
+      api<MemberCoupon[]>('/coupons/me/usable', { query: { lectureId } }),
+  })
+
+/**
+ * 할인 미리보기(상태를 바꾸지 않는다). selections가 null이면 추천, []면 쿠폰 없이, 값이 있으면 그 매핑만 검증·계산한다.
+ * 오류: 409 COUPON_NOT_USABLE·COUPON_NOT_APPLICABLE·COUPON_STACKING_VIOLATION(속성 memberCouponId),
+ * 400 COUPON_TOO_MANY_ITEMS·COUPON_DUPLICATE_LECTURE, 404 LECTURE_NOT_FOUND, 503 LECTURE_CATALOG_UNAVAILABLE
+ */
+export function quoteCoupons(
+  lectureIds: number[],
+  selections: CouponSelection[] | null,
+) {
+  return api<CouponQuote>('/coupons/me/quote', {
+    method: 'POST',
+    body: { lectureIds, selections },
+  })
+}
+
+/** 미리보기를 쿼리로 둔다(POST지만 읽기만 한다). 매핑이 바뀔 때마다 새 키로 다시 계산한다 */
+export const couponQuoteQuery = (
+  lectureIds: number[],
+  selections: CouponSelection[] | null,
+) =>
+  queryOptions({
+    queryKey: couponKeys.quote(lectureIds, selections),
+    queryFn: () => quoteCoupons(lectureIds, selections),
+    // 결제 직전이라 실패를 끌지 않는다. 실패하면 쿠폰 영역의 '다시 계산'이나 쿠폰 없이 결제로 넘긴다
+    retry: false,
   })
 
 /**

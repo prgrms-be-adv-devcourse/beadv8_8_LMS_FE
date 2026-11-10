@@ -28,6 +28,36 @@ const appShellDefaults = [
   http.get('*/api/v1/coupons', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),
   ),
+  // 주문 확인의 쿠폰 할인 미리보기(기본은 쓸 수 있는 쿠폰 없음). 쿠폰을 적용하지 않은 결과면 화면은 강의 가격 합으로
+  // 결제하므로 가격은 0으로 둔다. 쿠폰 결제 테스트는 src/test/couponMock.ts로 덮어쓴다.
+  http.post('*/api/v1/coupons/me/quote', async ({ request }) => {
+    const { lectureIds } = (await request.json()) as { lectureIds: number[] }
+    const items = lectureIds.map((lectureId) => ({
+      lectureId,
+      price: 0,
+      discount: 0,
+      platformDiscount: 0,
+      sellerDiscount: 0,
+      buyerAmount: 0,
+      sellerPayout: 0,
+      coupons: [],
+    }))
+    return HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        recommended: true,
+        optimal: true,
+        items,
+        totalDiscount: 0,
+        totalBuyerAmount: 0,
+      },
+    })
+  }),
+  // 주문 확인의 사용 가능 쿠폰(기본은 없음)
+  http.get('*/api/v1/coupons/me/usable', () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: [] }),
+  ),
   // 관리자 대시보드의 쿠폰 심사 대기 카드(목록은 페이지 없는 배열)
   http.get('*/api/v1/coupons/admin', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),

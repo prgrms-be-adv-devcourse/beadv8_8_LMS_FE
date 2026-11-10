@@ -149,6 +149,14 @@ export type Sale = {
   lectureTitle: string
   /** 주문 시점 가격 */
   priceHp: number
+  /** 쿠폰 할인 합(판매자 부담 + 플랫폼 부담). 쿠폰을 쓰지 않았으면 0 */
+  discountHp: number
+  /** 할인 중 판매자가 부담한 몫. 지급액에서 빠진다 */
+  sellerDiscountHp: number
+  /** 할인 중 플랫폼이 부담한 몫. 지급액에서 빠지지 않는다 */
+  platformDiscountHp: number
+  /** 판매자 지급액 = 가격 − 판매자 부담 할인 */
+  sellerPayoutHp: number
   status: OrderItemStatus
   purchasedAt: string
   /** 구매일 + 31일 00:00 KST */
