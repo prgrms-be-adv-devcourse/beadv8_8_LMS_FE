@@ -640,3 +640,165 @@ describe('쿠폰 주문 오류', () => {
     )
   })
 })
+
+describe('쿠폰 할인 계산 실패', () => {
+  it('미리보기가 실패하면(503) 정가로 결제된다고 알리고 쿠폰 없이 결제한다. 다시 계산할 수 있다', async () => {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+      failNext: {
+        'POST /coupons/me/quote': orderProblem(
+          503,
+          'LECTURE_CATALOG_UNAVAILABLE',
+        ),
+      },
+    })
+    const created = mockCreateOrder(paidOrder(0), paidOrder(3000))
+    const dialog = await openCheckout()
+
+    const alert = await within(dialog).findByText(
+      /쿠폰을 확인할 수 없어 정가로 결제돼요/,
+    )
+    expect(alert).toHaveTextContent('쿠폰 할인을 계산하지 못했어요.')
+    // 실패한 미리보기는 저절로 다시 부르지 않는다
+    expect(coupons.quoteRequests).toHaveLength(1)
+    // 정가로, 쿠폰 없이 결제한다
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '쿠폰 없이 30,000 HP 결제' }),
+    )
+    await waitFor(() => expect(created.bodies).toEqual([{ lectureIds: [7] }]))
+  })
+
+  it('다시 계산하면 할인이 적용된다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+      failNext: {
+        'POST /coupons/me/quote': orderProblem(
+          503,
+          'LECTURE_CATALOG_UNAVAILABLE',
+        ),
+      },
+    })
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '다시 계산' }),
+    )
+    expect(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
+  it('강의 수가 많아 쿠폰을 쓸 수 없으면(400 COUPON_TOO_MANY_ITEMS) 그 이유를 보이고 쿠폰 없이 결제한다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      failNext: {
+        'POST /coupons/me/quote': orderProblem(400, 'COUPON_TOO_MANY_ITEMS'),
+      },
+    })
+    const dialog = await openCheckout()
+    expect(
+      await within(dialog).findByText(
+        /한 번에 쿠폰을 쓸 수 있는 강의 수를 넘었어요\./,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: '쿠폰 없이 30,000 HP 결제' }),
+    ).toBeEnabled()
+  })
+
+  it('직접 고른 쿠폰을 미리보기가 거절하면(409, memberCouponId) 그 쿠폰 옆에 사유를 보인다', async () => {
+    mockLectureDetail()
+    const second = memberCoupon({
+      memberCouponId: 12,
+      couponId: 2,
+      couponName: '3천 HP 할인',
+      stackable: true,
+    })
+    const coupons = mockCoupons({
+      usable: { 7: [sellerCoupon, second] },
+      quotes: [
+        quoteFor({ 11: { discount: 3000 }, 12: { discount: 3000 } }, [11]),
+      ],
+    })
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    coupons.failNext['POST /coupons/me/quote'] = orderProblem(
+      409,
+      'COUPON_NOT_APPLICABLE',
+      { memberCouponId: 12 },
+    )
+    await userEvent.click(
+      await within(dialog).findByRole('radio', { name: /3천 HP 할인/ }),
+    )
+    expect(
+      await within(dialog).findByText('3천 HP 할인:', {
+        exact: false,
+        selector: 'b',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('radio', {
+        name: /3천 HP 할인.*이 강의에 쓸 수 없는 쿠폰이에요/,
+      }),
+    ).toBeInTheDocument()
+    // 추천으로 돌아가거나 쿠폰 없이 결제할 수 있다
+    expect(
+      within(dialog).getByRole('button', { name: '추천으로 돌아가기' }),
+    ).toBeEnabled()
+  })
+
+  it('쓸 수 있는 쿠폰 목록을 못 불러오면 그 자리에서 다시 불러올 수 있다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      usable: { 7: [sellerCoupon] },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    let failOnce = true
+    server.use(
+      http.get('*/api/v1/coupons/me/usable', () => {
+        if (!failOnce) return undefined
+        failOnce = false
+        return orderProblem(400, 'BAD_REQUEST')
+      }),
+    )
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    expect(
+      await within(dialog).findByText(/쓸 수 있는 쿠폰을 불러오지 못했어요/),
+    ).toBeInTheDocument()
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(
+      await within(dialog).findByRole('radio', { name: /가을맞이 10% 할인/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('쿠폰 종류를 확인하지 못한 쿠폰은 어느 칸에도 넣지 않고 알린다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      // 종류가 없는 응답 + 쿠폰 상세도 없음(404)
+      usable: { 7: [{ ...sellerCoupon, couponType: undefined }] },
+      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+    })
+    const dialog = await openCheckout()
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    expect(
+      await within(dialog).findByText(
+        /쿠폰 종류를 확인하지 못해 고를 수 없어요: 가을맞이 10% 할인/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).queryByRole('radio', { name: /가을맞이 10% 할인/ }),
+    ).not.toBeInTheDocument()
+  })
+})

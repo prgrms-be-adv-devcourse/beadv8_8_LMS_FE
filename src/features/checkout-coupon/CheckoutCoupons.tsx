@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { discountLabel } from '@/entities/coupon/rules'
 import { formatNumber } from '@/shared/lib/money'
+import { InlineLoadError, Loading } from '@/shared/ui/QueryState'
 import {
   PLATFORM_UNAVAILABLE,
   type CheckoutLine,
@@ -20,7 +21,7 @@ export function CheckoutCoupons({
   coupons: State
   lines: CheckoutLine[]
 }) {
-  const { view, pending, failed, selections, orderError } = coupons
+  const { view, pending, failed, selections, orderError, quoteError } = coupons
   const [picking, setPicking] = useState(false)
   const manual = selections !== null
   const rejectedName =
@@ -54,7 +55,10 @@ export function CheckoutCoupons({
         </p>
       ) : failed ? (
         <div className="notice bad" role="alert">
-          쿠폰을 확인할 수 없어 정가로 결제돼요.
+          {quoteError?.memberCouponId && (
+            <b>{coupons.couponName(quoteError.memberCouponId) ?? '쿠폰'}: </b>
+          )}
+          {quoteError?.message} 쿠폰을 확인할 수 없어 정가로 결제돼요.
           <button
             type="button"
             className="btn sm"
@@ -227,7 +231,17 @@ function SlotPicker({
 }) {
   const noteId = useId()
   const name = `coupon-${lectureId}-${slot}`
-  const { coupons: list, typing, loading } = coupons.pickable(lectureId, slot)
+  const {
+    coupons: list,
+    typing,
+    loading,
+    error,
+    retry,
+    retrying,
+    untypedFailed,
+  } = coupons.pickable(lectureId, slot)
+  // 목록 상태(불러오는 중·실패·종류 확인 실패)는 판매자 칸에서 한 번만 보인다
+  const showStatus = slot === 'SELLER'
   const chosen = coupons.current.find(
     (s) =>
       s.lectureId === lectureId &&
@@ -268,11 +282,26 @@ function SlotPicker({
           {coupons.orderError?.memberCouponId === c.memberCouponId && (
             <span className="fine c-bad">{coupons.orderError.message}</span>
           )}
+          {coupons.quoteError?.memberCouponId === c.memberCouponId && (
+            <span className="fine c-bad">{coupons.quoteError.message}</span>
+          )}
         </label>
       ))}
-      {(loading || typing) && (
-        <p className="fine" role="status">
-          쿠폰을 확인하는 중…
+      {showStatus && (loading || typing) && (
+        <Loading label="쓸 수 있는 쿠폰을 확인하는 중…" />
+      )}
+      {showStatus && error && (
+        <InlineLoadError
+          title="쓸 수 있는 쿠폰을 불러오지 못했어요."
+          error={error}
+          retry={retry}
+          retrying={retrying}
+        />
+      )}
+      {showStatus && untypedFailed.length > 0 && (
+        <p className="fine">
+          쿠폰 종류를 확인하지 못해 고를 수 없어요:{' '}
+          {untypedFailed.map((c) => c.couponName).join(', ')}
         </p>
       )}
     </fieldset>

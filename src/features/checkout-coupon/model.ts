@@ -251,3 +251,20 @@ export function couponOrderError(
       return null
   }
 }
+
+/**
+ * 미리보기 실패 문구(code로 고른다). 특정 쿠폰 오류(409 COUPON_NOT_USABLE 등, 속성 memberCouponId)는 그 쿠폰 사유,
+ * 강의 수 초과(400 COUPON_TOO_MANY_ITEMS)는 따로 알린다. 실패하면 쿠폰 없이(정가로) 결제한다
+ */
+export function quoteFailure(code: string | undefined) {
+  switch (code) {
+    case 'COUPON_TOO_MANY_ITEMS':
+      return '한 번에 쿠폰을 쓸 수 있는 강의 수를 넘었어요.'
+    case 'COUPON_NOT_USABLE':
+    case 'COUPON_NOT_APPLICABLE':
+    case 'COUPON_STACKING_VIOLATION':
+      return couponRejectReason(code)
+    default:
+      return '쿠폰 할인을 계산하지 못했어요.'
+  }
+}

@@ -17,6 +17,7 @@ import {
   couponOrderError,
   hasPlatformCoupon,
   orderCouponsOf,
+  quoteFailure,
   quoteView,
   selectionsOf,
   withoutPlatform,
@@ -83,11 +84,10 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
   const details = useQueries({
     queries: missingType.map((couponId) => couponQuery(couponId)),
     combine: (results) =>
-      new Map(
-        missingType.map((couponId, i) => [couponId, results[i].data?.type]),
-      ),
+      new Map(missingType.map((couponId, i) => [couponId, results[i]])),
   })
-  const typeOf = (c: MemberCoupon) => c.couponType ?? details.get(c.couponId)
+  const typeOf = (c: MemberCoupon) =>
+    c.couponType ?? details.get(c.couponId)?.data?.type
   const find = (memberCouponId: number) =>
     allUsable.find((c) => c.memberCouponId === memberCouponId)
   const infoOf = (memberCouponId: number): CouponInfo | undefined => {
@@ -125,21 +125,40 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     /** 결제할 HP. 쿠폰을 적용했으면 미리보기 결제액, 아니면 강의 가격 합(쿠폰 없는 주문과 같다) */
     amount: orderCoupons ? quote.data!.totalBuyerAmount : listTotal,
     current,
-    /** 이 주문에 쓸 수 있는 내 쿠폰이 한 장이라도 있다(직접 선택을 보인다) */
-    hasUsable: allUsable.length > 0,
+    /** 이 주문에 쓸 수 있는 내 쿠폰이 한 장이라도 있거나 목록을 못 불러왔다(직접 선택을 보인다) */
+    // 목록을 못 불러온 강의가 있어도 직접 선택을 열어 그 자리에서 다시 불러오게 한다
+    hasUsable: allUsable.length > 0 || usable.some((r) => r.isError),
     /** 강의 한 칸에서 고를 수 있는 쿠폰과, 종류를 아직 모르는 쿠폰이 있는지 */
     pickable(lectureId: number, slot: CouponSlot) {
-      const list = usable[lectureIds.indexOf(lectureId)]?.data ?? []
-      const typed: PickableCoupon[] = list.map((c) => ({
+      const result = usable[lectureIds.indexOf(lectureId)]
+      const typed: PickableCoupon[] = (result?.data ?? []).map((c) => ({
         ...c,
         type: typeOf(c),
       }))
+      const untyped = typed.filter((c) => c.type === undefined)
       return {
         coupons: typed.filter((c) => c.type === slot),
-        typing: typed.some((c) => c.type === undefined),
-        loading: usable[lectureIds.indexOf(lectureId)]?.isPending ?? false,
+        /** 종류를 확인하는 중인 쿠폰이 있다 */
+        typing: untyped.some((c) => details.get(c.couponId)?.isPending),
+        /** 종류를 확인하지 못한 쿠폰(어느 칸에도 넣지 않는다) */
+        untypedFailed: untyped.filter((c) => details.get(c.couponId)?.isError),
+        loading: result?.isPending ?? false,
+        error: result?.error ?? null,
+        retry: () => void result?.refetch(),
+        retrying: result?.isRefetching ?? false,
       }
     },
+    /** 미리보기 실패 사유와, 특정 쿠폰 때문이면 그 쿠폰 */
+    quoteError: quote.isError
+      ? {
+          message: quoteFailure(
+            isApiError(quote.error) ? quote.error.code : undefined,
+          ),
+          memberCouponId:
+            (isApiError(quote.error) && quote.error.body?.memberCouponId) ||
+            null,
+        }
+      : null,
     /** 한 칸을 바꾸고 그 매핑으로 다시 계산한다(null이면 그 칸을 비운다) */
     choose(lectureId: number, slot: CouponSlot, memberCouponId: number | null) {
       setSelections(

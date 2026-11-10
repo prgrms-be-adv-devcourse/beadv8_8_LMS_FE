@@ -7,6 +7,7 @@ import {
   hasPlatformCoupon,
   orderCouponsOf,
   PLATFORM_UNAVAILABLE,
+  quoteFailure,
   quoteView,
   selectionsOf,
   UNNAMED_COUPON,
@@ -310,5 +311,20 @@ describe('플랫폼 쿠폰 주문 거절', () => {
         message: '이미 쓰였거나 만료된 쿠폰이에요.',
         drop: 'rejected',
       })
+  })
+})
+
+describe('미리보기 실패 문구', () => {
+  it('강의 수 초과·쿠폰 사유·그 밖', () => {
+    expect(quoteFailure('COUPON_TOO_MANY_ITEMS')).toBe(
+      '한 번에 쿠폰을 쓸 수 있는 강의 수를 넘었어요.',
+    )
+    expect(quoteFailure('COUPON_STACKING_VIOLATION')).toBe(
+      '함께 쓸 수 없는 쿠폰이에요.',
+    )
+    expect(quoteFailure('LECTURE_CATALOG_UNAVAILABLE')).toBe(
+      '쿠폰 할인을 계산하지 못했어요.',
+    )
+    expect(quoteFailure(undefined)).toBe('쿠폰 할인을 계산하지 못했어요.')
   })
 })
