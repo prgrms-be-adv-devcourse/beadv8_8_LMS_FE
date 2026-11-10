@@ -34,4 +34,9 @@ export type ProblemDetail = {
   couponCode?: string
   /** 그 오류가 특정 쿠폰 때문일 때 그 회원 쿠폰 ID(주문 거절·미리보기 오류) */
   memberCouponId?: number | null
+  /**
+   * 쿠폰 계산 거절(COUPON_CALCULATION_REJECTED)에서 쿠폰이 준, 회원에게 보여도 되는 사유 코드.
+   * 지금은 PLATFORM_FUNDING_DISABLED(플랫폼 재원이 없어 플랫폼 쿠폰을 쓸 수 없음)만 온다
+   */
+  couponDetail?: string
 }
