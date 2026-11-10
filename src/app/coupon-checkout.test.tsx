@@ -606,7 +606,7 @@ describe('쿠폰 주문 오류', () => {
       }),
     )
     // 미리보기에서 쿠폰 11은 판매자 쿠폰으로 왔지만, BE가 준 사유를 먼저 본다
-    const { dialog, pay } = await openWithCoupon()
+    const { coupons, dialog, pay } = await openWithCoupon()
     await userEvent.click(pay)
     expect(
       await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
@@ -616,6 +616,13 @@ describe('쿠폰 주문 오류', () => {
     expect(
       within(dialog).queryByText(/이미 쓰였거나 만료된 쿠폰이에요/),
     ).not.toBeInTheDocument()
+    // 거절된 쿠폰 11을 빼고(남은 쿠폰 없음) 다시 계산한다
+    await waitFor(() =>
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7],
+        selections: [],
+      }),
+    )
   })
 
   it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알리고, 플랫폼 쿠폰을 뺀 매핑으로 다시 계산한다', async () => {

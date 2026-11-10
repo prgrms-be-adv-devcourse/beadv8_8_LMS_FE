@@ -95,7 +95,7 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
           <span className="fine num">주문 번호 {summary.orderId}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          {paidHp !== undefined ? (
+          {paidHp != null ? (
             <b className="num">{formatNumber(paidHp)} HP</b>
           ) : (
             <span className="num">

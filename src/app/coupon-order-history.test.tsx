@@ -119,12 +119,31 @@ describe('쿠폰을 쓴 주문의 금액', () => {
     renderApp('/library/orders', 'USER')
 
     const card = await screen.findByRole('region', { name: '주문 번호 700' })
-    expect(await within(card).findByText('47,000 HP')).toBeInTheDocument()
-    expect(within(card).getByText('3,000 HP 할인')).toBeInTheDocument()
+    // 항목 줄은 상세에만 있으므로 상세가 올 때까지 기다린다
     expect(
-      within(card).getByText('30,000 HP · 3,000 HP 할인 · 결제 27,000 HP'),
+      await within(card).findByText(
+        '30,000 HP · 3,000 HP 할인 · 결제 27,000 HP',
+      ),
     ).toBeInTheDocument()
+    expect(within(card).getByText('47,000 HP')).toBeInTheDocument()
+    expect(within(card).getByText('3,000 HP 할인')).toBeInTheDocument()
     expect(within(card).getByText('20,000 HP')).toBeInTheDocument()
+  })
+
+  it('목록과 상세의 결제액이 다르면 상세 값을 보인다(처리 중 주문은 상세만 다시 부른다)', async () => {
+    mockOrders(discountedOrder())
+    // 목록은 47,000(할인 3,000), 상세는 그 뒤 바뀐 44,000(할인 6,000)
+    server.use(
+      http.get('*/api/v1/lectures/orders/700', () =>
+        rs({ ...discountedOrder(), discountHp: 6000, buyerAmountHp: 44000 }),
+      ),
+    )
+    renderApp('/library/orders', 'USER')
+
+    const card = await screen.findByRole('region', { name: '주문 번호 700' })
+    expect((await within(card).findByText('44,000 HP')).tagName).toBe('B')
+    expect(within(card).getByText('6,000 HP 할인')).toBeInTheDocument()
+    expect(within(card).queryByText('47,000 HP')).not.toBeInTheDocument()
   })
 
   /** 주문 700의 상세를 붙잡아 두었다가 release()로 실패시킨다(4xx라 다시 시도하지 않는다) */
