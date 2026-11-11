@@ -141,6 +141,32 @@ describe('쿠폰함', () => {
     expect(seen).toEqual(['?status=AVAILABLE'])
   })
 
+  it('플랫폼 쿠폰도 서버 상태대로 사용 가능과 중첩 안내를 보인다', async () => {
+    mockCoupons({
+      mine: [
+        memberCoupon({
+          couponName: '플랫폼 전 강의 2천',
+          couponType: 'PLATFORM',
+          targetType: 'ANY_LECTURE',
+          lectureId: null,
+          discountType: 'AMOUNT',
+          discountValue: 2000,
+          stackable: true,
+        }),
+      ],
+    })
+    renderApp('/library/coupons', 'USER')
+
+    const coupon = await item('플랫폼 전 강의 2천')
+    expect(within(coupon).getByText('사용 가능')).toHaveClass('pill', 'ok')
+    expect(coupon).toHaveTextContent('모든 강의')
+    expect(coupon).toHaveTextContent('2,000 HP 할인')
+    expect(
+      within(coupon).getByText('다른 쿠폰과 함께 사용 가능'),
+    ).toBeInTheDocument()
+    expect(within(coupon).queryByText(/사용할 수 없어요/)).toBeNull()
+  })
+
   it('상태 필터를 바꾸면 URL과 요청이 바뀌고, 모르는 값은 사용 가능으로 본다', async () => {
     mockCoupons({
       mine: [

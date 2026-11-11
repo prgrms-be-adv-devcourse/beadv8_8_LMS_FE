@@ -20,12 +20,10 @@ import { isApiError } from '@/shared/api/ApiError'
 import {
   chooseCoupon,
   couponOrderError,
-  hasPlatformCoupon,
   orderCouponsOf,
   quoteFailure,
   quoteView,
   selectionsOf,
-  withoutPlatform,
   type CheckoutLine,
   type CouponInfo,
   type CouponOrderError,
@@ -44,7 +42,6 @@ export type PickableCoupon = MemberCoupon & {
 /**
  * 주문 확인의 쿠폰 할인. 열면 추천(selections null)으로 미리보기를 부르고, 결과를 화면 모델로 바꾼다.
  * - 직접 고르면 그 매핑으로, '쿠폰 안 쓰기'는 []로, '추천으로 돌아가기'는 null로 다시 계산한다
- * - 플랫폼 쿠폰은 아직 쓸 수 없다. 추천에 섞여 오면 그 쿠폰만 뺀 매핑으로 한 번 더 계산한다
  * - 미리보기 중(다시 계산 포함)에는 결제를 막는다(pending)
  * - 쿠폰을 적용한 결과일 때만 결제액·주문 쿠폰을 미리보기 응답에서 가져온다. 쿠폰이 없거나 실패하면 쿠폰 없는 주문이다
  */
@@ -65,17 +62,8 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     setSelectionState(next)
   }
 
-  // 추천 결과. 플랫폼 쿠폰이 섞여 있으면 뺀 매핑을 대신 계산한다(플랫폼 재원이 없는 동안의 방어)
-  const recommend = useQuery({
-    ...couponQuoteQuery(lectureIds, null),
-    enabled: enabled && selections === null,
-  })
-  const platformFallback =
-    selections === null && recommend.data && hasPlatformCoupon(recommend.data)
-      ? withoutPlatform(recommend.data)
-      : null
   const quote = useQuery({
-    ...couponQuoteQuery(lectureIds, selections ?? platformFallback),
+    ...couponQuoteQuery(lectureIds, selections),
     enabled,
     // 다시 계산하는 동안 직전 결과의 결제액을 유지한다(그 사이 정가로 돌아가 충전 안내가 뜨지 않게). 결제는 계산이 끝난 뒤에만 된다
     placeholderData: keepPreviousData,
@@ -107,8 +95,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
       : undefined
   }
 
-  const pending =
-    quote.isFetching || (selections === null && recommend.isFetching)
+  const pending = quote.isFetching
   const settled = quote.isSuccess && !pending && !quote.isPlaceholderData
   // 다시 부르다 실패하면 남아 있는 이전 결과를 쓰지 않는다(정가 결제 안내와 어긋나지 않게)
   // 계산이 멈춰 있는데(오프라인 등) 남은 직전 결과도 쓰지 않는다(버튼은 정가인데 화면에 할인이 보이지 않게)
@@ -125,9 +112,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
   // 계산 중에는 직전 결과(쿠폰을 적용했으면 그 결제액)를 보인다. 결제 버튼은 그동안 막힌다
   const shownCoupons = orderCoupons ?? (pending ? orderCouponsOf(shown) : null)
   // 지금 화면에 적용된 매핑(고를 때 이 매핑에서 바꾼다)
-  const current = shown
-    ? selectionsOf(shown)
-    : (selections ?? platformFallback ?? [])
+  const current = shown ? selectionsOf(shown) : (selections ?? [])
 
   return {
     selections,
@@ -136,8 +121,6 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
     pending,
     /** 미리보기에 실패해 쿠폰 없이(정가로) 결제한다 */
     failed: quote.isError && !pending,
-    /** 추천에 플랫폼 쿠폰이 섞여 와서 빼고 다시 계산했다 */
-    platformRemoved: platformFallback !== null,
     orderCoupons,
     /** 결제할 HP. 쿠폰을 적용했으면 미리보기 결제액, 아니면 강의 가격 합(쿠폰 없는 주문과 같다) */
     amount: shownCoupons ? shownCoupons.expectedBuyerAmountHp : listTotal,
@@ -170,6 +153,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
       ? {
           message: quoteFailure(
             isApiError(quote.error) ? quote.error.code : undefined,
+            isApiError(quote.error) ? quote.error.body?.detail : undefined,
           ),
           memberCouponId:
             (isApiError(quote.error) && quote.error.body?.memberCouponId) ||
@@ -197,13 +181,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
      */
     handleOrderError(error: unknown) {
       if (!isApiError(error)) return false
-      // 거절된 쿠폰의 종류: 주문에 쓴 미리보기 결과에서, 없으면 사용 가능 쿠폰 목록에서
-      const typeOf = (memberCouponId: number) =>
-        quote.data?.items
-          .flatMap((item) => item.coupons)
-          .find((c) => c.memberCouponId === memberCouponId)?.couponType ??
-        infoOf(memberCouponId)?.couponType
-      const handled = couponOrderError(error.code, error.body, typeOf)
+      const handled = couponOrderError(error.code, error.body)
       if (!handled) return false
       const platformIds = new Set(
         quote.data?.items.flatMap((item) =>
@@ -226,9 +204,7 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
       if (remap) setSelectionState(dropped)
       // 매핑이 실제로 바뀌어 키가 달라질 때만 새 키가 알아서 부른다. 같으면 지금 미리보기를 다시 불러야 한다
       const keyChanged =
-        remap &&
-        JSON.stringify(dropped) !==
-          JSON.stringify(selections ?? platformFallback)
+        remap && JSON.stringify(dropped) !== JSON.stringify(selections)
       // 쿠폰이 목록에서 빠져도 이름을 보일 수 있게 지금 이름을 남긴다
       setOrderError({
         ...handled,
@@ -246,26 +222,11 @@ export function useCheckoutCoupons(lines: CheckoutLine[]) {
           keyChanged
             ? // 매핑이 바뀌면 새 키가 알아서 부른다(거절된 매핑은 다시 부르지 않는다)
               Promise.resolve()
-            : !remap && selections === null
-              ? // 추천 모드: 추천을 다시 받는다. 플랫폼 제외 매핑은 새 추천에서 다시 만들어지므로, 거절된 쿠폰이 든
-                // 지금 매핑을 다시 계산하지 않고 표시만 한다
-                Promise.all([
-                  queryClient.invalidateQueries({
-                    queryKey: quoteKey(null),
-                    exact: true,
-                  }),
-                  platformFallback &&
-                    queryClient.invalidateQueries({
-                      queryKey: quoteKey(platformFallback),
-                      exact: true,
-                      refetchType: 'none',
-                    }),
-                ])
-              : // 계산할 매핑이 그대로면(직접 고른 매핑, 뺀 결과가 같은 매핑) 그 미리보기만 다시 부른다
-                queryClient.invalidateQueries({
-                  queryKey: quoteKey(remap ? dropped : selections),
-                  exact: true,
-                }),
+            : // 추천 또는 직접 고른 매핑이 그대로면 그 미리보기만 다시 부른다
+              queryClient.invalidateQueries({
+                queryKey: quoteKey(remap ? dropped : selections),
+                exact: true,
+              }),
         ])
       }
       return true

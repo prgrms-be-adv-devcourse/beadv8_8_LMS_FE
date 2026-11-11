@@ -4,14 +4,13 @@ import {
   chooseCoupon,
   couponOrderError,
   couponRejectReason,
-  hasPlatformCoupon,
   orderCouponsOf,
+  PLATFORM_FUNDING_DISABLED,
   PLATFORM_UNAVAILABLE,
   quoteFailure,
   quoteView,
   selectionsOf,
   UNNAMED_COUPON,
-  withoutPlatform,
   type CouponInfo,
 } from './model'
 
@@ -149,6 +148,26 @@ describe('주문 본문의 쿠폰', () => {
     ).toBeNull()
     expect(orderCouponsOf(undefined)).toBeNull()
   })
+
+  it('플랫폼 쿠폰으로 결제액이 0이어도 매핑과 0 HP를 주문에 보낸다', () => {
+    const quote = couponQuote([
+      {
+        lectureId: 7,
+        price: 30000,
+        coupons: [
+          quoteCoupon({
+            memberCouponId: 21,
+            couponType: 'PLATFORM',
+            discount: 30000,
+          }),
+        ],
+      },
+    ])
+    expect(orderCouponsOf(quote)).toEqual({
+      coupons: [{ memberCouponId: 21, lectureId: 7 }],
+      expectedBuyerAmountHp: 0,
+    })
+  })
 })
 
 describe('직접 선택 규칙', () => {
@@ -212,27 +231,6 @@ describe('직접 선택 규칙', () => {
       { memberCouponId: 21, lectureId: 8 },
     ])
   })
-
-  it('플랫폼 쿠폰을 뺀 매핑', () => {
-    const quote = couponQuote([
-      {
-        lectureId: 7,
-        price: 30000,
-        coupons: [
-          quoteCoupon({ memberCouponId: 11, discount: 3000 }),
-          quoteCoupon({
-            memberCouponId: 21,
-            couponType: 'PLATFORM',
-            discount: 2000,
-          }),
-        ],
-      },
-    ])
-    expect(hasPlatformCoupon(quote)).toBe(true)
-    expect(withoutPlatform(quote)).toEqual([
-      { memberCouponId: 11, lectureId: 7 },
-    ])
-  })
 })
 
 describe('쿠폰 주문 오류', () => {
@@ -289,26 +287,21 @@ describe('쿠폰 주문 오류', () => {
   })
 })
 
-describe('플랫폼 쿠폰 주문 거절', () => {
-  const body = { couponCode: 'COUPON_NOT_USABLE', memberCouponId: 21 }
-
-  it('거절된 쿠폰이 플랫폼 쿠폰이면 플랫폼 쿠폰은 아직 쓸 수 없다고 하고 그 쿠폰을 뺀다', () => {
-    expect(
-      couponOrderError('COUPON_CALCULATION_REJECTED', body, () => 'PLATFORM'),
-    ).toEqual({
-      message: PLATFORM_UNAVAILABLE,
-      memberCouponId: 21,
-      requote: true,
-      drop: 'platform',
-    })
-  })
-
-  it('판매자 쿠폰이거나 종류를 모르면 일반 사용 불가 문구', () => {
-    for (const type of ['SELLER', undefined] as const)
+describe('일반 쿠폰 주문 거절', () => {
+  it('일반 계산·예약 거절은 해당 쿠폰만 빼고 플랫폼 전체를 제외하지 않는다', () => {
+    for (const code of [
+      'COUPON_CALCULATION_REJECTED',
+      'COUPON_RESERVATION_REJECTED',
+    ])
       expect(
-        couponOrderError('COUPON_CALCULATION_REJECTED', body, () => type),
-      ).toMatchObject({
+        couponOrderError(code, {
+          couponCode: 'COUPON_NOT_USABLE',
+          memberCouponId: 21,
+        }),
+      ).toEqual({
         message: '이미 쓰였거나 만료된 쿠폰이에요.',
+        memberCouponId: 21,
+        requote: true,
         drop: 'rejected',
       })
   })
@@ -327,44 +320,76 @@ describe('미리보기 실패 문구', () => {
     )
     expect(quoteFailure(undefined)).toBe('쿠폰 할인을 계산하지 못했어요.')
   })
+
+  it('공개 미리보기는 사용 불가 오류의 명시적인 재원 비활성 detail만 안내한다', () => {
+    expect(quoteFailure('COUPON_NOT_USABLE', PLATFORM_FUNDING_DISABLED)).toBe(
+      '지금은 플랫폼 쿠폰을 사용할 수 없어요.',
+    )
+    expect(quoteFailure('COUPON_NOT_USABLE')).toBe(
+      '이미 쓰였거나 만료된 쿠폰이에요.',
+    )
+    expect(quoteFailure('COUPON_NOT_USABLE', 'SOMETHING_ELSE')).toBe(
+      '이미 쓰였거나 만료된 쿠폰이에요.',
+    )
+    expect(
+      quoteFailure('COUPON_NOT_APPLICABLE', PLATFORM_FUNDING_DISABLED),
+    ).toBe('이 강의에 쓸 수 없는 쿠폰이에요.')
+    expect(quoteFailure(undefined, PLATFORM_FUNDING_DISABLED)).toBe(
+      '쿠폰 할인을 계산하지 못했어요.',
+    )
+  })
 })
 
 describe('계산 거절 사유(couponDetail)', () => {
-  it('플랫폼 재원 비활성이면 쿠폰 종류를 몰라도(판매자로 보여도) 플랫폼 문구를 먼저 고른다', () => {
+  it('사용 불가 계산 거절에 재원 비활성이 명시됐으면 플랫폼 쿠폰을 제외한다', () => {
     const body = {
       couponCode: 'COUPON_NOT_USABLE',
       memberCouponId: 11,
-      couponDetail: 'PLATFORM_FUNDING_DISABLED',
+      couponDetail: PLATFORM_FUNDING_DISABLED,
     }
-    for (const type of ['SELLER', undefined] as const)
-      expect(
-        couponOrderError('COUPON_CALCULATION_REJECTED', body, () => type),
-      ).toEqual({
-        message: PLATFORM_UNAVAILABLE,
-        memberCouponId: 11,
-        requote: true,
-        drop: 'platform',
-      })
+    expect(couponOrderError('COUPON_CALCULATION_REJECTED', body)).toEqual({
+      message: PLATFORM_UNAVAILABLE,
+      memberCouponId: 11,
+      requote: true,
+      drop: 'platform',
+    })
   })
 
-  it('사유가 없거나 다른 값이면 지금처럼 쿠폰 종류로 고른다. 예약 거절에는 사유를 보지 않는다', () => {
+  it('사유가 없거나 다르거나 다른 오류와 함께 왔으면 일반 거절로 처리한다', () => {
     const base = { couponCode: 'COUPON_NOT_USABLE', memberCouponId: 11 }
+    expect(couponOrderError('COUPON_CALCULATION_REJECTED', base)).toMatchObject(
+      {
+        message: '이미 쓰였거나 만료된 쿠폰이에요.',
+        drop: 'rejected',
+      },
+    )
     expect(
-      couponOrderError('COUPON_CALCULATION_REJECTED', base, () => 'SELLER'),
-    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+      couponOrderError('COUPON_CALCULATION_REJECTED', {
+        ...base,
+        couponDetail: 'SOMETHING_ELSE',
+      }),
+    ).toMatchObject({
+      message: '이미 쓰였거나 만료된 쿠폰이에요.',
+      drop: 'rejected',
+    })
     expect(
-      couponOrderError(
-        'COUPON_CALCULATION_REJECTED',
-        { ...base, couponDetail: 'SOMETHING_ELSE' },
-        () => 'SELLER',
-      ),
-    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+      couponOrderError('COUPON_CALCULATION_REJECTED', {
+        ...base,
+        couponCode: 'COUPON_NOT_APPLICABLE',
+        couponDetail: PLATFORM_FUNDING_DISABLED,
+      }),
+    ).toMatchObject({
+      message: '이 강의에 쓸 수 없는 쿠폰이에요.',
+      drop: 'rejected',
+    })
     expect(
-      couponOrderError(
-        'COUPON_RESERVATION_REJECTED',
-        { ...base, couponDetail: 'PLATFORM_FUNDING_DISABLED' },
-        () => 'SELLER',
-      ),
-    ).toMatchObject({ message: '이미 쓰였거나 만료된 쿠폰이에요.' })
+      couponOrderError('COUPON_RESERVATION_REJECTED', {
+        ...base,
+        couponDetail: PLATFORM_FUNDING_DISABLED,
+      }),
+    ).toMatchObject({
+      message: '이미 쓰였거나 만료된 쿠폰이에요.',
+      drop: 'rejected',
+    })
   })
 })

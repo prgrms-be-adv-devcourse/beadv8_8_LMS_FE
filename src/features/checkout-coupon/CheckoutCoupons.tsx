@@ -1,13 +1,8 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { discountLabel } from '@/entities/coupon/rules'
 import { formatNumber } from '@/shared/lib/money'
 import { InlineLoadError, Loading } from '@/shared/ui/QueryState'
-import {
-  PLATFORM_UNAVAILABLE,
-  type CheckoutLine,
-  type CouponRow,
-  type CouponSlot,
-} from './model'
+import { type CheckoutLine, type CouponRow, type CouponSlot } from './model'
 import type { CheckoutCoupons as State } from './useCheckoutCoupons'
 import styles from './CheckoutCoupons.module.css'
 
@@ -68,11 +63,6 @@ export function CheckoutCoupons({
             : '이 주문에 쓸 수 있는 쿠폰이 없어요.'}
         </p>
       ) : null}
-      {coupons.platformRemoved && !pending && (
-        <p className="fine" role="status">
-          {PLATFORM_UNAVAILABLE} 플랫폼 쿠폰을 빼고 다시 계산했어요.
-        </p>
-      )}
       {view?.applied && !pending && (
         <div className="rows">
           {view.rows.map((row) => (
@@ -226,7 +216,6 @@ function SlotPicker({
   label: string
   coupons: State
 }) {
-  const noteId = useId()
   const name = `coupon-${lectureId}-${slot}`
   const {
     coupons: list,
@@ -244,20 +233,9 @@ function SlotPicker({
       s.lectureId === lectureId &&
       list.some((c) => c.memberCouponId === s.memberCouponId),
   )?.memberCouponId
-  // 플랫폼 쿠폰은 재원이 없는 동안 고를 수 없다
-  const blocked = slot === 'PLATFORM'
   return (
-    <fieldset
-      className={styles.slot}
-      disabled={blocked || coupons.pending}
-      aria-describedby={blocked ? noteId : undefined}
-    >
+    <fieldset className={styles.slot} disabled={coupons.pending}>
       <legend>{label}</legend>
-      {blocked && (
-        <p id={noteId} className="fine">
-          {PLATFORM_UNAVAILABLE}
-        </p>
-      )}
       <label className={styles.option}>
         <input
           type="radio"
