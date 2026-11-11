@@ -23,6 +23,8 @@ const VIEWABLE = new Set([
 export function mockOrders(...seed: Order[]) {
   const orders = structuredClone(seed)
   let cancelLater = false
+  // 주문 목록에 할인 필드(discountHp·buyerAmountHp)가 없던 옛 응답을 흉내 낸다
+  let legacySummary = false
   const detailCalls = new Map<number, number>()
   const item = (orderItemId: number): OrderItem | undefined =>
     orders.flatMap((o) => o.items).find((i) => i.orderItemId === orderItemId)
@@ -61,6 +63,9 @@ export function mockOrders(...seed: Order[]) {
       const content: OrderSummary[] = orders.map((o) => ({
         orderId: o.orderId,
         totalAmountHp: o.totalAmountHp,
+        ...(legacySummary
+          ? {}
+          : { discountHp: o.discountHp, buyerAmountHp: o.buyerAmountHp }),
         status: o.status,
         progress: o.progress,
         processingStatus: o.processingStatus,
@@ -125,5 +130,44 @@ export function mockOrders(...seed: Order[]) {
     cancelLater() {
       cancelLater = true
     },
+    /** 이후 주문 목록을 할인 필드 없는 옛 응답으로 준다 */
+    legacySummary() {
+      legacySummary = true
+    },
+  }
+}
+
+/** 주문 생성 요청 본문(OrderCreateRequest). 쿠폰이 없으면 coupons·expectedBuyerAmountHp가 없다 */
+export type OrderCreateBody = {
+  lectureIds: number[]
+  coupons?: { memberCouponId: number; lectureId: number }[]
+  expectedBuyerAmountHp?: number
+}
+
+/** 주문 생성 응답 차례 한 칸. 주문이면 201(PAID)·202(그 밖), Response면 그대로(409·503 등) */
+export type OrderCreateReply = Order | Response
+
+/**
+ * 주문 생성(POST /lectures/orders)을 흉내 낸다. 본문을 순서대로 기록하고, 응답은 차례대로 쓴다(마지막 값은 계속 쓴다).
+ * 주문으로 답하면 그 주문의 상세·목록(mockOrders)을 그때 켜서 완료 화면이 결과를 볼 수 있게 한다.
+ * PAID는 201, 결제 처리 중·실패는 202다(BE와 같음).
+ */
+export function mockCreateOrder(...replies: OrderCreateReply[]) {
+  const bodies: OrderCreateBody[] = []
+  let orders: ReturnType<typeof mockOrders> | undefined
+  server.use(
+    http.post('*/api/v1/lectures/orders', async ({ request }) => {
+      bodies.push((await request.json()) as OrderCreateBody)
+      const reply = replies.length > 1 ? replies.shift()! : replies[0]
+      if (reply instanceof Response) return reply
+      orders = mockOrders(reply)
+      return rs(reply, reply.status === 'PAID' ? 201 : 202)
+    }),
+  )
+  return {
+    /** 받은 주문 요청 본문(순서대로) */
+    bodies,
+    /** 마지막으로 만든 주문의 상세·목록 흉내. 주문을 만든 뒤에만 있다 */
+    orders: () => orders,
   }
 }

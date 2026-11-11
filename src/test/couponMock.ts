@@ -2,10 +2,15 @@ import { http, HttpResponse } from 'msw'
 import type {
   Coupon,
   CouponCreateInput,
+  CouponQuote,
+  CouponSelection,
   CouponStatus,
   CouponSummary,
+  CouponType,
   IssueStatus,
   MemberCoupon,
+  QuoteCoupon,
+  QuoteItem,
 } from '@/entities/coupon/types'
 import { ME_ID, rs } from './renderApp'
 import { server } from './server'
@@ -93,8 +98,72 @@ export const memberCoupon = (
   discountValue: 10,
   maxDiscountAmount: null,
   stackable: false,
+  couponType: 'SELLER',
   ...patch,
 })
+
+/** 미리보기 결과의 쿠폰 한 장. discount만 주면 종류에 따라 부담 몫(판매자·플랫폼)을 채운다 */
+export const quoteCoupon = (
+  patch: Partial<QuoteCoupon> & { memberCouponId: number },
+): QuoteCoupon => {
+  const couponType: CouponType = patch.couponType ?? 'SELLER'
+  const discount = patch.discount ?? 0
+  return {
+    couponId: patch.memberCouponId,
+    couponType,
+    applyOrder: couponType === 'SELLER' ? 1 : 2,
+    baseAmount: 0,
+    discount,
+    platformAmount: couponType === 'PLATFORM' ? discount : 0,
+    sellerAmount: couponType === 'SELLER' ? discount : 0,
+    expectedGeneration: 1,
+    policyVersion: 1,
+    ...patch,
+  }
+}
+
+/**
+ * 미리보기 결과(BE CouponCalculateResponse). 강의별 가격과 쓴 쿠폰만 주면 할인·결제액·지급액·합계를 BE 식대로 채운다
+ * (할인 = 쿠폰 할인 합, 결제액 = 가격 − 할인, 지급액 = 가격 − 판매자 부담).
+ */
+export const couponQuote = (
+  items: { lectureId: number; price: number; coupons?: QuoteCoupon[] }[],
+  flags: { recommended?: boolean; optimal?: boolean } = {},
+): CouponQuote => {
+  const full: QuoteItem[] = items.map(({ lectureId, price, coupons = [] }) => {
+    const sum = (pick: (c: QuoteCoupon) => number) =>
+      coupons.reduce((total, c) => total + pick(c), 0)
+    const discount = sum((c) => c.discount)
+    const sellerDiscount = sum((c) => c.sellerAmount)
+    return {
+      lectureId,
+      price,
+      discount,
+      platformDiscount: sum((c) => c.platformAmount),
+      sellerDiscount,
+      buyerAmount: price - discount,
+      sellerPayout: price - sellerDiscount,
+      coupons,
+    }
+  })
+  return {
+    recommended: flags.recommended ?? false,
+    optimal: flags.optimal ?? false,
+    items: full,
+    totalDiscount: full.reduce((t, i) => t + i.discount, 0),
+    totalBuyerAmount: full.reduce((t, i) => t + i.buyerAmount, 0),
+  }
+}
+
+/** 미리보기 요청 본문 */
+export type QuoteRequest = {
+  lectureIds: number[]
+  selections: CouponSelection[] | null
+}
+
+/** 미리보기 응답 차례 한 칸. 함수면 요청을 보고 결과나 오류 응답을 만든다 */
+export type QuoteReply =
+  CouponQuote | ((request: QuoteRequest) => CouponQuote | Response)
 
 const emptyLecturePage = (size: number) =>
   rs({
@@ -145,6 +214,23 @@ export type CouponMockState = {
   failNext: Record<string, Response>
   /** 생성 때 붙일 다음 쿠폰 ID */
   nextId: number
+  /** 강의별로 지금 쓸 수 있는 내 쿠폰(GET /coupons/me/usable?lectureId=). 키는 강의 ID */
+  usable: Record<number, MemberCoupon[]>
+  /** 쿠폰 정책 종류(GET /coupons/{couponId}의 type). 키는 쿠폰 ID. 없는 쿠폰은 404 */
+  couponTypes: Record<number, CouponType>
+  /**
+   * 미리보기 응답 차례. 부를 때마다 앞에서 하나씩 쓰고, 마지막 값은 계속 쓴다.
+   * 비어 있으면 쿠폰 없이 가격만 담은 결과(가격은 quotePrices, 없으면 0)
+   */
+  quotes: QuoteReply[]
+  /** 기본 미리보기의 강의 가격. 키는 강의 ID */
+  quotePrices: Record<number, number>
+  /** 받은 미리보기 요청(순서대로) */
+  quoteRequests: QuoteRequest[]
+  /** 쿠폰 상세 요청 수(키: 쿠폰 ID). 종류를 캐시로 다시 쓰는지 본다 */
+  detailCalls: Record<number, number>
+  /** 사용 가능 쿠폰 요청 수(키: 강의 ID). 주문 거절 뒤 다시 부르는지 본다 */
+  usableCalls: Record<number, number>
 }
 
 /** 상태 전이(BE Coupon 도메인과 같은 규칙만 흉내 낸다. 맞지 않으면 409 INVALID_COUPON_STATUS) */
@@ -174,6 +260,13 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
     rejectReasons: [],
     failNext: {},
     nextId: 100,
+    usable: {},
+    couponTypes: {},
+    quotes: [],
+    quotePrices: {},
+    quoteRequests: [],
+    detailCalls: {},
+    usableCalls: {},
     ...init,
   }
 
@@ -227,7 +320,41 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
       const status = new URL(request.url).searchParams.get('status')
       return failure('GET /coupons/me') ?? rs(byStatus(state.mine, status))
     }),
-    http.get('*/api/v1/coupons/me/usable', () => rs([])),
+    http.get('*/api/v1/coupons/me/usable', ({ request }) => {
+      const lectureId = Number(
+        new URL(request.url).searchParams.get('lectureId'),
+      )
+      state.usableCalls[lectureId] = (state.usableCalls[lectureId] ?? 0) + 1
+      return (
+        failure(`GET /coupons/me/usable?lectureId=${lectureId}`) ??
+        rs(state.usable[lectureId] ?? [])
+      )
+    }),
+    http.post('*/api/v1/coupons/me/quote', async ({ request }) => {
+      const body = (await request.json()) as QuoteRequest
+      // 생략한 selections는 null(추천)로 기록한다.
+      const quoteRequest: QuoteRequest = {
+        lectureIds: body.lectureIds,
+        selections: body.selections ?? null,
+      }
+      state.quoteRequests.push(quoteRequest)
+      const failed = failure('POST /coupons/me/quote')
+      if (failed) return failed
+      const reply =
+        state.quotes.length > 1 ? state.quotes.shift()! : state.quotes[0]
+      if (reply === undefined)
+        return rs(
+          couponQuote(
+            quoteRequest.lectureIds.map((lectureId) => ({
+              lectureId,
+              price: state.quotePrices[lectureId] ?? 0,
+            })),
+            { recommended: quoteRequest.selections === null },
+          ),
+        )
+      const result = typeof reply === 'function' ? reply(quoteRequest) : reply
+      return result instanceof Response ? result : rs(result)
+    }),
     http.post(
       '*/api/v1/coupons/:couponId/issue-requests',
       async ({ params, request }) => {
@@ -354,6 +481,15 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
         )
       },
     ),
+    // 쿠폰 정책 한 장(종류 확인용). me·seller·admin 경로 뒤에 둔다.
+    http.get('*/api/v1/coupons/:couponId', ({ params }) => {
+      const couponId = Number(params.couponId)
+      state.detailCalls[couponId] = (state.detailCalls[couponId] ?? 0) + 1
+      const type = state.couponTypes[couponId]
+      return type
+        ? rs(couponSummary({ couponId, type }))
+        : couponProblem(404, 'COUPON_NOT_FOUND', '쿠폰을 찾을 수 없습니다.')
+    }),
     // 강의에서 받을 수 있는 쿠폰. '/coupons/:couponId' 같은 경로와 겹치지 않게 맨 뒤에 둔다.
     http.get('*/api/v1/coupons', ({ request }) => {
       const lectureId = Number(

@@ -101,6 +101,54 @@ export type MemberCoupon = {
   discountValue: number
   maxDiscountAmount: number | null
   stackable: boolean
+  /**
+   * 쿠폰 종류(`/coupons/me`·`/coupons/me/usable`). 결제 화면은 이것으로 판매자·플랫폼 칸을 나눈다.
+   * 이 필드가 없는 응답이면 쿠폰 상세(GET /coupons/{couponId})의 `type`으로 채운다(대체 조회)
+   */
+  couponType?: CouponType
+}
+
+/** 쿠폰을 쓸 강의 매핑(미리보기 selections·주문 coupons 한 줄) */
+export type CouponSelection = { memberCouponId: number; lectureId: number }
+
+/** 미리보기 결과의 쿠폰 한 장(CouponCalculateResponse.Coupon). 이름은 없다(usable의 couponName으로 맞춘다) */
+export type QuoteCoupon = {
+  memberCouponId: number
+  couponId: number
+  couponType: CouponType
+  /** 같은 강의 안 적용 순서(판매자 먼저) */
+  applyOrder: number
+  /** 이 쿠폰을 적용하기 전 금액 */
+  baseAmount: number
+  discount: number
+  platformAmount: number
+  sellerAmount: number
+  expectedGeneration: number
+  policyVersion: number
+}
+
+/** 미리보기 결과의 강의 한 줄(요청 강의 순서) */
+export type QuoteItem = {
+  lectureId: number
+  price: number
+  discount: number
+  platformDiscount: number
+  sellerDiscount: number
+  buyerAmount: number
+  sellerPayout: number
+  coupons: QuoteCoupon[]
+}
+
+/**
+ * POST /coupons/me/quote 응답(CouponCalculateResponse). 상태를 바꾸지 않는다.
+ * recommended: 추천으로 계산했다(selections 생략), optimal: 추천이 최대 할인임을 보장한다
+ */
+export type CouponQuote = {
+  recommended: boolean
+  optimal: boolean
+  items: QuoteItem[]
+  totalDiscount: number
+  totalBuyerAmount: number
 }
 
 /** 쿠폰 생성(판매자 신청·관리자 생성) 요청 본문(CouponCreateRequest) */

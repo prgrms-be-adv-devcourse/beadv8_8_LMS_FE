@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { orderQuery, ordersQuery } from '@/entities/order/api'
+import { COUPON_RETRY } from '@/entities/order/discount'
 import { itemProcessingStatus } from '@/entities/order/processing'
 import type {
   OrderItem,
@@ -80,6 +81,11 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
   const [canceling, setCanceling] = useState<OrderItem | null>(null)
   const status = order?.status ?? summary.status
   const orderNote = lookup(ORDER_NOTE, status)
+  // 결제액·할인은 목록 응답에 있다. 상세를 받으면 상세 값을 쓰고(처리 중 주문은 상세만 다시 부른다),
+  // 둘 다 없으면(필드가 없는 옛 목록 응답 + 상세 전·실패) 할인 전 합임을 밝힌다
+  const paidHp = order?.buyerAmountHp ?? summary.buyerAmountHp
+  const discountHp = order?.discountHp ?? summary.discountHp ?? 0
+  const discounted = discountHp > 0
 
   return (
     <section className="panel" aria-label={`주문 번호 ${summary.orderId}`}>
@@ -89,8 +95,22 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
           <span className="fine num">주문 번호 {summary.orderId}</span>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <b className="num">{formatNumber(summary.totalAmountHp)} HP</b>
-          {orderNote && <div className="fine">{orderNote}</div>}
+          {paidHp != null ? (
+            <b className="num">{formatNumber(paidHp)} HP</b>
+          ) : (
+            <span className="num">
+              주문 금액(할인 전) {formatNumber(summary.totalAmountHp)} HP
+            </span>
+          )}
+          {discounted && (
+            <div className="fine num">{formatNumber(discountHp)} HP 할인</div>
+          )}
+          {orderNote && (
+            <div className="fine">
+              {orderNote}
+              {discounted && status === 'HOLD_FAILED' && ` · ${COUPON_RETRY}`}
+            </div>
+          )}
         </div>
       </div>
       <ProcessingNote
@@ -107,7 +127,9 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
               <div className="row-main">
                 <span className="row-title">{item.lectureTitle}</span>
                 <span className="fine num">
-                  {formatNumber(item.priceHp)} HP
+                  {item.discountHp > 0
+                    ? `${formatNumber(item.priceHp)} HP · ${formatNumber(item.discountHp)} HP 할인 · 결제 ${formatNumber(item.buyerAmountHp)} HP`
+                    : `${formatNumber(item.priceHp)} HP`}
                 </span>
                 <ProcessingNote status={itemProcessingStatus(item)} />
               </div>
@@ -142,7 +164,7 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
             orderItemId: canceling.orderItemId,
             title: canceling.lectureTitle,
           }}
-          priceHp={canceling.priceHp}
+          refundHp={canceling.buyerAmountHp}
           onClose={() => setCanceling(null)}
         />
       )}

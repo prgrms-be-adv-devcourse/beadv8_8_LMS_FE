@@ -30,4 +30,13 @@ export type ProblemDetail = {
   reasons?: { code: string; message: string; availableAt?: string | null }[]
   /** 탈퇴 회원 로그인(WITHDRAWN_RESTORABLE)일 때 복구할 수 있는 마지막 시각(LocalDateTime, KST) */
   restorableUntil?: string
+  /** 쿠폰을 쓴 주문이 거절됐을 때(COUPON_CALCULATION_REJECTED·COUPON_RESERVATION_REJECTED) 쿠폰 모듈의 오류 코드 */
+  couponCode?: string
+  /** 그 오류가 특정 쿠폰 때문일 때 그 회원 쿠폰 ID(주문 거절·미리보기 오류) */
+  memberCouponId?: number | null
+  /**
+   * 쿠폰 계산 거절(COUPON_CALCULATION_REJECTED)에서 쿠폰이 준, 회원에게 보여도 되는 사유 코드.
+   * 지금은 PLATFORM_FUNDING_DISABLED(플랫폼 재원이 없어 플랫폼 쿠폰을 쓸 수 없음)만 온다
+   */
+  couponDetail?: string
 }

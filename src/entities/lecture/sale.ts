@@ -1,3 +1,4 @@
+import { formatNumber } from '@/shared/lib/money'
 import type { Sale } from './types'
 
 export type SaleState =
@@ -49,4 +50,15 @@ const REFUNDED: ReadonlySet<SaleState | undefined> = new Set([
 /** 구매 취소·반환한(돌려주는 중인 것 포함) 판매는 지급하지 않는다. */
 export function isRefunded(sale: SaleStateInput) {
   return REFUNDED.has(saleStateOf(sale))
+}
+
+/**
+ * 쿠폰 할인의 부담 몫 안내. 할인이 없으면 null.
+ * 판매자 부담만 지급액(sellerPayoutHp = 가격 − 판매자 부담)에서 빠지고, 플랫폼 부담은 빠지지 않는다
+ */
+export function saleShareLabel(
+  sale: Pick<Sale, 'discountHp' | 'sellerDiscountHp' | 'platformDiscountHp'>,
+) {
+  if (sale.discountHp <= 0) return null
+  return `판매자 부담 ${formatNumber(sale.sellerDiscountHp)} · 플랫폼 부담 ${formatNumber(sale.platformDiscountHp)}`
 }
