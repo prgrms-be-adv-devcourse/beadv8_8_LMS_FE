@@ -102,6 +102,18 @@ const sellerCoupon = memberCoupon({
   couponName: '가을맞이 10% 할인',
 })
 
+const platformCoupon = memberCoupon({
+  memberCouponId: 21,
+  couponId: 5,
+  couponName: '전 강의 2천',
+  couponType: 'PLATFORM',
+  targetType: 'ANY_LECTURE',
+  lectureId: null,
+  discountType: 'AMOUNT',
+  discountValue: 2000,
+  stackable: true,
+})
+
 async function openCheckout() {
   renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
   await userEvent.click(
@@ -389,42 +401,65 @@ describe('주문 확인 쿠폰 직접 선택', () => {
     )
   })
 
-  it('플랫폼 쿠폰 칸은 막아 두고 이유를 알린다', async () => {
+  it('플랫폼 쿠폰을 직접 골라 판매자 쿠폰과 함께 계산하고 주문한다', async () => {
     mockLectureDetail()
-    mockCoupons({
+    const coupons = mockCoupons({
       usable: {
-        7: [
-          sellerCoupon,
-          memberCoupon({
-            memberCouponId: 21,
-            couponId: 5,
-            couponName: '전 강의 2천',
-            couponType: 'PLATFORM',
-          }),
-        ],
+        7: [{ ...sellerCoupon, stackable: true }, platformCoupon],
       },
-      couponTypes: { 1: 'SELLER' },
-      quotes: [quoteFor({ 11: { discount: 3000 } }, [11])],
+      quotes: [
+        quoteFor(
+          { 11: { discount: 3000 }, 21: { discount: 2000, type: 'PLATFORM' } },
+          [11],
+        ),
+      ],
     })
+    const created = mockCreateOrder(paidOrder(5000))
     const dialog = await openCheckout()
     await userEvent.click(
       await within(dialog).findByRole('button', { name: '쿠폰 직접 고르기' }),
     )
     const platform = within(dialog).getByRole('group', { name: '플랫폼 쿠폰' })
-    expect(platform).toBeDisabled()
-    expect(platform).toHaveAccessibleDescription(
-      '플랫폼 쿠폰은 아직 사용할 수 없어요.',
-    )
+    const pick = within(platform).getByRole('radio', { name: /전 강의 2천/ })
+    await waitFor(() => expect(pick).toBeEnabled())
+    expect(platform).not.toHaveAccessibleDescription()
+    await userEvent.click(pick)
+
+    const pay = await within(dialog).findByRole('button', {
+      name: '25,000 HP 결제',
+    })
+    expect(pick).toBeChecked()
     expect(
-      within(platform).getByRole('radio', { name: /전 강의 2천/ }),
-    ).toBeDisabled()
+      within(dialog).getByRole('radio', { name: /가을맞이 10% 할인/ }),
+    ).toBeChecked()
+    expect(coupons.quoteRequests.at(-1)).toEqual({
+      lectureIds: [7],
+      selections: [
+        { memberCouponId: 11, lectureId: 7 },
+        { memberCouponId: 21, lectureId: 7 },
+      ],
+    })
+    await userEvent.click(pay)
+    await waitFor(() =>
+      expect(created.bodies).toEqual([
+        {
+          lectureIds: [7],
+          coupons: [
+            { memberCouponId: 11, lectureId: 7 },
+            { memberCouponId: 21, lectureId: 7 },
+          ],
+          expectedBuyerAmountHp: 25000,
+        },
+      ]),
+    )
   })
 
-  it('추천에 플랫폼 쿠폰이 섞여 오면 그 쿠폰만 빼고 다시 계산해 알린다', async () => {
+  it('판매자·플랫폼 추천을 그대로 적용하고 추가 계산 없이 두 쿠폰으로 주문한다', async () => {
     mockLectureDetail()
     const coupons = mockCoupons({
-      usable: { 7: [sellerCoupon] },
-      couponTypes: { 1: 'SELLER' },
+      usable: {
+        7: [{ ...sellerCoupon, stackable: true }, platformCoupon],
+      },
       quotes: [
         quoteFor(
           { 11: { discount: 3000 }, 21: { discount: 2000, type: 'PLATFORM' } },
@@ -432,27 +467,143 @@ describe('주문 확인 쿠폰 직접 선택', () => {
         ),
       ],
     })
-    const created = mockCreateOrder(paidOrder(3000))
+    const created = mockCreateOrder(paidOrder(5000))
     const dialog = await openCheckout()
 
-    expect(
-      await within(dialog).findByText(
-        /플랫폼 쿠폰은 아직 사용할 수 없어요\. 플랫폼 쿠폰을 빼고/,
-      ),
-    ).toBeInTheDocument()
+    expect(await within(dialog).findByText('최대 할인')).toBeInTheDocument()
+    const row = within(dialog).getByRole('group', { name: '첫 방송 세팅' })
+    expect(row).toHaveTextContent('가을맞이 10% 할인 · −3,000 HP')
+    expect(row).toHaveTextContent('전 강의 2천 · −2,000 HP')
+    expect(row).toHaveTextContent('25,000 HP')
+    expect(within(dialog).getByText('쿠폰 할인').nextSibling).toHaveTextContent(
+      '−5,000',
+    )
     expect(coupons.quoteRequests).toEqual([
       { lectureIds: [7], selections: null },
-      { lectureIds: [7], selections: [{ memberCouponId: 11, lectureId: 7 }] },
     ])
     await userEvent.click(
-      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+      within(dialog).getByRole('button', { name: '25,000 HP 결제' }),
     )
     await waitFor(() =>
-      expect(created.bodies[0]?.coupons).toEqual([
-        { memberCouponId: 11, lectureId: 7 },
+      expect(created.bodies).toEqual([
+        {
+          lectureIds: [7],
+          coupons: [
+            { memberCouponId: 11, lectureId: 7 },
+            { memberCouponId: 21, lectureId: 7 },
+          ],
+          expectedBuyerAmountHp: 25000,
+        },
       ]),
     )
+    expect(coupons.quoteRequests).toHaveLength(1)
   })
+
+  it.each([
+    {
+      slot: '판매자 쿠폰',
+      name: '판매자 단독 7천',
+      id: 13,
+      discount: 7000,
+      otherSlot: '플랫폼 쿠폰',
+      otherName: '전 강의 2천',
+      otherId: 21,
+      otherDiscount: 2000,
+    },
+    {
+      slot: '플랫폼 쿠폰',
+      name: '플랫폼 단독 6천',
+      id: 23,
+      discount: 6000,
+      otherSlot: '판매자 쿠폰',
+      otherName: '가을맞이 10% 할인',
+      otherId: 11,
+      otherDiscount: 3000,
+    },
+  ])(
+    '$slot의 단독 쿠폰을 고르면 반대 칸을 비우고, 반대 칸을 다시 고르면 단독 쿠폰을 뺀다',
+    async ({
+      slot,
+      name,
+      id,
+      discount,
+      otherSlot,
+      otherName,
+      otherId,
+      otherDiscount,
+    }) => {
+      mockLectureDetail()
+      const coupons = mockCoupons({
+        usable: {
+          7: [
+            { ...sellerCoupon, stackable: true },
+            platformCoupon,
+            memberCoupon({
+              memberCouponId: 13,
+              couponId: 3,
+              couponName: '판매자 단독 7천',
+              discountType: 'AMOUNT',
+              discountValue: 7000,
+            }),
+            memberCoupon({
+              ...platformCoupon,
+              memberCouponId: 23,
+              couponId: 6,
+              couponName: '플랫폼 단독 6천',
+              discountValue: 6000,
+              stackable: false,
+            }),
+          ],
+        },
+        quotes: [
+          quoteFor(
+            {
+              11: { discount: 3000 },
+              13: { discount: 7000 },
+              21: { discount: 2000, type: 'PLATFORM' },
+              23: { discount: 6000, type: 'PLATFORM' },
+            },
+            [11, 21],
+          ),
+        ],
+      })
+      const dialog = await openCheckout()
+      await within(dialog).findByRole('button', { name: '25,000 HP 결제' })
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: '쿠폰 직접 고르기' }),
+      )
+      const selectedSlot = within(dialog).getByRole('group', { name: slot })
+      const other = within(dialog).getByRole('group', { name: otherSlot })
+      const solo = within(selectedSlot).getByRole('radio', {
+        name: new RegExp(name),
+      })
+      await userEvent.click(solo)
+      await within(dialog).findByRole('button', {
+        name: `${(30000 - discount).toLocaleString('en-US')} HP 결제`,
+      })
+      expect(coupons.quoteRequests.at(-1)?.selections).toEqual([
+        { memberCouponId: id, lectureId: 7 },
+      ])
+      expect(solo).toBeChecked()
+      expect(
+        within(other).getByRole('radio', { name: '쓰지 않음' }),
+      ).toBeChecked()
+
+      await userEvent.click(
+        within(other).getByRole('radio', { name: new RegExp(otherName) }),
+      )
+      await within(dialog).findByRole('button', {
+        name: `${(30000 - otherDiscount).toLocaleString('en-US')} HP 결제`,
+      })
+      expect(coupons.quoteRequests.at(-1)?.selections).toEqual([
+        { memberCouponId: otherId, lectureId: 7 },
+      ])
+      expect(solo).not.toBeChecked()
+      expect(
+        within(selectedSlot).getByRole('radio', { name: '쓰지 않음' }),
+      ).toBeChecked()
+    },
+  )
 
   it('직접 고른 쿠폰이 할인되지 않아도 쿠폰은 사용된다고 알린다', async () => {
     mockLectureDetail()
@@ -597,7 +748,7 @@ describe('쿠폰 주문 오류', () => {
     )
   })
 
-  it('계산 거절에 플랫폼 재원 비활성 사유(couponDetail)가 오면 플랫폼 쿠폰은 아직 쓸 수 없다고 알린다', async () => {
+  it('계산 거절에 플랫폼 재원 비활성 사유(couponDetail)가 오면 지금은 쓸 수 없다고 알린다', async () => {
     mockCreateOrder(
       orderProblem(409, 'COUPON_CALCULATION_REJECTED', {
         couponCode: 'COUPON_NOT_USABLE',
@@ -609,9 +760,12 @@ describe('쿠폰 주문 오류', () => {
     const { coupons, dialog, pay } = await openWithCoupon()
     await userEvent.click(pay)
     expect(
-      await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
-        selector: '[role="alert"]',
-      }),
+      await within(dialog).findByText(
+        '지금은 플랫폼 쿠폰을 사용할 수 없어요.',
+        {
+          selector: '[role="alert"]',
+        },
+      ),
     ).toBeInTheDocument()
     expect(
       within(dialog).queryByText(/이미 쓰였거나 만료된 쿠폰이에요/),
@@ -627,28 +781,15 @@ describe('쿠폰 주문 오류', () => {
 
   it('플랫폼 쿠폰 재원이 없으면(COUPON_PLATFORM_FUNDING_UNAVAILABLE) 알리고, 플랫폼 쿠폰을 뺀 매핑으로 다시 계산한다', async () => {
     mockLectureDetail()
-    // BE가 플랫폼 쿠폰을 담아 계산하는 경우(재원 설정이 켜졌다 꺼지는 사이 등): 어떤 매핑을 보내도 플랫폼 쿠폰 21을 함께 담는다
     const coupons = mockCoupons({
-      usable: { 7: [sellerCoupon] },
+      usable: {
+        7: [{ ...sellerCoupon, stackable: true }, platformCoupon],
+      },
       quotes: [
-        ({ selections }: QuoteRequest) =>
-          couponQuote(
-            [
-              {
-                lectureId: 7,
-                price: 30000,
-                coupons: [
-                  quoteCoupon({ memberCouponId: 11, discount: 3000 }),
-                  quoteCoupon({
-                    memberCouponId: 21,
-                    couponType: 'PLATFORM',
-                    discount: 2000,
-                  }),
-                ],
-              },
-            ],
-            { recommended: selections === null, optimal: true },
-          ),
+        quoteFor(
+          { 11: { discount: 3000 }, 21: { discount: 2000, type: 'PLATFORM' } },
+          [11, 21],
+        ),
       ],
     })
     const created = mockCreateOrder(
@@ -665,17 +806,145 @@ describe('쿠폰 주문 오류', () => {
       { memberCouponId: 21, lectureId: 7 },
     ])
     expect(
-      await within(dialog).findByText('플랫폼 쿠폰은 아직 사용할 수 없어요.', {
-        selector: '[role="alert"]',
-      }),
+      await within(dialog).findByText(
+        '지금은 플랫폼 쿠폰을 사용할 수 없어요.',
+        {
+          selector: '[role="alert"]',
+        },
+      ),
     ).toBeInTheDocument()
-    // 플랫폼 쿠폰을 뺀 매핑(판매자 쿠폰만)이 지금 키와 같아도 다시 계산한다
     await waitFor(() => expect(coupons.quoteRequests.length).toBe(before + 1))
     expect(coupons.quoteRequests.at(-1)).toEqual({
       lectureIds: [7],
       selections: [{ memberCouponId: 11, lectureId: 7 }],
     })
+    expect(
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
+    ).toBeEnabled()
+    expect(created.bodies).toHaveLength(1)
   })
+
+  it.each(['COUPON_CALCULATION_REJECTED', 'COUPON_RESERVATION_REJECTED'])(
+    '%s이면 직접 고른 플랫폼 쿠폰 중 거절된 한 장만 빼고 다른 강의의 플랫폼 쿠폰은 유지한다',
+    async (code) => {
+      mockLectureDetail()
+      const secondPlatform = memberCoupon({
+        ...platformCoupon,
+        memberCouponId: 22,
+        couponId: 6,
+        couponName: '다른 강의 1천',
+        discountValue: 1000,
+      })
+      server.use(
+        http.get('*/api/v1/lectures/cart', () =>
+          rs({
+            items: [
+              {
+                lectureId: 7,
+                title: '첫 방송 세팅',
+                priceHp: 30000,
+                thumbnailUrl: null,
+                purchasable: true,
+              },
+              {
+                lectureId: 8,
+                title: '영상 편집 시작',
+                priceHp: 20000,
+                thumbnailUrl: null,
+                purchasable: true,
+              },
+            ],
+            purchasableTotalHp: 50000,
+          }),
+        ),
+      )
+      const discounts: Record<number, number> = { 11: 3000, 21: 2000, 22: 1000 }
+      const coupons = mockCoupons({
+        usable: {
+          7: [{ ...sellerCoupon, stackable: true }, platformCoupon],
+          8: [secondPlatform],
+        },
+        quotes: [
+          ({ lectureIds, selections }: QuoteRequest) =>
+            couponQuote(
+              lectureIds.map((lectureId) => ({
+                lectureId,
+                price: lectureId === 7 ? 30000 : 20000,
+                coupons: (
+                  selections ?? [
+                    { memberCouponId: 21, lectureId: 7 },
+                    { memberCouponId: 22, lectureId: 8 },
+                  ]
+                )
+                  .filter((s) => s.lectureId === lectureId)
+                  .map((s) =>
+                    quoteCoupon({
+                      memberCouponId: s.memberCouponId,
+                      couponType:
+                        s.memberCouponId === 11 ? 'SELLER' : 'PLATFORM',
+                      discount: discounts[s.memberCouponId],
+                    }),
+                  ),
+              })),
+              { recommended: selections === null, optimal: true },
+            ),
+        ],
+      })
+      const created = mockCreateOrder(
+        orderProblem(409, code, {
+          couponCode: 'COUPON_NOT_USABLE',
+          memberCouponId: 21,
+        }),
+      )
+      renderApp('/cart', 'USER', { availableTotalHp: 130000 })
+      await userEvent.click(
+        await screen.findByRole('button', { name: '2개 주문하기' }),
+      )
+      const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+      await within(dialog).findByRole('button', { name: '47,000 HP 결제' })
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: '쿠폰 직접 고르기' }),
+      )
+      await userEvent.click(
+        await within(dialog).findByRole('radio', { name: /가을맞이 10% 할인/ }),
+      )
+      await userEvent.click(
+        await within(dialog).findByRole('button', { name: '44,000 HP 결제' }),
+      )
+
+      const rejectedName = await within(dialog).findByText('전 강의 2천:', {
+        selector: 'b',
+      })
+      expect(rejectedName.parentElement).toHaveTextContent(
+        '전 강의 2천: 이미 쓰였거나 만료된 쿠폰이에요.',
+      )
+      expect(
+        await within(dialog).findByRole('button', { name: '46,000 HP 결제' }),
+      ).toBeEnabled()
+      expect(coupons.quoteRequests.at(-1)).toEqual({
+        lectureIds: [7, 8],
+        selections: [
+          { memberCouponId: 11, lectureId: 7 },
+          { memberCouponId: 22, lectureId: 8 },
+        ],
+      })
+      expect(created.bodies[0]?.coupons).toEqual([
+        { memberCouponId: 11, lectureId: 7 },
+        { memberCouponId: 21, lectureId: 7 },
+        { memberCouponId: 22, lectureId: 8 },
+      ])
+      expect(
+        within(dialog).getByText('다른 강의 1천 · −1,000 HP'),
+      ).toBeInTheDocument()
+      expect(
+        within(dialog).getByRole('radio', { name: /다른 강의 1천/ }),
+      ).toBeChecked()
+      expect(
+        within(dialog).queryByText('지금은 플랫폼 쿠폰을 사용할 수 없어요.'),
+      ).not.toBeInTheDocument()
+      expect(created.bodies).toHaveLength(1)
+    },
+  )
 
   it('쿠폰을 확인할 수 없으면(503 COUPON_UNAVAILABLE) 잠시 후 다시 하라고 하고 다시 계산하지 않는다', async () => {
     mockCreateOrder(orderProblem(503, 'COUPON_UNAVAILABLE'))
@@ -834,6 +1103,67 @@ describe('쿠폰 할인 계산 실패', () => {
     ).toBeEnabled()
   })
 
+  it('직접 고른 플랫폼 쿠폰의 미리보기가 재원 비활성 detail로 거절되면 재원 안내를 보인다', async () => {
+    mockLectureDetail()
+    const coupons = mockCoupons({
+      usable: {
+        7: [{ ...sellerCoupon, stackable: true }, platformCoupon],
+      },
+      quotes: [
+        quoteFor(
+          { 11: { discount: 3000 }, 21: { discount: 2000, type: 'PLATFORM' } },
+          [11],
+        ),
+      ],
+    })
+    const dialog = await openCheckout()
+    await within(dialog).findByRole('button', { name: '27,000 HP 결제' })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '쿠폰 직접 고르기' }),
+    )
+    coupons.failNext['POST /coupons/me/quote'] = HttpResponse.json(
+      {
+        status: 409,
+        code: 'COUPON_NOT_USABLE',
+        detail: 'PLATFORM_FUNDING_DISABLED',
+        memberCouponId: 21,
+      },
+      { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+    )
+    const platform = within(dialog).getByRole('group', { name: '플랫폼 쿠폰' })
+    await userEvent.click(
+      await within(platform).findByRole('radio', { name: /전 강의 2천/ }),
+    )
+
+    const alert = await within(dialog).findByText(
+      /쿠폰을 확인할 수 없어 정가로 결제돼요/,
+    )
+    expect(alert).toHaveTextContent(
+      '전 강의 2천: 지금은 플랫폼 쿠폰을 사용할 수 없어요.',
+    )
+    expect(
+      within(platform).getByRole('radio', {
+        name: /전 강의 2천.*지금은 플랫폼 쿠폰을 사용할 수 없어요/,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByRole('button', { name: '쿠폰 없이 30,000 HP 결제' }),
+    ).toBeEnabled()
+    expect(
+      within(dialog).queryByText(/이미 쓰였거나 만료된 쿠폰이에요/),
+    ).not.toBeInTheDocument()
+    expect(coupons.quoteRequests).toEqual([
+      { lectureIds: [7], selections: null },
+      {
+        lectureIds: [7],
+        selections: [
+          { memberCouponId: 11, lectureId: 7 },
+          { memberCouponId: 21, lectureId: 7 },
+        ],
+      },
+    ])
+  })
+
   it('쓸 수 있는 쿠폰 목록을 못 불러오면 그 자리에서 다시 불러올 수 있다', async () => {
     mockLectureDetail()
     mockCoupons({
@@ -922,11 +1252,19 @@ describe('잔액과 쿠폰 할인', () => {
     ).toBeEnabled()
   })
 
-  it('잔액이 0이어도 100% 쿠폰이면 0 HP로 결제할 수 있다', async () => {
+  it('잔액이 0이어도 플랫폼 쿠폰만으로 전액 할인되면 매핑과 결제액 0을 보내고 완료에도 0 HP를 보인다', async () => {
     mockLectureDetail()
     mockCoupons({
-      usable: { 7: [sellerCoupon] },
-      quotes: [quoteFor({ 11: { discount: 30000 } }, [11])],
+      usable: {
+        7: [
+          {
+            ...platformCoupon,
+            couponName: '플랫폼 전액 할인',
+            discountValue: 30000,
+          },
+        ],
+      },
+      quotes: [quoteFor({ 21: { discount: 30000, type: 'PLATFORM' } }, [21])],
     })
     const created = mockCreateOrder(paidOrder(30000))
     renderApp('/lectures/7', 'USER', {
@@ -937,16 +1275,24 @@ describe('잔액과 쿠폰 할인', () => {
       await screen.findByRole('button', { name: '바로 구매' }),
     )
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    expect(
+      await within(dialog).findByText('결제할 HP가 없어 바로 주문이 끝나요.'),
+    ).toBeInTheDocument()
     await userEvent.click(
       await within(dialog).findByRole('button', { name: '0 HP 결제' }),
     )
     await waitFor(() =>
       expect(created.bodies[0]).toEqual({
         lectureIds: [7],
-        coupons: [{ memberCouponId: 11, lectureId: 7 }],
+        coupons: [{ memberCouponId: 21, lectureId: 7 }],
         expectedBuyerAmountHp: 0,
       }),
     )
+    expect(
+      await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('결제한 HP').nextSibling).toHaveTextContent('0 HP')
+    expect(screen.queryByRole('link', { name: 'HP 충전하러 가기' })).toBeNull()
   })
 
   it('직접 고르는 동안 다시 계산하면 직전 결제액을 유지하고 결제는 막는다', async () => {
@@ -993,7 +1339,7 @@ describe('잔액과 쿠폰 할인', () => {
 })
 
 describe('추천 모드 주문 거절 뒤 다시 추천', () => {
-  it('추천에 플랫폼 쿠폰이 섞여 뺀 매핑으로 주문했다가 거절되면, 추천을 다시 받아 거절된 쿠폰이 빠진 결과로 계산한다', async () => {
+  it('추천 주문이 거절되면 플랫폼 쿠폰은 유지하고 거절된 판매자 쿠폰을 대신할 추천을 받는다', async () => {
     mockLectureDetail()
     const second = memberCoupon({
       memberCouponId: 12,
@@ -1004,7 +1350,13 @@ describe('추천 모드 주문 거절 뒤 다시 추천', () => {
     const discount: Record<number, number> = { 11: 3000, 12: 2000, 21: 1000 }
     let recommendCalls = 0
     const coupons = mockCoupons({
-      usable: { 7: [sellerCoupon, second] },
+      usable: {
+        7: [
+          { ...sellerCoupon, stackable: true },
+          second,
+          { ...platformCoupon, couponName: '플랫폼 1천', discountValue: 1000 },
+        ],
+      },
       quotes: [
         ({ selections }: QuoteRequest) => {
           // 처음 추천은 판매자 쿠폰 11 + 플랫폼 쿠폰 21, 쿠폰 11이 쓰인 뒤의 추천은 12 + 21
@@ -1038,24 +1390,27 @@ describe('추천 모드 주문 거절 뒤 다시 추천', () => {
       }),
     )
     const dialog = await openCheckout()
-    // 플랫폼 쿠폰을 뺀 매핑(쿠폰 11)으로 계산해 주문한다
     const pay = await within(dialog).findByRole('button', {
-      name: '27,000 HP 결제',
+      name: '26,000 HP 결제',
     })
     const before = coupons.quoteRequests.length
     await userEvent.click(pay)
     expect(created.bodies[0]?.coupons).toEqual([
       { memberCouponId: 11, lectureId: 7 },
+      { memberCouponId: 21, lectureId: 7 },
     ])
 
-    // 추천을 다시 받아(쿠폰 12 + 21) 플랫폼 쿠폰을 뺀 쿠폰 12로 계산한다. 정가 결제로 떨어지지 않는다
+    // 추천을 다시 받아 쿠폰 12 + 21을 그대로 적용한다.
     expect(
-      await within(dialog).findByRole('button', { name: '28,000 HP 결제' }),
+      await within(dialog).findByRole('button', { name: '27,000 HP 결제' }),
     ).toBeEnabled()
     expect(coupons.quoteRequests.slice(before)).toEqual([
       { lectureIds: [7], selections: null },
-      { lectureIds: [7], selections: [{ memberCouponId: 12, lectureId: 7 }] },
     ])
+    expect(await within(dialog).findByText('최대 할인')).toBeInTheDocument()
+    expect(
+      within(dialog).getByText('플랫폼 1천 · −1,000 HP'),
+    ).toBeInTheDocument()
     expect(
       within(dialog).queryByText(/쿠폰을 확인할 수 없어 정가로 결제돼요/),
     ).not.toBeInTheDocument()

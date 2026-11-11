@@ -150,24 +150,6 @@ export function chooseCoupon(
   return next.sort((a, b) => rank(a) - rank(b))
 }
 
-/** 플랫폼 쿠폰을 뺀 매핑(플랫폼 재원이 없는 동안 추천에 섞여 오면 이 매핑으로 다시 계산한다) */
-export function withoutPlatform(quote: CouponQuote): CouponSelection[] {
-  return quote.items.flatMap((item) =>
-    [...item.coupons]
-      .sort((a, b) => a.applyOrder - b.applyOrder)
-      .filter((c) => c.couponType !== 'PLATFORM')
-      .map((c) => ({
-        memberCouponId: c.memberCouponId,
-        lectureId: item.lectureId,
-      })),
-  )
-}
-
-export const hasPlatformCoupon = (quote: CouponQuote) =>
-  quote.items.some((item) =>
-    item.coupons.some((c) => c.couponType === 'PLATFORM'),
-  )
-
 /** 쿠폰 거절 사유(쿠폰 모듈 오류 코드 → 문구). 모르는 코드는 기본 문구 */
 export function couponRejectReason(couponCode: string | undefined) {
   switch (couponCode) {
@@ -198,7 +180,7 @@ export type CouponOrderError = {
   drop: 'rejected' | 'platform' | null
 }
 
-export const PLATFORM_UNAVAILABLE = '플랫폼 쿠폰은 아직 사용할 수 없어요.'
+export const PLATFORM_UNAVAILABLE = '지금은 플랫폼 쿠폰을 사용할 수 없어요.'
 
 /** 쿠폰 계산 거절의 사유 코드(couponDetail): 플랫폼 재원이 없어 플랫폼 쿠폰을 쓸 수 없다 */
 export const PLATFORM_FUNDING_DISABLED = 'PLATFORM_FUNDING_DISABLED'
@@ -214,7 +196,6 @@ export function couponOrderError(
     memberCouponId?: number | null
     couponDetail?: string
   } | null,
-  typeOf: (memberCouponId: number) => CouponType | undefined = () => undefined,
 ): CouponOrderError | null {
   switch (code) {
     case 'ORDER_QUOTE_CHANGED':
@@ -226,12 +207,11 @@ export function couponOrderError(
       }
     case 'COUPON_CALCULATION_REJECTED':
     case 'COUPON_RESERVATION_REJECTED':
-      // 플랫폼 재원이 없는 동안 BE는 플랫폼 쿠폰을 COUPON_NOT_USABLE로 거절한다. 계산 거절은 사유(couponDetail)를
-      // 실으므로 그것을 먼저 보고, 없으면(예약 거절·옛 응답) 거절된 쿠폰의 종류로 가린다
+      // 플랫폼 재원 비활성은 계산 거절의 명시된 사유로만 판단한다.
       if (
-        (code === 'COUPON_CALCULATION_REJECTED' &&
-          body?.couponDetail === PLATFORM_FUNDING_DISABLED) ||
-        (body?.memberCouponId && typeOf(body.memberCouponId) === 'PLATFORM')
+        code === 'COUPON_CALCULATION_REJECTED' &&
+        body?.couponCode === 'COUPON_NOT_USABLE' &&
+        body.couponDetail === PLATFORM_FUNDING_DISABLED
       )
         return {
           message: PLATFORM_UNAVAILABLE,
@@ -268,7 +248,9 @@ export function couponOrderError(
  * 미리보기 실패 문구(code로 고른다). 특정 쿠폰 오류(409 COUPON_NOT_USABLE 등, 속성 memberCouponId)는 그 쿠폰 사유,
  * 강의 수 초과(400 COUPON_TOO_MANY_ITEMS)는 따로 알린다. 실패하면 쿠폰 없이(정가로) 결제한다
  */
-export function quoteFailure(code: string | undefined) {
+export function quoteFailure(code: string | undefined, detail?: string) {
+  if (code === 'COUPON_NOT_USABLE' && detail === PLATFORM_FUNDING_DISABLED)
+    return PLATFORM_UNAVAILABLE
   switch (code) {
     case 'COUPON_TOO_MANY_ITEMS':
       return '한 번에 쿠폰을 쓸 수 있는 강의 수를 넘었어요.'
