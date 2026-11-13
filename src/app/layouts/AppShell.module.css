@@ -259,6 +259,10 @@
   place-items: center;
   color: var(--ink-2);
 }
+.iconBtn[aria-current='page'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
 .badge {
   position: absolute;
   top: -4px;
@@ -385,6 +389,10 @@
   }
   .hpPill {
     padding: 4px 10px 4px 4px;
+  }
+  .iconBtn {
+    width: 34px;
+    height: 34px;
   }
 }
 

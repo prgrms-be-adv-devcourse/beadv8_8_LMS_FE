@@ -39,6 +39,11 @@ function cartLabel(count: number | undefined) {
   return count ? `장바구니 ${count}개` : '장바구니'
 }
 
+/** 채팅 링크의 읽는 이름. 안 읽은 메시지가 없으면 개수를 붙이지 않는다. */
+function chatLabel(unread: number) {
+  return unread ? `채팅, 안 읽은 메시지 ${unread}개` : '채팅'
+}
+
 /** 가장 안쪽 라우트의 화면 틀 (RouteHandle.layout) */
 function useLayout() {
   const matches = useMatches()
@@ -197,8 +202,9 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
 }
 
 /**
- * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 프로필 메뉴.
- * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다.
+ * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 채팅 · 프로필 메뉴.
+ * HP 칸이 지갑 진입점이다(관리자는 지갑이 없어 숨긴다). 채팅은 채팅을 쓰는 역할에만 보인다.
+ * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다. 채팅은 모든 폭에서 헤더에 둔다.
  * 알림은 BE API가 없어 두지 않는다(#101).
  */
 function HeaderActions({
@@ -224,6 +230,7 @@ function HeaderActions({
     <>
       {member && <HpPill />}
       {member && <CartLink />}
+      {CHAT_VIEWERS.includes(viewer) && <ChatLink />}
       <ProfileMenu viewer={viewer} />
     </>
   )
@@ -262,6 +269,44 @@ function CartIcon() {
       aria-hidden="true"
     >
       <path d="M3 4h2.2l2.3 11h10.3L20 8H6.3M9.5 20h.01M16.5 20h.01" />
+    </svg>
+  )
+}
+
+/** 좁은 화면에서도 헤더에 남겨, 안 읽은 메시지 배지가 메뉴를 열지 않아도 보이게 한다. */
+function ChatLink() {
+  const unread = useChatUnreadTotal(true)
+  return (
+    <NavLink
+      to="/chat"
+      className={styles.iconBtn}
+      aria-label={chatLabel(unread)}
+    >
+      <ChatIcon />
+      {unread > 0 && (
+        <span className={styles.badge} aria-hidden="true">
+          {badgeText(unread)}
+        </span>
+      )}
+    </NavLink>
+  )
+}
+
+/** 말풍선. 목업 ICONS에 없어 같은 규격(24 viewBox, stroke 2)으로 그렸다. */
+function ChatIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
 }
