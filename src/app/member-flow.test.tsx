@@ -91,7 +91,7 @@ describe('인플루언서', () => {
     )
     renderApp('/influencers', 'INFLUENCER')
     await userEvent.click(
-      await screen.findByRole('link', { name: /편집하는 고래/ }),
+      await screen.findByRole('link', { name: '편집하는 고래' }),
     )
 
     expect(
@@ -129,7 +129,7 @@ describe('인플루언서', () => {
     const router = renderApp('/influencers?page=9', 'INFLUENCER')
 
     expect(
-      await screen.findByRole('link', { name: /둘째 페이지 고래 2/ }),
+      await screen.findByRole('article', { name: '둘째 페이지 고래 2' }),
     ).toBeInTheDocument()
     expect(router.state.location.search).toBe('?page=2')
     expect(
@@ -163,11 +163,11 @@ describe('인플루언서', () => {
     )
     renderApp('/influencers', 'INFLUENCER')
 
-    const rated = await screen.findByRole('link', { name: /편집하는 고래/ })
+    const rated = await screen.findByRole('article', { name: '편집하는 고래' })
     expect(
       within(rated).getByLabelText('평점 4.5점, 리뷰 12개'),
     ).toBeInTheDocument()
-    const unrated = screen.getByRole('link', { name: /새내기 수달/ })
+    const unrated = screen.getByRole('article', { name: '새내기 수달' })
     expect(within(unrated).getByText('리뷰 없음')).toBeInTheDocument()
   })
 
