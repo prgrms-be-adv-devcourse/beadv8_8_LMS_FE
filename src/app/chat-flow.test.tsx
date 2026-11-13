@@ -19,6 +19,7 @@ import { READ_RETRY_DELAY_MS } from '@/features/chat/useChatUnread'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { deliver } from '@/test/chatServer'
+import { headerChatLink } from '@/test/headerChat'
 import { noAppearanceRating } from '@/test/memberProfile'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -326,8 +327,7 @@ describe('채팅', () => {
     expect(
       within(list).getByLabelText('안 읽은 메시지 3개'),
     ).toBeInTheDocument()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).getByLabelText('안 읽은 메시지 3개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 3개')
   })
 
   it('방을 열면 마지막 순번까지 읽음 처리하고, 보는 중 받은 메시지도 읽음 처리한다', async () => {
@@ -345,8 +345,7 @@ describe('채팅', () => {
         },
       ]),
     )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
+    expect(headerChatLink()).toHaveAccessibleName('채팅')
 
     const client = await connectSocket()
     // 보고 있는 방은 읽음 처리, 다른 방은 안 읽은 수가 오른다
@@ -358,7 +357,7 @@ describe('채팅', () => {
         body: { lastReadSequence: 13, participationVersion: 2 },
       }),
     )
-    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개')
   })
 
   it('읽음 처리에 실패해도 안내를 띄우지 않는다', async () => {
@@ -471,10 +470,9 @@ describe('채팅', () => {
 
     // 닫은 방에 온 메시지는 보고 있는 방이 아니므로 안 읽은 수가 된다.
     act(() => deliver(client, message({ roomSequence: 20 })))
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(
-      await within(nav).findByLabelText('안 읽은 메시지 1개'),
-    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개'),
+    )
     const rooms = screen.getByRole('navigation', { name: '대화 목록' })
     expect(
       within(rooms).getByLabelText('안 읽은 메시지 1개'),
@@ -882,16 +880,15 @@ describe('누락 방지 (구독과 조회 사이)', () => {
     // 연결 직후 방 목록 조회 중에 도착 → 응답(도착 전 상태)에 덮이지 않는다.
     act(() => deliver(client, latest))
     gate.release()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
-    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개')
 
     // 다시 불러온 응답에 이미 반영돼 있으면 그대로 둔다(1개).
     includeLatest = true
     await act(() =>
       queryClient.invalidateQueries({ queryKey: ['chat', 'rooms'] }),
     )
-    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개')
   })
 })
 
@@ -935,8 +932,7 @@ describe('역순·중복 수신', () => {
     expect(await within(thread).findAllByText('두 번 온 메시지')).toHaveLength(
       1,
     )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).getByLabelText('안 읽은 메시지 1개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개')
   })
 })
 
@@ -963,22 +959,19 @@ describe('읽음 처리', () => {
     )
     renderApp('/chat/5', 'INFLUENCER')
     await screen.findByText('읽을 메시지')
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
 
     // 실패 → 지웠던 안 읽은 수가 돌아온다(안내는 띄우지 않는다).
     await waitFor(() => expect(bodies).toHaveLength(1))
-    expect(
-      await within(nav).findByLabelText('안 읽은 메시지 2개'),
-    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 2개'),
+    )
     expect(screen.queryByText('잠시 실패')).toBeNull()
 
     // 잠시 뒤 같은 순번으로 다시 보내고, 성공하면 안 읽은 수를 지운다.
     await act(() => vi.advanceTimersByTimeAsync(READ_RETRY_DELAY_MS))
     await waitFor(() => expect(bodies).toHaveLength(2))
     expect(bodies[1]).toEqual({ lastReadSequence: 7, participationVersion: 2 })
-    await waitFor(() =>
-      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
-    )
+    await waitFor(() => expect(headerChatLink()).toHaveAccessibleName('채팅'))
   })
 
   it('가려진 동안 이미 읽은 순번의 이전 메시지가 늦게 와도 안 읽은 수로 남기지 않는다', async () => {
@@ -1008,19 +1001,16 @@ describe('읽음 처리', () => {
       ),
     )
     // 서버는 이미 7까지 읽음 처리했으므로 6은 안 읽은 메시지가 아니다.
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(
       await within(screen.getByRole('main')).findByText('늦게 온 이전 메시지'),
     ).toBeInTheDocument()
-    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
+    expect(headerChatLink()).toHaveAccessibleName('채팅')
 
     hasFocus.mockReturnValue(true)
     act(() => {
       window.dispatchEvent(new Event('focus'))
     })
-    await waitFor(() =>
-      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
-    )
+    await waitFor(() => expect(headerChatLink()).toHaveAccessibleName('채팅'))
     expect(reads).toHaveLength(1)
   })
 
@@ -1037,8 +1027,7 @@ describe('읽음 처리', () => {
       deliver(client, message({ content: '가려진 동안', roomSequence: 4 })),
     )
     await screen.findAllByText('가려진 동안')
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).getByLabelText('안 읽은 메시지 2개')).toBeInTheDocument()
+    expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 2개')
     expect(reads).toEqual([])
 
     // 다시 보면(포커스) 마지막 순번까지 읽음 처리한다.
@@ -1054,7 +1043,7 @@ describe('읽음 처리', () => {
         },
       ]),
     )
-    expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull()
+    expect(headerChatLink()).toHaveAccessibleName('채팅')
   })
 })
 

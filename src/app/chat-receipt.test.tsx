@@ -25,6 +25,7 @@ import { RECEIPT_POLICY } from '@/features/chat/receipt/policy'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { deliver } from '@/test/chatServer'
+import { headerChatLink } from '@/test/headerChat'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -1470,10 +1471,7 @@ describe('읽음 뒤에 늦게 온 방 목록 응답', () => {
     act(() => held.release!())
     await act(() => refetching)
     await settle()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    await waitFor(() =>
-      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
-    )
+    await waitFor(() => expect(headerChatLink()).toHaveAccessibleName('채팅'))
   })
 
   it('응답의 마지막 메시지가 읽음 확인보다 새로우면 안 읽은 수를 그대로 둔다', async () => {
@@ -1495,10 +1493,9 @@ describe('읽음 뒤에 늦게 온 방 목록 응답', () => {
     act(() => held.release!())
     await act(() => refetching)
     await settle()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(
-      await within(nav).findByLabelText('안 읽은 메시지 1개'),
-    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 1개'),
+    )
   })
 })
 
@@ -1576,9 +1573,6 @@ describe('재동기화 처리 순서 (계약 (e))', () => {
     expect(order.slice(0, 2)).toEqual(['rooms', 'history'])
     await settle()
     // 보고 있는 방이라 대조로 채운 6을 읽음 처리했고, 앞선 방 목록 응답이 안 읽은 수를 되살리지 않는다.
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    await waitFor(() =>
-      expect(within(nav).queryByLabelText(/안 읽은 메시지/)).toBeNull(),
-    )
+    await waitFor(() => expect(headerChatLink()).toHaveAccessibleName('채팅'))
   })
 })

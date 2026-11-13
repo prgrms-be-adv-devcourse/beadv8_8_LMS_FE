@@ -22,7 +22,7 @@ export const MY_ACTIVITY = '내 활동'
 
 /**
  * 왼쪽 내비 레일 (docs/mockup-ui.html의 NAV). 역할에 맞는 항목만 보인다. 라우트 권한도 여기서 가져간다.
- * 홈은 로고로, 장바구니는 상단 헤더로 들어가므로 여기 두지 않는다(라우트는 router.tsx EXTRA_ROUTES).
+ * 홈은 로고로, 장바구니·채팅·지갑(HP 칸)은 상단 헤더로 들어가므로 여기 두지 않는다(라우트는 router.tsx EXTRA_ROUTES).
  * 알림·검색·이의 제기·회원·거래 조회·처리 이력은 BE API가 없어 메뉴와 라우트를 두지 않는다(#101).
  */
 export const NAV: NavGroup[] = [
@@ -54,8 +54,6 @@ export const NAV: NavGroup[] = [
       { path: '/appearances', label: '내 출연', roles: INFLUENCER },
       { path: '/library', label: '내 강의', roles: MEMBER },
       { path: '/library/coupons', label: '쿠폰함', roles: MEMBER },
-      { path: '/chat', label: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
-      { path: '/wallet', label: '지갑', roles: MEMBER },
       { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
     ],
   },
