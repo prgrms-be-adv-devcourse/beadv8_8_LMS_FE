@@ -5,6 +5,7 @@ import type {
   Appearance,
   AppearanceReviewInput,
   AppearanceRole,
+  AppearanceStatus,
   AppearanceSummary,
   Application,
   HostCancelInput,
@@ -84,8 +85,13 @@ export const appearanceKeys = {
     ] as const,
   myApplications: (page: number) =>
     [...appearanceKeys.all, 'applications', 'mine', page] as const,
-  appearances: (role: AppearanceRole, page: number) =>
-    [...appearanceKeys.all, 'appearances', role, page] as const,
+  appearances: (
+    role: AppearanceRole,
+    page: number,
+    view: AppearanceListView = 'ongoing',
+  ) => [...appearanceKeys.all, 'appearances', role, page, view] as const,
+  todoCount: (side: RequestSide) =>
+    [...appearanceKeys.all, 'todo-count', side] as const,
   appearance: (appearanceId: number) =>
     [...appearanceKeys.all, 'appearance', appearanceId] as const,
 }
@@ -302,17 +308,68 @@ export function rejectApplication(applicationId: number) {
 
 // ── 출연(성립 건) ──
 
-/** 내 출연 (호스트로 / 게스트로). 최신순 고정 */
-export const appearancesQuery = (role: AppearanceRole, page: number) =>
+/** 성립한 출연 목록의 보기(주소 `?aview=`): 진행 중(기본) / 끝난 출연 */
+export type AppearanceListView = 'ongoing' | 'ended'
+
+/** 주소 값 → 보기. 없거나 모르는 값이면 기본(ongoing) */
+export const appearanceListViewOf = (
+  value: string | null,
+): AppearanceListView => (value === 'ended' ? 'ended' : 'ongoing')
+
+/** 보기별 출연 상태. 진행 중은 아직 HP가 보류된 출연, 끝난 출연은 지급·반환으로 마무리된 출연이다 */
+export const APPEARANCE_VIEW_STATUSES: Record<
+  AppearanceListView,
+  readonly AppearanceStatus[]
+> = {
+  ongoing: ['ESTABLISHED', 'CANCEL_REQUESTED'],
+  ended: ['CONFIRMED', 'ABSENT', 'CANCELED_BY_HOST', 'CANCELED_BY_AGREEMENT'],
+}
+
+/** 내 출연 (호스트로 / 게스트로). 보기에 맞는 상태만 받는다. 최신순 고정 */
+export const appearancesQuery = (
+  role: AppearanceRole,
+  page: number,
+  view: AppearanceListView = 'ongoing',
+) =>
   queryOptions({
-    queryKey: appearanceKeys.appearances(role, page),
+    queryKey: appearanceKeys.appearances(role, page, view),
     queryFn: () =>
       api<PagedModel<AppearanceSummary>>('/appearances', {
-        query: { role, page, size: 10 },
+        query: {
+          role,
+          status: APPEARANCE_VIEW_STATUSES[view],
+          page,
+          size: 10,
+        },
       }),
-    // 같은 역할의 페이지를 넘길 때만 이전 목록을 유지한다(역할이 바뀌면 상대가 뒤바뀐 목록을 보여 주지 않게).
+    // 같은 역할·보기의 페이지를 넘길 때만 이전 목록을 유지한다(역할이 바뀌면 상대가 뒤바뀐 목록을 보여 주지 않게).
     placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[2] === role ? previous : undefined,
+      previousQuery?.queryKey[2] === role && previousQuery?.queryKey[4] === view
+        ? previous
+        : undefined,
+  })
+
+/**
+ * 역할 탭의 응답할 일 개수(서버 totalElements). 게스트는 응답 대기 중인 받은 요청, 호스트는 게스트의 취소 요청이 온 출연이다.
+ * 호스트의 출연 확인 대기는 상태가 ESTABLISHED라 서버 필터로 셀 수 없어 넣지 않는다(카드 강조만 한다)
+ */
+export const appearanceTodoCountQuery = (side: RequestSide) =>
+  queryOptions({
+    queryKey: appearanceKeys.todoCount(side),
+    queryFn: () =>
+      side === 'guest'
+        ? api<PagedModel<unknown>>('/appearances/requests/received', {
+            query: { status: ['REQUESTED'], page: 0, size: 1 },
+          })
+        : api<PagedModel<unknown>>('/appearances', {
+            query: {
+              role: 'HOST',
+              status: ['CANCEL_REQUESTED'],
+              page: 0,
+              size: 1,
+            },
+          }),
+    select: (data) => data.page.totalElements,
   })
 
 /** 출연 상세 (호스트·게스트만, 그 외 404 APPEARANCE_NOT_FOUND). 취소 요청 이력 포함 */

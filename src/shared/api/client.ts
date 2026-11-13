@@ -30,7 +30,11 @@ type Json = Record<string, unknown> | unknown[]
 export type ApiRequest = Omit<RequestInit, 'body'> & {
   /** 객체·배열은 JSON으로 보낸다. Blob(File)은 그대로 보낸다(파일 업로드 본문). */
   body?: Json | Blob
-  query?: Record<string, string | number | boolean | undefined>
+  /** 배열 값은 같은 이름을 값마다 반복해 보낸다(`status=A&status=B`) */
+  query?: Record<
+    string,
+    string | number | boolean | readonly (string | number)[] | undefined
+  >
 }
 
 /**
@@ -106,7 +110,9 @@ function buildUrl(path: string, query: ApiRequest['query']): string {
   if (!query) return url
   const params = new URLSearchParams()
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined) params.set(key, String(value))
+    if (Array.isArray(value)) {
+      for (const item of value) params.append(key, String(item))
+    } else if (value !== undefined) params.set(key, String(value))
   }
   const qs = params.toString()
   return qs ? `${url}?${qs}` : url
