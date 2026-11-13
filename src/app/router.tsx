@@ -99,7 +99,9 @@ const EXTRA_ROUTES: PageDef[] = [
   { path: '/library/orders/:orderId/done', title: '주문 완료', roles: MEMBER },
   { path: '/library/:lectureId/watch', title: '강의 시청', roles: MEMBER },
   { path: '/library/:lectureId/review', title: '리뷰 작성', roles: MEMBER },
+  { path: '/chat', title: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
   { path: '/chat/:chatRoomId', title: '채팅', roles: [...INFLUENCER, 'ADMIN'] },
+  { path: '/wallet', title: '지갑', roles: MEMBER },
   { path: '/wallet/charge/result', title: '충전 결과', roles: MEMBER },
   { path: '/wallet/exchange', title: '환전 신청', roles: INFLUENCER },
   {
