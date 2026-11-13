@@ -10,8 +10,10 @@ import type {
   RequestSide,
 } from '@/entities/appearance/types'
 import { confirmStage } from '@/entities/appearance/rules'
+import { AppearanceListViewSelect } from '@/entities/appearance/ui/AppearanceListViewSelect'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
 import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
+import { useAppearanceListView } from '@/entities/appearance/useAppearanceListView'
 import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
@@ -165,23 +167,34 @@ function RequestCard({
   )
 }
 
-/** 성립한 출연 (요청·모집에서 성립한 건). 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다 */
+/**
+ * 성립한 출연 (요청·모집에서 성립한 건). 진행 중(기본)과 끝난 출연을 보기로 나눈다.
+ * 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다
+ */
 function AppearanceList({ side }: { side: RequestSide }) {
   const [page, setPage] = usePageParam('apage')
+  const [view, selectView] = useAppearanceListView()
   const query = useQuery(
-    appearancesQuery(side === 'host' ? 'HOST' : 'GUEST', page),
+    appearancesQuery(side === 'host' ? 'HOST' : 'GUEST', page, view),
   )
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
   return (
     <section aria-label="성립한 출연" className={styles.section}>
-      <h2 className={styles.sectionTitle}>성립한 출연</h2>
+      <div className="toolbar">
+        <h2 className={styles.sectionTitle}>성립한 출연</h2>
+        <AppearanceListViewSelect value={view} onChange={selectView} />
+      </div>
       {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
-        <p className="fine">아직 성립한 출연이 없어요.</p>
+        <p className="fine">
+          {view === 'ended'
+            ? '끝난 출연이 없어요.'
+            : '진행 중인 출연이 없어요.'}
+        </p>
       ) : (
         <>
           <div className="page" style={{ gap: 12 }}>
