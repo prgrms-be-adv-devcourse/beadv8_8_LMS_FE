@@ -317,6 +317,7 @@ export const appearanceListViewOf = (
 ): AppearanceListView => (value === 'ended' ? 'ended' : 'ongoing')
 
 /** 보기별 출연 상태. 진행 중은 아직 HP가 보류된 출연, 끝난 출연은 지급·반환으로 마무리된 출연이다 */
+// 두 목록에 없는 상태는 어느 보기에도 나오지 않는다. BE가 상태를 더하면 두 목록과 AppearanceStatus를 함께 고친다.
 export const APPEARANCE_VIEW_STATUSES: Record<
   AppearanceListView,
   readonly AppearanceStatus[]
