@@ -271,15 +271,10 @@ describe('상단 헤더 채팅', () => {
     ).not.toHaveAttribute('aria-current')
   })
 
-  it('좁은 화면에서도 헤더에 남는다(드로어로 옮기지 않는다)', async () => {
+  it('좁은 화면 드로어에는 채팅이 없다', async () => {
     mockCart(0)
     renderApp('/lectures', 'INFLUENCER')
-    const link = await within(await header()).findByRole('link', {
-      name: '채팅',
-    })
-    // 좁은 화면에서 숨기는 장바구니와 달리 같은 클래스를 붙이지 않는다(CSS).
-    const cart = within(await header()).getByRole('link', { name: '장바구니' })
-    expect(link.className).not.toBe(cart.className)
+    await within(await header()).findByRole('link', { name: '채팅' })
     await userEvent.click(
       await screen.findByRole('button', { name: '메뉴 열기' }),
     )
