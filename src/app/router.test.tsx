@@ -135,6 +135,49 @@ describe('라우트 가드', () => {
     ).toBeNull()
   })
 
+  it('메뉴에 없는 지갑도 주소로 들어오면 회원 권한을 따른다', async () => {
+    const router = renderAt('/wallet', 'USER')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '지갑' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/wallet')
+  })
+
+  it('관리자가 지갑 주소로 들어오면 운영 첫 화면으로 보낸다', async () => {
+    const router = renderAt('/wallet', 'ADMIN')
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'))
+  })
+
+  it.each(['INFLUENCER', 'ADMIN'] as const)(
+    '메뉴에 없는 채팅도 %s는 주소로 들어온다',
+    async (viewer) => {
+      const router = renderAt('/chat', viewer)
+      expect(
+        await screen.findByRole('heading', { level: 1, name: '채팅' }),
+      ).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/chat')
+    },
+  )
+
+  it.each(['/chat', '/chat/5'])(
+    '유저가 %s에 들어오면 역할 첫 화면으로 보낸다',
+    async (path) => {
+      const router = renderAt(path, 'USER')
+      expect(
+        await screen.findByRole('heading', {
+          level: 1,
+          name: /합방 상대를 찾고/,
+        }),
+      ).toBeInTheDocument()
+      expect(router.state.location.pathname).toBe('/')
+    },
+  )
+
+  it('비회원이 채팅 주소로 들어오면 로그인 안내를 보여 준다', async () => {
+    renderAt('/chat', 'GUEST')
+    expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
+  })
+
   it('비회원이 장바구니 주소로 들어오면 로그인 안내를 보여 준다', async () => {
     renderAt('/cart', 'GUEST')
     expect(await screen.findByText('로그인이 필요해요')).toBeInTheDocument()
@@ -272,6 +315,19 @@ describe('내비 레일', () => {
     ).toHaveAttribute('href', '/admin/inquiries')
   })
 
+  // 지갑은 상단 HP 칸, 채팅은 상단 채팅 아이콘으로 들어간다.
+  it.each([
+    ['/lectures', 'USER'],
+    ['/lectures', 'INFLUENCER'],
+    ['/lectures', 'VERIFIED_INFLUENCER'],
+    ['/admin', 'ADMIN'],
+  ] as const)('%s의 %s 레일에는 채팅·지갑이 없다', async (path, viewer) => {
+    renderAt(path, viewer)
+    const labels = await navLabels()
+    expect(labels).not.toContain('채팅')
+    expect(labels).not.toContain('지갑')
+  })
+
   it('관리자 레일에는 계정 설정이 없다(프로필 메뉴로 들어간다)', async () => {
     renderAt('/admin', 'ADMIN')
     expect(await navLabels()).not.toContain('계정 설정')
@@ -304,9 +360,9 @@ describe('모바일 내비 드로어', () => {
     await user.click(await screen.findByRole('button', { name: '메뉴 열기' }))
 
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    await user.click(within(nav).getByRole('link', { name: '지갑' }))
+    await user.click(within(nav).getByRole('link', { name: '내 강의' }))
 
-    expect(router.state.location.pathname).toBe('/wallet')
+    expect(router.state.location.pathname).toBe('/library')
     expect(
       await screen.findByRole('button', { name: '메뉴 열기' }),
     ).toHaveAttribute('aria-expanded', 'false')

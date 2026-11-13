@@ -4,8 +4,10 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { CartItem } from '@/entities/cart/types'
+import type { ChatRoom } from '@/entities/chat/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { renderApp, rs } from '@/test/renderApp'
+import { headerChatLink } from '@/test/headerChat'
+import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 const item = (id: number): CartItem => ({
@@ -28,6 +30,27 @@ function mockCart(count: number) {
       return new HttpResponse(null, { status: 204 })
     }),
   )
+}
+
+/** 안 읽은 수만 다른 1:1 방들 */
+function mockChatRooms(...unreadCounts: number[]) {
+  const rooms: ChatRoom[] = unreadCounts.map((unreadCount, i) => ({
+    chatRoomId: i + 1,
+    roomType: 'DIRECT',
+    status: 'ACTIVE',
+    createdAt: '2026-10-14T10:00:00',
+    members: [
+      {
+        userId: ME_ID,
+        nickname: '하늘',
+        active: true,
+        participationVersion: 1,
+      },
+    ],
+    lastMessage: null,
+    unreadCount,
+  }))
+  server.use(http.get('*/api/v1/chats', () => rs(rooms)))
 }
 
 const header = () => screen.findByRole('banner')
@@ -136,6 +159,146 @@ describe('상단 헤더 알림·권한', () => {
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(within(nav).queryByRole('link', { name: /장바구니/ })).toBeNull()
     expect(within(nav).queryByRole('link', { name: '알림' })).toBeNull()
+  })
+})
+
+describe('상단 헤더 채팅', () => {
+  it.each([
+    ['인플루언서', '/lectures', 'INFLUENCER'],
+    ['인증된 인플루언서', '/lectures', 'VERIFIED_INFLUENCER'],
+    ['관리자', '/admin', 'ADMIN'],
+    ['인플루언서 홈', '/', 'INFLUENCER'],
+    ['관리자 홈', '/', 'ADMIN'],
+  ] as const)('%s 헤더에 채팅 링크가 있다', async (_, path, viewer) => {
+    mockCart(0)
+    renderApp(path, viewer)
+    const bar = await header()
+    expect(
+      await within(bar).findByRole('link', { name: '채팅' }),
+    ).toHaveAttribute('href', '/chat')
+  })
+
+  it.each([
+    ['유저', '/lectures', 'USER'],
+    ['유저 홈', '/', 'USER'],
+  ] as const)('%s 헤더에는 채팅이 없다', async (_, path, viewer) => {
+    mockCart(0)
+    renderApp(path, viewer)
+    const bar = await header()
+    await within(bar).findByRole('link', { name: '장바구니' })
+    expect(within(bar).queryByRole('link', { name: /채팅/ })).toBeNull()
+  })
+
+  it.each([
+    ['비회원', '/lectures'],
+    ['비회원 홈', '/'],
+  ] as const)('%s 헤더에는 채팅이 없다', async (_, path) => {
+    renderApp(path, 'GUEST')
+    const bar = await header()
+    await within(bar).findByRole('button', { name: '로그인' })
+    expect(within(bar).queryByRole('link', { name: /채팅/ })).toBeNull()
+  })
+
+  it('헤더 순서는 HP · 장바구니 · 채팅 · 프로필이다', async () => {
+    mockCart(0)
+    renderApp('/lectures', 'INFLUENCER')
+    const bar = await header()
+    await within(bar).findByRole('link', { name: '채팅' })
+    const actions = [
+      within(bar).getByRole('link', { name: '지갑' }),
+      within(bar).getByRole('link', { name: '장바구니' }),
+      within(bar).getByRole('link', { name: '채팅' }),
+      within(bar).getByRole('button', { name: '하늘 메뉴' }),
+    ]
+    actions.slice(1).forEach((el, i) => {
+      expect(
+        actions[i].compareDocumentPosition(el) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+  })
+
+  it('안 읽은 메시지 수를 배지로 보이고 링크 이름에 넣는다', async () => {
+    mockChatRooms(3, 0, 2)
+    renderApp('/lectures', 'INFLUENCER')
+    await waitFor(() =>
+      expect(headerChatLink()).toHaveAccessibleName('채팅, 안 읽은 메시지 5개'),
+    )
+    const badge = within(headerChatLink()).getByText('5')
+    expect(badge).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('99개를 넘으면 배지는 99+로, 이름에는 실제 개수를 넣는다', async () => {
+    mockChatRooms(60, 40)
+    renderApp('/admin', 'ADMIN')
+    await waitFor(() =>
+      expect(headerChatLink()).toHaveAccessibleName(
+        '채팅, 안 읽은 메시지 100개',
+      ),
+    )
+    expect(headerChatLink()).toHaveTextContent('99+')
+  })
+
+  it('안 읽은 메시지가 없으면 배지를 숨긴다', async () => {
+    mockChatRooms(0)
+    renderApp('/lectures', 'INFLUENCER')
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['chat', 'rooms'])?.status).toBe(
+        'success',
+      ),
+    )
+    expect(headerChatLink()).toHaveAccessibleName('채팅')
+    expect(headerChatLink()).toHaveTextContent(/^$/)
+  })
+
+  it.each(['/chat', '/chat/5'])(
+    '%s에서는 채팅 아이콘이 켜져 있다',
+    async (path) => {
+      renderApp(path, 'INFLUENCER')
+      const bar = await header()
+      expect(
+        await within(bar).findByRole('link', { name: /^채팅/ }),
+      ).toHaveAttribute('aria-current', 'page')
+    },
+  )
+
+  it('다른 화면에서는 채팅 아이콘이 꺼져 있다', async () => {
+    mockCart(0)
+    renderApp('/lectures', 'INFLUENCER')
+    const bar = await header()
+    expect(
+      await within(bar).findByRole('link', { name: '채팅' }),
+    ).not.toHaveAttribute('aria-current')
+  })
+
+  it('좁은 화면에서도 헤더에 남는다(드로어로 옮기지 않는다)', async () => {
+    mockCart(0)
+    renderApp('/lectures', 'INFLUENCER')
+    const link = await within(await header()).findByRole('link', {
+      name: '채팅',
+    })
+    // 좁은 화면에서 숨기는 장바구니와 달리 같은 클래스를 붙이지 않는다(CSS).
+    const cart = within(await header()).getByRole('link', { name: '장바구니' })
+    expect(link.className).not.toBe(cart.className)
+    await userEvent.click(
+      await screen.findByRole('button', { name: '메뉴 열기' }),
+    )
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).queryByRole('link', { name: /채팅/ })).toBeNull()
+  })
+})
+
+describe('상단 헤더 HP', () => {
+  it('HP 칸을 누르면 지갑으로 간다', async () => {
+    mockCart(0)
+    const router = renderApp('/lectures', 'USER')
+    await userEvent.click(
+      await within(await header()).findByRole('link', { name: '지갑' }),
+    )
+    expect(router.state.location.pathname).toBe('/wallet')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '지갑' }),
+    ).toBeInTheDocument()
   })
 })
 
