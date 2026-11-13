@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import type { ReactElement } from 'react'
+import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { viewerLabel } from '@/shared/auth/role'
 import { AppearanceStatusPill } from './appearance/ui/AppearanceStatusPill'
@@ -25,6 +26,7 @@ import { SaleStatusPill } from './lecture/ui/SaleStatusPill'
 import { revieweeRoleLabel } from './member/appearanceReview'
 import { ChannelCard } from './member/ui/ChannelCard'
 import { ChannelStatusPill } from './member/ui/ChannelStatusPill'
+import { InfluencerCard } from './member/ui/InfluencerCard'
 import { UpgradeStatusPill } from './member/ui/UpgradeStatusPill'
 import {
   CouponStatusPill,
@@ -130,5 +132,22 @@ describe('모르는 값의 이름 (#183)', () => {
       />,
     )
     expect(screen.getByText('알 수 없음')).toHaveClass('pill')
+  })
+
+  it('인플루언서 카드의 회원 역할은 알 수 없음을 그린다', () => {
+    render(
+      <MemoryRouter>
+        <InfluencerCard
+          member={{
+            id: 8,
+            nickname: '편집하는 고래',
+            role: NEW,
+            profileImageUrl: null,
+            appearanceRating: { average: null, count: 0 },
+          }}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('알 수 없음')).toHaveClass('pill', 'mute')
   })
 })
