@@ -167,6 +167,20 @@ describe('api', () => {
     await api('/lectures', { query: { page: 0, size: 20, keyword: undefined } })
     expect(seen).toEqual({ authorization: null, search: '?page=0&size=20' })
   })
+
+  it('배열 query는 같은 이름을 값마다 반복한다', async () => {
+    let search = ''
+    server.use(
+      http.get(url('/appearances'), ({ request }) => {
+        search = new URL(request.url).search
+        return HttpResponse.json({ statusCode: 200, message: '', data: [] })
+      }),
+    )
+    await api('/appearances', {
+      query: { role: 'HOST', status: ['ESTABLISHED', 'CANCEL_REQUESTED'] },
+    })
+    expect(search).toBe('?role=HOST&status=ESTABLISHED&status=CANCEL_REQUESTED')
+  })
 })
 
 describe('api 토큰 재발급', () => {

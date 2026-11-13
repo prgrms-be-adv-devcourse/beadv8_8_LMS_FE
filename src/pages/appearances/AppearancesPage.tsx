@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
   appearancesQuery,
+  appearanceTodoCountQuery,
 } from '@/entities/appearance/api'
 import type {
   AppearanceRequestSummary,
@@ -10,8 +11,10 @@ import type {
   RequestSide,
 } from '@/entities/appearance/types'
 import { confirmStage } from '@/entities/appearance/rules'
+import { AppearanceListViewSelect } from '@/entities/appearance/ui/AppearanceListViewSelect'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
 import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
+import { useAppearanceListView } from '@/entities/appearance/useAppearanceListView'
 import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
@@ -30,6 +33,19 @@ const TABS: { value: RequestSide; label: string }[] = [
   { value: 'guest', label: '게스트로 (받은 요청)' },
 ]
 
+/** 역할 탭마다 응답할 일 개수(서버 totalElements)를 붙인다. 불러오기 전·실패면 개수 없이 둔다 */
+function useRoleTabs() {
+  const host = useQuery(appearanceTodoCountQuery('host')).data
+  const guest = useQuery(appearanceTodoCountQuery('guest')).data
+  const counts: Record<RequestSide, number | undefined> = { host, guest }
+  return TABS.map((tab) => {
+    const value = counts[tab.value]
+    return value
+      ? { ...tab, count: { value, label: `응답 필요 ${value}건` } }
+      : tab
+  })
+}
+
 export function AppearancesPage() {
   const [params, setParams] = useSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
@@ -42,6 +58,7 @@ export function AppearancesPage() {
   const query = useQuery(appearanceRequestsQuery(side, page, view))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
+  const tabs = useRoleTabs()
 
   // 역할을 바꾸면 두 목록 모두 첫 페이지·기본 보기부터 본다.
   const selectTab = (tab: RequestSide) =>
@@ -53,12 +70,17 @@ export function AppearancesPage() {
         title="내 출연"
         lede="성립한 출연과 출연 요청을 역할별로 함께 관리해요. 요청을 보내면 출연료만큼 HP가 보류되고, 성립한 출연은 상세에서 취소를 요청하거나 처리할 수 있어요."
         actions={
-          <Link className="btn" to="/influencers">
-            게스트 찾기
-          </Link>
+          <>
+            <Link className="btn" to="/influencers">
+              게스트 찾기
+            </Link>
+            <Link className="btn" to="/recruits">
+              출연 모집
+            </Link>
+          </>
         }
       />
-      <Tabs label="내 역할" items={TABS} value={side} onChange={selectTab}>
+      <Tabs label="내 역할" items={tabs} value={side} onChange={selectTab}>
         <AppearanceList side={side} />
         <h2 className={styles.sectionTitle}>
           {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
@@ -165,23 +187,50 @@ function RequestCard({
   )
 }
 
-/** 성립한 출연 (요청·모집에서 성립한 건). 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다 */
+/**
+ * 성립한 출연 (요청·모집에서 성립한 건). 진행 중(기본)과 끝난 출연을 보기로 나눈다.
+ * 카드를 누르면 출연 상세에서 취소 요청·일방 취소를 한다
+ */
 function AppearanceList({ side }: { side: RequestSide }) {
+  const role = side === 'host' ? 'HOST' : 'GUEST'
   const [page, setPage] = usePageParam('apage')
-  const query = useQuery(
-    appearancesQuery(side === 'host' ? 'HOST' : 'GUEST', page),
-  )
+  const [view, selectView] = useAppearanceListView()
+  const query = useQuery(appearancesQuery(role, page, view))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
+  // 진행 중인 출연이 없을 때만 끝난 출연이 있는지 본다(빈 화면 제목을 고르려고). 첫 페이지를 받아 두면 보기를 바꿀 때도 쓴다.
+  const ongoingEmpty =
+    view === 'ongoing' && !query.isPlaceholderData && data?.content.length === 0
+  const ended = useQuery({
+    ...appearancesQuery(role, 0, 'ended'),
+    enabled: ongoingEmpty,
+  })
   return (
     <section aria-label="성립한 출연" className={styles.section}>
-      <h2 className={styles.sectionTitle}>성립한 출연</h2>
+      <div className="toolbar">
+        <h2 className={styles.sectionTitle}>성립한 출연</h2>
+        <AppearanceListViewSelect value={view} onChange={selectView} />
+      </div>
       {isPending || moving ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
-        <p className="fine">아직 성립한 출연이 없어요.</p>
+        view === 'ended' ? (
+          <p className="fine">끝난 출연이 없어요.</p>
+        ) : ended.isPending ? (
+          <Loading />
+        ) : (
+          <AppearanceEmpty
+            side={side}
+            // 끝난 출연을 못 불러왔으면 성립한 적이 없다고 단정하지 않고 진행 중인 출연이 없다고만 한다
+            title={
+              ended.error || ended.data?.page.totalElements
+                ? '진행 중인 출연이 없어요'
+                : '아직 성립한 출연이 없어요'
+            }
+          />
+        )
       ) : (
         <>
           <div className="page" style={{ gap: 12 }}>
@@ -201,6 +250,41 @@ function AppearanceList({ side }: { side: RequestSide }) {
         </>
       )}
     </section>
+  )
+}
+
+/** 진행 중인 출연이 없을 때 역할별로 다음에 할 일을 안내한다 */
+function AppearanceEmpty({
+  side,
+  title,
+}: {
+  side: RequestSide
+  title: string
+}) {
+  return (
+    <EmptyState
+      title={title}
+      action={
+        <div className={`row-actions ${styles.emptyActions}`}>
+          {side === 'host' ? (
+            <Link className="btn" to="/influencers">
+              게스트 찾기
+            </Link>
+          ) : (
+            <Link className="btn" to="/profile/edit">
+              내 프로필
+            </Link>
+          )}
+          <Link className="btn primary" to="/recruits">
+            출연 모집
+          </Link>
+        </div>
+      }
+    >
+      {side === 'host'
+        ? '인플루언서를 찾아 출연을 요청하거나, 모집글을 올려 게스트를 모아 보세요.'
+        : '프로필을 채워 두면 호스트가 찾기 쉬워요. 열린 모집글에 지원해 볼 수도 있어요.'}
+    </EmptyState>
   )
 }
 

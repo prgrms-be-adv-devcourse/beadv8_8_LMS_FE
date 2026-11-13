@@ -20,6 +20,9 @@ import { expectSuccessToast } from '@/test/toast'
 
 const GUEST_ID = 8
 const HOST_ID = 9
+/** 역할 탭 이름. 응답할 일 개수가 있으면 뒤에 ', 응답 필요 N건'이 붙는다 */
+const HOST_TAB = /^호스트로 \(보낸 요청\)/
+const GUEST_TAB = /^게스트로 \(받은 요청\)/
 
 const profile = (id: number, nickname: string) => ({
   id,
@@ -658,9 +661,7 @@ describe('리뷰 반영', () => {
       'failed',
     )
 
-    await userEvent.click(
-      screen.getByRole('tab', { name: '게스트로 (받은 요청)' }),
-    )
+    await userEvent.click(screen.getByRole('tab', { name: GUEST_TAB }))
     await screen.findByText('아직 받은 출연 요청이 없어요')
     expect(screen.queryByRole('combobox', { name: '보기' })).toBeNull()
     expect(statuses.at(-1)).toBe('received:null')
@@ -718,9 +719,7 @@ describe('리뷰 반영', () => {
     expect(await screen.findByText('내가 보낸 요청')).toBeInTheDocument()
     expect(screen.getByText('수락 대기')).toBeInTheDocument()
 
-    await userEvent.click(
-      screen.getByRole('tab', { name: '게스트로 (받은 요청)' }),
-    )
+    await userEvent.click(screen.getByRole('tab', { name: GUEST_TAB }))
     // 탭 전환(주소 변경)은 라우터가 낮은 우선순위로 그리므로 전환이 끝나 로딩이 보일 때까지 기다린다.
     // 받은 요청이 오기 전: 보낸 요청이 '응답 필요'로 보이지 않고 로딩한다.
     expect(await screen.findByText('불러오는 중…')).toBeInTheDocument()
@@ -760,18 +759,19 @@ describe('역할 탭', () => {
     )
     const router = renderApp('/appearances?tab=guest&page=2', 'INFLUENCER')
 
-    const guestPanel = await screen.findByRole('tabpanel', {
-      name: '게스트로 (받은 요청)',
-    })
+    const guestPanel = await screen.findByRole('tabpanel', { name: GUEST_TAB })
     expect(
       await within(guestPanel).findByText('내가 받은 요청'),
     ).toBeInTheDocument()
-    const host = screen.getByRole('tab', { name: '호스트로 (보낸 요청)' })
-    const guest = screen.getByRole('tab', { name: '게스트로 (받은 요청)' })
+    const host = screen.getByRole('tab', { name: HOST_TAB })
+    const guest = screen.getByRole('tab', { name: GUEST_TAB })
     expect(guest).toHaveAttribute('aria-controls', guestPanel.id)
 
-    // 탭 목록 바로 앞의 링크에서 Tab을 누르면 선택된 탭으로 들어온다.
-    screen.getByRole('link', { name: '게스트 찾기' }).focus()
+    // 탭 목록 바로 앞의 링크(머리 버튼 '출연 모집')에서 Tab을 누르면 선택된 탭으로 들어온다.
+    const head = screen
+      .getByRole('heading', { level: 1, name: '내 출연' })
+      .closest('.page-head') as HTMLElement
+    within(head).getByRole('link', { name: '출연 모집' }).focus()
     await userEvent.tab()
     expect(guest).toHaveFocus()
 
@@ -780,9 +780,7 @@ describe('역할 탭', () => {
     expect(router.state.location.search).toBe('?tab=guest&page=2')
 
     await userEvent.keyboard(' ')
-    const hostPanel = await screen.findByRole('tabpanel', {
-      name: '호스트로 (보낸 요청)',
-    })
+    const hostPanel = await screen.findByRole('tabpanel', { name: HOST_TAB })
     expect(router.state.location.search).toBe('')
     expect(
       await within(hostPanel).findByText('내가 보낸 요청'),
