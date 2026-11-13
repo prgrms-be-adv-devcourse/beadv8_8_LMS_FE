@@ -24,19 +24,86 @@ const influencer = (patch: Partial<MemberProfile> = {}): MemberProfile => ({
   ...patch,
 })
 
-/** 목록: 다른 인플루언서(고래)와 내 카드(하늘) */
-function mockList() {
+/** 목록: 다른 인플루언서(고래)와 내 카드(하늘), 그 뒤에 extra */
+function mockList(extra: MemberProfile[] = []) {
+  const content = [
+    influencer(),
+    influencer({ id: ME_ID, nickname: '하늘', role: 'INFLUENCER' }),
+    ...extra,
+  ]
   server.use(
     http.get('*/api/v1/members/influencers', () =>
       rs({
-        content: [
-          influencer(),
-          influencer({ id: ME_ID, nickname: '하늘', role: 'INFLUENCER' }),
-        ],
-        page: { size: 12, number: 0, totalElements: 2, totalPages: 1 },
+        content,
+        page: {
+          size: 12,
+          number: 0,
+          totalElements: content.length,
+          totalPages: 1,
+        },
       }),
     ),
   )
+}
+
+/** 나(하늘)와 고래의 1:1 채팅방 */
+const room: ChatRoom = {
+  chatRoomId: 5,
+  roomType: 'DIRECT',
+  status: 'ACTIVE',
+  createdAt: '2026-10-14T10:00:00',
+  members: [
+    {
+      userId: ME_ID,
+      nickname: '하늘',
+      active: true,
+      participationVersion: 1,
+    },
+    {
+      userId: WHALE_ID,
+      nickname: '편집하는 고래',
+      active: true,
+      participationVersion: 1,
+    },
+  ],
+}
+
+/**
+ * 채팅 시작(POST /chats)과 채팅방 화면의 응답. 시작 요청 본문을 돌려준다.
+ * gate를 주면 시작 응답을 그 Promise가 풀릴 때까지 미룬다.
+ */
+function mockChat(gate?: Promise<void>) {
+  const sent: { target?: unknown } = {}
+  server.use(
+    http.post('*/api/v1/chats', async ({ request }) => {
+      sent.target = await request.json()
+      await gate
+      return rs(room, 201)
+    }),
+    http.get('*/api/v1/chats', () => rs([room])),
+    http.get('*/api/v1/chats/:roomId/messages', () =>
+      rs({ messages: [], nextCursor: null }),
+    ),
+    http.put(
+      '*/api/v1/chats/:roomId/read',
+      () => new HttpResponse(null, { status: 204 }),
+    ),
+  )
+  return sent
+}
+
+/** 채팅방(/chat/5)에 들어가 이력까지 불러오기를 기다린다 */
+async function expectChatRoom(router: ReturnType<typeof renderApp>) {
+  await waitFor(() => expect(router.state.location.pathname).toBe('/chat/5'))
+  expect(
+    await screen.findByRole('region', { name: '편집하는 고래 님과의 대화' }),
+  ).toBeInTheDocument()
+  await waitFor(() =>
+    expect(queryClient.getQueryState(chatKeys.messages(5))?.status).toBe(
+      'success',
+    ),
+  )
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0))
 }
 
 const card = (name: string) => screen.findByRole('article', { name })
@@ -215,41 +282,7 @@ describe('인플루언서 목록 카드', () => {
 
   it('카드에서 채팅을 시작하면 그 인플루언서와의 채팅방으로 간다', async () => {
     mockList()
-    const room: ChatRoom = {
-      chatRoomId: 5,
-      roomType: 'DIRECT',
-      status: 'ACTIVE',
-      createdAt: '2026-10-14T10:00:00',
-      members: [
-        {
-          userId: ME_ID,
-          nickname: '하늘',
-          active: true,
-          participationVersion: 1,
-        },
-        {
-          userId: WHALE_ID,
-          nickname: '편집하는 고래',
-          active: true,
-          participationVersion: 1,
-        },
-      ],
-    }
-    let target: unknown
-    server.use(
-      http.post('*/api/v1/chats', async ({ request }) => {
-        target = await request.json()
-        return rs(room, 201)
-      }),
-      http.get('*/api/v1/chats', () => rs([room])),
-      http.get('*/api/v1/chats/:roomId/messages', () =>
-        rs({ messages: [], nextCursor: null }),
-      ),
-      http.put(
-        '*/api/v1/chats/:roomId/read',
-        () => new HttpResponse(null, { status: 204 }),
-      ),
-    )
+    const sent = mockChat()
     const router = renderApp('/influencers', 'VERIFIED_INFLUENCER')
 
     await userEvent.click(
@@ -258,16 +291,49 @@ describe('인플루언서 목록 카드', () => {
       }),
     )
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/5'))
-    expect(target).toEqual({ targetUserId: WHALE_ID })
-    expect(
-      await screen.findByRole('region', { name: '편집하는 고래 님과의 대화' }),
-    ).toBeInTheDocument()
-    await waitFor(() =>
-      expect(queryClient.getQueryState(chatKeys.messages(5))?.status).toBe(
-        'success',
-      ),
+    await expectChatRoom(router)
+    expect(sent.target).toEqual({ targetUserId: WHALE_ID })
+  })
+
+  it('채팅을 시작하는 동안에는 다른 카드의 채팅 버튼도 누를 수 없다', async () => {
+    mockList([influencer({ id: 9, nickname: '노래하는 참새' })])
+    let release!: () => void
+    const sent = mockChat(new Promise<void>((resolve) => (release = resolve)))
+    const router = renderApp('/influencers', 'VERIFIED_INFLUENCER')
+
+    const sparrowChat = within(await card('노래하는 참새')).getByRole(
+      'button',
+      { name: '노래하는 참새 님과 채팅' },
     )
-    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    expect(sparrowChat).toBeEnabled()
+    await userEvent.click(
+      within(await card('편집하는 고래')).getByRole('button', {
+        name: '편집하는 고래 님과 채팅',
+      }),
+    )
+
+    await waitFor(() => expect(sent.target).toEqual({ targetUserId: WHALE_ID }))
+    expect(sparrowChat).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: '편집하는 고래 님과 채팅' }),
+    ).toBeDisabled()
+
+    release()
+    await expectChatRoom(router)
+  })
+
+  it('관리자가 카드에서 채팅을 시작하면 그 인플루언서와의 채팅방으로 간다', async () => {
+    mockList()
+    const sent = mockChat()
+    const router = renderApp('/influencers', 'ADMIN')
+
+    await userEvent.click(
+      within(await card('편집하는 고래')).getByRole('button', {
+        name: '편집하는 고래 님과 채팅',
+      }),
+    )
+
+    await expectChatRoom(router)
+    expect(sent.target).toEqual({ targetUserId: WHALE_ID })
   })
 })
