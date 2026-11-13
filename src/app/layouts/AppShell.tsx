@@ -55,8 +55,9 @@ function useLayout() {
 }
 
 /**
- * 앱 셸: (dev) 역할 전환 스트립 / 상단 바 / 왼쪽 내비 레일 / 작업 영역
- * 좁은 화면(≤860px)에서는 내비 레일이 상단 바의 메뉴 버튼으로 여는 드로어가 된다.
+ * 앱 셸: 상단 바 / 왼쪽 내비 레일 / 작업 영역
+ * 좁은 화면(≤860px)에서는 내비 레일이 상단 바의 메뉴 버튼으로 여는 드로어가 된다. 지갑(HP 칸)·채팅은 레일에 두지 않고
+ * 상단 바에만 있어 드로어를 열지 않아도 보인다.
  * 홈처럼 layout이 'top'인 화면은 가로 메뉴가 있는 헤더를 쓰고, 내비 레일은 늘 드로어다.
  */
 export function AppShell() {
@@ -379,7 +380,6 @@ function HpPill() {
 }
 
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
-  const unreadChats = useChatUnreadTotal(CHAT_VIEWERS.includes(viewer))
   const { pathname } = useLocation()
   const groups = navFor(viewer)
   const paths = groups.flatMap((g) => g.items.map((it) => it.path))
@@ -414,14 +414,6 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
               }
             >
               {item.label}
-              {item.path === '/chat' && unreadChats > 0 && (
-                <span
-                  className={styles.cnt}
-                  aria-label={`안 읽은 메시지 ${unreadChats}개`}
-                >
-                  {badgeText(unreadChats)}
-                </span>
-              )}
             </NavLink>
           ))}
         </div>

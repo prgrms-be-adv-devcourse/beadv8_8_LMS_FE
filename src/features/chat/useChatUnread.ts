@@ -19,7 +19,7 @@ const STALE_READ_CODES = [
 export const READ_RETRY_DELAY_MS = 3_000
 export const READ_RETRY_LIMIT = 3
 
-/** 모든 방의 안 읽은 수 합 (내비 배지). 채팅을 쓰는 역할일 때만 방 목록을 부른다 */
+/** 모든 방의 안 읽은 수 합 (상단 헤더 채팅 배지). 채팅을 쓰는 역할일 때만 방 목록을 부른다 */
 export function useChatUnreadTotal(enabled: boolean) {
   const { data } = useQuery({
     ...chatRoomsQuery,
