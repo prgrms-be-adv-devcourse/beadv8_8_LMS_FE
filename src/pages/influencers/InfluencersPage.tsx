@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { Rating } from '@/entities/lecture/ui/Rating'
 import { influencersQuery } from '@/entities/member/api'
+import { InfluencerCard } from '@/entities/member/ui/InfluencerCard'
 import { useViewer } from '@/shared/auth/session'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
-import { Avatar } from '@/shared/ui/Avatar'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
@@ -42,30 +41,7 @@ export function InfluencersPage() {
         <>
           <div className={styles.grid}>
             {data.content.map((member) => (
-              <Link
-                key={member.id}
-                className={styles.card}
-                to={`/influencers/${member.id}`}
-              >
-                <Avatar
-                  name={member.nickname}
-                  imageUrl={member.profileImageUrl}
-                  size={48}
-                />
-                <div className={styles.meta}>
-                  <span className={styles.name}>{member.nickname}</span>
-                  <span>
-                    {member.role === 'VERIFIED_INFLUENCER' ? (
-                      <span className="pill info">인증된 인플루언서</span>
-                    ) : (
-                      <span className="pill mute">인플루언서</span>
-                    )}
-                  </span>
-                  <span className={styles.rating}>
-                    <Rating {...member.appearanceRating} />
-                  </span>
-                </div>
-              </Link>
+              <InfluencerCard key={member.id} member={member} />
             ))}
           </div>
           <Pager
