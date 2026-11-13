@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { MINIMUM_FEE } from '@/entities/appearance/rules'
 import { influencersQuery } from '@/entities/member/api'
 import type { MemberProfile } from '@/entities/member/types'
 import { InfluencerCard } from '@/entities/member/ui/InfluencerCard'
@@ -44,7 +45,7 @@ export function InfluencersPage() {
     <div className="page">
       <PageHead
         title="인플루언서"
-        lede="채널 인증을 마친 인플루언서예요. 프로필에서 채널·팔로워 수와 받은 출연 리뷰를 확인할 수 있어요."
+        lede={`채널 인증을 마친 인플루언서예요. 채팅으로 일정을 맞춘 뒤 출연 요청을 보내세요. 최저 출연료는 1인당 ${MINIMUM_FEE.toLocaleString()} HP예요.`}
       />
       {viewer === 'USER' && (
         <div className="notice">
