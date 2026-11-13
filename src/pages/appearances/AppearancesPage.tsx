@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import {
   appearanceRequestsQuery,
   appearancesQuery,
+  appearanceTodoCountQuery,
 } from '@/entities/appearance/api'
 import type {
   AppearanceRequestSummary,
@@ -32,6 +33,19 @@ const TABS: { value: RequestSide; label: string }[] = [
   { value: 'guest', label: '게스트로 (받은 요청)' },
 ]
 
+/** 역할 탭마다 응답할 일 개수(서버 totalElements)를 붙인다. 불러오기 전·실패면 개수 없이 둔다 */
+function useRoleTabs() {
+  const host = useQuery(appearanceTodoCountQuery('host')).data
+  const guest = useQuery(appearanceTodoCountQuery('guest')).data
+  const counts: Record<RequestSide, number | undefined> = { host, guest }
+  return TABS.map((tab) => {
+    const value = counts[tab.value]
+    return value
+      ? { ...tab, count: { value, label: `응답 필요 ${value}건` } }
+      : tab
+  })
+}
+
 export function AppearancesPage() {
   const [params, setParams] = useSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
@@ -44,6 +58,7 @@ export function AppearancesPage() {
   const query = useQuery(appearanceRequestsQuery(side, page, view))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
+  const tabs = useRoleTabs()
 
   // 역할을 바꾸면 두 목록 모두 첫 페이지·기본 보기부터 본다.
   const selectTab = (tab: RequestSide) =>
@@ -60,7 +75,7 @@ export function AppearancesPage() {
           </Link>
         }
       />
-      <Tabs label="내 역할" items={TABS} value={side} onChange={selectTab}>
+      <Tabs label="내 역할" items={tabs} value={side} onChange={selectTab}>
         <AppearanceList side={side} />
         <h2 className={styles.sectionTitle}>
           {side === 'host' ? '보낸 출연 요청' : '받은 출연 요청'}
