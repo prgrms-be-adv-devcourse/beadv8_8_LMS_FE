@@ -223,8 +223,9 @@ function AppearanceList({ side }: { side: RequestSide }) {
         ) : (
           <AppearanceEmpty
             side={side}
+            // 끝난 출연을 못 불러왔으면 성립한 적이 없다고 단정하지 않고 진행 중인 출연이 없다고만 한다
             title={
-              ended.data?.page.totalElements
+              ended.error || ended.data?.page.totalElements
                 ? '진행 중인 출연이 없어요'
                 : '아직 성립한 출연이 없어요'
             }

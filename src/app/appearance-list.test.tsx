@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type {
@@ -306,6 +306,35 @@ describe('머리 버튼과 빈 화면', () => {
     expect(
       within(section).queryByRole('link', { name: '게스트 찾기' }),
     ).toBeNull()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('끝난 출연을 못 불러오면 성립한 출연이 없다고 단정하지 않는다', async () => {
+    let endedCalls = 0
+    server.use(
+      http.get('*/api/v1/appearances', ({ request }) => {
+        const url = new URL(request.url)
+        if (url.searchParams.getAll('status').includes('CONFIRMED')) {
+          endedCalls += 1
+          return HttpResponse.json(
+            { status: 400, code: 'INVALID_REQUEST', detail: '잘못된 요청' },
+            { status: 400 },
+          )
+        }
+        return rs(pageOf([] as AppearanceSummary[]))
+      }),
+    )
+    renderApp('/appearances', 'INFLUENCER')
+
+    const section = await screen.findByRole('region', { name: '성립한 출연' })
+    expect(
+      await within(section).findByText('진행 중인 출연이 없어요'),
+    ).toBeInTheDocument()
+    expect(endedCalls).toBe(1)
+    expect(within(section).queryByText('아직 성립한 출연이 없어요')).toBeNull()
+    expect(
+      within(section).getByRole('link', { name: '출연 모집' }),
+    ).toHaveAttribute('href', '/recruits')
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 })
