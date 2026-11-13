@@ -767,8 +767,11 @@ describe('역할 탭', () => {
     const guest = screen.getByRole('tab', { name: GUEST_TAB })
     expect(guest).toHaveAttribute('aria-controls', guestPanel.id)
 
-    // 탭 목록 바로 앞의 링크에서 Tab을 누르면 선택된 탭으로 들어온다.
-    screen.getByRole('link', { name: '게스트 찾기' }).focus()
+    // 탭 목록 바로 앞의 링크(머리 버튼 '출연 모집')에서 Tab을 누르면 선택된 탭으로 들어온다.
+    const head = screen
+      .getByRole('heading', { level: 1, name: '내 출연' })
+      .closest('.page-head') as HTMLElement
+    within(head).getByRole('link', { name: '출연 모집' }).focus()
     await userEvent.tab()
     expect(guest).toHaveFocus()
 
