@@ -13,6 +13,10 @@ export type Me = {
   role: Role
   status: UserStatus
   profileImageUrl: string | null
+  /** 콘텐츠 분야(고른 순서, 없으면 빈 배열). name은 드물게 null이다 */
+  contentCategories: { code: string; name: string | null }[]
+  /** 자기소개. 없으면 null */
+  bio: string | null
 }
 
 /** 내 정보. 로그인하지 않았으면(refresh token이 없거나 거절됨) null */

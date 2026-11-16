@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { meQuery } from '@/shared/auth/me'
-import { viewerLabel } from '@/shared/auth/role'
+import { INFLUENCER, viewerLabel } from '@/shared/auth/role'
 import { NicknameForm } from '@/features/account/NicknameForm'
 import { PasswordForm } from '@/features/account/PasswordForm'
 import { ProfileImageEditor } from '@/features/account/ProfileImageEditor'
@@ -31,6 +31,15 @@ export function SettingsPage() {
             <ProfileImageEditor me={me} />
             {/* 닉네임이 바뀌면 입력값을 새 값으로 다시 시작한다. */}
             <NicknameForm key={me.nickname} current={me.nickname} />
+            {INFLUENCER.includes(me.role) && (
+              <p className="fine">
+                콘텐츠 분야와 자기소개는{' '}
+                <Link className="link" to="/profile/edit">
+                  내 프로필
+                </Link>
+                에서 바꿔요.
+              </p>
+            )}
           </section>
           <PasswordForm />
           {/* 관리자는 탈퇴 화면(/settings/withdraw)에 들어갈 수 없다. */}

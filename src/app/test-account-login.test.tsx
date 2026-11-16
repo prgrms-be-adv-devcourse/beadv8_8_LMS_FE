@@ -31,6 +31,8 @@ const me = (role: Role): Me => ({
   role,
   status: 'ACTIVE',
   profileImageUrl: null,
+  contentCategories: [],
+  bio: null,
 })
 
 const LOCAL_TOKEN = 'local-access-token'

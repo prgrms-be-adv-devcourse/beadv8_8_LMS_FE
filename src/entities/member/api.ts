@@ -33,6 +33,10 @@ export const memberKeys = {
     [...memberKeys.all, 'channel-reviews', status, page] as const,
   /** 채널 승인·반려 mutation. 화면을 다시 열어도 진행 중인 심사를 알 수 있게 키를 고정한다 */
   channelReview: () => [...memberKeys.all, 'channel-review'] as const,
+  contentCategories: () => [...memberKeys.all, 'content-categories'] as const,
+  /** 프로필 사진 일괄 조회. 회원 ID를 쉼표로 이은 값 */
+  profileImages: (ids: string) =>
+    [...memberKeys.all, 'profile-images', ids] as const,
   /** 닉네임 중복 확인. 닉네임 없이 부르면 모든 확인의 앞부분 키 */
   nicknameAvailability: (...nickname: [] | [string]) =>
     [...memberKeys.all, 'nickname-availability', ...nickname] as const,
@@ -98,8 +102,18 @@ export const nicknameAvailabilityQuery = (nickname: string) =>
       }),
   })
 
-/** 닉네임 변경. 보내지 않은 값은 바꾸지 않는다. */
-export function updateMe(input: { nickname: string }) {
+/**
+ * 내 정보 수정. 보내지 않은 값은 바꾸지 않는다.
+ * - contentCategories: 분야 code(보낸 순서대로 저장), 0~5개·중복 불가. 빈 배열이면 모두 지운다
+ * - bio: 앞뒤 공백을 지운 뒤 100자 이하. 빈 문자열이면 지운다
+ * 분야·자기소개를 새로 넣거나 바꾸는 것은 인플루언서만 된다(그 밖의 역할이면 요청 전체가 403
+ * INFLUENCER_PROFILE_NOT_ALLOWED). 다른 역할의 화면은 두 값을 보내지 않는다
+ */
+export function updateMe(input: {
+  nickname?: string
+  contentCategories?: string[]
+  bio?: string
+}) {
   return api<Me>('/members/me', { method: 'PATCH', body: input })
 }
 

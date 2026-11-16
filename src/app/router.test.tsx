@@ -25,6 +25,8 @@ function renderAt(path: string, viewer: Viewer) {
           role: viewer,
           status: 'ACTIVE',
           profileImageUrl: null,
+          contentCategories: [],
+          bio: null,
         }
   queryClient.setQueryData(meQuery.queryKey, me)
   // renderApp과 같이 회원이면 토큰을 넣고 재발급이 성공하게 한다.

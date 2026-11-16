@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
+import { CONTENT_CATEGORIES } from './contentCategories'
 
 /**
  * 화면과 상관없이 나가는 요청의 기본 응답. 테스트마다 server.use(...)로 덮어쓴다.
@@ -235,11 +236,25 @@ const appearanceReviewsDefault = [
   ),
 ]
 
+/**
+ * 콘텐츠 분야 목록. 인플루언서 목록의 분야 필터와 내 프로필의 분야 고르기가 부른다. 기본은 BE에 들어 있는 23개다.
+ */
+const contentCategoriesDefault = [
+  http.get('*/api/v1/members/content-categories', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: CONTENT_CATEGORIES,
+    }),
+  ),
+]
+
 /** 테스트용 MSW 서버. 테스트마다 server.use(...)로 응답을 정한다. */
 export const server = setupServer(
   ...authDefaults,
   ...nicknameAvailabilityDefault,
   ...appearanceReviewsDefault,
+  ...contentCategoriesDefault,
   ...chatTicketDefault,
   ...appShellCartDefault,
   ...appShellDefaults,

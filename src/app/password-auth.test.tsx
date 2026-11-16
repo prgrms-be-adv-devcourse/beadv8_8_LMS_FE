@@ -16,6 +16,8 @@ const me = (patch: Partial<Me> = {}): Me => ({
   role: 'USER',
   status: 'ACTIVE',
   profileImageUrl: null,
+  contentCategories: [],
+  bio: null,
   ...patch,
 })
 

@@ -24,6 +24,8 @@ const me = (patch: Partial<Me> = {}): Me => ({
   role: 'USER',
   status: 'ACTIVE',
   profileImageUrl: null,
+  contentCategories: [],
+  bio: null,
   ...patch,
 })
 
@@ -57,6 +59,7 @@ describe('인플루언서', () => {
               nickname: '편집하는 고래',
               role: 'VERIFIED_INFLUENCER',
               profileImageUrl: null,
+              contentCategories: [],
               appearanceRating: noRating,
             },
           ],
@@ -69,6 +72,8 @@ describe('인플루언서', () => {
           nickname: '편집하는 고래',
           role: 'VERIFIED_INFLUENCER',
           profileImageUrl: null,
+          contentCategories: [],
+          bio: null,
           channels: [
             {
               platform: 'CHZZK',
@@ -118,6 +123,7 @@ describe('인플루언서', () => {
                     nickname: `둘째 페이지 고래 ${p + 1}`,
                     role: 'VERIFIED_INFLUENCER',
                     profileImageUrl: null,
+                    contentCategories: [],
                     appearanceRating: noRating,
                   },
                 ]
@@ -147,6 +153,7 @@ describe('인플루언서', () => {
               nickname: '편집하는 고래',
               role: 'VERIFIED_INFLUENCER',
               profileImageUrl: null,
+              contentCategories: [],
               appearanceRating: { average: 4.5, count: 12 },
             },
             {
@@ -154,6 +161,7 @@ describe('인플루언서', () => {
               nickname: '새내기 수달',
               role: 'INFLUENCER',
               profileImageUrl: null,
+              contentCategories: [],
               appearanceRating: noRating,
             },
           ],
@@ -181,6 +189,8 @@ describe('인플루언서', () => {
       nickname: '편집하는 고래',
       role: 'VERIFIED_INFLUENCER',
       profileImageUrl: null,
+      contentCategories: [],
+      bio: null,
       channels: [],
       appearanceRating: {
         total: { average: 4.5, count: 12 },

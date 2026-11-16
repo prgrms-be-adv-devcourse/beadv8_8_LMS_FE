@@ -32,6 +32,15 @@ export type AppearanceRating = {
   asGuest: RatingSummary
 }
 
+/**
+ * 콘텐츠 분야. code는 바뀌지 않고 name은 운영자가 바꿀 수 있다.
+ * 회원이 고른 분야는 드물게 name이 null일 수 있다(그 칩은 분야 목록에서 code로 이름을 찾고, 없으면 숨긴다)
+ */
+export type ContentCategory = {
+  code: string
+  name: string | null
+}
+
 /** 회원 공개 정보 (이메일 없음) */
 type PublicMember = {
   id: number
@@ -41,8 +50,12 @@ type PublicMember = {
   profileImageUrl: string | null
 }
 
-/** GET /members/influencers 한 줄. 출연 평점은 전체 하나다 */
-export type MemberProfile = PublicMember & { appearanceRating: RatingSummary }
+/** GET /members/influencers 한 줄. 출연 평점은 전체 하나다. 자기소개는 프로필에서만 준다 */
+export type MemberProfile = PublicMember & {
+  appearanceRating: RatingSummary
+  /** 고른 순서. 없으면 빈 배열 */
+  contentCategories: ContentCategory[]
+}
 
 /** 다른 회원도 보는 채널 */
 export type Channel = {
@@ -59,6 +72,10 @@ export type Channel = {
 export type MemberProfileDetail = PublicMember & {
   channels: Channel[]
   appearanceRating: AppearanceRating
+  /** 고른 순서. 없으면 빈 배열 */
+  contentCategories: ContentCategory[]
+  /** 자기소개. 없으면 null */
+  bio: string | null
 }
 
 /** 리뷰를 받은 회원이 그 출연에서 맡은 역할 */

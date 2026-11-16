@@ -159,6 +159,7 @@ describe('모르는 값의 이름 (#183)', () => {
             nickname: '편집하는 고래',
             role: NEW,
             profileImageUrl: null,
+            contentCategories: [],
             appearanceRating: { average: null, count: 0 },
           }}
         />
