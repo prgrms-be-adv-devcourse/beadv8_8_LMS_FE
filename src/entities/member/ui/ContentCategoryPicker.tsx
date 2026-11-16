@@ -43,13 +43,10 @@ export function ContentCategoryPicker({
   placeholder = '분야 찾기',
   inputProps,
 }: ContentCategoryPickerProps) {
-  const {
-    data: list = [],
-    isPending,
-    error,
-    refetch,
-    isFetching,
-  } = useQuery(contentCategoriesQuery)
+  const { data, error, refetch, isFetching } = useQuery(contentCategoriesQuery)
+  const list = data ?? []
+  // 받아 둔 목록이 있으면 백그라운드 다시 받기가 실패해도 그 목록으로 고른다
+  const noList = data === undefined
   const [text, setText] = useState('')
   const [open, setOpen] = useState(false)
   const full = value.length >= max
@@ -139,7 +136,7 @@ export function ContentCategoryPicker({
         onKeyDown={onKeyDown}
         {...inputProps}
       />
-      {error && !isFetching ? (
+      {noList && error && !isFetching ? (
         // 목록을 받지 못하면 고를 수 없는 이유와 다시 시도를 보인다(열려 있지 않아도 보인다).
         <div className={styles.suggestions} role="alert">
           <span className="fine c-bad">
@@ -163,7 +160,7 @@ export function ContentCategoryPicker({
             aria-label="분야 후보"
           >
             {/* 처음 받는 중이거나 실패 뒤 다시 받는 중 */}
-            {isPending || error ? (
+            {noList ? (
               <span className="fine" role="status">
                 분야 목록을 불러오는 중…
               </span>
