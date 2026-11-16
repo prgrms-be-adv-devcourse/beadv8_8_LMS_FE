@@ -1,0 +1,8 @@
+.hit {
+  font-style: normal;
+  font-weight: 700;
+  color: inherit;
+  background: var(--signal-soft);
+  border-radius: 3px;
+  padding: 0 2px;
+}

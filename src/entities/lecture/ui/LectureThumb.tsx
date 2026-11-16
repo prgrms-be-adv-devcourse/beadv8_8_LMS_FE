@@ -3,8 +3,11 @@ import styles from './LectureThumb.module.css'
 type LectureThumbProps = {
   lectureId: number
   title: string
-  thumbnailUrl: string | null
+  /** null이면 강의 색 카드로 대신한다. undefined는 아직 주소를 받는 중이라 빈 칸으로 둔다 */
+  thumbnailUrl: string | null | undefined
   size?: 'sm' | 'md' | 'big'
+  /** 이미지를 불러오지 못했을 때(주소 만료 등) */
+  onError?: () => void
 }
 
 // 썸네일이 없으면 강의마다 정해진 색 카드로 대신한다(목업의 Thumb).
@@ -22,12 +25,16 @@ export function LectureThumb({
   title,
   thumbnailUrl,
   size = 'md',
+  onError,
 }: LectureThumbProps) {
   const className = `${styles.thumb} ${styles[size]}`
+  if (thumbnailUrl === undefined) {
+    return <div className={className} aria-hidden="true" />
+  }
   if (thumbnailUrl) {
     return (
       <div className={className}>
-        <img src={thumbnailUrl} alt="" loading="lazy" />
+        <img src={thumbnailUrl} alt="" loading="lazy" onError={onError} />
       </div>
     )
   }

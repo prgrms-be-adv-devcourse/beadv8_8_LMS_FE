@@ -106,12 +106,50 @@ export type Review = {
   updatedAt: string
 }
 
-export const LECTURE_SORT_LABEL: Record<LectureSort, string> = {
-  LATEST: '최신순',
-  RATING: '평점순',
-  PRICE_ASC: '낮은 가격순',
-  PRICE_DESC: '높은 가격순',
+/**
+ * 강의 화면의 정렬 선택지. 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API로 보내므로 두 API 값으로 바꿔 보낸다(sort.ts).
+ * DEFAULT는 URL에 쓰지 않는다. 검색어가 있으면 관련도순, 없으면 최신순이다
+ */
+export type LectureBrowseSort = 'DEFAULT' | LectureSort
+
+/** 강의 검색 API의 sort. 이 네 값 말고는 400 UNSUPPORTED_SORT다 */
+export type LectureSearchSort =
+  'latest,desc' | 'rating,desc' | 'price,asc' | 'price,desc'
+
+/**
+ * 검색어가 걸린 곳(GET /search/lectures). 값은 서버가 HTML escape하고 걸린 말만 <em>으로 감싼 HTML 문자열이다.
+ * 걸리지 않은 칸은 null, contentTitles는 빈 배열이다
+ */
+export type LectureSearchHighlights = {
+  /** 제목 전체 */
+  title: string | null
+  /** 판매자 닉네임 전체 */
+  sellerNickname: string | null
+  /** 소개에서 걸린 곳 주변 한 조각(약 100자). 줄바꿈이 섞일 수 있다 */
+  description: string | null
+  /** 걸린 콘텐츠(강) 제목들 */
+  contentTitles: string[]
 }
+
+/** GET /search/lectures 한 줄. 판매 중이고 판매자가 정상인 강의만 온다. 썸네일은 없어 일괄 조회로 채운다 */
+export type LectureSearchItem = {
+  lectureId: number
+  /** 원문(escape되지 않음) */
+  title: string
+  /** 아직 모르면 null(드묾) */
+  priceHp: number | null
+  sellerUserId: number
+  /** 원문. 아직 모르면 null */
+  sellerNickname: string | null
+  /** 보정 전 원래 평균. 리뷰가 없으면 null */
+  averageRating: number | null
+  reviewCount: number
+  /** 검색어가 있으면 늘 객체, 없으면 null */
+  highlights: LectureSearchHighlights | null
+}
+
+/** GET /lectures/thumbnails. 요청한 강의 ID마다 키가 있고, 썸네일을 줄 수 없는 강의는 null이다 */
+export type LectureThumbnails = Record<string, string | null>
 
 /** GET /lectures/me 한 줄. 판매자 본인의 강의를 삭제한 것까지 모두 담는다 */
 export type MyLecture = {

@@ -4,6 +4,15 @@
   flex: 1;
   max-width: 420px;
 }
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.head {
+  font-size: 18px;
+  font-weight: 700;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));

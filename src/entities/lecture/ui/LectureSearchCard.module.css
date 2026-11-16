@@ -1,0 +1,11 @@
+/* 소개 조각·콘텐츠 제목. 줄바꿈은 공백으로 보이고 두 줄까지만 보인다 */
+.snippet {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

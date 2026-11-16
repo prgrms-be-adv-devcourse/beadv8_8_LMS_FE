@@ -13,6 +13,7 @@ import type {
 } from '@/entities/order/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { mockOrders } from '@/test/lectureOrders'
+import { mockLectureSearch } from '@/test/lectureSearchMock'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -215,6 +216,7 @@ describe('강의 목록', () => {
   })
 
   it('뒤로 가기로 검색 전 주소로 돌아가면 검색창을 비우고, 앞으로 가면 검색어를 되살린다', async () => {
+    mockLectureSearch()
     server.use(
       http.get('*/api/v1/lectures', () =>
         rs({
@@ -241,7 +243,8 @@ describe('강의 목록', () => {
     )
   })
 
-  it('검색어가 그대로인 동안에는 입력 중인 값을 덮어쓰지 않는다(정렬 변경)', async () => {
+  it('정렬을 바꿔도 입력 중인 값을 덮어쓰지 않고, 입력을 멈추면 그 검색어로 검색한다', async () => {
+    mockLectureSearch()
     server.use(
       http.get('*/api/v1/lectures', () =>
         rs({
@@ -258,8 +261,11 @@ describe('강의 목록', () => {
       screen.getByRole('combobox', { name: '정렬' }),
       'PRICE_ASC',
     )
+    expect(box).toHaveValue('마이')
     await waitFor(() =>
-      expect(router.state.location.search).toBe('?sort=PRICE_ASC'),
+      expect(router.state.location.search).toBe(
+        `?keyword=${encodeURIComponent('마이')}&sort=PRICE_ASC`,
+      ),
     )
     expect(box).toHaveValue('마이')
   })
@@ -310,21 +316,18 @@ describe('강의 목록', () => {
     return pages
   }
 
-  it('URL의 페이지가 마지막 페이지를 넘으면 검색어·정렬을 두고 마지막 페이지로 옮긴다', async () => {
+  it('URL의 페이지가 마지막 페이지를 넘으면 정렬을 두고 마지막 페이지로 옮긴다', async () => {
     const pages = serveLecturePages(2)
-    const router = renderApp(
-      '/lectures?keyword=%EB%A7%88%EC%9D%B4%ED%81%AC&sort=PRICE_ASC&page=9',
-      'USER',
-    )
+    const router = renderApp('/lectures?sort=PRICE_ASC&page=9', 'USER')
 
     expect(
       await screen.findByRole('link', { name: /마이크 세팅 2/ }),
     ).toBeInTheDocument()
-    expect(router.state.location.search).toBe(
-      '?keyword=%EB%A7%88%EC%9D%B4%ED%81%AC&sort=PRICE_ASC&page=2',
-    )
+    expect(router.state.location.search).toBe('?sort=PRICE_ASC&page=2')
     expect(pages).toEqual([8, 1])
-    expect(screen.queryByText('찾는 강의가 없어요')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('아직 판매 중인 강의가 없어요'),
+    ).not.toBeInTheDocument()
   })
 
   it('정수가 아닌 페이지는 첫 페이지로 부른다', async () => {

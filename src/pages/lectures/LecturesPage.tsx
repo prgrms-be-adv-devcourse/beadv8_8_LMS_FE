@@ -1,20 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
-import { type FormEvent } from 'react'
+import { type FormEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
-  LECTURE_SORT_LABEL,
-  type LectureSort,
-  type LectureSummary,
-} from '@/entities/lecture/types'
-import { LectureCard as BaseLectureCard } from '@/entities/lecture/ui/LectureCard'
+  LECTURE_BROWSE_SORTS,
+  LECTURE_KEYWORD_MAX,
+  listSortOf,
+  normalizeKeyword,
+  parseBrowseSort,
+  sortLabel,
+} from '@/entities/lecture/search'
+import type { LectureBrowseSort } from '@/entities/lecture/types'
+import { LectureCard } from '@/entities/lecture/ui/LectureCard'
+import { LectureSearchResults } from '@/features/lecture-search/LectureSearchResults'
+import { useKeywordInput } from '@/features/lecture-search/useKeywordInput'
 import {
   useBuyerState,
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
 import { useViewer } from '@/shared/auth/session'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
-import { useSearchDraft } from '@/shared/lib/useSearchDraft'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -22,38 +27,44 @@ import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './LecturesPage.module.css'
 
-const SORTS = Object.keys(LECTURE_SORT_LABEL) as LectureSort[]
-
-/** 검색어·정렬은 URL에 둔다(?keyword=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다. */
-function useListParams() {
+/**
+ * 검색어·정렬은 URL에 둔다(?keyword=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다.
+ * 정렬 값은 강의 목록 API 값(LATEST 등)으로 적고, 기본은 적지 않는다.
+ */
+function useBrowseParams() {
   const [params, setParams] = useSearchParams()
-  const sortParam = params.get('sort') as LectureSort | null
-  const sort = sortParam && SORTS.includes(sortParam) ? sortParam : 'LATEST'
-  const keyword = params.get('keyword') ?? ''
+  const sort = parseBrowseSort(params.get('sort'))
+  const keyword = normalizeKeyword(params.get('keyword') ?? '')
 
-  const update = (next: Partial<{ keyword: string; sort: LectureSort }>) => {
+  const update = (
+    next: Partial<{ keyword: string; sort: LectureBrowseSort }>,
+    { replace = false } = {},
+  ) => {
     const merged = { keyword, sort, ...next }
     const search = new URLSearchParams()
     if (merged.keyword) search.set('keyword', merged.keyword)
-    if (merged.sort !== 'LATEST') search.set('sort', merged.sort)
-    setParams(search)
+    if (merged.sort !== 'DEFAULT') search.set('sort', merged.sort)
+    setParams(search, { replace })
   }
   return { keyword, sort, update }
 }
 
+/** 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API로 보인다 */
 export function LecturesPage() {
   const viewer = useViewer()
   const buyer = useBuyerState()
-  const { keyword, sort, update } = useListParams()
+  const guest = viewer === 'GUEST'
+  const { keyword, sort, update } = useBrowseParams()
   const [page, setPage] = usePageParam('page')
-  const [draft, setDraft] = useSearchDraft(keyword)
-  const query = useQuery(lecturesQuery({ keyword, sort, page }))
-  const moving = useClampPage(page, query, setPage)
-  const { data, error, isPending, refetch } = query
+  // 검색어를 고쳐 가는 동안(검색어 → 다른 검색어)은 방문 기록을 하나만 남긴다
+  const { draft, setDraft, submit } = useKeywordInput(keyword, (next) =>
+    update({ keyword: next }, { replace: keyword !== '' && next !== '' }),
+  )
+  const flagsOf = (lecture: CardLecture) => buyerFlags(lecture, buyer)
 
   const search = (e: FormEvent) => {
     e.preventDefault()
-    update({ keyword: draft.trim() })
+    submit()
   }
 
   return (
@@ -62,7 +73,7 @@ export function LecturesPage() {
         title="강의"
         lede="인증된 인플루언서가 직접 만든 방송 강의예요. 구매일 다음 날부터 7일 안에, 재생하기 전이면 구매 취소할 수 있어요."
       />
-      {viewer === 'GUEST' && (
+      {guest && (
         <div className="notice">
           비회원은 강의 목록만 볼 수 있어요.
           <button
@@ -80,89 +91,117 @@ export function LecturesPage() {
             className="input"
             type="search"
             value={draft}
+            maxLength={LECTURE_KEYWORD_MAX}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="강의 제목으로 찾기"
+            placeholder="강의 제목, 강 제목, 판매자로 찾기"
             aria-label="강의 검색"
           />
           <button type="submit" className="btn">
             검색
           </button>
         </form>
-        <select
-          className="select sm"
-          value={sort}
-          onChange={(e) => update({ sort: e.target.value as LectureSort })}
-          aria-label="정렬"
-        >
-          {SORTS.map((s) => (
-            <option key={s} value={s}>
-              {LECTURE_SORT_LABEL[s]}
-            </option>
-          ))}
-        </select>
+        <div className={styles.sort}>
+          {keyword && sort === 'RATING' && (
+            <span className="fine">리뷰 수를 함께 반영한 순서예요</span>
+          )}
+          <select
+            className="select sm"
+            value={sort}
+            onChange={(e) =>
+              update({ sort: e.target.value as LectureBrowseSort })
+            }
+            aria-label="정렬"
+          >
+            {LECTURE_BROWSE_SORTS.map((s) => (
+              <option key={s} value={s}>
+                {sortLabel(s, keyword !== '')}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {isPending || moving ? (
-        <Loading />
-      ) : error ? (
-        <LoadError error={error} retry={refetch} />
-      ) : data.content.length === 0 ? (
-        <EmptyState
-          title={
-            keyword ? '찾는 강의가 없어요' : '아직 판매 중인 강의가 없어요'
-          }
-        >
-          {keyword && '다른 검색어로 찾아보세요.'}
-        </EmptyState>
+      {keyword ? (
+        <LectureSearchResults
+          keyword={keyword}
+          sort={sort}
+          page={page}
+          setPage={setPage}
+          onShowAll={() => update({ keyword: '' })}
+          guest={guest}
+          flagsOf={flagsOf}
+        />
       ) : (
-        <>
-          <div className={styles.grid}>
-            {data.content.map((lecture) => (
-              <LectureCard
-                key={lecture.lectureId}
-                lecture={lecture}
-                buyer={buyer}
-                guest={viewer === 'GUEST'}
-              />
-            ))}
-          </div>
-          <Pager
-            page={data.page.number}
-            totalPages={data.page.totalPages}
-            onChange={setPage}
-          />
-        </>
+        <LectureList
+          sort={sort}
+          page={page}
+          setPage={setPage}
+          guest={guest}
+          flagsOf={flagsOf}
+        />
       )}
     </div>
   )
 }
 
-/** 보유 중·장바구니·내 강의 표시를 붙인 강의 카드 */
-function LectureCard({
-  lecture,
-  buyer,
+/** 검색어가 없을 때의 기본 목록(썸네일 포함) */
+function LectureList({
+  sort,
+  page,
+  setPage,
   guest,
+  flagsOf,
 }: {
-  lecture: LectureSummary
-  buyer: BuyerState
+  sort: LectureBrowseSort
+  page: number
+  setPage: ReturnType<typeof usePageParam>[1]
   guest: boolean
+  flagsOf: (lecture: CardLecture) => ReactNode
 }) {
+  const query = useQuery(lecturesQuery({ sort: listSortOf(sort), page }))
+  const moving = useClampPage(page, query, setPage)
+  const { data, error, isPending, refetch } = query
+
+  if (isPending || moving) return <Loading />
+  if (error) return <LoadError error={error} retry={refetch} />
+  if (data.content.length === 0) {
+    return <EmptyState title="아직 판매 중인 강의가 없어요" />
+  }
+  return (
+    <>
+      <h2 className={styles.head}>전체 강의</h2>
+      <div className={styles.grid}>
+        {data.content.map((lecture) => (
+          <LectureCard
+            key={lecture.lectureId}
+            lecture={lecture}
+            guest={guest}
+            flags={flagsOf(lecture)}
+          />
+        ))}
+      </div>
+      <Pager
+        page={data.page.number}
+        totalPages={data.page.totalPages}
+        onChange={setPage}
+      />
+    </>
+  )
+}
+
+type CardLecture = { lectureId: number; sellerUserId: number }
+
+/** 보유 중·장바구니·내 강의 표시. 해당하는 것이 없으면 null이다 */
+function buyerFlags(lecture: CardLecture, buyer: BuyerState) {
   const owned = buyer.owned.has(lecture.lectureId)
   const inCart = buyer.inCart.has(lecture.lectureId)
   const mine = lecture.sellerUserId === buyer.myUserId
+  if (!owned && !inCart && !mine) return null
   return (
-    <BaseLectureCard
-      lecture={lecture}
-      guest={guest}
-      flags={
-        (owned || inCart || mine) && (
-          <>
-            {owned && <span className="pill ok">보유 중</span>}
-            {inCart && <span className="pill info">장바구니</span>}
-            {mine && <span className="pill mute">내 강의</span>}
-          </>
-        )
-      }
-    />
+    <>
+      {owned && <span className="pill ok">보유 중</span>}
+      {inCart && <span className="pill info">장바구니</span>}
+      {mine && <span className="pill mute">내 강의</span>}
+    </>
   )
 }
