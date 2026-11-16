@@ -220,12 +220,45 @@ describe('송금 확인 목록', () => {
     })
   })
 
-  it('없으면 상태에 맞는 빈 상태를 보여 준다', async () => {
+  it('없으면 상태에 맞는 빈 상태를 보여 주고 송금 실패 환전으로 가는 길은 그대로 둔다', async () => {
     renderApp('/admin/exchange-payouts?status=PROCESSING', 'ADMIN')
     expect(
       await screen.findByText('결과를 기다리는 송금이 없어요'),
     ).toBeInTheDocument()
-    expect(screen.getByText('모두 처리함')).toBeInTheDocument()
+    expect(screen.getByText('운영자 확인 대상 없음')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('note', { name: '판단 대기 환전' })).getByRole(
+        'link',
+        { name: '환전 승인의 송금 실패' },
+      ),
+    ).toHaveAttribute('href', '/admin/exchanges?status=FAILED')
+  })
+
+  it('운영자 확인 대상이 없어도 판단을 기다리는 송금 실패 환전 건수를 알리고 그 목록으로 간다', async () => {
+    bankFailed()
+    const router = renderApp('/admin/exchange-payouts', 'ADMIN')
+    const user = userEvent.setup()
+    expect(
+      await screen.findByText('운영자 확인이 필요한 송금이 없어요'),
+    ).toBeInTheDocument()
+    const note = screen.getByRole('note', { name: '판단 대기 환전' })
+    await waitFor(() =>
+      expect(note).toHaveTextContent(
+        '송금이 확정 실패해 판단을 기다리는 환전이 1건 있어요.',
+      ),
+    )
+
+    await user.click(
+      within(note).getByRole('link', { name: '환전 승인의 송금 실패' }),
+    )
+
+    expect(router.state.location.pathname).toBe('/admin/exchanges')
+    expect(router.state.location.search).toBe('?status=FAILED')
+    expect(
+      await within(
+        await screen.findByRole('table', { name: '환전 신청 목록' }),
+      ).findByRole('row', { name: '환전 신청 #62' }),
+    ).toBeInTheDocument()
   })
 
   it('송금 실패한 환전은 환전 목록의 송금 실패 필터로 본다', async () => {

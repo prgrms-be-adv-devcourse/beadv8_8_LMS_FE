@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
-import { adminExchangePayoutsQuery } from '@/entities/wallet/adminExchangeApi'
+import {
+  adminExchangePayoutsQuery,
+  adminExchangesQuery,
+} from '@/entities/wallet/adminExchangeApi'
 import {
   ADMIN_PAYOUT_FILTERS,
   type AdminPayoutFilter,
@@ -47,7 +50,7 @@ export function AdminExchangePayoutsPage() {
     <div className="page">
       <PageHead
         title="송금 확인"
-        lede="결과가 확정되지 않은 환전 송금이에요. 은행이 거절했거나 응답이 송금 기록과 다르거나, 처음 보낸 뒤 24시간 동안 결과가 확정되지 않으면 자동 처리가 멈추고 운영자 확인으로 넘어가요(보류 HP는 그대로예요). 환전 상세에서 결과를 다시 확인하세요."
+        lede="결과가 확정되지 않은 환전 송금이에요. 자동으로 처리할 수 없는 송금은 자동 처리가 멈추고 운영자 확인으로 넘어가요(보류 HP는 그대로예요). 환전 상세에서 결과를 다시 확인하세요."
         actions={
           reviewCount !== undefined &&
           (reviewCount > 0 ? (
@@ -55,7 +58,7 @@ export function AdminExchangePayoutsPage() {
               확인 필요 {formatNumber(reviewCount)}건
             </span>
           ) : (
-            <span className="pill ok">모두 처리함</span>
+            <span className="pill ok">운영자 확인 대상 없음</span>
           ))
         }
       />
@@ -76,6 +79,7 @@ export function AdminExchangePayoutsPage() {
           ))}
         </div>
       </div>
+      <FailedExchanges />
       {isPending || moving ? (
         <Loading />
       ) : error ? (
@@ -109,16 +113,35 @@ export function AdminExchangePayoutsPage() {
             totalPages={data.page.totalPages}
             onChange={setPage}
           />
-          <p className="fine">
-            송금이 확정 실패한 환전은{' '}
-            <Link className="link" to="/admin/exchanges?status=FAILED">
-              환전 승인의 송금 실패
-            </Link>
-            에서 다시 송금하거나 최종 실패로 끝내요.
-          </p>
         </section>
       )}
     </div>
+  )
+}
+
+/**
+ * 송금이 확정 실패해 관리자 판단(재송금·최종 실패 확정)을 기다리는 환전. 시도가 아니라 환전 단위라 환전 목록의 송금 실패에서 처리한다.
+ * 목록 상태와 관계없이 늘 보인다. 건수는 환전 목록·대시보드 카드와 같은 쿼리다.
+ */
+function FailedExchanges() {
+  const { data } = useQuery(adminExchangesQuery('FAILED', 0))
+  const count = data?.page.totalElements ?? 0
+  const link = (
+    <Link className="link" to="/admin/exchanges?status=FAILED">
+      환전 승인의 송금 실패
+    </Link>
+  )
+  if (count > 0)
+    return (
+      <div className="notice warn" role="note" aria-label="판단 대기 환전">
+        송금이 확정 실패해 판단을 기다리는 환전이 {formatNumber(count)}건
+        있어요. {link}에서 다시 송금하거나 최종 실패로 끝내요.
+      </div>
+    )
+  return (
+    <p className="fine" role="note" aria-label="판단 대기 환전">
+      송금이 확정 실패한 환전은 {link}에서 다시 송금하거나 최종 실패로 끝내요.
+    </p>
   )
 }
 

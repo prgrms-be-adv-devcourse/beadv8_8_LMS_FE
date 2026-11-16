@@ -40,6 +40,7 @@ export function AdminDashboardPage() {
     appearanceHpTasksQuery({ status: 'DEAD', page: 0 }),
   )
   const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
+  const failedExchanges = useQuery(adminExchangesQuery('FAILED', 0))
   const payouts = useQuery(
     adminExchangePayoutsQuery('MANUAL_REVIEW_REQUIRED', 0),
   )
@@ -95,6 +96,11 @@ export function AdminDashboardPage() {
           label="송금 확인 필요"
           to="/admin/exchange-payouts"
           query={payouts}
+        />
+        <SummaryCard
+          label="송금 실패 판단 대기"
+          to="/admin/exchanges?status=FAILED"
+          query={failedExchanges}
         />
         <SummaryCard
           label="쿠폰 심사 대기"

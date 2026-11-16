@@ -37,7 +37,8 @@ export function ExchangePayoutPanel({ exchange }: { exchange: AdminExchange }) {
         <LoadError error={error} retry={refetch} />
       ) : data.length === 0 ? (
         <p className="fine">
-          아직 송금 시도가 없어요. 승인한 환전은 정산 처리에서 송금해요.
+          아직 송금 시도가 없어요. 승인한 환전은 정산 예정일이 지난 뒤 정산
+          처리에서 송금해요.
         </p>
       ) : (
         <>
