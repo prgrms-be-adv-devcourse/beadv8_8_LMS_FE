@@ -249,6 +249,38 @@ describe('강의 검색', () => {
     expect(search.thumbnails).toHaveLength(2)
   })
 
+  it('다시 받기 기록은 결과 페이지마다 두어, 다른 검색에서 같은 강의가 나오면 새로 받은 썸네일을 쓴다', async () => {
+    const search = mockLectureSearch()
+    const router = renderApp(at('프리미어'), 'GUEST')
+
+    const card = await resultCard(/프리미어 컷편집 입문/)
+    const img = await waitFor(() => {
+      const found = card.querySelector('img')
+      expect(found).not.toBeNull()
+      return found as HTMLImageElement
+    })
+    fireEvent.error(img)
+    await waitFor(() =>
+      expect(card.querySelector('img')?.src).toBe(
+        thumbnailUrl(BROKEN_FIRST_ID, 2),
+      ),
+    )
+    fireEvent.error(card.querySelector('img') as HTMLImageElement)
+    await waitFor(() => expect(card.querySelector('img')).toBeNull())
+
+    // 다른 검색어의 결과 페이지에서 같은 강의는 새 일괄 조회 주소로 보인다
+    await act(() => router.navigate(at('컷편집')))
+    const again = await resultCard(/프리미어 컷편집 입문/)
+    await waitFor(() =>
+      expect(again.querySelector('img')?.src).toBe(
+        thumbnailUrl(BROKEN_FIRST_ID, 3),
+      ),
+    )
+    expect(search.thumbnails.at(-1)?.split(',')).toContain(
+      String(BROKEN_FIRST_ID),
+    )
+  })
+
   it('결과가 없으면 안내와 전체 강의 보기를 보인다', async () => {
     mockLectureList()
     mockLectureSearch()
