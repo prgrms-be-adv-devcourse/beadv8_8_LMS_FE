@@ -123,12 +123,15 @@ describe('관리자 출연 HP 작업 목록', () => {
     await user.click(within(group).getByRole('button', { name: '멈춤' }))
     expect(router.state.location.search).toBe('')
     await item(41)
-    expect(appearanceHpTaskDb.listCalls).toEqual([
-      'status=DEAD&page=0&size=20',
-      'status=PENDING&page=0&size=20',
-      'status=DONE&page=0&size=20',
-      'status=DEAD&page=0&size=20',
-    ])
+    // 멈춤 목록은 캐시로 먼저 보이고 다시 읽기는 그 뒤에 나가므로 요청을 기다린다
+    await waitFor(() =>
+      expect(appearanceHpTaskDb.listCalls).toEqual([
+        'status=DEAD&page=0&size=20',
+        'status=PENDING&page=0&size=20',
+        'status=DONE&page=0&size=20',
+        'status=DEAD&page=0&size=20',
+      ]),
+    )
   })
 
   it('모르는 상태 값이 URL에 있으면 멈춤으로 본다', async () => {
