@@ -124,6 +124,30 @@ describe('api', () => {
     expect((error as ApiError).body?.pgCode).toBe('REJECT_CARD_PAYMENT')
   })
 
+  it('429의 Retry-After를 초로 읽고, 헤더가 없으면 null이다', async () => {
+    server.use(
+      http.get(url('/search/lectures'), () =>
+        HttpResponse.json(
+          { status: 429, code: 'TOO_MANY_REQUESTS', detail: '잠시 후' },
+          { status: 429, headers: { 'Retry-After': '5' } },
+        ),
+      ),
+      http.get(url('/search/influencers'), () =>
+        HttpResponse.json(
+          { status: 429, code: 'TOO_MANY_REQUESTS', detail: '잠시 후' },
+          { status: 429 },
+        ),
+      ),
+    )
+    await expect(api('/search/lectures')).rejects.toMatchObject({
+      code: 'TOO_MANY_REQUESTS',
+      retryAfter: 5,
+    })
+    await expect(api('/search/influencers')).rejects.toMatchObject({
+      retryAfter: null,
+    })
+  })
+
   it('access token이 있으면 Bearer 헤더와 JSON 본문을 붙인다', async () => {
     setAccessToken('abc', 900)
     let seen:

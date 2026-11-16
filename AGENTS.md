@@ -51,6 +51,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 강의 목록·상세, 장바구니·주문, 내 강의·시청, 구매 확정·취소, 리뷰 화면이 실제 BE API에 연결되어 있다.
 - 주문 상태가 필요한 앱 흐름 테스트는 그 테스트 안에서 `mockOrders(order)`(`src/test/lectureOrders.ts`)로 구매 목록·주문 상세·구매 확정·취소·재생 동의 응답을 켠다.
 - 구매 목록과 내 리뷰는 첫 페이지로만 보유·작성 여부를 판단하지 않는다. 자료 다운로드는 클릭 시 시청 URL을 다시 발급받는다.
+- 강의 화면(`/lectures`)은 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API(`GET /search/lectures`)를 쓴다. 화면 정렬(URL에는 목록 API 값)을 두 API 값으로 바꿔 보낸다(`entities/lecture/search.ts`). 검색 결과의 `highlights`는 innerHTML 없이 `parseHighlight`로 읽어 `<em>`만 강조하고, 썸네일은 페이지마다 일괄 조회로 채운다(`features/lecture-search`). 테스트의 BE 흉내는 `src/test/lectureSearchMock.ts`(`mockLectureSearch`)다.
 
 ## 모집용 단체방
 

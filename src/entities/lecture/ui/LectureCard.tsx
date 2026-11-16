@@ -36,6 +36,23 @@ export function LectureCard({ lecture, guest, flags }: LectureCardProps) {
     </>
   )
 
+  return (
+    <LectureCardFrame lectureId={lecture.lectureId} guest={guest}>
+      {body}
+    </LectureCardFrame>
+  )
+}
+
+/** 강의 카드를 누르면 상세로 간다. 비회원은 상세를 볼 수 없어 로그인 모달을 연다 */
+export function LectureCardFrame({
+  lectureId,
+  guest,
+  children,
+}: {
+  lectureId: number
+  guest: boolean
+  children: ReactNode
+}) {
   if (guest) {
     return (
       <button
@@ -45,13 +62,13 @@ export function LectureCard({ lecture, guest, flags }: LectureCardProps) {
           openLoginModal('강의 상세와 구매는 로그인 후 이용할 수 있어요.')
         }
       >
-        {body}
+        {children}
       </button>
     )
   }
   return (
-    <Link className={styles.card} to={`/lectures/${lecture.lectureId}`}>
-      {body}
+    <Link className={styles.card} to={`/lectures/${lectureId}`}>
+      {children}
     </Link>
   )
 }

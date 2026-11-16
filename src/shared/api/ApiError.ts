@@ -22,8 +22,14 @@ export class ApiError extends Error {
    * 전역 처리는 true일 때만 비회원으로 바꾸고 로그인 모달을 띄운다.
    */
   sessionEnded = false
+  /** 호출 제한(429)의 Retry-After. 다시 부를 수 있을 때까지 남은 초이고, 헤더가 없거나 읽지 못하면 null */
+  readonly retryAfter: number | null
 
-  constructor(status: number, body: ProblemDetail | null) {
+  constructor(
+    status: number,
+    body: ProblemDetail | null,
+    retryAfter: string | null = null,
+  ) {
     super(
       body?.detail ??
         FALLBACK_MESSAGE[status] ??
@@ -34,7 +40,18 @@ export class ApiError extends Error {
     this.code = body?.code ?? statusCode(status)
     this.errors = body?.errors ?? []
     this.body = body
+    this.retryAfter = parseRetryAfter(retryAfter)
   }
+}
+
+/** Retry-After는 초(정수) 또는 HTTP 날짜다. 날짜면 지금부터 남은 초로 바꾼다 */
+function parseRetryAfter(value: string | null): number | null {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (/^\d+$/.test(trimmed)) return Number(trimmed)
+  const at = Date.parse(trimmed)
+  if (Number.isNaN(at)) return null
+  return Math.max(0, Math.ceil((at - Date.now()) / 1000))
 }
 
 function statusCode(status: number): string {

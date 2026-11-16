@@ -3,6 +3,7 @@ import { allPages } from '@/shared/api/allPages'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import { uploadBody, type UploadOptions } from '@/shared/api/upload'
+import { LECTURE_SEARCH_PAGE_SIZE, searchSortOf } from './search'
 import type {
   ContentAccess,
   InspectionLecture,
@@ -10,10 +11,13 @@ import type {
   LectureDetail,
   LectureFileInput,
   LectureInfoUpdateInput,
+  LectureBrowseSort,
   LectureRegisterInput,
+  LectureSearchItem,
   LectureSort,
   LectureStatus,
   LectureSummary,
+  LectureThumbnails,
   MyLecture,
   Review,
   Sale,
@@ -30,10 +34,20 @@ export type LectureListParams = {
   page: number
 }
 
+export type LectureSearchParams = {
+  keyword: string
+  sort: LectureBrowseSort
+  page: number
+}
+
 export const lectureKeys = {
   all: ['lecture'] as const,
   list: (params: LectureListParams) =>
     [...lectureKeys.all, 'list', params] as const,
+  search: (params: LectureSearchParams) =>
+    [...lectureKeys.all, 'search', params] as const,
+  thumbnails: (lectureIds: readonly number[]) =>
+    [...lectureKeys.all, 'thumbnails', lectureIds] as const,
   detail: (lectureId: number) =>
     [...lectureKeys.all, 'detail', lectureId] as const,
   reviews: (lectureId: number) =>
@@ -64,6 +78,46 @@ export const lecturesQuery = (params: LectureListParams) =>
       }),
     // 검색어·정렬·페이지를 바꾸는 동안 이전 목록을 그대로 보여 준다.
     placeholderData: keepPreviousData,
+  })
+
+/**
+ * 강의 검색(검색 앱). 비회원도 쓰고 1분에 60번까지다(넘으면 429, ApiError.retryAfter).
+ * 다시 불러도 같은 이유로 실패하기 쉬워(검색 서버 장애 503도 호출 제한에 센다) 자동으로 다시 부르지 않는다.
+ */
+export const lectureSearchQuery = (params: LectureSearchParams) =>
+  queryOptions({
+    queryKey: lectureKeys.search(params),
+    queryFn: () =>
+      api<PagedModel<LectureSearchItem>>('/search/lectures', {
+        query: {
+          keyword: params.keyword,
+          sort: searchSortOf(params.sort),
+          page: params.page,
+          size: LECTURE_SEARCH_PAGE_SIZE,
+        },
+      }),
+    placeholderData: keepPreviousData,
+    retry: false,
+  })
+
+/**
+ * 강의 썸네일 일괄 조회(1~100개). 부를 때마다 주소가 달라지고 대개 1시간 쓸 수 있다.
+ * 받은 강의 ID마다 키가 있고, 판매 중이 아니거나 썸네일이 없으면 null이다.
+ */
+export function fetchLectureThumbnails(lectureIds: readonly number[]) {
+  return api<LectureThumbnails>('/lectures/thumbnails', {
+    query: { ids: lectureIds.join(',') },
+  })
+}
+
+/** 한 페이지 강의의 썸네일. 같은 화면에서 다시 부르지 않게 주소가 만료되기 전까지 새로 받지 않는다 */
+export const lectureThumbnailsQuery = (lectureIds: readonly number[]) =>
+  queryOptions({
+    queryKey: lectureKeys.thumbnails(lectureIds),
+    queryFn: () => fetchLectureThumbnails(lectureIds),
+    enabled: lectureIds.length > 0,
+    staleTime: 50 * 60_000,
+    gcTime: 50 * 60_000,
   })
 
 /** 판매자 화면(/studio) 목록 크기. BE 기본값과 같다. */

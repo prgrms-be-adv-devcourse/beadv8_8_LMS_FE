@@ -98,7 +98,11 @@ export async function api<T>(
   if (res.status === 204) return undefined as T
   const json = await readJson(res)
   if (!res.ok) {
-    const error = new ApiError(res.status, json as ProblemDetail | null)
+    const error = new ApiError(
+      res.status,
+      json as ProblemDetail | null,
+      res.headers.get('Retry-After'),
+    )
     error.sessionEnded = sessionEnded
     throw error
   }
