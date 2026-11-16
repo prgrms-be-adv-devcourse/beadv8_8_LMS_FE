@@ -82,4 +82,22 @@ describe('useMergedSearchParams', () => {
       Object.fromEntries(new URLSearchParams(router.state.location.search)),
     ).toEqual({ keyword: 'b', sort: 'rating' })
   })
+  it('보낸 이동이 끝나기 전에 원래 URL로 되돌아가면(URL 문자열은 그대로), 보내기만 한 값이 되살아나지 않는다', async () => {
+    const { router, set, hold, release } = setup('/?keyword=a')
+    await act(async () => {})
+    hold()
+
+    await act(async () => set('verified', 'true'))
+    await act(async () => {
+      void router.navigate('/?keyword=a')
+    })
+    await release()
+    expect(router.state.navigation.state).toBe('idle')
+    expect(router.state.location.search).toBe('?keyword=a')
+
+    await act(async () => set('sort', 'rating'))
+    expect(
+      Object.fromEntries(new URLSearchParams(router.state.location.search)),
+    ).toEqual({ keyword: 'a', sort: 'rating' })
+  })
 })
