@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import {
   SEARCH_CATEGORY_MAX,
   SEARCH_KEYWORD_MAX,
@@ -85,21 +85,21 @@ export function conditionsToParams(
 
 /**
  * 인플루언서 검색 조건을 URL에 두고 읽는다(뒤로 가기·새로 고침에도 남는다). 조건을 바꾸면 첫 페이지로 간다.
- * 바꿀 때는 지금 URL을 다시 읽어 합친다: 입력을 기다리는 사이 다른 조건이 바뀌어도 덮어쓰지 않는다
+ * 조건을 연달아 바꿔도 앞서 바꾼 값이 사라지지 않게 useMergedSearchParams로 합친다.
  */
 export function useSearchConditions() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const conditions = parseConditions(params)
 
   const update = (
     next: Partial<InfluencerSearchConditions>,
     { replace = false } = {},
   ) =>
-    setParams(
-      (prev) => conditionsToParams({ ...parseConditions(prev), ...next }),
+    merge(
+      (current) => conditionsToParams({ ...parseConditions(current), ...next }),
       { replace },
     )
-  const reset = () => setParams(new URLSearchParams())
+  const reset = () => merge(() => new URLSearchParams())
 
   return { conditions, update, reset }
 }

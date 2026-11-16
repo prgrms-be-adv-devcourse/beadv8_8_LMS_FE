@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
   LECTURE_BROWSE_SORTS,
@@ -30,22 +30,31 @@ import styles from './LecturesPage.module.css'
 /**
  * 검색어·정렬은 URL에 둔다(?keyword=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다.
  * 정렬 값은 강의 목록 API 값(LATEST 등)으로 적고, 기본은 적지 않는다.
+ * 검색어 직후 정렬을 바꿔도 검색어가 사라지지 않게 useMergedSearchParams로 합친다.
  */
 function useBrowseParams() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const sort = parseBrowseSort(params.get('sort'))
   const keyword = normalizeKeyword(params.get('keyword') ?? '')
 
   const update = (
     next: Partial<{ keyword: string; sort: LectureBrowseSort }>,
     { replace = false } = {},
-  ) => {
-    const merged = { keyword, sort, ...next }
-    const search = new URLSearchParams()
-    if (merged.keyword) search.set('keyword', merged.keyword)
-    if (merged.sort !== 'DEFAULT') search.set('sort', merged.sort)
-    setParams(search, { replace })
-  }
+  ) =>
+    merge(
+      (current) => {
+        const merged = {
+          keyword: normalizeKeyword(current.get('keyword') ?? ''),
+          sort: parseBrowseSort(current.get('sort')),
+          ...next,
+        }
+        const search = new URLSearchParams()
+        if (merged.keyword) search.set('keyword', merged.keyword)
+        if (merged.sort !== 'DEFAULT') search.set('sort', merged.sort)
+        return search
+      },
+      { replace },
+    )
   return { keyword, sort, update }
 }
 
