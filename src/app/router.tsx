@@ -23,6 +23,7 @@ import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
 import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
+import { AdminAppearanceHpTasksPage } from '@/pages/admin-appearance-hp-tasks/AdminAppearanceHpTasksPage'
 import { AdminDashboardPage } from '@/pages/admin-dashboard/AdminDashboardPage'
 import { AdminHpTaskPage } from '@/pages/admin-hp-task/AdminHpTaskPage'
 import { AdminHpTasksPage } from '@/pages/admin-hp-tasks/AdminHpTasksPage'
@@ -176,6 +177,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/channels': <AdminChannelsPage />,
   '/admin/hp-tasks': <AdminHpTasksPage />,
   '/admin/hp-tasks/:taskId': <AdminHpTaskPage />,
+  '/admin/appearance-hp-tasks': <AdminAppearanceHpTasksPage />,
   '/admin/exchanges': <AdminExchangesPage />,
   '/admin/exchanges/:exchangeId': <AdminExchangePage />,
   '/admin/promotions': <AdminPromotionsPage />,

@@ -3,6 +3,12 @@ import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { viewerLabel } from '@/shared/auth/role'
+import {
+  appearanceHpTaskReasonName,
+  appearanceHpTaskRefName,
+  appearanceHpTaskTypeName,
+} from './appearance-hp-task/labels'
+import { AppearanceHpTaskStatusPill } from './appearance-hp-task/ui/AppearanceHpTaskStatusPill'
 import { AppearanceStatusPill } from './appearance/ui/AppearanceStatusPill'
 import { ApplicationStatusPill } from './appearance/ui/ApplicationStatusPill'
 import { CancelRequestStatusPill } from './appearance/ui/CancelRequestStatusPill'
@@ -54,6 +60,10 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
     [
       'HpTaskStatusPill',
       () => <HpTaskStatusPill status={NEW} outcome={null} />,
+    ],
+    [
+      'AppearanceHpTaskStatusPill',
+      () => <AppearanceHpTaskStatusPill status={NEW} />,
     ],
     ['AppearanceStatusPill', () => <AppearanceStatusPill status={NEW} />],
     ['ApplicationStatusPill', () => <ApplicationStatusPill status={NEW} />],
@@ -112,6 +122,12 @@ describe('모르는 값의 이름 (#183)', () => {
 
   it('받은 출연 리뷰의 받은 역할은 알 수 없음으로 부른다', () => {
     expect(revieweeRoleLabel(NEW)).toBe('알 수 없음')
+  })
+
+  it('출연 HP 작업의 종류·사유·대상은 알 수 없음으로 부른다', () => {
+    expect(appearanceHpTaskTypeName(NEW)).toBe('알 수 없음')
+    expect(appearanceHpTaskReasonName(NEW)).toBe('알 수 없음')
+    expect(appearanceHpTaskRefName(NEW)).toBe('알 수 없음')
   })
 
   it('문의 분류 배지는 알 수 없음을 그린다', () => {
