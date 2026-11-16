@@ -34,9 +34,9 @@ export const memberKeys = {
   /** 채널 승인·반려 mutation. 화면을 다시 열어도 진행 중인 심사를 알 수 있게 키를 고정한다 */
   channelReview: () => [...memberKeys.all, 'channel-review'] as const,
   contentCategories: () => [...memberKeys.all, 'content-categories'] as const,
-  /** 프로필 사진 일괄 조회. 회원 ID를 쉼표로 이은 값 */
-  profileImages: (ids: string) =>
-    [...memberKeys.all, 'profile-images', ids] as const,
+  /** 프로필 사진 일괄 조회. 회원 ID를 쉼표로 이은 값. 인자 없이 부르면 모든 조회의 앞부분 키 */
+  profileImages: (...ids: [] | [string]) =>
+    [...memberKeys.all, 'profile-images', ...ids] as const,
   /** 닉네임 중복 확인. 닉네임 없이 부르면 모든 확인의 앞부분 키 */
   nicknameAvailability: (...nickname: [] | [string]) =>
     [...memberKeys.all, 'nickname-availability', ...nickname] as const,

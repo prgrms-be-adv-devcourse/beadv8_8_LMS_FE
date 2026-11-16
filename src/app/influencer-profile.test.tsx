@@ -7,7 +7,7 @@ import type { MemberProfileDetail } from '@/entities/member/types'
 import { meQuery, type Me } from '@/shared/auth/me'
 import type { Role } from '@/shared/auth/role'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { categoriesOf } from '@/test/contentCategories'
+import { categoriesOf, CONTENT_CATEGORIES } from '@/test/contentCategories'
 import { problem } from '@/test/emailCodeMock'
 import { expectFieldError } from '@/test/fieldError'
 import { mockUpdateMe } from '@/test/influencerSearchMock'
@@ -152,6 +152,34 @@ describe('내 프로필의 콘텐츠 분야·자기소개', () => {
     expect(
       within(preview()).queryByRole('list', { name: '콘텐츠 분야' }),
     ).toBeNull()
+  })
+
+  it('분야 목록을 받지 못하면 고를 수 없는 이유와 다시 시도를 보이고, 다시 시도하면 고를 수 있다', async () => {
+    server.use(
+      http.get('*/api/v1/members/content-categories', () =>
+        problem(500, 'INTERNAL_ERROR', '서버 오류'),
+      ),
+    )
+    await openMyProfile(me())
+
+    expect(
+      await screen.findByText('콘텐츠 분야 목록을 불러오지 못했어요.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('맞는 분야가 없어요.')).toBeNull()
+    server.use(
+      http.get('*/api/v1/members/content-categories', () =>
+        rs(CONTENT_CATEGORIES),
+      ),
+    )
+    await userEvent.click(screen.getByRole('button', { name: '다시 시도' }))
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText('콘텐츠 분야 목록을 불러오지 못했어요.'),
+      ).toBeNull(),
+    )
+    await pickSuggestion('게임', '게임')
+    expect(selectedChips()).toEqual(['게임'])
   })
 
   it('5개를 고르면 더 고를 수 없게 막고 최대 5개를 안내한다', async () => {

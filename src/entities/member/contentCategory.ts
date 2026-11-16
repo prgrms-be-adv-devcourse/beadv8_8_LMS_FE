@@ -1,4 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
+import { isApiError } from '@/shared/api/ApiError'
 import { api } from '@/shared/api/client'
 import { memberKeys } from './api'
 import type { ContentCategory } from './types'
@@ -31,6 +32,9 @@ export const contentCategoriesQuery = queryOptions({
   queryKey: memberKeys.contentCategories(),
   queryFn: () => api<SelectableCategory[]>('/members/content-categories'),
   staleTime: 30 * 60_000,
+  // 고르는 칸에 다시 시도 버튼이 있어 자동 재시도는 한 번만 한다(4xx는 하지 않는다).
+  retry: (count, error) =>
+    !(isApiError(error) && error.status < 500) && count < 1,
 })
 
 /**

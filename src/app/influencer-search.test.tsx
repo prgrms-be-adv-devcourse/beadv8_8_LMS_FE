@@ -1,8 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
+import { memberKeys } from '@/entities/member/api'
 import type { MemberProfile } from '@/entities/member/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { categoriesOf } from '@/test/contentCategories'
@@ -345,6 +346,47 @@ describe('검색 결과 카드와 사진', () => {
     await waitFor(() => expect(pro.querySelector('img')).toBeNull())
     expect(within(pro).getByText('메')).toHaveClass('avatar')
     expect(images).toHaveLength(2)
+  })
+
+  it('사진을 일괄 조회로 새로 받거나 다른 조건에서 다시 나오면, 기본 이미지로 둔 회원도 새 주소를 쓰고 다시 한 번 재시도한다', async () => {
+    mockList()
+    const images = mockProfileImages({ broken: [101] })
+    mockInfluencerSearch()
+    renderApp('/influencers?keyword=%EB%A9%94%EC%9D%B4%ED%94%8C', 'INFLUENCER')
+
+    const pro = await card('메이플고수')
+    const img = () => pro.querySelector('img')
+    await waitFor(() =>
+      expect(img()).toHaveAttribute('src', brokenPhotoUrl(101)),
+    )
+    fireEvent.error(img()!)
+    await waitFor(() => expect(img()).toHaveAttribute('src', photoUrl(101)))
+    fireEvent.error(img()!)
+    await waitFor(() => expect(img()).toBeNull())
+
+    // 같은 페이지의 일괄 조회를 새로 받으면 그 주소를 쓰고, 실패하면 다시 한 번 그 회원만 받는다.
+    await act(() =>
+      queryClient.invalidateQueries({ queryKey: memberKeys.profileImages() }),
+    )
+    await waitFor(() =>
+      expect(img()).toHaveAttribute('src', brokenPhotoUrl(101)),
+    )
+    fireEvent.error(img()!)
+    await waitFor(() => expect(img()).toHaveAttribute('src', photoUrl(101)))
+    expect(images).toEqual(['124,101,121', '101', '124,101,121', '101'])
+
+    // 다른 조건에서 같은 회원이 나오면 그 조건의 일괄 조회 주소를 쓴다.
+    fireEvent.error(img()!)
+    await waitFor(() => expect(img()).toBeNull())
+    await userEvent.clear(searchBox())
+    await userEvent.type(searchBox(), '메이플고수{Enter}')
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole('article', { name: '메이플고수' })
+          .querySelector('img'),
+      ).toHaveAttribute('src', photoUrl(101)),
+    )
   })
 
   it('조건을 바꾸는 동안 이전 결과를 흐리게 두고, 늦게 온 이전 검색의 응답은 버린다', async () => {

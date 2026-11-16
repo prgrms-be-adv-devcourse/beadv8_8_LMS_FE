@@ -43,7 +43,13 @@ export function ContentCategoryPicker({
   placeholder = '분야 찾기',
   inputProps,
 }: ContentCategoryPickerProps) {
-  const { data: list = [] } = useQuery(contentCategoriesQuery)
+  const {
+    data: list = [],
+    isPending,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery(contentCategoriesQuery)
   const [text, setText] = useState('')
   const [open, setOpen] = useState(false)
   const full = value.length >= max
@@ -133,24 +139,51 @@ export function ContentCategoryPicker({
         onKeyDown={onKeyDown}
         {...inputProps}
       />
-      {open && !full && (
-        <div className={styles.suggestions} role="group" aria-label="분야 후보">
-          {suggestions.length === 0 ? (
-            <span className="fine">맞는 분야가 없어요.</span>
-          ) : (
-            suggestions.map((c) => (
-              <button
-                key={c.code}
-                type="button"
-                className="chip sm"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => add(c.code)}
-              >
-                {c.name}
-              </button>
-            ))
-          )}
+      {error && !isFetching ? (
+        // 목록을 받지 못하면 고를 수 없는 이유와 다시 시도를 보인다(열려 있지 않아도 보인다).
+        <div className={styles.suggestions} role="alert">
+          <span className="fine c-bad">
+            콘텐츠 분야 목록을 불러오지 못했어요.
+          </span>
+          <button
+            type="button"
+            className="btn sm"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => void refetch()}
+          >
+            다시 시도
+          </button>
         </div>
+      ) : (
+        open &&
+        !full && (
+          <div
+            className={styles.suggestions}
+            role="group"
+            aria-label="분야 후보"
+          >
+            {/* 처음 받는 중이거나 실패 뒤 다시 받는 중 */}
+            {isPending || error ? (
+              <span className="fine" role="status">
+                분야 목록을 불러오는 중…
+              </span>
+            ) : suggestions.length === 0 ? (
+              <span className="fine">맞는 분야가 없어요.</span>
+            ) : (
+              suggestions.map((c) => (
+                <button
+                  key={c.code}
+                  type="button"
+                  className="chip sm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => add(c.code)}
+                >
+                  {c.name}
+                </button>
+              ))
+            )}
+          </div>
+        )
       )}
     </div>
   )
