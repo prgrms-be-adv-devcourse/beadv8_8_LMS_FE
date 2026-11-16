@@ -18,6 +18,8 @@ import styles from './LectureSearchResults.module.css'
 
 /** 429에 Retry-After가 없을 때 기다리는 초 */
 const DEFAULT_RETRY_AFTER = 10
+/** Retry-After가 0이거나 지난 시각이어도 최소 이만큼 기다린다. 429도 호출 수에 세므로 바로 다시 부르면 제한을 계속 쓴다 */
+const MIN_RETRY_AFTER = 1
 
 type LectureSearchResultsProps = {
   keyword: string
@@ -144,13 +146,15 @@ export function LectureSearchResults({
 }
 
 /**
- * 호출 제한(429)이면 Retry-After초 뒤에 다시 부른다. 기다리는 초를 돌려주고, 429가 아니면 null이다.
+ * 호출 제한(429)이면 Retry-After초(최소 1초) 뒤에 다시 부른다. 기다리는 초를 돌려주고, 429가 아니면 null이다.
+ * 게이트웨이가 본문 없이 주는 429도 같게 보도록 code가 아니라 HTTP 상태로 가른다.
  * 실패할 때마다 오류가 새로 생기므로 다시 429여도 그 응답의 Retry-After만큼 다시 기다린다.
  */
 function useRetryAfter(error: Error | null, retry: () => void) {
-  const seconds = isApiError(error, 'TOO_MANY_REQUESTS')
-    ? (error.retryAfter ?? DEFAULT_RETRY_AFTER)
-    : null
+  const seconds =
+    isApiError(error) && error.status === 429
+      ? Math.max(MIN_RETRY_AFTER, error.retryAfter ?? DEFAULT_RETRY_AFTER)
+      : null
   const onRetry = useEffectEvent(retry)
   useEffect(() => {
     if (seconds === null) return

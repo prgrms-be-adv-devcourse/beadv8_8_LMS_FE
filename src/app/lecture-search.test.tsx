@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { http } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { LectureSummary } from '@/entities/lecture/types'
@@ -285,6 +285,36 @@ describe('강의 검색', () => {
   it('호출 제한(429)이면 안내하고 Retry-After초 뒤에 다시 검색한다', async () => {
     const search = mockLectureSearch({ retryAfter: '1' })
     search.fail('TOO_MANY_REQUESTS')
+    renderApp(at('편집'), 'GUEST')
+
+    expect(
+      await screen.findByText(
+        '요청이 너무 많아요. 잠시 후 다시 시도해 주세요.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByText('1초 뒤에 다시 검색해요.')).toBeInTheDocument()
+    expect(search.searches).toHaveLength(1)
+
+    expect(
+      await screen.findByRole('heading', { name: /‘편집’ 검색 결과/ }),
+    ).toBeInTheDocument()
+    expect(search.searches).toHaveLength(2)
+  })
+
+  it('본문 없는 429(게이트웨이)와 Retry-After: 0도 호출 제한으로 보고 최소 1초 기다린 뒤 다시 검색한다', async () => {
+    const search = mockLectureSearch()
+    let limited = true
+    server.use(
+      http.get('*/api/v1/search/lectures', () => {
+        if (!limited) return undefined
+        limited = false
+        search.searches.push(new URLSearchParams())
+        return new HttpResponse(null, {
+          status: 429,
+          headers: { 'Retry-After': '0' },
+        })
+      }),
+    )
     renderApp(at('편집'), 'GUEST')
 
     expect(

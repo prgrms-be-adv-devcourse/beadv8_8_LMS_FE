@@ -107,7 +107,7 @@ export type Review = {
 }
 
 /**
- * 강의 화면의 정렬 선택지. 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API로 보내므로 두 API 값으로 바꿔 보낸다(sort.ts).
+ * 강의 화면의 정렬 선택지. 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API로 보내므로 두 API 값으로 바꿔 보낸다(search.ts의 listSortOf·searchSortOf).
  * DEFAULT는 URL에 쓰지 않는다. 검색어가 있으면 관련도순, 없으면 최신순이다
  */
 export type LectureBrowseSort = 'DEFAULT' | LectureSort
