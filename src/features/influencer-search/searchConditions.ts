@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 import {
   SEARCH_CATEGORY_MAX,
@@ -85,21 +86,34 @@ export function conditionsToParams(
 
 /**
  * 인플루언서 검색 조건을 URL에 두고 읽는다(뒤로 가기·새로 고침에도 남는다). 조건을 바꾸면 첫 페이지로 간다.
- * 바꿀 때는 지금 URL을 다시 읽어 합친다: 입력을 기다리는 사이 다른 조건이 바뀌어도 덮어쓰지 않는다
+ * 바꿀 때는 마지막으로 보낸 조건 위에 합친다. setSearchParams의 함수형 갱신은 아직 끝나지 않은 이동(loader 대기)을
+ * 보지 못해, 조건을 연달아 바꾸면 앞서 바꾼 값이 사라지기 때문이다. URL이 실제로 바뀌면(뒤로 가기 포함) 그 값을 기준으로 삼는다.
  */
 export function useSearchConditions() {
   const [params, setParams] = useSearchParams()
   const conditions = parseConditions(params)
+  const query = params.toString()
+  const latest = useRef(query)
+  useEffect(() => {
+    latest.current = query
+  }, [query])
 
+  const navigate = (next: URLSearchParams, replace: boolean) => {
+    latest.current = next.toString()
+    setParams(next, { replace })
+  }
   const update = (
     next: Partial<InfluencerSearchConditions>,
     { replace = false } = {},
   ) =>
-    setParams(
-      (prev) => conditionsToParams({ ...parseConditions(prev), ...next }),
-      { replace },
+    navigate(
+      conditionsToParams({
+        ...parseConditions(new URLSearchParams(latest.current)),
+        ...next,
+      }),
+      replace,
     )
-  const reset = () => setParams(new URLSearchParams())
+  const reset = () => navigate(new URLSearchParams(), false)
 
   return { conditions, update, reset }
 }

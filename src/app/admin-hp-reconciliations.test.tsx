@@ -130,15 +130,12 @@ describe('관리자 HP 대사 마지막 결과', () => {
 
     await user.click(screen.getByRole('tab', { name: '출연' }))
     expect(router.state.location.search).toBe('?app=appearance')
-    // 탭을 누른 직후에는 강의 패널이 남아 있을 수 있어, 출연 결과가 그려질 때까지 패널을 다시 찾는다
-    const summary = await waitFor(() => {
-      const found = within(screen.getByRole('tabpanel')).getByRole('region', {
-        name: '마지막 결과',
-      })
-      expect(within(found).getByText('중단')).toBeInTheDocument()
-      return found
+    // 탭을 누른 직후에는 강의 패널이 남아 있을 수 있어, 출연 탭의 패널을 이름으로 기다린다
+    const panel = await screen.findByRole('tabpanel', { name: '출연' })
+    const summary = await within(panel).findByRole('region', {
+      name: '마지막 결과',
     })
-    expect(within(summary).getByText('중단')).toHaveClass('pill', 'warn')
+    expect(await within(summary).findByText('중단')).toHaveClass('pill', 'warn')
     expect(summary).toHaveTextContent('계기관리자 실행 · 관리자 #9')
     expect(summary).toHaveTextContent(
       '실패 이유: 지갑 보류 목록 조회 실패: 503 Service Unavailable',
