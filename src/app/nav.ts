@@ -39,6 +39,7 @@ export const NAV: NavGroup[] = [
         label: '출연 HP 작업',
         roles: ADMIN,
       },
+      { path: '/admin/hp-reconciliations', label: 'HP 대사', roles: ADMIN },
       { path: '/admin/exchanges', label: '환전 승인', roles: ADMIN },
       { path: '/admin/platform-wallet', label: '수수료 수입', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },

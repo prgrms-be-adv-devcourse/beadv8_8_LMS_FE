@@ -1,0 +1,21 @@
+.reason {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+.code {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.nowrap :global(.fine) {
+  display: block;
+}
+/* BE가 만든 상태 요약 문장. 그대로 보이고 길면 줄을 바꾼다 */
+.state {
+  min-width: 200px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
