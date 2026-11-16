@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import {
   afterEach,
   beforeEach,
@@ -191,6 +191,49 @@ describe('관리자 HP 대사 마지막 결과', () => {
   })
 })
 
+describe('관리자 HP 대사 화면 진입', () => {
+  it('마지막 결과를 불러오지 못하면 오류와 다시 시도를 보이고, 다시 시도하면 결과를 보인다', async () => {
+    let fail = true
+    server.use(
+      http.get('*/api/v1/lectures/admin/hp-reconciliations/latest', () =>
+        fail
+          ? HttpResponse.json(
+              {
+                status: 500,
+                code: 'INTERNAL_SERVER_ERROR',
+                detail: '서버 오류예요.',
+              },
+              { status: 500 },
+            )
+          : undefined,
+      ),
+    )
+    renderApp('/admin/hp-reconciliations', 'ADMIN')
+    const user = userEvent.setup()
+
+    expect(await screen.findByText('불러오지 못했어요')).toBeVisible()
+    fail = false
+    await user.click(screen.getByRole('button', { name: '다시 시도' }))
+    expect(await region('마지막 결과')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['?app=appearance', '출연'],
+    ['?app=unknown', '강의'],
+  ])('%s로 바로 들어오면 %s 탭이 선택된다', async (search, tab) => {
+    hpReconciliationDb.latest.appearance = appearanceRun()
+    renderApp(`/admin/hp-reconciliations${search}`, 'ADMIN')
+
+    expect(await screen.findByRole('tab', { name: tab })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await within(screen.getByRole('tabpanel')).findByRole('region', {
+      name: '마지막 결과',
+    })
+  })
+})
+
 describe('관리자 HP 대사 지금 실행', () => {
   it('끝까지 비교하지 못하면(200 INCOMPLETE) 실패 이유를 보이고 안내한다', async () => {
     hpReconciliationDb.next.lecture = lectureRun({
@@ -213,6 +256,11 @@ describe('관리자 HP 대사 지금 실행', () => {
     const summary = await region('마지막 결과')
     expect(within(summary).getByText('중단')).toHaveClass('pill', 'warn')
     expect(summary).toHaveTextContent('실패 이유: 지갑 조회 회로 열림')
+    const mismatches = await region('어긋난 건')
+    expect(mismatches).toHaveTextContent(
+      '끝까지 비교하지 못해 어긋난 건을 다 확인하지 못했어요.',
+    )
+    expect(within(mismatches).queryByText('어긋난 건이 없어요.')).toBeNull()
   })
 
   it('어긋난 건이 있으면 건수를 안내한다', async () => {
@@ -317,6 +365,31 @@ describe('관리자 HP 대사 지금 실행', () => {
       expect(summary).toHaveTextContent('계기관리자 실행 · 관리자 #1')
     },
   )
+
+  it('서버 오류(500)는 연결 끊김으로 보지 않고 오류를 안내한 뒤 마지막 결과를 다시 읽는다', async () => {
+    hpReconciliationDb.onRun.lecture = () =>
+      HttpResponse.json(
+        {
+          status: 500,
+          code: 'INTERNAL_SERVER_ERROR',
+          detail: '서버 오류예요.',
+        },
+        { status: 500 },
+      )
+    renderApp('/admin/hp-reconciliations', 'ADMIN')
+    const user = userEvent.setup()
+    await region('마지막 결과')
+    const before = hpReconciliationDb.latestCalls.lecture
+
+    await user.click(await runButton())
+    await waitFor(() => expect(toastText()).toContain('서버 오류예요.'))
+    expect(
+      toastText().some((t) => t?.includes('서버에서 계속 실행 중일 수 있어요')),
+    ).toBe(false)
+    await waitFor(() =>
+      expect(hpReconciliationDb.latestCalls.lecture).toBeGreaterThan(before),
+    )
+  })
 
   it('실행 요청이 끝나지 않은 동안 버튼을 막고 마지막 결과를 다시 읽는다', async () => {
     const user = useFakeClock()

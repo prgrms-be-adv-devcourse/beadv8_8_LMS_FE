@@ -152,6 +152,7 @@ function Reconciliation<M extends { id: number; rule: string }>({
           {!running && (
             <Mismatches
               rows={data.mismatches}
+              incomplete={data.status === 'INCOMPLETE'}
               hpTasks={RECONCILIATION_APPS[app].hpTasks}
               table={table}
             />
@@ -237,10 +238,13 @@ function Count({
 
 function Mismatches<M extends { rule: string }>({
   rows,
+  incomplete,
   hpTasks,
   table,
 }: {
   rows: M[]
+  /** 끝까지 비교하지 못한 실행(INCOMPLETE). 찾은 건이 없어도 '없다'고 말하지 않는다 */
+  incomplete: boolean
   hpTasks: { to: string; label: string }
   table: (rows: M[]) => ReactNode
 }) {
@@ -251,7 +255,11 @@ function Mismatches<M extends { rule: string }>({
       <section className="panel" aria-labelledby="hp-reconciliation-mismatches">
         <h2 id="hp-reconciliation-mismatches">어긋난 건</h2>
         {mismatches.length === 0 ? (
-          <p className="fine">어긋난 건이 없어요.</p>
+          <p className="fine">
+            {incomplete
+              ? '끝까지 비교하지 못해 어긋난 건을 다 확인하지 못했어요. 다음 실행이 같은 범위를 다시 봐요.'
+              : '어긋난 건이 없어요.'}
+          </p>
         ) : (
           <>
             <p className="fine">
