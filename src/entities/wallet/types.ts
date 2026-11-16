@@ -194,6 +194,27 @@ export type AdminExchange = {
   applicant: ExchangeApplicant | null
 }
 
+/** 관리자용 플랫폼 지갑 (BE PlatformWalletResponse) */
+export type PlatformWallet = {
+  walletId: number
+  /** 수수료 수입 잔액(HP). 송금 완료된 환전의 수수료 합이다. 최종 실패·취소·거절된 환전은 들어가지 않는다 */
+  feeIncomeBalance: number
+}
+
+/** 환전 수수료 수입 한 건(BE FeeIncomeResponse). 환전 한 건에 한 줄이다 */
+export type FeeIncome = {
+  ledgerId: number
+  exchangeId: number
+  /** 수수료(HP). 환전 신청 때 확정한 값이다 */
+  feeAmount: number
+  /** 환전 신청 금액(수익 HP) = 송금액 + 수수료 */
+  requestedAmount: number
+  /** 송금액(원) */
+  payoutAmount: number
+  /** 기록 시각(환전 송금 성공 처리 시각) */
+  recordedAt: string
+}
+
 /**
  * 내 HP 거래 유형 (BE WalletTransactionType). 화면 문구는 BE displayName을 쓴다.
  * 보류(가용 → 보류)와 확정(보류 차감)은 서로 다른 거래다.
