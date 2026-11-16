@@ -21,6 +21,13 @@ import { RequestStatusPill } from './appearance/ui/RequestStatusPill'
 import { groupStatusLabel } from './chat/group'
 import { HpTaskStatusPill } from './hp-task/ui/HpTaskStatusPill'
 import {
+  appearanceReferenceTypeName,
+  reconciliationItemStatusName,
+  reconciliationRuleName,
+  reconciliationTriggerName,
+} from './hp-reconciliation/labels'
+import { ReconciliationStatusPill } from './hp-reconciliation/ui/ReconciliationStatusPill'
+import {
   CategoryPill,
   HpReturnPill,
   InquiryStatusPill,
@@ -64,6 +71,10 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
     [
       'AppearanceHpTaskStatusPill',
       () => <AppearanceHpTaskStatusPill status={NEW} />,
+    ],
+    [
+      'ReconciliationStatusPill',
+      () => <ReconciliationStatusPill status={NEW} />,
     ],
     ['AppearanceStatusPill', () => <AppearanceStatusPill status={NEW} />],
     ['ApplicationStatusPill', () => <ApplicationStatusPill status={NEW} />],
@@ -114,6 +125,16 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
 describe('모르는 값의 이름 (#183)', () => {
   it('단체방 상태는 알 수 없는 상태로 부른다', () => {
     expect(groupStatusLabel(NEW)).toBe('알 수 없는 상태')
+  })
+
+  it('HP 대사 규칙·계기·출연 참조 유형은 알 수 없음으로 부른다', () => {
+    expect(reconciliationRuleName(NEW)).toBe('알 수 없음')
+    expect(reconciliationTriggerName(NEW)).toBe('알 수 없음')
+    expect(appearanceReferenceTypeName(NEW)).toBe('알 수 없음')
+  })
+
+  it('HP 대사의 주문 항목 상태는 알 수 없는 상태로 부른다', () => {
+    expect(reconciliationItemStatusName(NEW)).toBe('알 수 없는 상태')
   })
 
   it('회원 역할은 알 수 없음으로 부른다', () => {
