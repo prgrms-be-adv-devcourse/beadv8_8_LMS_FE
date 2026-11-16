@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { appearanceHpTasksQuery } from '@/entities/appearance-hp-task/api'
 import { adminCouponsQuery } from '@/entities/coupon/api'
 import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { inspectionsQuery } from '@/entities/lecture/api'
@@ -32,6 +33,9 @@ export function AdminDashboardPage() {
     adminInquiriesQuery({ status: 'WAITING', sort: 'OLDEST', page: 0 }),
   )
   const hpTasks = useQuery(lectureHpTasksQuery({ status: 'DEAD', page: 0 }))
+  const appearanceHpTasks = useQuery(
+    appearanceHpTasksQuery({ status: 'DEAD', page: 0 }),
+  )
   const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
   // 쿠폰 목록은 페이지 없는 배열이라 길이를 전체 건수로 바꿔 다른 카드와 같은 모양으로 둔다(캐시는 목록 화면과 같다).
   const coupons = useQuery({
@@ -70,6 +74,11 @@ export function AdminDashboardPage() {
           label="멈춘 강의 HP 작업"
           to="/admin/hp-tasks"
           query={hpTasks}
+        />
+        <SummaryCard
+          label="멈춘 출연 HP 작업"
+          to="/admin/appearance-hp-tasks"
+          query={appearanceHpTasks}
         />
         <SummaryCard
           label="환전 승인 대기"

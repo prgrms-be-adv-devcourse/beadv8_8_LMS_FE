@@ -34,6 +34,11 @@ export const NAV: NavGroup[] = [
       { path: '/admin/promotions', label: '승급 심사', roles: ADMIN },
       { path: '/admin/lectures', label: '강의 검수', roles: ADMIN },
       { path: '/admin/hp-tasks', label: '강의 HP 작업', roles: ADMIN },
+      {
+        path: '/admin/appearance-hp-tasks',
+        label: '출연 HP 작업',
+        roles: ADMIN,
+      },
       { path: '/admin/exchanges', label: '환전 승인', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },

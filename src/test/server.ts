@@ -151,6 +151,7 @@ const adminHomeDefaults = [
   '*/api/v1/lectures/admin/inspections',
   '*/api/v1/inquiries/admin',
   '*/api/v1/lectures/admin/hp-tasks',
+  '*/api/v1/appearances/admin/hp-tasks',
   '*/api/v1/settlements/admin/exchanges',
 ].map((path) =>
   http.get(path, () =>

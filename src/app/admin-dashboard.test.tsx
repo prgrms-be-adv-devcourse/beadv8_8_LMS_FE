@@ -17,6 +17,7 @@ const API = {
   lectures: '*/api/v1/lectures/admin/inspections',
   inquiries: '*/api/v1/inquiries/admin',
   hpTasks: '*/api/v1/lectures/admin/hp-tasks',
+  appearanceHpTasks: '*/api/v1/appearances/admin/hp-tasks',
   exchanges: '*/api/v1/settlements/admin/exchanges',
   /** 쿠폰 목록은 페이지 없는 배열이다 */
   coupons: '*/api/v1/coupons/admin',
@@ -71,13 +72,14 @@ afterEach(async () => {
 })
 
 describe('관리자 운영 대시보드', () => {
-  it('관리자 첫 화면에서 일곱 업무의 대기 건수를 보여 준다', async () => {
+  it('관리자 첫 화면에서 여덟 업무의 대기 건수를 보여 준다', async () => {
     mockCounts({
       channels: 3,
       promotions: 1,
       lectures: 2,
       inquiries: 4,
       hpTasks: 5,
+      appearanceHpTasks: 8,
       exchanges: 6,
       coupons: 7,
     })
@@ -91,11 +93,12 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('강의 검수 대기')).toHaveTextContent('2건')
     expect(await card('답변 대기 문의')).toHaveTextContent('4건')
     expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
+    expect(await card('멈춘 출연 HP 작업')).toHaveTextContent('8건')
     expect(await card('환전 승인 대기')).toHaveTextContent('6건')
     expect(await card('쿠폰 심사 대기')).toHaveTextContent('7건')
   })
 
-  it('처리할 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지, 강의 HP 작업은 멈춘 작업)', async () => {
+  it('처리할 상태만 센다(답변 대기 문의는 오래된 순 첫 페이지, HP 작업은 멈춘 작업)', async () => {
     const seen: string[] = []
     server.use(
       ...Object.values(API).map((path) =>
@@ -107,7 +110,7 @@ describe('관리자 운영 대시보드', () => {
       ),
     )
     renderApp('/admin', 'ADMIN')
-    await waitFor(() => expect(seen).toHaveLength(7))
+    await waitFor(() => expect(seen).toHaveLength(8))
 
     const query = (path: string) => seen.find((s) => s.startsWith(path))
     expect(query('/api/v1/members/admin/channels')).toMatch(
@@ -125,6 +128,9 @@ describe('관리자 운영 대시보드', () => {
     expect(query('/api/v1/lectures/admin/hp-tasks')).toMatch(
       /status=DEAD&page=0/,
     )
+    expect(query('/api/v1/appearances/admin/hp-tasks')).toMatch(
+      /status=DEAD&page=0/,
+    )
     expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
       /status=REQUESTED&page=0/,
     )
@@ -139,6 +145,7 @@ describe('관리자 운영 대시보드', () => {
     ['강의 검수 대기', '/admin/lectures'],
     ['답변 대기 문의', '/admin/inquiries'],
     ['멈춘 강의 HP 작업', '/admin/hp-tasks'],
+    ['멈춘 출연 HP 작업', '/admin/appearance-hp-tasks'],
     ['환전 승인 대기', '/admin/exchanges'],
     ['쿠폰 심사 대기', '/admin/coupons'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
@@ -148,6 +155,7 @@ describe('관리자 운영 대시보드', () => {
       lectures: 1,
       inquiries: 1,
       hpTasks: 1,
+      appearanceHpTasks: 1,
       exchanges: 1,
       coupons: 1,
     })
