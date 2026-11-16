@@ -47,6 +47,7 @@ import {
 } from './coupon/ui/CouponStatusPill'
 import { OrderItemStatusPill } from './order/ui/OrderItemStatusPill'
 import { EarningStatusPill } from './wallet/ui/EarningStatusPill'
+import { ExchangePayoutStatusPill } from './wallet/ui/ExchangePayoutStatusPill'
 import { ExchangeStatusPill } from './wallet/ui/ExchangeStatusPill'
 import { RefundStatusPill } from './wallet/ui/RefundStatusPill'
 
@@ -64,6 +65,10 @@ describe('모르는 상태 값의 상태 표시 (#183)', () => {
     ['CouponStatusPill', () => <CouponStatusPill status={NEW} />],
     ['MemberCouponStatusPill', () => <MemberCouponStatusPill status={NEW} />],
     ['ExchangeStatusPill', () => <ExchangeStatusPill status={NEW} />],
+    [
+      'ExchangePayoutStatusPill',
+      () => <ExchangePayoutStatusPill status={NEW} />,
+    ],
     [
       'HpTaskStatusPill',
       () => <HpTaskStatusPill status={NEW} outcome={null} />,

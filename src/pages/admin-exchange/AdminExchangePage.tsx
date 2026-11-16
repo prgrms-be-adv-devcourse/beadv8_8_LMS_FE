@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { adminExchangeQuery } from '@/entities/wallet/adminExchangeApi'
+import { hasPayoutStage } from '@/entities/wallet/exchangePayout'
 import {
   applicantStatusLabel,
   approveBlockReason,
@@ -9,6 +10,7 @@ import {
 } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
+import { ExchangePayoutPanel } from '@/features/exchange-payout/ExchangePayoutPanel'
 import { ApproveExchangeModal } from '@/features/exchange-review/ApproveExchangeModal'
 import { RejectExchangeModal } from '@/features/exchange-review/RejectExchangeModal'
 import { useReviewingExchange } from '@/features/exchange-review/useExchangeReview'
@@ -133,6 +135,9 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
                 )}
               </dl>
             </section>
+          )}
+          {hasPayoutStage(exchange.status) && (
+            <ExchangePayoutPanel exchange={exchange} />
           )}
         </div>
         {isExchangeReviewable(exchange.status) && (

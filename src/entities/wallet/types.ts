@@ -216,6 +216,52 @@ export type FeeIncome = {
 }
 
 /**
+ * 환전 송금 시도 하나의 상태 (BE ExchangePayoutStatus).
+ * PENDING은 지금 쓰지 않는다. PROCESSING·UNKNOWN·MANUAL_REVIEW_REQUIRED는 결과가 확정되지 않은 시도다.
+ */
+export type ExchangePayoutStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'UNKNOWN'
+  | 'MANUAL_REVIEW_REQUIRED'
+
+/** 관리자용 환전 송금 시도 (BE AdminExchangePayoutResponse). 계좌번호는 담지 않는다 */
+export type AdminExchangePayout = {
+  exchangeId: number
+  /** 그 환전의 지금 상태(처리 후) */
+  exchangeStatus: ExchangeStatus
+  payoutId: number
+  /** 환전 안의 시도 번호(1부터). 관리자 재송금마다 1씩 늘어난다 */
+  attemptNo: number
+  /** 지급 요청 ID(UUID). 결과 재확인은 이 ID로 한다 */
+  payoutRequestId: string
+  status: ExchangePayoutStatus
+  /** 송금 금액(원) = 환전 예상 수령액 */
+  amountKrw: number
+  /** 은행 거래 번호(성공) */
+  transactionId: string | null
+  /** 실패 코드·결과 불명·운영자 확인 사유(예: NO_RESPONSE, BANK_RECORD_NOT_FOUND) */
+  failureReason: string | null
+  /** 최초 송금 요청 시각 */
+  requestedAt: string
+  /** 이 시도를 보낸 관리자 회원 ID(수동 재송금). 자동 송금이면 null */
+  requestedBy: number | null
+  completedAt: string | null
+  failedAt: string | null
+  /** 마지막 송금·자동 결과 확인 시작 시각 */
+  lastCheckedAt: string | null
+  /** 자동 결과 확인 횟수(처음 송금·관리자 재확인 제외) */
+  resultCheckCount: number
+  /** 운영자 확인으로 처음 넘어간 시각 */
+  manualReviewAt: string | null
+  /** 마지막으로 결과를 재확인한 관리자 회원 ID */
+  manualCheckedBy: number | null
+  manualCheckedAt: string | null
+}
+
+/**
  * 내 HP 거래 유형 (BE WalletTransactionType). 화면 문구는 BE displayName을 쓴다.
  * 보류(가용 → 보류)와 확정(보류 차감)은 서로 다른 거래다.
  */

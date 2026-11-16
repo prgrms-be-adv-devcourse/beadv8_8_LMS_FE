@@ -6,7 +6,10 @@ import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import { channelReviewsQuery, upgradeReviewsQuery } from '@/entities/member/api'
 import { lectureHpTasksQuery } from '@/entities/hp-task/api'
-import { adminExchangesQuery } from '@/entities/wallet/adminExchangeApi'
+import {
+  adminExchangePayoutsQuery,
+  adminExchangesQuery,
+} from '@/entities/wallet/adminExchangeApi'
 import { formatNumber } from '@/shared/lib/money'
 import { PageHead } from '@/shared/ui/PageHead'
 import styles from './AdminDashboardPage.module.css'
@@ -37,6 +40,10 @@ export function AdminDashboardPage() {
     appearanceHpTasksQuery({ status: 'DEAD', page: 0 }),
   )
   const exchanges = useQuery(adminExchangesQuery('REQUESTED', 0))
+  const failedExchanges = useQuery(adminExchangesQuery('FAILED', 0))
+  const payouts = useQuery(
+    adminExchangePayoutsQuery('MANUAL_REVIEW_REQUIRED', 0),
+  )
   // 쿠폰 목록은 페이지 없는 배열이라 길이를 전체 건수로 바꿔 다른 카드와 같은 모양으로 둔다(캐시는 목록 화면과 같다).
   const coupons = useQuery({
     ...adminCouponsQuery('REVIEW'),
@@ -84,6 +91,16 @@ export function AdminDashboardPage() {
           label="환전 승인 대기"
           to="/admin/exchanges"
           query={exchanges}
+        />
+        <SummaryCard
+          label="송금 확인 필요"
+          to="/admin/exchange-payouts"
+          query={payouts}
+        />
+        <SummaryCard
+          label="송금 실패 판단 대기"
+          to="/admin/exchanges?status=FAILED"
+          query={failedExchanges}
         />
         <SummaryCard
           label="쿠폰 심사 대기"

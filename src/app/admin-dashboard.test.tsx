@@ -19,6 +19,7 @@ const API = {
   hpTasks: '*/api/v1/lectures/admin/hp-tasks',
   appearanceHpTasks: '*/api/v1/appearances/admin/hp-tasks',
   exchanges: '*/api/v1/settlements/admin/exchanges',
+  payouts: '*/api/v1/settlements/admin/exchanges/payouts',
   /** 쿠폰 목록은 페이지 없는 배열이다 */
   coupons: '*/api/v1/coupons/admin',
 } as const
@@ -38,13 +39,24 @@ const paged = (totalElements: number) =>
 const couponList = (n: number) =>
   rs(Array.from({ length: n }, (_, i) => coupon({ couponId: i + 1 })))
 
-/** 각 관리 목록 API가 page 0에 줄 전체 건수 */
-function mockCounts(counts: Partial<Record<keyof typeof API, number>>) {
+/**
+ * 각 관리 목록 API가 page 0에 줄 전체 건수. 환전 목록은 승인 대기(exchanges)와 송금 실패(failedExchanges)를
+ * status로 나눈다. 주지 않은 쪽은 기본 응답(0건)으로 넘긴다.
+ */
+function mockCounts(
+  counts: Partial<Record<keyof typeof API | 'failedExchanges', number>>,
+) {
   server.use(
     ...Object.entries(counts).map(([key, n]) =>
-      http.get(API[key as keyof typeof API], () =>
-        key === 'coupons' ? couponList(n) : paged(n),
-      ),
+      key === 'exchanges' || key === 'failedExchanges'
+        ? http.get(API.exchanges, ({ request }) => {
+            const failed =
+              new URL(request.url).searchParams.get('status') === 'FAILED'
+            return failed === (key === 'failedExchanges') ? paged(n) : undefined
+          })
+        : http.get(API[key as keyof typeof API], () =>
+            key === 'coupons' ? couponList(n) : paged(n),
+          ),
     ),
   )
 }
@@ -72,7 +84,7 @@ afterEach(async () => {
 })
 
 describe('관리자 운영 대시보드', () => {
-  it('관리자 첫 화면에서 여덟 업무의 대기 건수를 보여 준다', async () => {
+  it('관리자 첫 화면에서 열 업무의 대기 건수를 보여 준다', async () => {
     mockCounts({
       channels: 3,
       promotions: 1,
@@ -81,6 +93,8 @@ describe('관리자 운영 대시보드', () => {
       hpTasks: 5,
       appearanceHpTasks: 8,
       exchanges: 6,
+      payouts: 9,
+      failedExchanges: 2,
       coupons: 7,
     })
     renderApp('/admin', 'ADMIN')
@@ -95,6 +109,8 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
     expect(await card('멈춘 출연 HP 작업')).toHaveTextContent('8건')
     expect(await card('환전 승인 대기')).toHaveTextContent('6건')
+    expect(await card('송금 확인 필요')).toHaveTextContent('9건')
+    expect(await card('송금 실패 판단 대기')).toHaveTextContent('2건')
     expect(await card('쿠폰 심사 대기')).toHaveTextContent('7건')
   })
 
@@ -110,7 +126,7 @@ describe('관리자 운영 대시보드', () => {
       ),
     )
     renderApp('/admin', 'ADMIN')
-    await waitFor(() => expect(seen).toHaveLength(8))
+    await waitFor(() => expect(seen).toHaveLength(10))
 
     const query = (path: string) => seen.find((s) => s.startsWith(path))
     expect(query('/api/v1/members/admin/channels')).toMatch(
@@ -131,8 +147,15 @@ describe('관리자 운영 대시보드', () => {
     expect(query('/api/v1/appearances/admin/hp-tasks')).toMatch(
       /status=DEAD&page=0/,
     )
-    expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
-      /status=REQUESTED&page=0/,
+    // 환전 목록은 승인 대기와 송금 실패(관리자 판단 대기) 두 번 부른다
+    const exchangeQueries = seen.filter((s) =>
+      s.startsWith('/api/v1/settlements/admin/exchanges?'),
+    )
+    expect(exchangeQueries).toHaveLength(2)
+    expect(exchangeQueries.join(' ')).toMatch(/status=REQUESTED&page=0/)
+    expect(exchangeQueries.join(' ')).toMatch(/status=FAILED&page=0/)
+    expect(query('/api/v1/settlements/admin/exchanges/payouts')).toMatch(
+      /status=MANUAL_REVIEW_REQUIRED&page=0/,
     )
     expect(query('/api/v1/coupons/admin')).toBe(
       '/api/v1/coupons/admin?status=REVIEW',
@@ -147,6 +170,8 @@ describe('관리자 운영 대시보드', () => {
     ['멈춘 강의 HP 작업', '/admin/hp-tasks'],
     ['멈춘 출연 HP 작업', '/admin/appearance-hp-tasks'],
     ['환전 승인 대기', '/admin/exchanges'],
+    ['송금 확인 필요', '/admin/exchange-payouts'],
+    ['송금 실패 판단 대기', '/admin/exchanges?status=FAILED'],
     ['쿠폰 심사 대기', '/admin/coupons'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
     mockCounts({
@@ -157,6 +182,8 @@ describe('관리자 운영 대시보드', () => {
       hpTasks: 1,
       appearanceHpTasks: 1,
       exchanges: 1,
+      payouts: 1,
+      failedExchanges: 1,
       coupons: 1,
     })
     const router = renderApp('/admin', 'ADMIN')
@@ -165,7 +192,8 @@ describe('관리자 운영 대시보드', () => {
     await waitFor(() => expect(link).toHaveTextContent('1건'))
     expect(link).toHaveAttribute('href', path)
     await userEvent.click(link)
-    expect(router.state.location.pathname).toBe(path)
+    const { pathname, search } = router.state.location
+    expect(pathname + search).toBe(path)
   })
 
   it('채널 카드에서 들어가면 같은 대기 목록을 본다', async () => {

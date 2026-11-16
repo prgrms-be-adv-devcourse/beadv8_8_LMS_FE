@@ -42,14 +42,14 @@ const incomes = (n: number) =>
   )
 
 describe('관리자 수수료 수입', () => {
-  it('운영 메뉴의 환전 승인 다음에서 들어가 잔액(HP)과 최신순 내역을 본다', async () => {
+  it('운영 메뉴의 송금 확인 다음에서 들어가 잔액(HP)과 최신순 내역을 본다', async () => {
     renderApp('/admin/platform-wallet', 'ADMIN')
 
     const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
     const links = within(within(nav).getByRole('group', { name: '운영' }))
       .getAllByRole('link')
       .map((a) => a.textContent)
-    expect(links[links.indexOf('환전 승인') + 1]).toBe('수수료 수입')
+    expect(links[links.indexOf('송금 확인') + 1]).toBe('수수료 수입')
     expect(
       within(nav).getByRole('link', { name: '수수료 수입' }),
     ).toHaveAttribute('href', '/admin/platform-wallet')

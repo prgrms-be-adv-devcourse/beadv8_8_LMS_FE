@@ -29,6 +29,7 @@ import { AdminHpTaskPage } from '@/pages/admin-hp-task/AdminHpTaskPage'
 import { AdminHpTasksPage } from '@/pages/admin-hp-tasks/AdminHpTasksPage'
 import { AdminHpReconciliationsPage } from '@/pages/admin-hp-reconciliations/AdminHpReconciliationsPage'
 import { AdminExchangePage } from '@/pages/admin-exchange/AdminExchangePage'
+import { AdminExchangePayoutsPage } from '@/pages/admin-exchange-payouts/AdminExchangePayoutsPage'
 import { AdminExchangesPage } from '@/pages/admin-exchanges/AdminExchangesPage'
 import { AdminPlatformWalletPage } from '@/pages/admin-platform-wallet/AdminPlatformWalletPage'
 import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
@@ -183,6 +184,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/hp-reconciliations': <AdminHpReconciliationsPage />,
   '/admin/exchanges': <AdminExchangesPage />,
   '/admin/exchanges/:exchangeId': <AdminExchangePage />,
+  '/admin/exchange-payouts': <AdminExchangePayoutsPage />,
   '/admin/platform-wallet': <AdminPlatformWalletPage />,
   '/admin/promotions': <AdminPromotionsPage />,
   '/admin/coupons': <AdminCouponsPage />,

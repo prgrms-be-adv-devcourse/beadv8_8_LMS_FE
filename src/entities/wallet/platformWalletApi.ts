@@ -5,7 +5,7 @@ import type { FeeIncome, PlatformWallet } from './types'
 
 /**
  * 관리자 플랫폼 지갑(환전 수수료 수입) 조회. 수수료는 환전 송금이 성공할 때 BE가 기록하므로
- * 관리자 화면의 승인·거절이 바로 바꾸지 않는다(무효화하지 않는다).
+ * 승인·거절은 바꾸지 않는다(무효화하지 않는다). 송금 처리(결과 재확인·재송금)는 성공할 수 있어 무효화한다.
  */
 export const platformWalletKeys = {
   all: ['admin-platform-wallet'] as const,
