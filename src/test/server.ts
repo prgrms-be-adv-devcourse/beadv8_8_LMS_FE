@@ -153,6 +153,7 @@ const adminHomeDefaults = [
   '*/api/v1/lectures/admin/hp-tasks',
   '*/api/v1/appearances/admin/hp-tasks',
   '*/api/v1/settlements/admin/exchanges',
+  '*/api/v1/settlements/admin/exchanges/payouts',
 ].map((path) =>
   http.get(path, () =>
     HttpResponse.json({

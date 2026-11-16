@@ -1,0 +1,13 @@
+.filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.code {
+  overflow-wrap: anywhere;
+}

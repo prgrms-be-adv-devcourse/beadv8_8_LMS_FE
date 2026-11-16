@@ -9,8 +9,8 @@ import type { AdminExchange, ExchangeApplicant, ExchangeStatus } from './types'
 export const REJECTION_REASON_MAX = 500
 
 /**
- * 관리자 목록의 상태 필터. 송금 단계 중에는 최종 실패만 둔다.
- * 나머지(송금 중·확인 중·송금 실패·송금 완료)는 송금 처리 관리자 화면과 함께 정한다(#185).
+ * 관리자 목록의 상태 필터. 송금 단계 중에는 관리자 판단을 기다리는 송금 실패(재송금·최종 실패 확정)와 최종 실패만 둔다.
+ * 결과를 아직 모르는 송금은 송금 확인 화면(/admin/exchange-payouts)에서 시도 단위로 본다.
  */
 export const ADMIN_EXCHANGE_FILTERS = [
   {
@@ -24,6 +24,11 @@ export const ADMIN_EXCHANGE_FILTERS = [
     status: 'CANCELED',
     label: '회원 취소',
     empty: '회원이 취소한 신청이 없어요',
+  },
+  {
+    status: 'FAILED',
+    label: '송금 실패',
+    empty: '송금이 실패한 신청이 없어요',
   },
   {
     status: 'FINAL_FAILED',

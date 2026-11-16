@@ -19,6 +19,7 @@ const API = {
   hpTasks: '*/api/v1/lectures/admin/hp-tasks',
   appearanceHpTasks: '*/api/v1/appearances/admin/hp-tasks',
   exchanges: '*/api/v1/settlements/admin/exchanges',
+  payouts: '*/api/v1/settlements/admin/exchanges/payouts',
   /** 쿠폰 목록은 페이지 없는 배열이다 */
   coupons: '*/api/v1/coupons/admin',
 } as const
@@ -72,7 +73,7 @@ afterEach(async () => {
 })
 
 describe('관리자 운영 대시보드', () => {
-  it('관리자 첫 화면에서 여덟 업무의 대기 건수를 보여 준다', async () => {
+  it('관리자 첫 화면에서 아홉 업무의 대기 건수를 보여 준다', async () => {
     mockCounts({
       channels: 3,
       promotions: 1,
@@ -81,6 +82,7 @@ describe('관리자 운영 대시보드', () => {
       hpTasks: 5,
       appearanceHpTasks: 8,
       exchanges: 6,
+      payouts: 9,
       coupons: 7,
     })
     renderApp('/admin', 'ADMIN')
@@ -95,6 +97,7 @@ describe('관리자 운영 대시보드', () => {
     expect(await card('멈춘 강의 HP 작업')).toHaveTextContent('5건')
     expect(await card('멈춘 출연 HP 작업')).toHaveTextContent('8건')
     expect(await card('환전 승인 대기')).toHaveTextContent('6건')
+    expect(await card('송금 확인 필요')).toHaveTextContent('9건')
     expect(await card('쿠폰 심사 대기')).toHaveTextContent('7건')
   })
 
@@ -110,7 +113,7 @@ describe('관리자 운영 대시보드', () => {
       ),
     )
     renderApp('/admin', 'ADMIN')
-    await waitFor(() => expect(seen).toHaveLength(8))
+    await waitFor(() => expect(seen).toHaveLength(9))
 
     const query = (path: string) => seen.find((s) => s.startsWith(path))
     expect(query('/api/v1/members/admin/channels')).toMatch(
@@ -131,8 +134,11 @@ describe('관리자 운영 대시보드', () => {
     expect(query('/api/v1/appearances/admin/hp-tasks')).toMatch(
       /status=DEAD&page=0/,
     )
-    expect(query('/api/v1/settlements/admin/exchanges')).toMatch(
+    expect(query('/api/v1/settlements/admin/exchanges?')).toMatch(
       /status=REQUESTED&page=0/,
+    )
+    expect(query('/api/v1/settlements/admin/exchanges/payouts')).toMatch(
+      /status=MANUAL_REVIEW_REQUIRED&page=0/,
     )
     expect(query('/api/v1/coupons/admin')).toBe(
       '/api/v1/coupons/admin?status=REVIEW',
@@ -147,6 +153,7 @@ describe('관리자 운영 대시보드', () => {
     ['멈춘 강의 HP 작업', '/admin/hp-tasks'],
     ['멈춘 출연 HP 작업', '/admin/appearance-hp-tasks'],
     ['환전 승인 대기', '/admin/exchanges'],
+    ['송금 확인 필요', '/admin/exchange-payouts'],
     ['쿠폰 심사 대기', '/admin/coupons'],
   ])('%s 카드를 누르면 %s로 간다', async (label, path) => {
     mockCounts({
@@ -157,6 +164,7 @@ describe('관리자 운영 대시보드', () => {
       hpTasks: 1,
       appearanceHpTasks: 1,
       exchanges: 1,
+      payouts: 1,
       coupons: 1,
     })
     const router = renderApp('/admin', 'ADMIN')
