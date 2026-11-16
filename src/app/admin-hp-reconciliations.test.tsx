@@ -130,9 +130,13 @@ describe('관리자 HP 대사 마지막 결과', () => {
 
     await user.click(screen.getByRole('tab', { name: '출연' }))
     expect(router.state.location.search).toBe('?app=appearance')
-    const panel = screen.getByRole('tabpanel')
-    const summary = await within(panel).findByRole('region', {
-      name: '마지막 결과',
+    // 탭을 누른 직후에는 강의 패널이 남아 있을 수 있어, 출연 결과가 그려질 때까지 패널을 다시 찾는다
+    const summary = await waitFor(() => {
+      const found = within(screen.getByRole('tabpanel')).getByRole('region', {
+        name: '마지막 결과',
+      })
+      expect(within(found).getByText('중단')).toBeInTheDocument()
+      return found
     })
     expect(within(summary).getByText('중단')).toHaveClass('pill', 'warn')
     expect(summary).toHaveTextContent('계기관리자 실행 · 관리자 #9')

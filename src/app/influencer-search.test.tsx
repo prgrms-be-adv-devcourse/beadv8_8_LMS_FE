@@ -178,16 +178,19 @@ describe('검색 필터와 정렬', () => {
     await userEvent.selectOptions(select('최소 출연 평점'), '★ 4.0 이상')
     await userEvent.selectOptions(select('정렬'), '출연 평점 높은 순')
 
-    await waitFor(() =>
-      expect(lastParams(requests)).toEqual({
-        contentCategories: 'GAME,MAPLESTORY',
-        verified: 'true',
-        minFollowers: '10000',
-        minRating: '4',
-        sort: 'rating,desc',
-        page: '0',
-        size: '20',
-      }),
+    await waitFor(
+      () =>
+        expect(lastParams(requests)).toEqual({
+          contentCategories: 'GAME,MAPLESTORY',
+          verified: 'true',
+          minFollowers: '10000',
+          minRating: '4',
+          sort: 'rating,desc',
+          page: '0',
+          size: '20',
+        }),
+      // 입력 단계가 많아 CI에서는 마지막 요청이 기본 1초를 넘길 수 있다
+      { timeout: 5000 },
     )
     expect(
       Object.fromEntries(new URLSearchParams(router.state.location.search)),
