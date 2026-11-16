@@ -16,6 +16,8 @@ const me: Me = {
   role: 'USER',
   status: 'ACTIVE',
   profileImageUrl: null,
+  contentCategories: [],
+  bio: null,
 }
 
 /** BE 오류 응답(ProblemDetail). extra는 오류별 속성(restorableUntil 등) */

@@ -1,5 +1,42 @@
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.resultsHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.resultsHead h2 {
+  font-size: 16px;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 16px;
+  transition: opacity 0.15s;
+}
+/* 새 조건의 결과를 기다리는 동안 이전 결과를 흐리게 둔다 */
+.stale {
+  opacity: 0.5;
+}
+.channel {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bio {
+  font-size: 13px;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }

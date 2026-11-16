@@ -3,6 +3,7 @@ import { Avatar } from '@/shared/ui/Avatar'
 import { formatNumber } from '@/shared/lib/money'
 import type { MemberProfileDetail, RatingSummary } from '../types'
 import { ChannelCard } from './ChannelCard'
+import { ContentCategoryChips } from './ContentCategoryChips'
 import { ReceivedAppearanceReviews } from './ReceivedAppearanceReviews'
 
 type MemberProfileViewProps = {
@@ -45,13 +46,39 @@ export function MemberProfileView({ profile, aside }: MemberProfileViewProps) {
         <div
           style={{
             display: 'flex',
+            flexDirection: 'column',
             gap: 8,
-            alignItems: 'center',
-            flexWrap: 'wrap',
+            minWidth: 0,
+            flex: 1,
           }}
         >
-          <h1 style={{ fontSize: 26, fontWeight: 700 }}>{profile.nickname}</h1>
-          {role && <span className={`pill ${role[0]}`}>{role[1]}</span>}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <h1 style={{ fontSize: 26, fontWeight: 700 }}>
+              {profile.nickname}
+            </h1>
+            {role && <span className={`pill ${role[0]}`}>{role[1]}</span>}
+          </div>
+          {/* 닉네임 아래에 분야(받은 순서), 그 아래에 자기소개. 없으면 그 줄을 그리지 않는다 */}
+          <ContentCategoryChips categories={profile.contentCategories} />
+          {profile.bio && (
+            <p
+              style={{
+                fontSize: 14,
+                color: 'var(--ink-2)',
+                whiteSpace: 'pre-wrap',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              {profile.bio}
+            </p>
+          )}
         </div>
       </div>
       <div className={aside ? 'split' : undefined}>

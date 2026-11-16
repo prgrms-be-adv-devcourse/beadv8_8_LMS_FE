@@ -20,6 +20,7 @@ const influencer = (patch: Partial<MemberProfile> = {}): MemberProfile => ({
   nickname: '편집하는 고래',
   role: 'VERIFIED_INFLUENCER',
   profileImageUrl: null,
+  contentCategories: [],
   appearanceRating: noRating,
   ...patch,
 })
@@ -193,6 +194,7 @@ describe('인플루언서 목록 카드', () => {
           ...influencer(),
           channels: [],
           appearanceRating: noAppearanceRating,
+          bio: null,
         }),
       ),
     )

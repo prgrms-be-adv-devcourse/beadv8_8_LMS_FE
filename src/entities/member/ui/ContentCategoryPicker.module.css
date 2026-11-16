@@ -1,0 +1,33 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.selected {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.selected > li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.chipButton {
+  border: 0;
+  background: none;
+  color: inherit;
+  padding: 0 3px;
+  font-size: 13px;
+  line-height: 1;
+}
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}

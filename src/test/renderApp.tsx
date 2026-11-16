@@ -42,6 +42,8 @@ export function renderApp(
           role: viewer,
           status: 'ACTIVE',
           profileImageUrl: null,
+          contentCategories: [],
+          bio: null,
         }
   queryClient.setQueryData(meQuery.queryKey, me)
   if (me) {

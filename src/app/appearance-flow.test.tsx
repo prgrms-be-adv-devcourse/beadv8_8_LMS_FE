@@ -29,6 +29,8 @@ const profile = (id: number, nickname: string) => ({
   nickname,
   role: 'INFLUENCER',
   profileImageUrl: null,
+  contentCategories: [],
+  bio: null,
   channels: [],
   appearanceRating: noAppearanceRating,
 })
