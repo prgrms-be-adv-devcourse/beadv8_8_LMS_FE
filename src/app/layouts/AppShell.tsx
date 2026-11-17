@@ -50,14 +50,24 @@ function alertsLabel(unread: number | undefined) {
   return unread ? `알림, 안 읽은 알림 ${unread}개` : '알림'
 }
 
-/** 가장 안쪽 라우트의 화면 틀 (RouteHandle.layout) */
-function useLayout() {
+/** 가장 안쪽 라우트부터 handle에 그 값이 있는 것을 찾는다. */
+function useInnermostHandle<K extends keyof RouteHandle>(name: K) {
   const matches = useMatches()
   for (let i = matches.length - 1; i >= 0; i--) {
-    const layout = (matches[i].handle as RouteHandle | undefined)?.layout
-    if (layout) return layout
+    const value = (matches[i].handle as RouteHandle | undefined)?.[name]
+    if (value) return value
   }
   return undefined
+}
+
+const APP_NAME = '합방'
+
+/** 브라우저 탭 제목: 가장 안쪽 라우트의 handle.title로 "<제목> · 합방", 제목이 없으면 "합방" */
+function useDocumentTitle() {
+  const title = useInnermostHandle('title')
+  useEffect(() => {
+    document.title = title ? `${title} · ${APP_NAME}` : APP_NAME
+  }, [title])
 }
 
 /**
@@ -84,7 +94,8 @@ export function AppShell() {
   }, [navOpen])
 
   const { data: me } = useQuery(meQuery)
-  const topLayout = useLayout() === 'top'
+  const topLayout = useInnermostHandle('layout') === 'top'
+  useDocumentTitle()
   const toggleNav = () => setOpenedAt(navOpen ? null : pathname)
 
   return (
