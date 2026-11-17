@@ -14,6 +14,7 @@ import { unreadCountQuery } from '@/entities/notification/api'
 import { walletQuery } from '@/entities/wallet/api'
 import { useCartCount } from '@/features/cart/useCartCount'
 import { ChatConnection } from '@/features/chat/ChatConnection'
+import { ChatbotRoot } from '@/features/chatbot/ChatbotRoot'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { NotificationConnection } from '@/features/notification/NotificationConnection'
 import { LoginModal } from '@/features/auth/LoginModal'
@@ -137,6 +138,7 @@ export function AppShell() {
           <RoleGate />
         </main>
       </div>
+      <ChatbotRoot />
       <LoginModal />
       <Toast />
     </div>

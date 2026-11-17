@@ -1,0 +1,35 @@
+/* 라이트·다크 모두 표면색 위에 두고, 포인트 색은 머리글에만 쓴다 */
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.1em;
+  color: var(--signal);
+}
+.title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.note {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+/* 추천하지 못한 까닭(notice) */
+.notice {
+  font-size: 14px;
+  color: var(--ink-2);
+}

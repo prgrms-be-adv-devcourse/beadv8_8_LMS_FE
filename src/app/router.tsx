@@ -221,6 +221,10 @@ export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
     import('@/pages/support/SupportPage').then((m) => ({
       Component: m.SupportPage,
     })),
+  '/support/faq': () =>
+    import('@/pages/support-faq/SupportFaqPage').then((m) => ({
+      Component: m.SupportFaqPage,
+    })),
   '/support/inquiries/:inquiryId': () =>
     import('@/pages/inquiry/InquiryPage').then((m) => ({
       Component: m.InquiryPage,

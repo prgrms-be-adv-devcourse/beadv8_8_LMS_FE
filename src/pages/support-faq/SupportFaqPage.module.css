@@ -1,0 +1,36 @@
+/*
+ * 분류 12개를 가로 스크롤 없이 너비에 맞춰 여러 줄로 놓는다. 밑줄 탭은 줄이 바뀌면 어색해 칩 모양으로 바꾼다
+ * (공용 Tabs의 클래스를 이 화면에서만 덮어쓴다).
+ */
+.categories :global(.tabs) {
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 0;
+  overflow: visible;
+}
+.categories :global(.tab) {
+  margin: 0;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 14px;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.categories :global(.tab:hover) {
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+.categories :global(.tab.on) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .categories :global(.tab) {
+    transition: none;
+  }
+}

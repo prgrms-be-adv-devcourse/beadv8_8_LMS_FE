@@ -12,6 +12,7 @@ import {
 import type { LectureBrowseSort } from '@/entities/lecture/types'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
 import { LectureKeywordBox } from '@/features/lecture-search/LectureKeywordBox'
+import { LectureRecommendWidget } from '@/features/recommend-widget/LectureRecommendWidget'
 import { LectureSearchResults } from '@/features/lecture-search/LectureSearchResults'
 import { useKeywordInput } from '@/features/lecture-search/useKeywordInput'
 import {
@@ -95,6 +96,10 @@ export function LecturesPage() {
             로그인
           </button>
         </div>
+      )}
+      {/* 둘러볼 때만 추천 강의 띠를 둔다(검색 중에는 숨긴다) */}
+      {!keyword && (
+        <LectureRecommendWidget signedIn={viewer !== undefined && !guest} />
       )}
       <div className="toolbar">
         <form className={styles.search} role="search" onSubmit={search}>

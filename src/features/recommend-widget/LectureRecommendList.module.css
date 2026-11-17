@@ -1,0 +1,35 @@
+/* 추천 강의 카드: 제목과 이유 문장 */
+.card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+  transition:
+    border-color 0.12s,
+    transform 0.12s;
+}
+.card:hover {
+  border-color: var(--signal);
+  transform: translateY(-2px);
+}
+.title {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.reason {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

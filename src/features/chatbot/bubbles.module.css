@@ -1,0 +1,73 @@
+/* 말풍선 (src/pages/chat/ChatPage.module.css의 .bubble과 같은 모양, 말꼬리 쪽 모서리만 작게) */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.list:empty {
+  display: none;
+}
+.bot,
+.me {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 88%;
+  min-width: 0;
+  /* 새 말풍선은 살짝 떠오르며 나타난다 */
+  animation: bubble-in 0.2s ease-out both;
+}
+.bot {
+  align-self: flex-start;
+}
+.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+/* 카드를 담는 말풍선은 창 너비를 다 쓴다 */
+.wide {
+  width: 100%;
+  max-width: 100%;
+}
+.bubble {
+  padding: 9px 13px;
+  border-radius: 4px 14px 14px 14px;
+  background: var(--sunken);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.wide > .bubble {
+  align-self: flex-start;
+  max-width: 88%;
+}
+.me .bubble {
+  border-radius: 14px 4px 14px 14px;
+  background: var(--ink);
+  color: var(--surface);
+}
+/* 안내(호출 한도·오류). 대화가 아니라 history에 넣지 않는다 */
+.notice {
+  align-self: center;
+  max-width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: 999px;
+  padding: 6px 14px;
+  animation: bubble-in 0.2s ease-out both;
+}
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bot,
+  .me,
+  .notice {
+    animation: none;
+  }
+}
