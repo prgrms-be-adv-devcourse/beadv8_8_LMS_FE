@@ -1,0 +1,54 @@
+/* 말풍선 (src/pages/chat/ChatPage.module.css의 .bubble과 같은 모양) */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.list:empty {
+  display: none;
+}
+.bot,
+.me {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 88%;
+  min-width: 0;
+}
+.bot {
+  align-self: flex-start;
+}
+.me {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+/* 카드·FAQ 목록을 담는 말풍선은 창 너비를 다 쓴다 */
+.wide {
+  max-width: 100%;
+  width: 100%;
+}
+.bubble {
+  padding: 9px 13px;
+  border-radius: 14px;
+  background: var(--sunken);
+  border: 1px solid transparent;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.me .bubble {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+/* 안내(호출 한도·오류). 대화가 아니라 history에 들어가지 않는다 */
+.notice {
+  align-self: center;
+  max-width: 100%;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: 999px;
+  padding: 6px 14px;
+}

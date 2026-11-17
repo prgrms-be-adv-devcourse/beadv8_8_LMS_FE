@@ -1,0 +1,47 @@
+/*
+ * 겹침 순서: 헤더 20 < 챗봇 25 < 드로어 30·40 < 모달 50 < 토스트 60
+ * 버튼 크기·위치는 채팅창 위치의 기준이라 ChatbotWindow.module.css의 --launcher-* 와 맞춘다.
+ */
+.launcher {
+  position: fixed;
+  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--signal);
+  color: var(--signal-ink);
+  box-shadow: var(--shadow);
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease-out;
+}
+.launcher:hover {
+  transform: scale(1.06);
+}
+/* 열려 있을 때: 닫기 버튼 */
+.open {
+  background: var(--ink);
+  color: var(--surface);
+}
+.closeMark {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* 좁은 화면: 가운데 아래 토스트(최대 폭 = 화면 - 32px)와 겹치지 않게 그 위로 올린다 */
+@media (max-width: 767px) {
+  .launcher {
+    right: 16px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    width: 52px;
+    height: 52px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .launcher {
+    transition: none;
+  }
+}

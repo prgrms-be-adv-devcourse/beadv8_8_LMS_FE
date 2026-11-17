@@ -13,6 +13,7 @@ import type { RouteHandle } from '@/app/routeHandle'
 import { walletQuery } from '@/entities/wallet/api'
 import { useCartCount } from '@/features/cart/useCartCount'
 import { ChatConnection } from '@/features/chat/ChatConnection'
+import { ChatbotRoot } from '@/features/chatbot/ChatbotRoot'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
@@ -115,6 +116,7 @@ export function AppShell() {
           <RoleGate />
         </main>
       </div>
+      <ChatbotRoot />
       <LoginModal />
       <Toast />
     </div>
