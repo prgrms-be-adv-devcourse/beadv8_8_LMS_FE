@@ -3,6 +3,8 @@ import { useRef } from 'react'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
+import { LectureRecommendList } from '@/features/lecture-recommend-widget/LectureRecommendList'
+import { useLectureRecommendWidget } from '@/features/lecture-recommend-widget/useLectureRecommendWidget'
 import type { Viewer } from '@/shared/auth/role'
 import { startGoogleLogin, useViewer } from '@/shared/auth/session'
 import { Avatar } from '@/shared/ui/Avatar'
@@ -146,6 +148,7 @@ export function HomePage() {
           ))}
         </ol>
       </section>
+      <RecommendedLectures signedIn={viewer !== 'GUEST'} />
       <LatestLectures guest={viewer === 'GUEST'} />
       {viewer === 'GUEST' && (
         <section className={`${styles.wrap} ${styles.bandWrap}`}>
@@ -347,6 +350,28 @@ function CampAction({ viewer }: { viewer: Viewer }) {
       </Link>
     )
   return null
+}
+
+/**
+ * 로그인 회원에게 맞춘 추천 강의(챗봇 강의 추천 위젯, LLM 없음). 보여 줄 것이 없으면(불러오는 중·429·오류·빈 목록)
+ * 영역을 숨긴다. 맞춤 후보가 없어 인기순이면 제목을 바꾼다.
+ */
+function RecommendedLectures({ signedIn }: { signedIn: boolean }) {
+  const recommendation = useLectureRecommendWidget(signedIn)
+  if (!recommendation) return null
+  return (
+    <section className={`${styles.wrap} ${styles.section}`}>
+      <div className={styles.secText}>
+        <span className={styles.eyebrow}>FOR YOU</span>
+        <h2 className={styles.h2}>
+          {recommendation.basis === 'PERSONALIZED'
+            ? '나에게 맞춘 추천 강의'
+            : '요즘 많이 듣는 강의'}
+        </h2>
+      </div>
+      <LectureRecommendList items={recommendation.items} />
+    </section>
+  )
 }
 
 /** 최근 판매 중인 강의 4개 (비회원도 볼 수 있는 강의 목록 API) */

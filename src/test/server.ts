@@ -8,6 +8,7 @@ import { CONTENT_CATEGORIES } from './contentCategories'
  * - 강의 목록: 비회원·권한 없는 회원을 첫 화면(/lectures)으로 보낼 때 부른다
  * - 성립한 출연 목록·받은 요청: 내 출연 화면이 요청 목록과 역할 탭 개수를 위해 부른다
  * - 모집글의 단체방: 모집 상세가 호스트·인플루언서에게 부른다(기본은 방 없음)
+ * - 추천 강의: 홈이 회원에게 부른다(기본은 빈 추천)
  */
 // 내 정보(GET /members/me)는 기본 응답을 두지 않는다. 401을 주면 내 정보 쿼리가 비회원으로 바뀌어,
 // 테스트가 캐시로 정한 로그인 상태가 풀린다.
@@ -71,6 +72,19 @@ const appShellDefaults = [
         recruitId: Number(new URL(request.url).searchParams.get('recruitId')),
         currentRoom: null,
         previousRooms: [],
+      },
+    }),
+  ),
+  // 홈의 추천 강의(챗봇 강의 추천 위젯). 기본은 추천이 비어 영역을 숨긴다. 위젯 테스트는 src/test/chatbotMock.ts로 덮어쓴다.
+  http.get('*/api/v1/chatbot/recommendations/lectures', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        items: [],
+        needsInterest: false,
+        basis: 'POPULAR',
+        fallback: false,
       },
     }),
   ),
