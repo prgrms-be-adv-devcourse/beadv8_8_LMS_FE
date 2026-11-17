@@ -15,7 +15,10 @@ type Stored = SavedConversation & { version: number }
 
 /** 저장해 둘 말풍선. 진행 중인 요청은 새로고침하면 끊기므로 끝난 말풍선만 남긴다 */
 export function restorableItems(items: readonly ChatItem[]): ChatItem[] {
-  return items.filter((item) => item.kind === 'notice')
+  return items.filter(
+    (item) =>
+      item.kind === 'guide' || item.kind === 'choice' || item.kind === 'notice',
+  )
 }
 
 /** 저장한 값을 읽는다. 형식이 다르거나 읽을 수 없으면 null */

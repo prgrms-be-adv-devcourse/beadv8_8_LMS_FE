@@ -1,0 +1,46 @@
+.replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.reply {
+  border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--line));
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 6px 13px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  /* 하나씩 차례로 나타난다(--i: 순서) */
+  animation: chip-in 0.22s ease-out both;
+  animation-delay: calc(var(--i, 0) * 45ms + 80ms);
+  transition:
+    background 0.12s,
+    transform 0.08s;
+}
+.reply:hover:not(:disabled) {
+  background: var(--signal-soft);
+}
+/* 누를 때 살짝 눌린다 */
+.reply:active:not(:disabled) {
+  transform: scale(0.95);
+}
+/* 지난 말풍선의 버튼 */
+.reply:disabled {
+  opacity: 0.4;
+  cursor: default;
+  animation: none;
+}
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reply {
+    animation: none;
+    transition: none;
+  }
+}

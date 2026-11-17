@@ -23,11 +23,12 @@ export function ChatbotWindow() {
     root.current?.focus()
   }, [])
 
-  // 새 말풍선·답 조각이 오면 맨 아래로 내린다.
+  // 새 말풍선이 생기거나 마지막 말풍선이 바뀌면(답 조각 등) 맨 아래로 내린다. 위쪽 말풍선이 바뀔 때는 그대로 둔다.
+  const last = items.at(-1)
   useEffect(() => {
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [items])
+  }, [items.length, last])
 
   return (
     <section
@@ -64,7 +65,7 @@ export function ChatbotWindow() {
         </button>
       </header>
       <div ref={scroller} className={styles.body}>
-        <Greeting />
+        <Greeting active={items.length === 0} />
         <MessageList items={items} />
       </div>
     </section>
