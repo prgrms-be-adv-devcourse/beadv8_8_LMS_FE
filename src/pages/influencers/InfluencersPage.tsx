@@ -21,6 +21,7 @@ import {
 import { RequestFormModal } from '@/features/appearance-request/RequestFormModal'
 import { useStartChat } from '@/features/chat/useChatActions'
 import { InfluencerSearchBar } from '@/features/influencer-search/InfluencerSearchBar'
+import { InfluencerRecommendWidget } from '@/features/recommend-widget/InfluencerRecommendWidget'
 import { useSearchConditions } from '@/features/influencer-search/searchConditions'
 import { isApiError } from '@/shared/api/ApiError'
 import type { PagedModel } from '@/shared/api/types'
@@ -84,6 +85,12 @@ export function InfluencersPage() {
             채널 인증하기
           </Link>
         </div>
+      )}
+      {/* 둘러볼 때만 추천 인플루언서 띠를 둔다(검색 중에는 숨긴다) */}
+      {!searching && (
+        <InfluencerRecommendWidget
+          signedIn={viewer !== undefined && viewer !== 'GUEST'}
+        />
       )}
       <InfluencerSearchBar conditions={conditions} update={update} />
       {searching ? (

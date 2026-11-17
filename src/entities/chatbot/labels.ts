@@ -1,5 +1,5 @@
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
-import type { FaqCategory, RecommendBasis } from './types'
+import type { FaqCategory, InfluencerReason, RecommendBasis } from './types'
 
 /** FAQ 모아보기 탭 순서(BE FaqCategory 순서) */
 export const FAQ_CATEGORIES: readonly FaqCategory[] = [
@@ -46,4 +46,26 @@ export function faqCategoryName(category: string): string {
  */
 export function isTemporaryPopular(basis: RecommendBasis): boolean {
   return basis === 'POPULAR_TEMPORARY'
+}
+
+/** 인플루언서 추천 이유 코드의 정해진 문장(BE가 LLM 실패 때 쓰는 문장과 같다, FE #220) */
+const INFLUENCER_REASON_TEXT: Record<InfluencerReason, string> = {
+  SIMILAR_CATEGORY: '내 콘텐츠 분야·소개와 비슷해요',
+  SIMILAR_TO_PARTNERS: '함께 출연했던 인플루언서들과 비슷해요',
+  MATCHES_INTEREST: '말씀하신 관심사와 잘 맞아요',
+  POPULAR: '출연 경험과 리뷰 평가가 좋은 인기 인플루언서예요',
+  PAST_PARTNER: '예전에 함께 출연했던 인플루언서예요',
+}
+
+/**
+ * 이유 문장이 없는 위젯 카드에 보일 문장. 이유 코드 중 아는 첫 코드의 문장이고, 모두 모르는 코드면 없다(숨긴다).
+ */
+export function influencerReasonText(
+  reasons: readonly string[],
+): string | undefined {
+  for (const reason of reasons) {
+    const text = lookup(INFLUENCER_REASON_TEXT, reason)
+    if (text) return text
+  }
+  return undefined
 }

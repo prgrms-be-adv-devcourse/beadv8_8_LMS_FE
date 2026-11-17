@@ -1,0 +1,99 @@
+.row {
+  position: relative;
+  min-width: 0;
+}
+
+/* 한 줄: 공간이 있으면 카드가 너비를 나눠 채우고(최소 220px), 모자라면 옆으로 스크롤한다 */
+.list {
+  list-style: none;
+  margin: 0;
+  /* 카드가 마우스를 올리면 살짝 떠오르므로 위아래로 여유를 둔다 */
+  padding: 4px 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  /* 스크롤바는 숨기고 가장자리 흐림·버튼으로 넘친 것을 알린다 */
+  scrollbar-width: none;
+}
+.list::-webkit-scrollbar {
+  display: none;
+}
+.list > li {
+  display: flex;
+  scroll-snap-align: start;
+  animation: card-in 0.28s ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.list > li > * {
+  flex: 1;
+}
+
+/* 더 볼 카드가 있는 쪽 가장자리를 흐리게 한다 */
+.row[data-before] .list {
+  mask-image: linear-gradient(to right, transparent, #000 48px);
+}
+.row[data-after] .list {
+  mask-image: linear-gradient(to left, transparent, #000 48px);
+}
+.row[data-before][data-after] .list {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 48px,
+    #000 calc(100% - 48px),
+    transparent
+  );
+}
+
+/* 둥근 ‹ › 버튼 */
+.arrow {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  line-height: 1;
+  animation: arrow-in 0.16s ease-out;
+}
+.arrow:hover {
+  border-color: var(--ink-3);
+}
+.prev {
+  left: -6px;
+}
+.next {
+  right: -6px;
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@keyframes arrow-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .list {
+    scroll-behavior: auto;
+  }
+  .list > li,
+  .arrow {
+    animation: none;
+  }
+}

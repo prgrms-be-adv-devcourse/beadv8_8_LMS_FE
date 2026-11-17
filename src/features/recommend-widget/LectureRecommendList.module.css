@@ -1,16 +1,4 @@
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-.list > li {
-  display: flex;
-  animation: card-in 0.28s ease-out both;
-  animation-delay: calc(var(--i, 0) * 60ms);
-}
+/* 추천 강의 카드: 제목과 이유 문장 */
 .card {
   flex: 1;
   display: flex;
@@ -40,16 +28,7 @@
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
-@keyframes card-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .list > li {
-    animation: none;
-  }
   .card {
     transition: none;
   }

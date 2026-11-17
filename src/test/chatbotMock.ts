@@ -168,6 +168,8 @@ export type ChatbotMockState = {
   influencer: (interest: string | null) => Reply
   /** 강의 추천 위젯 응답 */
   widget: () => Reply
+  /** 인플루언서 추천 위젯 응답(explanation 없음) */
+  influencerWidget: () => Reply
   /** 자유 질문 스트림 응답 */
   stream: (request: ChatRequest) => Reply
   /** FAQ 질문하기 스트림 응답(POST /chatbot/chat/faq/stream) */
@@ -180,6 +182,7 @@ export type ChatbotMockState = {
   /** FAQ 질문하기로 받은 본문 */
   faqRequests: unknown[]
   widgetCalls: number
+  influencerWidgetCalls: number
 }
 
 /** 챗봇 API 전체를 흉내 낸다. 기본은 모두 성공이고 자유 질문은 짧은 답 하나다 */
@@ -189,6 +192,16 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
     lecture: () => rs(lectureRecommendation()),
     influencer: () => rs(influencerRecommendation()),
     widget: () => rs(lectureRecommendation()),
+    influencerWidget: () =>
+      rs(
+        influencerRecommendation({
+          // 위젯은 이유 문장(explanation)을 주지 않는다(JSON에서 빠진다).
+          items: influencerRecommendation().items.map((item) => ({
+            ...item,
+            explanation: undefined,
+          })),
+        }),
+      ),
     stream: () =>
       sseResponse([
         { event: 'token', data: { text: '안녕하세요' } },
@@ -213,6 +226,7 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
     influencerInterests: [],
     streamRequests: [],
     widgetCalls: 0,
+    influencerWidgetCalls: 0,
     ...init,
   }
   const interestOf = async (request: Request) => {
@@ -247,6 +261,10 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
         return state.influencer(interest)
       },
     ),
+    http.get('*/api/v1/chatbot/recommendations/influencers', () => {
+      state.influencerWidgetCalls++
+      return state.influencerWidget()
+    }),
     http.get('*/api/v1/chatbot/recommendations/lectures', () => {
       state.widgetCalls++
       return state.widget()

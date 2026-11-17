@@ -13,6 +13,7 @@ export const chatbotKeys = {
   faqs: (category: FaqCategory | null) =>
     [...chatbotKeys.all, 'faqs', category ?? 'ALL'] as const,
   lectureWidget: () => [...chatbotKeys.all, 'lecture-widget'] as const,
+  influencerWidget: () => [...chatbotKeys.all, 'influencer-widget'] as const,
 }
 
 /** FAQ는 운영자가 가끔 바꾸는 정해진 글이라 오래 둔다 */
@@ -37,6 +38,17 @@ export const lectureWidgetQuery = queryOptions({
   queryKey: chatbotKeys.lectureWidget(),
   queryFn: () =>
     api<LectureRecommendation>('/chatbot/recommendations/lectures'),
+  retry: false,
+  staleTime: 5 * 60_000,
+})
+
+/**
+ * 인플루언서 추천 위젯(LLM 없음, 분당 60회, FE #220). 429·오류면 이전 결과를 그대로 두고 다시 시도하지 않는다.
+ */
+export const influencerWidgetQuery = queryOptions({
+  queryKey: chatbotKeys.influencerWidget(),
+  queryFn: () =>
+    api<InfluencerRecommendation>('/chatbot/recommendations/influencers'),
   retry: false,
   staleTime: 5 * 60_000,
 })
