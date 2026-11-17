@@ -15,15 +15,26 @@ type ModalProps = {
   wide?: boolean
 }
 
-/** Tab으로 갈 수 있는 요소 */
+/**
+ * Tab으로 갈 수 있는 요소. 재생 컨트롤이 있는 영상·소리(강의 미리보기)와 iframe·summary·편집 영역도 넣는다.
+ * 빠지면 Tab 순환이 그 요소를 건너뛰어 키보드로 재생 컨트롤에 갈 수 없다. tabindex가 음수면 뺀다.
+ */
 const TABBABLE = [
   'a[href]',
+  'area[href]',
   'button:not([disabled])',
   'input:not([disabled]):not([type="hidden"])',
   'select:not([disabled])',
   'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',')
+  'video[controls]',
+  'audio[controls]',
+  'iframe',
+  'summary',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[tabindex]',
+]
+  .map((selector) => `${selector}:not([tabindex^="-"])`)
+  .join(',')
 
 function tabbables(dialog: HTMLElement) {
   return [...dialog.querySelectorAll<HTMLElement>(TABBABLE)]

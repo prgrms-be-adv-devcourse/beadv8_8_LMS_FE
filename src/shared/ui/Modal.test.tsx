@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
@@ -79,6 +79,26 @@ describe('모달 포커스', () => {
     expect(
       screen.getByRole('button', { name: '모달 밖 버튼' }),
     ).not.toHaveFocus()
+  })
+
+  it('재생 컨트롤이 있는 영상도 Tab 순환에 들어간다(강의 미리보기)', () => {
+    // 강의 미리보기 모달처럼 닫기 버튼과 영상만 있다. 영상이 순환에 없으면 닫기에서 Tab을 막고 닫기로 되돌려
+    // 키보드로 재생 컨트롤에 갈 수 없다. jsdom은 영상을 포커스 대상으로 보지 않아 Tab 기본 동작을 막는지로 본다.
+    render(
+      <Modal title="미리보기" onClose={() => {}}>
+        <video
+          controls
+          aria-label="미리보기 영상"
+          src="https://cdn.test/a.mp4"
+        />
+      </Modal>,
+    )
+    const close = screen.getByRole('button', { name: '닫기' })
+    close.focus()
+    // 닫기 다음에 영상이 있으니 Tab 기본 동작(영상으로 이동)을 막지 않는다
+    expect(fireEvent.keyDown(close, { key: 'Tab' })).toBe(true)
+    // 맨 앞(닫기)에서 Shift+Tab은 마지막(영상)으로 보낸다
+    expect(fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })).toBe(false)
   })
 
   it('모달에서 Shift+Tab을 누르면 모달 안 마지막 요소로 간다', async () => {
