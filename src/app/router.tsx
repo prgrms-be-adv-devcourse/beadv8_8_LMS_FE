@@ -34,6 +34,7 @@ type PageModule = { Component: ComponentType }
 const EXTRA_ROUTES: PageDef[] = [
   { path: '/', title: '홈', roles: ALL },
   { path: '/cart', title: '장바구니', roles: MEMBER },
+  { path: '/alerts', title: '알림', roles: MEMBER },
   { path: '/lectures/:lectureId', title: '강의 상세', roles: SIGNED_IN },
   { path: '/recruits/:recruitId', title: '모집 상세', roles: SIGNED_IN },
   {
@@ -110,6 +111,10 @@ export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
     })),
   '/cart': () =>
     import('@/pages/cart/CartPage').then((m) => ({ Component: m.CartPage })),
+  '/alerts': () =>
+    import('@/pages/alerts/AlertsPage').then((m) => ({
+      Component: m.AlertsPage,
+    })),
   '/library': () =>
     import('@/pages/library/LibraryPage').then((m) => ({
       Component: m.LibraryPage,

@@ -227,8 +227,6 @@ describe('라우트 가드', () => {
 
   // BE API가 없어 진입점을 숨긴 화면(#101). 자리표시 대신 404를 보인다.
   it.each([
-    ['/alerts', 'USER'],
-    ['/alerts', 'GUEST'],
     ['/search', 'GUEST'],
     ['/search?q=x', 'USER'],
     ['/wallet/account', 'INFLUENCER'],
