@@ -63,6 +63,15 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 테스트의 BE 흉내는 `src/test/chatGroupMock.ts`(`mockGroup`)다.
 - 메시지별 안 읽은 사람 수(1:1·단체방 모두, BE `contracts/unread-count.md`): 일반 메시지의 `unreadMemberCount`와 방 topic의 `READ_COUNTS` 프레임(재동기화 신호가 아니다)을 `features/chat/readCounts.ts`에 모은다. 같은 메시지는 작은 값을 남기고(값은 줄기만 한다), 참여 세대가 바뀌어 이력 캐시를 버리면 함께 버린다. 0이거나 값이 없으면 숨긴다.
 
+## 알림센터
+
+- BE auxiliary-app `notification` 모듈(계약은 BE `docs/api/notification.md`, 종류·이동 대상은 `docs/notification/notification-catalog.md`)이다. 회원(유저·인플루언서·인증된 인플루언서)만 쓰고 관리자는 받지 않는다. 상단 헤더 알림 아이콘(안 읽은 수 배지)과 `/alerts`가 있다. 목록은 최신 20개뿐이고 안 읽은 수도 그 안에서 센다. 실시간 연결 전이라 창에 포커스가 돌아오면 다시 읽는다.
+- 문구는 서버가 만든 완성 문장(`message`)을 그대로 보인다. FE는 `kind`로 문구를 만들지 않는다. 목록을 연 것만으로는 읽음이 되지 않는다.
+- 누르면 안 읽은 알림은 읽음(`PATCH …/read`)을 보내고 결과를 기다리지 않고 이동한다(404여도 이동). 목록·안 읽은 수 무효화는 mutation 훅(`entities/notification/useMarkRead.ts`)에 있다. 갈 곳이 없으면 읽음만 하고 머문다.
+- 이동 대상은 `entities/notification/target.ts`(`targetType`·`kind` → 경로)다. `lookup`을 거치고 모르는 값·`null`·ID가 필요한데 없는 알림은 이동하지 않는다.
+- 이의 제기 접수·판단(`LECTURE_OBJECTION_FILED`·`LECTURE_OBJECTION_RESOLVED`)은 구매자·판매자가 같은 `LECTURE_ORDER_ITEM`을 받아 알림만으로는 어느 쪽인지 모른다. BE 구분이 생기기 전까지 유저·인플루언서는 주문 내역(`/library/orders`)으로 보내고, 인증된 인플루언서는 이동하지 않고 읽음만 한다.
+- 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르므로 기본 응답(알림 없음)은 `src/test/server.ts`에 있다.
+
 ## 배포·환경변수
 
 `docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 **dev 병합이 곧 운영 배포**다(기본 브랜치 dev, #156). main은 서버 없는 안정화 표시다. `dev` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.

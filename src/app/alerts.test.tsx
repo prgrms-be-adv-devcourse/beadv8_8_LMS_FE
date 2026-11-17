@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -105,11 +105,18 @@ describe('알림 목록', () => {
   })
 
   it('목록을 연 것만으로는 읽음 요청을 보내지 않는다', async () => {
-    const calls = mockNotifications([notification(1)])
+    const calls = mockNotifications([
+      notification(1),
+      notification(2, { targetType: null, targetId: null }),
+    ])
     renderApp('/alerts', 'USER')
-    await itemOf('알림 1')
-    expect(calls.reads).toEqual([])
-    expect(headerAlertsLink()).toHaveAccessibleName('알림, 안 읽은 알림 1개')
+    await waitFor(() =>
+      expect(headerAlertsLink()).toHaveAccessibleName('알림, 안 읽은 알림 2개'),
+    )
+    // 연 뒤에 처음 보내는 읽음은 누른 알림 하나뿐이다. 열 때 보낸 읽음이 있었다면 그보다 먼저 도착한다.
+    await userEvent.click(await itemOf('알림 2'))
+    await waitFor(() => expect(calls.reads).toContain(2))
+    expect(calls.reads).toEqual([2])
   })
 })
 
@@ -261,11 +268,18 @@ describe('알림을 누르면', () => {
   })
 
   it('이미 읽은 알림은 읽음을 다시 보내지 않고 이동한다', async () => {
-    const calls = mockNotifications([notification(1, { readAt: READ })])
+    const calls = mockNotifications([
+      notification(1, { readAt: READ }),
+      notification(2, { targetType: null, targetId: null }),
+    ])
     const router = renderApp('/alerts', 'USER')
     await userEvent.click(await itemOf('알림 1'))
     expect(router.state.location.pathname).toBe('/wallet')
-    expect(calls.reads).toEqual([])
+    // 돌아와 안 읽은 알림을 누른다. 읽은 알림을 누를 때 읽음을 보냈다면 그보다 먼저 도착한다.
+    await act(() => router.navigate(-1))
+    await userEvent.click(await itemOf('알림 2'))
+    await waitFor(() => expect(calls.reads).toContain(2))
+    expect(calls.reads).toEqual([2])
   })
 
   it.each<[string, Partial<NotificationItem>]>([
@@ -294,10 +308,10 @@ describe('알림을 누르면', () => {
     await userEvent.click(item)
     await waitFor(() => expect(calls.reads).toEqual([1]))
     expect(router.state.location.pathname).toBe('/alerts')
-    // 읽음이 반영되면 누를 일이 없어 버튼이 아니다.
-    await waitFor(async () =>
-      expect((await itemOf('알림 1')).tagName).toBe('DIV'),
-    )
+    // 읽음이 반영되면 누를 일이 없어 비활성으로 표시한다. 같은 버튼이라 포커스가 그대로 남는다.
+    await waitFor(() => expect(item).toHaveAttribute('aria-disabled', 'true'))
+    expect(item).toBeInTheDocument()
+    expect(item).toHaveFocus()
     expect(headerAlertsLink()).toHaveAccessibleName('알림')
   })
 })

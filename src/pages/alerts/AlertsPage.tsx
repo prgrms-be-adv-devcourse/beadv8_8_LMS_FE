@@ -107,16 +107,20 @@ function AlertItem({
     </>
   )
 
-  // 읽었고 갈 곳도 없으면 누를 일이 없다.
-  if (!unread && !path) return <div className={styles.item}>{body}</div>
-
+  // 읽었고 갈 곳도 없으면 누를 일이 없다. 읽음이 반영돼도 포커스가 그 자리에 남게 버튼은 그대로 두고 비활성으로 표시한다.
+  const idle = !unread && !path
   const open = () => {
     // 읽음은 기다리지 않는다. 실패(404 포함)해도 이동한다.
     if (unread) markRead.mutate(notification.id)
     if (path) navigate(path)
   }
   return (
-    <button type="button" className={styles.item} onClick={open}>
+    <button
+      type="button"
+      className={styles.item}
+      aria-disabled={idle || undefined}
+      onClick={idle ? undefined : open}
+    >
       {body}
     </button>
   )

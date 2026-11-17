@@ -15,6 +15,9 @@
   font-size: 14px;
   color: inherit;
 }
+.item[aria-disabled='true'] {
+  cursor: default;
+}
 .item:first-child {
   border-top: 0;
 }
