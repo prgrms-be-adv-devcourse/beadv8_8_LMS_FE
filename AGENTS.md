@@ -65,12 +65,15 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 알림센터
 
-- BE auxiliary-app `notification` 모듈(계약은 BE `docs/api/notification.md`, 종류·이동 대상은 `docs/notification/notification-catalog.md`)이다. 회원(유저·인플루언서·인증된 인플루언서)만 쓰고 관리자는 받지 않는다. 상단 헤더 알림 아이콘(안 읽은 수 배지)과 `/alerts`가 있다. 목록은 최신 20개뿐이고 안 읽은 수도 그 안에서 센다. 실시간 연결 전이라 창에 포커스가 돌아오면 다시 읽는다.
+- BE auxiliary-app `notification` 모듈(계약은 BE `docs/api/notification.md`, 종류·이동 대상은 `docs/notification/notification-catalog.md`)이다. 회원(유저·인플루언서·인증된 인플루언서)만 쓰고 관리자는 받지 않는다. 상단 헤더 알림 아이콘(안 읽은 수 배지)과 `/alerts`가 있다. 목록은 최신 20개뿐이고 안 읽은 수도 그 안에서 센다. 실시간 전달이 유실될 수 있어 창에 포커스가 돌아와도 다시 읽는다.
 - 문구는 서버가 만든 완성 문장(`message`)을 그대로 보인다. FE는 `kind`로 문구를 만들지 않는다. 목록을 연 것만으로는 읽음이 되지 않는다.
 - 누르면 안 읽은 알림은 읽음(`PATCH …/read`)을 보내고 결과를 기다리지 않고 이동한다(404여도 이동). 목록·안 읽은 수 무효화는 mutation 훅(`entities/notification/useMarkRead.ts`)에 있다. 갈 곳이 없으면 읽음만 하고 머문다.
 - 이동 대상은 `entities/notification/target.ts`(`targetType`·`kind` → 경로)다. `lookup`을 거치고 모르는 값·`null`·ID가 필요한데 없는 알림은 이동하지 않는다.
 - 이의 제기 접수·판단(`LECTURE_OBJECTION_FILED`·`LECTURE_OBJECTION_RESOLVED`)은 구매자·판매자가 같은 `LECTURE_ORDER_ITEM`을 받아 알림만으로는 어느 쪽인지 모른다. BE 구분이 생기기 전까지 유저·인플루언서는 주문 내역(`/library/orders`)으로 보내고, 인증된 인플루언서는 이동하지 않고 읽음만 한다.
-- 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르므로 기본 응답(알림 없음)은 `src/test/server.ts`에 있다.
+- 실시간 연결(`features/notification/NotificationConnection`, 계약은 BE `docs/api/notification.md` 3장)은 채팅 연결과 별개로 회원만 맺는다(`AppShell`). 연결·재연결마다 `POST /notifications/ws-tickets`로 일회용 티켓을 받아 `/api/v1/notifications/ws?ticket=`에 싣고(CONNECT에는 토큰을 넣지 않는다) `/user/queue/notifications`만 구독한다. 아무것도 보내지 않는다(SEND·다른 구독은 서버가 닫는다).
+  - 프레임 `{ notification, unreadCount }`(RsData 아님)는 목록 캐시 맨 앞에 넣고(같은 `id`는 바꿔 맨 앞으로, 20개까지) 안 읽은 수를 그 값으로 바꾼다(`features/notification/incoming.ts`). 읽음·전체 읽음은 프레임이 오지 않아 mutation 무효화로 맞춘다. 연결될 때마다 목록·안 읽은 수를 다시 읽는다.
+  - 재인증은 없다. 연결 만료(4401)·비정상 종료·핸드셰이크 거절(티켓 401)·티켓 429·503·응답 없음은 채팅의 `RECONNECT` 간격으로 새 티켓을 받아 다시 연결한다. 토큰이 60초 안에 끝나거나 받은 `connectionExpiresAt`이 이미 지났으면 토큰부터 다시 받는다(`connectionTicket.ts`). heart-beat는 보내기·받기 모두 켠다(BE ND-068).
+- 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`, 연결 티켓 `mockNotificationTickets`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르고 알림 연결 티켓을 받으므로 기본 응답(알림 없음, 티켓)은 `src/test/server.ts`에 있다. 가짜 STOMP 클라이언트는 연결 경로로 구분한다(`FakeStompClient.latest()`는 채팅, `latest(NOTIFICATION_WS_PATH)`는 알림).
 
 ## 배포·환경변수
 

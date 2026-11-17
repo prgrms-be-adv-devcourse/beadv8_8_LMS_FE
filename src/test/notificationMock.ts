@@ -1,6 +1,9 @@
 import { screen, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import type { NotificationItem } from '@/entities/notification/types'
+import type {
+  NotificationConnectionTicket,
+  NotificationItem,
+} from '@/entities/notification/types'
 import type { RsData } from '@/shared/api/types'
 import { server } from './server'
 
@@ -40,7 +43,8 @@ type MockOptions = {
 
 /**
  * 알림 목록을 items로 두고 BE 알림 API를 켠다. 읽음·전체 읽음은 이후 조회에 반영한다.
- * 보낸 읽음 요청의 알림 ID는 reads, 전체 읽음 요청 수는 readAllCount()로 본다.
+ * 보낸 읽음 요청의 알림 ID는 reads, 전체 읽음 요청 수는 readAllCount(), 목록·안 읽은 수 조회 수는
+ * listCount()·unreadCountCount()로 본다.
  */
 export function mockNotifications(
   items: NotificationItem[],
@@ -49,11 +53,17 @@ export function mockNotifications(
   let list = items.slice(0, 20)
   const reads: number[] = []
   let readAll = 0
+  let listed = 0
+  let counted = 0
   server.use(
-    http.get('*/api/v1/notifications', () => ok(list)),
-    http.get('*/api/v1/notifications/unread-count', () =>
-      ok({ count: list.filter((n) => n.readAt == null).length }),
-    ),
+    http.get('*/api/v1/notifications', () => {
+      listed++
+      return ok(list)
+    }),
+    http.get('*/api/v1/notifications/unread-count', () => {
+      counted++
+      return ok({ count: list.filter((n) => n.readAt == null).length })
+    }),
     http.patch('*/api/v1/notifications/read-all', () => {
       readAll++
       const updatedCount = list.filter((n) => n.readAt == null).length
@@ -76,7 +86,12 @@ export function mockNotifications(
       return ok(read)
     }),
   )
-  return { reads, readAllCount: () => readAll }
+  return {
+    reads,
+    readAllCount: () => readAll,
+    listCount: () => listed,
+    unreadCountCount: () => counted,
+  }
 }
 
 /** 읽음 요청이 404 NOTIFICATION_NOT_FOUND로 실패한다(밀려난 알림 등) */
@@ -86,3 +101,46 @@ export const notificationNotFound = () =>
 /** 상단 헤더의 알림 아이콘. 배지는 읽지 않으므로 안 읽은 수는 링크 이름(`알림, 안 읽은 알림 n개`)으로 본다. */
 export const headerAlertsLink = () =>
   within(screen.getByRole('banner')).getByRole('link', { name: /^알림/ })
+
+/**
+ * 실시간 연결 티켓 응답. 티켓은 `n-<부른 횟수>`이고 연결 만료는 15분 뒤다. 받은 Authorization과 횟수를 남긴다.
+ * respond가 부른 횟수마다 다른 응답을 정한다.
+ * - 상태 코드: 그 오류(429 TOO_MANY_REQUESTS + Retry-After, 503 CONNECTION_TICKET_UNAVAILABLE, 403)
+ * - 'network': 응답 없음
+ * - { connectionExpiresAt }: 그 연결 만료로 발급한다(이미 지난 만료 확인용)
+ */
+export function mockNotificationTickets(
+  respond: (
+    call: number,
+  ) => number | 'network' | { connectionExpiresAt: string } | null = () => null,
+) {
+  const state = { calls: 0, authorizations: [] as (string | null)[] }
+  server.use(
+    http.post('*/api/v1/notifications/ws-tickets', ({ request }) => {
+      state.calls++
+      state.authorizations.push(request.headers.get('Authorization'))
+      const answer = respond(state.calls)
+      if (answer === 'network') return HttpResponse.error()
+      if (typeof answer === 'number') {
+        if (answer === 429)
+          return HttpResponse.json(
+            { status: 429, code: 'TOO_MANY_REQUESTS' },
+            { status: 429, headers: { 'Retry-After': '60' } },
+          )
+        return problem(
+          answer,
+          answer === 503 ? 'CONNECTION_TICKET_UNAVAILABLE' : 'FORBIDDEN',
+          'mock',
+        )
+      }
+      return ok<NotificationConnectionTicket>({
+        ticket: `n-${state.calls}`,
+        expiresInSeconds: 30,
+        connectionExpiresAt:
+          answer?.connectionExpiresAt ??
+          new Date(Date.now() + 15 * 60_000).toISOString(),
+      })
+    }),
+  )
+  return state
+}

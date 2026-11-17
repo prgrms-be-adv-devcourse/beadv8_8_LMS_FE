@@ -1,5 +1,7 @@
 type Config = {
   brokerURL?: string
+  heartbeatIncoming?: number
+  heartbeatOutgoing?: number
   beforeConnect?: (client: FakeStompClient) => void | Promise<void>
   onConnect?: (frame: unknown) => void
   onWebSocketClose?: (event: unknown) => void
@@ -18,10 +20,16 @@ export type FakeSubscription = {
   callback: (frame: Frame) => void
 }
 
+/** 채팅 연결 경로. latest()가 기본으로 찾는 연결이다 */
+export const CHAT_WS_PATH = '/api/v1/chats/ws'
+/** 알림 연결 경로 */
+export const NOTIFICATION_WS_PATH = '/api/v1/notifications/ws'
+
 /**
  * 테스트용 가짜 STOMP 클라이언트(@stomp/stompjs의 Client 대신). 실제 WebSocket을 열지 않는다.
  * 테스트는 connect()로 연결을, push()로 서버가 보낸 메시지를 흉내 내고, published로 보낸 것을 확인한다.
  * 구독은 subscriptions에 남고, 연결이 끊기면(실제 클라이언트처럼) 살아 있는 구독이 모두 사라진다.
+ * 채팅과 알림은 연결이 따로라, 만들 때 받은 주소의 경로(path)로 구분한다.
  */
 export class FakeStompClient {
   static instances: FakeStompClient[] = []
@@ -46,10 +54,13 @@ export class FakeStompClient {
   private nextId = 0
 
   config: Config
+  /** 만들 때 받은 연결 주소의 경로(티켓을 붙이기 전) */
+  readonly path: string
 
   constructor(config: Config) {
     this.config = config
     this.brokerURL = config.brokerURL
+    this.path = config.brokerURL ? new URL(config.brokerURL).pathname : ''
     FakeStompClient.instances.push(this)
   }
 
@@ -137,8 +148,14 @@ export class FakeStompClient {
       subscription.callback({ body: JSON.stringify(body), headers })
   }
 
-  static latest() {
-    return FakeStompClient.instances.at(-1)
+  /** 이 경로로 만든 클라이언트(만든 순) */
+  static on(path: string) {
+    return FakeStompClient.instances.filter((c) => c.path === path)
+  }
+
+  /** 이 경로(기본은 채팅)로 마지막에 만든 클라이언트 */
+  static latest(path = CHAT_WS_PATH) {
+    return FakeStompClient.on(path).at(-1)
   }
 
   static reset() {
