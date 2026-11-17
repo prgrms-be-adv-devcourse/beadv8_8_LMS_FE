@@ -45,7 +45,7 @@ function mockLectureList() {
 const at = (keyword: string, rest = '') =>
   `/lectures?keyword=${encodeURIComponent(keyword)}${rest}`
 
-const searchBox = () => screen.getByRole('searchbox', { name: '강의 검색' })
+const searchBox = () => screen.getByRole('combobox', { name: '강의 검색' })
 
 /** 검색 결과 카드(비회원은 버튼) */
 const resultCard = (name: RegExp) => screen.findByRole('button', { name })

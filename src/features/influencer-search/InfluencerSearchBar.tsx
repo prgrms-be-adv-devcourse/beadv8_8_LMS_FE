@@ -1,10 +1,17 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
 import {
+  influencerSuggestionsQuery,
   SEARCH_CATEGORY_MAX,
   SEARCH_KEYWORD_MAX,
+  suggestionKeyword,
   type InfluencerSearchConditions,
+  type InfluencerSuggestion,
 } from '@/entities/member/search'
 import { ContentCategoryPicker } from '@/entities/member/ui/ContentCategoryPicker'
+import { useDebouncedValue } from '@/shared/lib/useDebouncedValue'
+import { SearchCombobox } from '@/shared/ui/SearchCombobox'
 import {
   MIN_FOLLOWER_OPTIONS,
   MIN_RATING_OPTIONS,
@@ -26,13 +33,16 @@ type InfluencerSearchBarProps = {
 
 /**
  * 검색어·콘텐츠 분야·인증 여부·최소 팔로워·최소 출연 평점·정렬.
- * 검색어는 입력을 멈추고 잠시 뒤 찾고, Enter는 바로 찾는다
+ * 검색어는 입력을 멈추고 잠시 뒤 찾고, Enter는 바로 찾는다. 입력 중에는 닉네임 후보를 보이고, 고르면 그 프로필로 간다
  */
 export function InfluencerSearchBar({
   conditions,
   update,
 }: InfluencerSearchBarProps) {
+  const navigate = useNavigate()
   const [draft, setDraft] = useKeywordDraft(conditions.keyword)
+  const [suggesting, setSuggesting] = useState(false)
+  const suggestions = useInfluencerSuggestions(draft, suggesting)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(timer.current), [])
 
@@ -58,14 +68,19 @@ export function InfluencerSearchBar({
   return (
     <section className={styles.bar} aria-label="인플루언서 찾기">
       <form className={styles.search} role="search" onSubmit={submit}>
-        <input
-          className="input"
-          type="search"
+        <SearchCombobox
           value={draft}
-          maxLength={SEARCH_KEYWORD_MAX}
-          onChange={(e) => typeKeyword(e.target.value)}
+          onChange={typeKeyword}
+          open={suggesting}
+          onOpenChange={setSuggesting}
+          options={suggestions}
+          optionKey={(s) => s.userId}
+          renderOption={(s) => s.nickname}
+          onPick={(s) => navigate(`/influencers/${s.userId}`)}
+          label="인플루언서 검색"
+          listLabel="인플루언서 검색어 추천"
           placeholder="닉네임·채널·콘텐츠 분야·자기소개로 찾기"
-          aria-label="인플루언서 검색"
+          maxLength={SEARCH_KEYWORD_MAX}
         />
         <button type="submit" className="btn">
           검색
@@ -117,6 +132,24 @@ export function InfluencerSearchBar({
       )}
     </section>
   )
+}
+
+const NO_SUGGESTIONS: readonly InfluencerSuggestion[] = []
+
+/**
+ * 입력이 잠깐 멈춘 검색어의 닉네임 후보. 목록이 열려 있고 검색어가 비지 않았을 때만 부른다(닫은 뒤 화살표로 다시 열면 받아 둔 후보를 쓴다).
+ * 멈춘 검색어가 지금 입력값과 다르면(입력 중) 후보를 보이지 않아, 다른 검색어의 후보나 늦게 온 이전 응답이 남지 않는다.
+ * 실패하면(503 등) 후보만 숨긴다
+ */
+function useInfluencerSuggestions(draft: string, open: boolean) {
+  const keyword = suggestionKeyword(draft)
+  const settled = useDebouncedValue(keyword, KEYWORD_DEBOUNCE_MS)
+  const current = keyword !== '' && settled === keyword
+  const { data } = useQuery({
+    ...influencerSuggestionsQuery(settled),
+    enabled: open && current,
+  })
+  return current && data ? data : NO_SUGGESTIONS
 }
 
 /**

@@ -98,6 +98,19 @@ const appShellDefaults = [
   ),
 ]
 
+/**
+ * 검색어 자동완성: 강의·인플루언서 검색창에 입력하면 부른다. 기본은 후보 없음이다.
+ * 자동완성 테스트는 mockLectureSuggestions·mockInfluencerSuggestions로 덮어쓴다.
+ */
+const searchSuggestionDefaults = [
+  '*/api/v1/search/lectures/suggestions',
+  '*/api/v1/search/influencers/suggestions',
+].map((path) =>
+  http.get(path, () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: [] }),
+  ),
+)
+
 /** 장바구니: 회원 상단 헤더의 배지를 위해 항상 부른다. */
 const appShellCartDefault = [
   http.get('*/api/v1/lectures/cart', () =>
@@ -295,4 +308,5 @@ export const server = setupServer(
   ...appShellDefaults,
   ...adminHomeDefaults,
   ...walletHistoryDefaults,
+  ...searchSuggestionDefaults,
 )

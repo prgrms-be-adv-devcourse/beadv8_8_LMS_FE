@@ -51,7 +51,7 @@ function listMember(patch: Partial<MemberProfile> = {}): MemberProfile {
 }
 
 const searchBox = () =>
-  screen.getByRole('searchbox', { name: '인플루언서 검색' })
+  screen.getByRole('combobox', { name: '인플루언서 검색' })
 const select = (name: string) => screen.getByRole('combobox', { name })
 const card = (name: string) => screen.findByRole('article', { name })
 const lastParams = (requests: URLSearchParams[]) =>

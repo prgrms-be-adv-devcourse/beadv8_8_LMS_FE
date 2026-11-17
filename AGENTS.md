@@ -53,6 +53,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 주문 상태가 필요한 앱 흐름 테스트는 그 테스트 안에서 `mockOrders(order)`(`src/test/lectureOrders.ts`)로 구매 목록·주문 상세·구매 확정·취소·재생 동의 응답을 켠다.
 - 구매 목록과 내 리뷰는 첫 페이지로만 보유·작성 여부를 판단하지 않는다. 자료 다운로드는 클릭 시 시청 URL을 다시 발급받는다.
 - 강의 화면(`/lectures`)은 검색어가 없으면 강의 목록 API, 있으면 강의 검색 API(`GET /search/lectures`)를 쓴다. 화면 정렬(URL에는 목록 API 값)을 두 API 값으로 바꿔 보낸다(`entities/lecture/search.ts`). 검색 결과의 `highlights`는 innerHTML 없이 `parseHighlight`로 읽어 `<em>`만 강조하고, 썸네일은 페이지마다 일괄 조회로 채운다(`features/lecture-search`). 테스트의 BE 흉내는 `src/test/lectureSearchMock.ts`(`mockLectureSearch`)다.
+- 강의·인플루언서 검색창은 자동완성 후보를 보인다(`shared/ui/SearchCombobox`, WAI-ARIA combobox라 테스트는 `getByRole('combobox', { name })`). 입력이 300ms 멈추면 그 검색어로만 부르고(다른 검색어의 후보는 숨긴다), 429·503·연결 끊김이면 안내 없이 후보만 숨긴다. 강의 후보는 회원이면 강의 상세로, 비회원이면 제목으로 검색하고, 인플루언서 후보는 프로필로 간다. 초성 검색 결과는 `highlights` 칸이 모두 null이라 원문 그대로 보인다. BE 흉내는 `mockLectureSuggestions`·`mockInfluencerSuggestions`, 기본 응답(후보 없음)은 `src/test/server.ts`에 있다.
 
 ## 모집용 단체방
 

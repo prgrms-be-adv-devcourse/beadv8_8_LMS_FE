@@ -15,6 +15,7 @@ import type {
   LectureRegisterInput,
   LectureSearchItem,
   LectureSort,
+  LectureSuggestion,
   LectureStatus,
   LectureSummary,
   LectureThumbnails,
@@ -46,6 +47,8 @@ export const lectureKeys = {
     [...lectureKeys.all, 'list', params] as const,
   search: (params: LectureSearchParams) =>
     [...lectureKeys.all, 'search', params] as const,
+  suggestions: (keyword: string) =>
+    [...lectureKeys.all, 'suggestions', keyword] as const,
   thumbnails: (lectureIds: readonly number[]) =>
     [...lectureKeys.all, 'thumbnails', lectureIds] as const,
   detail: (lectureId: number) =>
@@ -97,6 +100,23 @@ export const lectureSearchQuery = (params: LectureSearchParams) =>
         },
       }),
     placeholderData: keepPreviousData,
+    retry: false,
+  })
+
+/**
+ * 강의 검색어 자동완성(비회원도 씀). 후보는 최대 5개다. 본 검색과 따로 1분에 120번까지라(넘으면 429) 다시 부르지 않고,
+ * 실패(429·503·연결 끊김)하면 부른 쪽이 후보만 숨긴다. 검색어는 normalizeKeyword로 정리해 빈 값이 아닐 때만 부른다.
+ * 입력이 바뀌어 쓰지 않게 된 요청은 signal로 끊는다(늦게 온 응답은 그 검색어의 캐시에만 들어간다)
+ */
+export const lectureSuggestionsQuery = (keyword: string) =>
+  queryOptions({
+    queryKey: lectureKeys.suggestions(keyword),
+    queryFn: ({ signal }) =>
+      api<LectureSuggestion[]>('/search/lectures/suggestions', {
+        query: { keyword },
+        signal,
+      }),
+    staleTime: 60_000,
     retry: false,
   })
 

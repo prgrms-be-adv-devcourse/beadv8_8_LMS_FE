@@ -512,3 +512,40 @@ export function mockManySearchResults(totalElements: number) {
     }),
   )
 }
+
+/**
+ * 인플루언서 검색어 자동완성(GET /search/influencers/suggestions) 흉내. keyword가 없거나 50자를 넘으면 400 INVALID_REQUEST,
+ * 정리해 비면 빈 목록이다. 닉네임 낱말 앞부분으로 찾아 팔로워 많은 순으로 최대 5개를 준다. unavailable이면 503이다.
+ * 받은 쿼리를 차례로 남긴다
+ */
+export function mockInfluencerSuggestions({
+  unavailable = false,
+}: { unavailable?: boolean } = {}) {
+  const requests: URLSearchParams[] = []
+  server.use(
+    http.get('*/api/v1/search/influencers/suggestions', ({ request }) => {
+      const q = new URL(request.url).searchParams
+      requests.push(q)
+      const raw = q.get('keyword')
+      if (raw === null || raw.length > 50)
+        return problem(400, 'INVALID_REQUEST', '요청 값이 올바르지 않습니다.')
+      const keyword = raw.trim().replace(/\s+/g, ' ')
+      if (!keyword) return rs([])
+      if (unavailable)
+        return problem(
+          503,
+          'SEARCH_UNAVAILABLE',
+          '지금은 검색할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+        )
+      return rs(
+        SEARCH_MEMBERS.filter((m) =>
+          m.nickname.split(/\s+/).some((word) => word.startsWith(keyword)),
+        )
+          .sort((a, b) => b.followerCount - a.followerCount)
+          .slice(0, 5)
+          .map((m) => ({ userId: m.id, nickname: m.nickname })),
+      )
+    }),
+  )
+  return requests
+}
