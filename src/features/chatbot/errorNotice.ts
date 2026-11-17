@@ -21,7 +21,14 @@ export function errorNotice(
   return fallback
 }
 
-/** 새 대화·로그아웃으로 요청을 끊었는지(안내를 남기지 않는다) */
+/**
+ * 새 대화·로그아웃으로 요청을 끊었는지(안내를 남기지 않는다). fetch가 던지는 AbortError는 실행 환경마다 DOMException
+ * 클래스가 달라 instanceof 대신 이름으로 본다.
+ */
 export function isAborted(error: unknown) {
-  return error instanceof DOMException && error.name === 'AbortError'
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === 'AbortError'
+  )
 }

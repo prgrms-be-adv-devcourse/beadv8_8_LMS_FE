@@ -100,6 +100,22 @@ describe('강의 목록 위 추천 강의 띠', () => {
   })
 })
 
+describe('관리자', () => {
+  it('관리자도 추천 띠와 챗봇을 쓴다(BE 챗봇 API는 관리자 포함 로그인 회원 전체)', async () => {
+    const user = userEvent.setup()
+    const state = mockChatbot()
+    renderApp('/lectures', 'ADMIN')
+    expect(
+      await screen.findByRole('region', { name: '나에게 맞춘 추천 강의' }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '챗봇 열기' }))
+    const dialog = await screen.findByRole('dialog', { name: '합방 챗봇' })
+    await user.click(within(dialog).getByRole('button', { name: '강의 추천' }))
+    await within(dialog).findByRole('list', { name: '추천 강의' })
+    expect(state.lectureInterests).toEqual([null])
+  })
+})
+
 describe('인플루언서 목록 위 추천 인플루언서 띠', () => {
   it('프로필의 닉네임과 분야·출연 수·평점, 이유 코드의 정해진 문장을 보이고 누르면 프로필로 간다', async () => {
     const user = userEvent.setup()

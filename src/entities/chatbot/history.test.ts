@@ -47,6 +47,14 @@ describe('buildHistory', () => {
     expect(history.reduce((n, t) => n + t.content.length, 0)).toBe(8000)
   })
 
+  it('잘라서 ASSISTANT로 시작해도 그대로 둔다(BE는 역할 순서를 보지 않는다)', () => {
+    const turns = Array.from({ length: 13 }, (_, i) =>
+      i % 2 ? bot(`답${i}`) : user(`질문${i}`),
+    )
+    const history = buildHistory(turns)
+    expect(history[0]).toEqual(bot('답1'))
+  })
+
   it('지난 대화가 없으면 빈 목록이다', () => {
     expect(buildHistory([])).toEqual([])
   })

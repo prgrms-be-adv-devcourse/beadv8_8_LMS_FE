@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { endSession } from '@/features/chatbot/store'
@@ -213,7 +213,7 @@ describe('챗봇 추천받기', () => {
   it('기다리는 중에 새 대화를 누르면 요청을 끊고 늦게 온 결과를 버린다', async () => {
     const user = userEvent.setup()
     const gate = deferred()
-    mockChatbot({
+    const state = mockChatbot({
       lecture: async () => {
         await gate.promise
         return rs(lectureRecommendation())
@@ -222,7 +222,12 @@ describe('챗봇 추천받기', () => {
     renderApp('/lectures', 'USER')
     const dialog = await openWindow(user)
     await user.click(within(dialog).getByRole('button', { name: '강의 추천' }))
+    await waitFor(() => expect(state.signals).toHaveLength(1))
+    expect(state.signals[0].aborted).toBe(false)
+
     await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+    // 요청 자체를 끊는다.
+    await waitFor(() => expect(state.signals[0].aborted).toBe(true))
     gate.resolve()
     await new Promise((r) => setTimeout(r, 50))
     expect(within(dialog).getByRole('log')).toBeEmptyDOMElement()

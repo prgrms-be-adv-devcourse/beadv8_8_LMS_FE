@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { appendItem, type AskMode, type ChatItem } from './conversation'
+import { appendItem, isBusy, type AskMode, type ChatItem } from './conversation'
 import {
   clearSavedConversation,
   loadConversation,
@@ -28,9 +28,11 @@ export const useChatbotStore = create<ChatbotState>(() => ({
   focusTick: 0,
 }))
 
-// 대화가 바뀔 때마다 저장한다(회원이 있을 때만).
+// 대화가 바뀌면 저장한다(회원이 있을 때만). 답을 받는 동안(조각마다 바뀜)에는 저장하지 않고 요청을 시작할 때와
+// 끝났을 때만 저장한다. 받는 중에 새로고침한 답은 어차피 끊긴 것으로 되살린다(persistence.ts).
 useChatbotStore.subscribe((state, prev) => {
   if (state.items === prev.items || state.memberId === null) return
+  if (isBusy(state.items) && isBusy(prev.items)) return
   saveConversation({ memberId: state.memberId, items: [...state.items] })
 })
 

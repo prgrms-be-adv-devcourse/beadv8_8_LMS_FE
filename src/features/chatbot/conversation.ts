@@ -90,6 +90,22 @@ export type AnswerItem = {
   errorMessage: string | null
 }
 
+/** 결과를 기다리는 추천 말풍선. target에 따라 result 타입이 갈려 한곳에서 만든다 */
+export function waitingRecommendation(
+  id: string,
+  target: RecommendTarget,
+  interest: string | null,
+): RecommendationItem {
+  // result가 null이면 두 target의 모양이 같다.
+  return {
+    id,
+    kind: 'recommendation',
+    target,
+    interest,
+    result: null,
+  } as RecommendationItem
+}
+
 /** 화면에 쌓이는 말풍선 하나. id로 찾아 바꾸고, 이미 지운(새 대화) id로 늦게 온 결과는 무시한다 */
 export type ChatItem =
   | GuideItem
@@ -106,7 +122,7 @@ export function appendItem(items: readonly ChatItem[], item: ChatItem) {
 
 /**
  * id인 말풍선을 바꾼다. 그 id가 없으면(새 대화로 지웠으면) 그대로 돌려준다.
- * kind가 다르면 바꾸지 않는다(같은 id를 다른 종류로 잘못 쓰는 것을 막는다).
+ * kind가 다르면 바꾸지 않는다(같은 id를 다른 종류로 잘못 쓰는 것을 막는다). update가 같은 말풍선을 돌려주면 같은 배열이다.
  */
 export function updateItem<K extends ChatItem['kind']>(
   items: readonly ChatItem[],
@@ -116,8 +132,11 @@ export function updateItem<K extends ChatItem['kind']>(
 ): readonly ChatItem[] {
   const index = items.findIndex((item) => item.id === id)
   if (index === -1 || items[index].kind !== kind) return items
+  const updated = update(items[index] as Extract<ChatItem, { kind: K }>)
+  // 바뀐 것이 없으면 같은 배열을 돌려준다(다시 그리거나 저장하지 않게).
+  if (updated === items[index]) return items
   const next = [...items]
-  next[index] = update(items[index] as Extract<ChatItem, { kind: K }>)
+  next[index] = updated
   return next
 }
 

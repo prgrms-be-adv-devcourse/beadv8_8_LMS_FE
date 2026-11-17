@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { endSession } from '@/features/chatbot/store'
 import {
   deferred,
@@ -203,27 +203,58 @@ describe('챗봇 자유 질문', () => {
     ).toBeInTheDocument()
   })
 
-  it('답을 받는 중에 새 대화를 누르면 스트림을 끊고 대화를 비운다', async () => {
+  it('답을 기다리는 중에 새 대화를 누르면 요청을 끊고 대화를 비운다', async () => {
     const user = userEvent.setup()
     const gate = deferred()
-    mockChatbot({
-      stream: () =>
-        sseResponse(
-          [
-            { event: 'token', data: { text: '받는 중' } },
-            { event: 'done', data: {} },
-          ],
-          gate.promise,
-        ),
+    const state = mockChatbot({
+      stream: async () => {
+        await gate.promise
+        return sseResponse([
+          { event: 'token', data: { text: '늦게 온 답' } },
+          { event: 'done', data: {} },
+        ])
+      },
     })
     renderApp('/lectures', 'USER')
     const dialog = await openWindow(user)
     await ask(user, dialog, '질문')
-    await within(dialog).findByText('받는 중')
+    await waitFor(() => expect(state.signals).toHaveLength(1))
+    expect(state.signals[0].aborted).toBe(false)
+
     await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+    // 요청 자체를 끊는다(받는 도중 끊기면 스트림 읽기가 멈추는 것은 entities/chatbot/stream.test.ts가 본다).
+    await waitFor(() => expect(state.signals[0].aborted).toBe(true))
     gate.resolve()
-    await waitFor(() => expect(field(dialog)).toBeEnabled())
+    await new Promise((r) => setTimeout(r, 50))
     expect(within(dialog).getByRole('log')).toBeEmptyDOMElement()
+    expect(field(dialog)).toBeEnabled()
+  })
+})
+
+describe('대화 저장', () => {
+  it('답 조각마다 저장하지 않고 질문을 보낼 때와 답이 끝났을 때만 저장한다', async () => {
+    const user = userEvent.setup()
+    mockChatbot({
+      stream: () =>
+        sseResponse([
+          ...['하', '나', '둘', '셋', '넷'].map((text) => ({
+            event: 'token',
+            data: { text },
+          })),
+          { event: 'done', data: {} },
+        ]),
+    })
+    renderApp('/lectures', 'USER')
+    const dialog = await openWindow(user)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+    await ask(user, dialog, '질문')
+    await within(dialog).findByText('하나둘셋넷')
+    await waitFor(() => expect(field(dialog)).toBeEnabled())
+    const saves = setItem.mock.calls.filter(
+      ([key]) => key === 'hapbang.chatbot',
+    )
+    expect(saves).toHaveLength(2)
+    setItem.mockRestore()
   })
 })
 

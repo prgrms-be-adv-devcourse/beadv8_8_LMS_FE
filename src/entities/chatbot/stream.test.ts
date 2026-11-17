@@ -2,7 +2,12 @@ import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { isApiError } from '@/shared/api/ApiError'
 import { clearAccessToken, setAccessToken } from '@/shared/auth/token'
-import { mockChatbot, sseResponse, tooManyRequests } from '@/test/chatbotMock'
+import {
+  deferred,
+  mockChatbot,
+  sseResponse,
+  tooManyRequests,
+} from '@/test/chatbotMock'
 import { rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 import { streamChat, streamFaqChat } from './stream'
@@ -96,5 +101,36 @@ describe('streamChat', () => {
     await streamFaqChat('환불은?', { onEvent: (e) => events.push(e) })
     expect(state.faqRequests).toEqual([{ message: '환불은?' }])
     expect(events.map((e) => e.type)).toEqual(['token', 'done'])
+  })
+
+  it('받는 도중 끊으면(새 대화·로그아웃) AbortError로 멈추고 뒤 이벤트를 넘기지 않는다', async () => {
+    setAccessToken('t1', 900)
+    const gate = deferred()
+    mockChatbot({
+      stream: () =>
+        sseResponse(
+          [
+            { event: 'token', data: { text: '앞' } },
+            { event: 'done', data: {} },
+          ],
+          gate.promise,
+        ),
+    })
+    const controller = new AbortController()
+    const events: ChatStreamEvent[] = []
+    const done = streamChat(
+      { message: '질문', history: [] },
+      {
+        signal: controller.signal,
+        onEvent: (e) => {
+          events.push(e)
+          if (e.type === 'token') controller.abort()
+        },
+      },
+    )
+    const error = await done.catch((e: unknown) => e)
+    gate.resolve()
+    expect((error as Error).name).toBe('AbortError')
+    expect(events.map((e) => e.type)).toEqual(['token'])
   })
 })

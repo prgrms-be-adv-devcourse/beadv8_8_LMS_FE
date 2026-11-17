@@ -17,6 +17,8 @@ export const HISTORY_LIMITS = {
  * - 내용이 비었거나 공백뿐인 줄은 뺀다
  * - USER는 500자, ASSISTANT는 2,000자까지 자른다
  * - 최근 12개만 남기고, 글자 수 합이 8,000자를 넘으면 오래된 것부터 뺀다
+ * 자른 결과가 ASSISTANT로 시작하거나 같은 역할이 이어져도 된다. BE는 역할 순서를 검사하지 않는다
+ * (BE ChatHistory.check: 개수·빈 내용·역할별 글자 수·합계만 본다).
  */
 export function buildHistory(turns: readonly ChatTurn[]): ChatTurn[] {
   const recent = turns

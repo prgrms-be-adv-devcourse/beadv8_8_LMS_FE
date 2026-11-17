@@ -182,6 +182,8 @@ export type ChatbotMockState = {
   /** FAQ 질문하기로 받은 본문 */
   faqRequests: unknown[]
   widgetCalls: number
+  /** 추천받기·질문 요청의 signal(보낸 순서). 새 대화·로그아웃으로 끊었는지 본다 */
+  signals: AbortSignal[]
   influencerWidgetCalls: number
 }
 
@@ -226,6 +228,7 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
     influencerInterests: [],
     streamRequests: [],
     widgetCalls: 0,
+    signals: [],
     influencerWidgetCalls: 0,
     ...init,
   }
@@ -248,6 +251,7 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
     http.post(
       '*/api/v1/chatbot/recommendations/lectures/explained',
       async ({ request }) => {
+        state.signals.push(request.signal)
         const interest = await interestOf(request)
         state.lectureInterests.push(interest)
         return state.lecture(interest)
@@ -256,6 +260,7 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
     http.post(
       '*/api/v1/chatbot/recommendations/influencers/explained',
       async ({ request }) => {
+        state.signals.push(request.signal)
         const interest = await interestOf(request)
         state.influencerInterests.push(interest)
         return state.influencer(interest)
@@ -270,11 +275,13 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
       return state.widget()
     }),
     http.post('*/api/v1/chatbot/messages/stream', async ({ request }) => {
+      state.signals.push(request.signal)
       const body = (await request.json()) as ChatRequest
       state.streamRequests.push(body)
       return state.stream(body)
     }),
     http.post('*/api/v1/chatbot/chat/faq/stream', async ({ request }) => {
+      state.signals.push(request.signal)
       const body = (await request.json()) as { message: string }
       state.faqRequests.push(body)
       return state.faqStream(body.message)

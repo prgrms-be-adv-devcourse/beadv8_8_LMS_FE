@@ -7,8 +7,8 @@ import {
   failureItems,
   isBusy,
   replaceItem,
+  waitingRecommendation,
   updateItem,
-  type ChatItem,
   type RecommendTarget,
 } from './conversation'
 import { errorNotice, isAborted } from './errorNotice'
@@ -77,14 +77,10 @@ export function useRecommend() {
     // 다른 답을 기다리는 중이면 보내지 않는다(버튼도 잠겨 있다).
     if (isBusy(useChatbotStore.getState().items)) return
     const id = newItemId()
-    const waiting: ChatItem =
-      target === 'LECTURE'
-        ? { id, kind: 'recommendation', target, interest, result: null }
-        : { id, kind: 'recommendation', target, interest, result: null }
     updateItems((items) => [
       ...items,
       { id: newItemId(), kind: 'choice', text: choice },
-      waiting,
+      waitingRecommendation(id, target, interest),
     ])
     mutation.mutate({ id, target, interest })
   }
