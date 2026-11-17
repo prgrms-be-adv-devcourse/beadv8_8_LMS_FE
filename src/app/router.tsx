@@ -96,7 +96,8 @@ const PAGES: PageDef[] = [
 
 /**
  * 만든 화면. 여기 없는 경로는 자리표시 화면이다.
- * 화면마다 따로 불러온다(첫 파일에는 앱 셸·홈·공통 모듈만 남는다). 라우터는 화면 이동 때 loader와 함께 기다린다.
+ * 화면마다 따로 불러온다(첫 파일에는 앱 셸·홈·공통 모듈만 남는다). 처음 열 때는 rootLoader와 함께 기다리고, 화면을 옮길 때는
+ * 그 화면 파일을 받을 때까지 이전 화면을 둔 채 앱 셸 맨 위에 진행 막대를 보인다(AppShell main의 aria-busy).
  */
 export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
   '/lectures': () =>

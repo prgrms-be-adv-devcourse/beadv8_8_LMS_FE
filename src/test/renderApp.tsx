@@ -21,7 +21,7 @@ export const rs = <T,>(data: T, status = 200) =>
 
 /**
  * 앱 라우트. 운영은 화면을 이동할 때 그 화면 파일을 불러오지만, 테스트는 모든 화면을 미리 불러 둔 라우트를 쓴다
- * (화면 이동 직후 주소·화면을 바로 확인하는 테스트가 그대로 돈다). 화면을 나눠 불러오는 동작은 router.test.tsx가 본다.
+ * (화면 이동 직후 주소·화면을 바로 확인하는 테스트가 그대로 돈다). 화면을 나눠 불러오는 동작은 code-splitting.test.tsx가 본다.
  */
 export const testRoutes = createRoutes(await loadAllPages())
 

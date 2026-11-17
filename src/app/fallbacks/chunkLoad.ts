@@ -25,8 +25,11 @@ const RELOAD_GUARD_MS = 10_000
  * 새로고침을 한 번만 한다. 했으면 true, 방금 새로고침했는데 또 실패했거나 기록을 남길 수 없으면 false(안내를 보인다).
  * 기록을 남길 수 없을 때 새로고침하면 끝없이 반복할 수 있어 하지 않는다.
  */
+/** 새로고침. 테스트에서 바꿔 끼울 수 있게 객체로 둔다(jsdom의 location.reload는 바꿀 수 없다) */
+export const page = { reload: () => location.reload() }
+
 export function reloadOnce(
-  reload: () => void = () => location.reload(),
+  reload: () => void = () => page.reload(),
   now: number = Date.now(),
   storage: Pick<Storage, 'getItem' | 'setItem'> = sessionStorage,
 ): boolean {
