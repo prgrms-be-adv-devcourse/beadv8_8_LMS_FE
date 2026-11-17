@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
     server: {
       // 운영처럼 같은 출처에서 /api를 호출하도록 로컬 Envoy(BE docker/compose.yaml의 envoy, 기본 8000)로 넘긴다(docs/deploy.md).
       // Envoy가 Bearer 토큰을 검증해 BE 앱에 X-User-Id·X-User-Role을 넣고 앱별로 나눠 보낸다.
-      // ws: 채팅 STOMP(/api/v1/chats/ws)도 같은 곳으로 넘긴다.
+      // ws: 채팅 STOMP(/api/v1/chats/ws)와 알림 STOMP(/api/v1/notifications/ws)도 같은 곳으로 넘긴다.
       // 키가 ^로 시작하면 정규식이다. /apiary 같은 다른 경로까지 넘기지 않게 /api와 그 아래만 맞춘다.
       proxy: {
         '^/api(/|$)': {

@@ -222,6 +222,25 @@ const chatTicketDefault = [
 ]
 
 /**
+ * 알림 실시간 연결 티켓. 회원 화면은 알림 연결을 맺으므로 늘 부른다. 연결 만료는 15분 뒤다.
+ * 연결·프레임 테스트는 src/test/notificationMock.ts(mockNotificationTickets)로 덮어쓴다.
+ */
+let notificationTicketCount = 0
+const notificationTicketDefault = [
+  http.post('*/api/v1/notifications/ws-tickets', () =>
+    HttpResponse.json({
+      statusCode: 200,
+      message: '',
+      data: {
+        ticket: `notification-ticket-${++notificationTicketCount}`,
+        expiresInSeconds: 30,
+        connectionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      },
+    }),
+  ),
+]
+
+/**
  * 닉네임 중복 확인. 가입·계정 설정의 닉네임 칸을 벗어나면 부른다. 기본은 쓸 수 있는 닉네임이다.
  */
 const nicknameAvailabilityDefault = [
@@ -270,6 +289,7 @@ export const server = setupServer(
   ...appearanceReviewsDefault,
   ...contentCategoriesDefault,
   ...chatTicketDefault,
+  ...notificationTicketDefault,
   ...appShellCartDefault,
   ...appShellNotificationDefaults,
   ...appShellDefaults,

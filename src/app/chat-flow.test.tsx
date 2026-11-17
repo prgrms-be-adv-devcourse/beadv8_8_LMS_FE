@@ -17,7 +17,7 @@ import { useChatStore } from '@/features/chat/chatStore'
 import { RECEIPT_POLICY } from '@/features/chat/receipt/policy'
 import { READ_RETRY_DELAY_MS } from '@/features/chat/useChatUnread'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { FakeStompClient } from '@/test/fakeStomp'
+import { CHAT_WS_PATH, FakeStompClient } from '@/test/fakeStomp'
 import { deliver } from '@/test/chatServer'
 import { headerChatLink } from '@/test/headerChat'
 import { noAppearanceRating } from '@/test/memberProfile'
@@ -635,7 +635,7 @@ describe('채팅', () => {
     )
     renderApp('/lectures', 'USER')
     await screen.findByRole('heading', { name: '강의' })
-    expect(FakeStompClient.instances).toHaveLength(0)
+    expect(FakeStompClient.on(CHAT_WS_PATH)).toHaveLength(0)
   })
 })
 

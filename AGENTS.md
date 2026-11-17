@@ -37,7 +37,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## BE 연동
 
-- **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영은 k3s의 Envoy Gateway가 같은 출처에서 `/`는 FE, `/api`는 BE 앱으로 보낸다. 로컬은 `vite.config.ts`의 `server.proxy`가 `/api`(채팅 웹소켓 포함)를 로컬 Envoy(BE docker compose)로 넘긴다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
+- **API는 상대 경로(`/api/v1/...`)로만 호출한다.** 운영은 k3s의 Envoy Gateway가 같은 출처에서 `/`는 FE, `/api`는 BE 앱으로 보낸다. 로컬은 `vite.config.ts`의 `server.proxy`가 `/api`(채팅·알림 웹소켓 포함)를 로컬 Envoy(BE docker compose)로 넘긴다. `/api`, `/swagger-ui`, `/v3/api-docs`로 시작하는 경로는 FE 라우트로 쓰지 않는다.
 - 명세: dev 서버는 없다(2026-10-30 제거). 로컬 BE 각 앱의 `http://localhost:<앱 포트>/v3/api-docs`(Swagger UI: `/swagger-ui/index.html`), 운영 Swagger, BE 레포 코드로 본다. 운영 주소·모듈 이름과 명세로 FE가 쓰지 않는 API·필드를 찾는 방법은 `docs/be-api-spec.md`. BE는 역할별 초기 계정(인플루언서·인증된 인플루언서·관리자, `*@hapbang.local`, 비밀번호 `hapbang1234!`, BE `MemberSeedAccountUseCase`)을 만든다. 로그인 모달의 테스트 계정 버튼은 이 계정으로 이메일·비밀번호 로그인(`POST /members/login`)을 하고, `pnpm dev`와 `VITE_LOCAL_LOGIN=true`로 직접 빌드한 이미지에서만 보인다.
 - 인증은 JWT다. access token(15분)은 `shared/auth/token.ts` 메모리에만 두고 `Authorization: Bearer`로 보낸다(storage에 두지 않는다). refresh token(14일)은 BE가 `HttpOnly` 쿠키(`Path=/api/v1/members/auth`)로만 다루고 FE는 읽지 않는다. CSRF는 없다.
   - 앱 시작(`rootLoader`)·구글 로그인 복귀·테스트 계정 로그인 뒤에 `POST /members/auth/refresh`로 access token을 받는다(탭 안에서는 한 번만 실행). `api()`·업로드는 401·403이면 refresh 후 한 번만 다시 보낸다. 로그아웃은 `POST /members/auth/logout` 뒤 토큰을 버리고 다른 탭에 알린다.
@@ -65,12 +65,15 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 알림센터
 
-- BE auxiliary-app `notification` 모듈(계약은 BE `docs/api/notification.md`, 종류·이동 대상은 `docs/notification/notification-catalog.md`)이다. 회원(유저·인플루언서·인증된 인플루언서)만 쓰고 관리자는 받지 않는다. 상단 헤더 알림 아이콘(안 읽은 수 배지)과 `/alerts`가 있다. 목록은 최신 20개뿐이고 안 읽은 수도 그 안에서 센다. 실시간 연결 전이라 창에 포커스가 돌아오면 다시 읽는다.
+- BE auxiliary-app `notification` 모듈(계약은 BE `docs/api/notification.md`, 종류·이동 대상은 `docs/notification/notification-catalog.md`)이다. 회원(유저·인플루언서·인증된 인플루언서)만 쓰고 관리자는 받지 않는다. 상단 헤더 알림 아이콘(안 읽은 수 배지)과 `/alerts`가 있다. 목록은 최신 20개뿐이고 안 읽은 수도 그 안에서 센다. 실시간 전달이 유실될 수 있어 창에 포커스가 돌아와도 다시 읽는다.
 - 문구는 서버가 만든 완성 문장(`message`)을 그대로 보인다. FE는 `kind`로 문구를 만들지 않는다. 목록을 연 것만으로는 읽음이 되지 않는다.
 - 누르면 안 읽은 알림은 읽음(`PATCH …/read`)을 보내고 결과를 기다리지 않고 이동한다(404여도 이동). 목록·안 읽은 수 무효화는 mutation 훅(`entities/notification/useMarkRead.ts`)에 있다. 갈 곳이 없으면 읽음만 하고 머문다.
 - 이동 대상은 `entities/notification/target.ts`(`targetType`·`kind` → 경로)다. `lookup`을 거치고 모르는 값·`null`·ID가 필요한데 없는 알림은 이동하지 않는다.
 - 이의 제기 접수·판단(`LECTURE_OBJECTION_FILED`·`LECTURE_OBJECTION_RESOLVED`)은 구매자·판매자가 같은 `LECTURE_ORDER_ITEM`을 받아 알림만으로는 어느 쪽인지 모른다. BE 구분이 생기기 전까지 유저·인플루언서는 주문 내역(`/library/orders`)으로 보내고, 인증된 인플루언서는 이동하지 않고 읽음만 한다.
-- 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르므로 기본 응답(알림 없음)은 `src/test/server.ts`에 있다.
+- 실시간 연결(`features/notification/NotificationConnection`, 계약은 BE `docs/api/notification.md` 3장)은 채팅 연결과 별개로 회원만 맺는다(`AppShell`). 연결·재연결마다 `POST /notifications/ws-tickets`로 일회용 티켓을 받아 `/api/v1/notifications/ws?ticket=`에 싣고(CONNECT에는 토큰을 넣지 않는다) `/user/queue/notifications`만 구독한다. 아무것도 보내지 않는다(SEND·다른 구독은 서버가 닫는다).
+  - 프레임 `{ notification, unreadCount }`(RsData 아님)는 목록 캐시 맨 앞에 넣고(같은 `id`는 바꿔 맨 앞으로, 20개까지) 안 읽은 수를 그 값으로 바꾼다(`features/notification/incoming.ts`). 그때 목록·안 읽은 수를 읽는 중이면 늦게 온 옛 응답이 덮어쓰지 않게 그 조회를 취소하고 넣은 뒤 다시 읽는다. 읽음·전체 읽음은 프레임이 오지 않아 mutation 무효화로 맞춘다. 연결될 때마다 목록·안 읽은 수를 다시 읽는다.
+  - 재인증은 없다. 연결 만료(4401)·비정상 종료·핸드셰이크 거절(티켓 401)·티켓 429·503·응답 없음은 채팅의 `RECONNECT` 간격으로 새 티켓을 받아 다시 연결한다. 토큰이 60초 안에 끝나거나 받은 `connectionExpiresAt`이 이미 지났으면 토큰부터 다시 받는다(`connectionTicket.ts`). heart-beat는 보내기·받기 모두 켠다(BE ND-068).
+- 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`, 연결 티켓 `mockNotificationTickets`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르고 알림 연결 티켓을 받으므로 기본 응답(알림 없음, 티켓)은 `src/test/server.ts`에 있다. 가짜 STOMP 클라이언트는 연결 경로로 구분한다(`FakeStompClient.latest()`는 채팅, `latest(NOTIFICATION_WS_PATH)`는 알림).
 
 ## 배포·환경변수
 

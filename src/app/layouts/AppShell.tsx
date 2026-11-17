@@ -15,6 +15,7 @@ import { walletQuery } from '@/entities/wallet/api'
 import { useCartCount } from '@/features/cart/useCartCount'
 import { ChatConnection } from '@/features/chat/ChatConnection'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
+import { NotificationConnection } from '@/features/notification/NotificationConnection'
 import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, viewerLabel, type Viewer } from '@/shared/auth/role'
@@ -104,6 +105,10 @@ export function AppShell() {
     >
       {me && CHAT_VIEWERS.includes(me.role) && (
         <ChatConnection userId={me.id} />
+      )}
+      {/* 알림센터 실시간 연결: 알림을 받는 회원만(관리자는 알림을 받지 않는다) */}
+      {me && MEMBER.includes(me.role) && (
+        <NotificationConnection userId={me.id} />
       )}
       {topLayout ? (
         <HomeHeader viewer={viewer} navOpen={navOpen} onToggleNav={toggleNav} />
