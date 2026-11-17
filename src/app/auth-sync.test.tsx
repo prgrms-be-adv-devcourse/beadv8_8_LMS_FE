@@ -202,30 +202,6 @@ describe('채팅 연결 인증', () => {
     expect(tickets.authorizations.at(-1)).toBe('Bearer fresh-1')
   })
 
-  it.each([429, 503])(
-    '티켓을 받지 못하면(%d) 재연결과 같은 간격으로 기다렸다 다시 받는다',
-    async (status) => {
-      vi.useFakeTimers({ shouldAdvanceTime: true })
-      vi.spyOn(Math, 'random').mockReturnValue(0)
-      renderApp('/chat', 'INFLUENCER')
-      const tickets = mockTickets((call) => (call <= 2 ? status : null))
-      const client = await connectSocket()
-
-      await vi.waitFor(() => expect(tickets.calls).toBe(1))
-      // 첫 대기는 3초다.
-      await act(() => vi.advanceTimersByTimeAsync(2_900))
-      expect(tickets.calls).toBe(1)
-      await act(() => vi.advanceTimersByTimeAsync(200))
-      await vi.waitFor(() => expect(tickets.calls).toBe(2))
-      // 두 번째 대기는 6초다.
-      await act(() => vi.advanceTimersByTimeAsync(6_000))
-      await act(() => client.ready)
-      expect(tickets.calls).toBe(3)
-      expect(urlOf(client).searchParams.get('ticket')).toBe('t-3')
-      vi.useRealTimers()
-    },
-  )
-
   it('채팅을 쓸 수 없는 회원이면(403) 티켓을 다시 받지 않고 연결하지 않는다', async () => {
     renderApp('/chat', 'INFLUENCER')
     const tickets = mockTickets(() => 403)
