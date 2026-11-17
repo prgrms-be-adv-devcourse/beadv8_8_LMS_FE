@@ -1,6 +1,6 @@
 /*
  * 겹침 순서: 헤더 20 < 챗봇 25 < 드로어 30·40 < 모달 50 < 토스트 60
- * 버튼 크기·위치는 채팅창 위치의 기준이라 ChatbotWindow.module.css의 --launcher-* 와 맞춘다.
+ * 버튼 크기·위치는 채팅창 위치의 기준이라 ChatbotWindow.module.css의 --launcher-* 와 맞춘다(바꿀 때 함께 바꾼다).
  */
 .launcher {
   position: fixed;

@@ -1,5 +1,9 @@
 import { restoreAnswer } from './answer'
-import type { ChatItem } from './conversation'
+import { failureItems, type ChatItem } from './conversation'
+
+/** 새로고침으로 기다리던 추천이 끊겼을 때 */
+export const RELOADED_RECOMMENDATION =
+  '화면을 새로 고쳐서 추천을 받지 못했어요. 다시 골라 주세요.'
 
 /**
  * 대화를 이 탭의 sessionStorage에 둔다. 새로고침해도 남고, 탭·브라우저를 닫으면 사라진다.
@@ -15,8 +19,8 @@ export type SavedConversation = { memberId: number; items: ChatItem[] }
 type Stored = SavedConversation & { version: number }
 
 /**
- * 저장해 둘 말풍선. 진행 중인 요청은 새로고침하면 끊기므로 결과를 기다리던 추천은 버리고,
- * 받던 답은 받은 글까지 남기고 끊겼다고 표시한다. 모르는 종류(옛 형식)는 버린다.
+ * 저장해 둘 말풍선. 진행 중인 요청은 새로고침하면 끊기므로 결과를 기다리던 추천은 안내와 메뉴로 바꾸고
+ * (메뉴 없이 대화가 멈추지 않게), 받던 답은 받은 글까지 남기고 끊겼다고 표시한다. 모르는 종류(옛 형식)는 버린다.
  */
 export function restorableItems(items: readonly ChatItem[]): ChatItem[] {
   return items.flatMap((item): ChatItem[] => {
@@ -27,7 +31,12 @@ export function restorableItems(items: readonly ChatItem[]): ChatItem[] {
       case 'question':
         return [item]
       case 'recommendation':
-        return item.result === null ? [] : [item]
+        return item.result === null
+          ? failureItems(RELOADED_RECOMMENDATION, {
+              notice: `${item.id}-reloaded`,
+              guide: `${item.id}-reloaded-menu`,
+            })
+          : [item]
       case 'answer':
         return [restoreAnswer(item)]
       default:

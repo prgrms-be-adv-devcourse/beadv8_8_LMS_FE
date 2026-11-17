@@ -90,6 +90,11 @@ describe('질문 실패', () => {
     ])
   })
 
+  it('이미 끝난 답은 바꾸지 않는다', () => {
+    const items = [answer('a', { status: 'done', text: '끝' })]
+    expect(failAnswer(items, 'a', '실패', ids)).toBe(items)
+  })
+
   it('받은 글이 있으면 글을 남기고 안내를 붙인다', () => {
     const next = failAnswer([answer('a', { text: '앞' })], 'a', '끊겼어요', ids)
     expect(find(next, 'a')).toMatchObject({

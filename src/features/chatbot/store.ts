@@ -53,7 +53,7 @@ export function closeChatbot() {
   useChatbotStore.setState({ open: false })
 }
 
-/** 좁은 화면(768px 미만) 기준. 창이 화면을 거의 다 덮는 폭이다(ChatbotWindow.module.css) */
+/** 좁은 화면(768px 미만) 기준. 창이 화면을 거의 다 덮는 폭이다(ChatbotWindow.module.css의 @media와 같은 값) */
 const NARROW = '(max-width: 767px)'
 
 /**

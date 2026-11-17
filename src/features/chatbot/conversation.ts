@@ -153,6 +153,22 @@ export function isBusy(items: readonly ChatItem[]) {
   )
 }
 
+/** 요청이 실패한 자리에 둘 안내와 메뉴(추천·질문 실패, 새로고침으로 끊긴 추천) */
+export function failureItems(
+  text: string,
+  ids: { notice: string; guide: string },
+): ChatItem[] {
+  return [
+    { id: ids.notice, kind: 'notice', text },
+    {
+      id: ids.guide,
+      kind: 'guide',
+      text: '다른 것을 해 볼까요?',
+      options: MAIN_MENU,
+    },
+  ]
+}
+
 /** id 말풍선을 여러 말풍선으로 바꾼다(실패한 요청을 안내로). id가 없으면 그대로 */
 export function replaceItem(
   items: readonly ChatItem[],

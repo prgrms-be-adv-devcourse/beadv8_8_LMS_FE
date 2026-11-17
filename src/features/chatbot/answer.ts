@@ -1,7 +1,7 @@
 import { buildHistory } from '@/entities/chatbot/history'
 import type { ChatStreamEvent, ChatTurn } from '@/entities/chatbot/types'
 import {
-  MAIN_MENU,
+  failureItems,
   replaceItem,
   updateItem,
   type AnswerItem,
@@ -79,7 +79,7 @@ export function endStream(
 }
 
 /**
- * 질문이 실패했을 때. 받은 글이 있으면 그 글을 남기고 안내를 붙인다.
+ * 질문이 실패했을 때(받는 중인 답만 바꾼다). 받은 글이 있으면 그 글을 남기고 안내를 붙인다.
  * 글이 없으면(429·400처럼 스트림을 열지 못함) 답 자리를 안내와 메뉴로 바꾼다.
  */
 export function failAnswer(
@@ -89,22 +89,14 @@ export function failAnswer(
   ids: { notice: string; guide: string },
 ): readonly ChatItem[] {
   const answer = items.find((item) => item.id === id)
-  if (answer?.kind !== 'answer') return items
+  if (answer?.kind !== 'answer' || answer.status !== 'streaming') return items
   if (answer.text.trim() !== '')
     return updateItem(items, id, 'answer', (a) => ({
       ...a,
       status: 'error',
       errorMessage: message,
     }))
-  return replaceItem(items, id, [
-    { id: ids.notice, kind: 'notice', text: message },
-    {
-      id: ids.guide,
-      kind: 'guide',
-      text: '다른 것을 해 볼까요?',
-      options: MAIN_MENU,
-    },
-  ])
+  return replaceItem(items, id, failureItems(message, ids))
 }
 
 /** 새로고침으로 되살릴 때 받던 답은 끊긴 것으로 바꾼다 */

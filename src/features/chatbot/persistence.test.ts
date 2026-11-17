@@ -22,7 +22,7 @@ describe('저장한 대화 읽기', () => {
     expect(parseSaved(stored({ version: 1, memberId: 3 }))).toBeNull()
   })
 
-  it('되살릴 수 없는 말풍선(모르는 종류, 결과를 기다리던 추천)은 버린다', () => {
+  it('모르는 종류는 버리고, 결과를 기다리던 추천은 안내와 메뉴로 바꾼다(메뉴 없이 멈추지 않게)', () => {
     const saved = parseSaved(
       stored({
         version: 1,
@@ -40,6 +40,10 @@ describe('저장한 대화 읽기', () => {
         ],
       }),
     )
-    expect(saved?.items.map((i) => i.id)).toEqual(['a'])
+    expect(saved?.items.map((i) => [i.id, i.kind])).toEqual([
+      ['a', 'notice'],
+      ['c-reloaded', 'notice'],
+      ['c-reloaded-menu', 'guide'],
+    ])
   })
 })

@@ -4,14 +4,21 @@ import {
   requestLectureRecommendation,
 } from '@/entities/chatbot/api'
 import {
-  MAIN_MENU,
+  failureItems,
+  isBusy,
   replaceItem,
   updateItem,
   type ChatItem,
   type RecommendTarget,
 } from './conversation'
 import { errorNotice, isAborted } from './errorNotice'
-import { finishRequest, newItemId, startRequest, updateItems } from './store'
+import {
+  finishRequest,
+  newItemId,
+  startRequest,
+  updateItems,
+  useChatbotStore,
+} from './store'
 
 type Variables = {
   id: string
@@ -51,28 +58,24 @@ export function useRecommend() {
       ),
     onError: (error, { id }) => {
       if (isAborted(error)) return
-      const failed: ChatItem[] = [
-        {
-          id: newItemId(),
-          kind: 'notice',
-          text: errorNotice(error, {
-            fallback: '추천을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
-            invalid: '관심사는 앞뒤 공백을 빼고 1~100자로 적어 주세요.',
-          }),
-        },
-        {
-          id: newItemId(),
-          kind: 'guide',
-          text: '다른 것을 해 볼까요?',
-          options: MAIN_MENU,
-        },
-      ]
-      updateItems((items) => replaceItem(items, id, failed))
+      const text = errorNotice(error, {
+        fallback: '추천을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+        invalid: '관심사는 앞뒤 공백을 빼고 1~100자로 적어 주세요.',
+      })
+      updateItems((items) =>
+        replaceItem(
+          items,
+          id,
+          failureItems(text, { notice: newItemId(), guide: newItemId() }),
+        ),
+      )
     },
   })
 
   /** choice: 내 말풍선에 남길 글(예: '강의 추천', '관심사: 데이터 분석') */
   return (target: RecommendTarget, interest: string | null, choice: string) => {
+    // 다른 답을 기다리는 중이면 보내지 않는다(버튼도 잠겨 있다).
+    if (isBusy(useChatbotStore.getState().items)) return
     const id = newItemId()
     const waiting: ChatItem =
       target === 'LECTURE'

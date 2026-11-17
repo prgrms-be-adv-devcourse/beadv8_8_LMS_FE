@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { UNKNOWN_MEMBER } from '@/entities/chat/notification'
 import type { InfluencerRecommendItem } from '@/entities/chatbot/types'
 import { memberProfileQuery } from '@/entities/member/api'
 import { Avatar } from '@/shared/ui/Avatar'
 import styles from './cards.module.css'
 import { closeOnNarrowScreen } from './store'
-
-const UNKNOWN_MEMBER = '알 수 없는 회원'
 
 /**
  * 추천 인플루언서 카드: 닉네임·사진(회원 프로필로 채운다), 분야, 출연 수·평점, 이유 문장.

@@ -1,7 +1,8 @@
 /*
  * 겹침 순서: 헤더 20 < 챗봇 25 < 드로어 30·40 < 모달 50 < 토스트 60
  * 페이지 위에 떠 있는 창: 가장자리에서 띄우고 둥근 모서리·그림자를 준다. 배경을 어둡게 하지 않는다(페이지를 계속 누를 수 있다).
- * 아래 끝은 오른쪽 아래 버튼(ChatbotLauncher.module.css) 바로 위다.
+ * 아래 끝은 오른쪽 아래 버튼 바로 위다. --launcher-* 는 ChatbotLauncher.module.css의 버튼 위치·크기와 같은 값이다
+ * (바꿀 때 함께 바꾼다). 768px 기준은 store.ts의 NARROW와 같다.
  */
 .window {
   --gap: 16px;
@@ -22,9 +23,7 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow:
-    var(--shadow),
-    0 24px 60px rgba(14, 16, 20, 0.18);
+  box-shadow: var(--shadow);
   transform-origin: bottom right;
   animation: pop-in 0.16s ease-out;
 }
