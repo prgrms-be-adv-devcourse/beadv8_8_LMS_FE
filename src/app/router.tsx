@@ -57,6 +57,7 @@ import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { WithdrawPage } from '@/pages/settings-withdraw/WithdrawPage'
 import { StudioPage } from '@/pages/studio/StudioPage'
 import { SupportPage } from '@/pages/support/SupportPage'
+import { SupportFaqPage } from '@/pages/support-faq/SupportFaqPage'
 import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
 import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
@@ -175,6 +176,7 @@ const PAGE_ELEMENTS: Record<string, ReactNode> = {
   '/admin/chats': <AdminChatHistoryPage />,
   '/admin/chats/:chatRoomId': <AdminChatHistoryPage />,
   '/support': <SupportPage />,
+  '/support/faq': <SupportFaqPage />,
   '/support/inquiries/:inquiryId': <InquiryPage />,
   '/admin/lectures': <AdminLecturesPage />,
   '/admin/channels': <AdminChannelsPage />,

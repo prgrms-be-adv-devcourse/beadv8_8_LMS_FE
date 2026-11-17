@@ -93,6 +93,8 @@ export const NAV: NavGroup[] = [
   {
     title: '지원',
     items: [
+      // 관리자도 레일에서 본다(FAQ API는 로그인 회원 전체). 관리자의 '지원' 그룹에는 이것만 있다.
+      { path: '/support/faq', label: '자주 묻는 질문', roles: SIGNED_IN },
       { path: '/support', label: '고객센터', roles: MEMBER },
       {
         path: '/settings',

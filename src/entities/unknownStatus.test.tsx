@@ -19,6 +19,8 @@ import {
 } from './appearance/ui/RecruitStatusPill'
 import { RequestStatusPill } from './appearance/ui/RequestStatusPill'
 import { groupStatusLabel } from './chat/group'
+import { faqCategoryName } from './chatbot/labels'
+import { FaqList } from './chatbot/ui/FaqList'
 import { HpTaskStatusPill } from './hp-task/ui/HpTaskStatusPill'
 import {
   appearanceReferenceTypeName,
@@ -148,6 +150,17 @@ describe('모르는 값의 이름 (#183)', () => {
 
   it('받은 출연 리뷰의 받은 역할은 알 수 없음으로 부른다', () => {
     expect(revieweeRoleLabel(NEW)).toBe('알 수 없음')
+  })
+
+  it('챗봇 FAQ 분류는 알 수 없음으로 부르고 목록도 깨지지 않는다', () => {
+    expect(faqCategoryName(NEW)).toBe('알 수 없음')
+    render(
+      <FaqList
+        faqs={[{ code: 'X', category: NEW, question: '질문', answer: '답' }]}
+        showCategory
+      />,
+    )
+    expect(screen.getByText('알 수 없음')).toBeInTheDocument()
   })
 
   it('출연 HP 작업의 종류·사유·대상은 알 수 없음으로 부른다', () => {

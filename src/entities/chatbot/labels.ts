@@ -30,6 +30,11 @@ const FAQ_CATEGORY_NAME: Record<FaqCategory, string> = {
   WITHDRAW: '탈퇴',
 }
 
+/** FAQ 분류 코드인지(URL 값 등을 고를 때). 모르는 값은 false */
+export function isFaqCategory(value: string | null): value is FaqCategory {
+  return value !== null && (FAQ_CATEGORIES as readonly string[]).includes(value)
+}
+
 /** FAQ 분류 이름. 모르는 분류는 '알 수 없음' */
 export function faqCategoryName(category: string): string {
   return lookup(FAQ_CATEGORY_NAME, category) ?? UNKNOWN_NAME
