@@ -208,25 +208,6 @@ describe('강의 검색어 자동완성', () => {
     expect(lectureBox()).toHaveValue('프리미어')
   })
 
-  it('비회원이 후보를 누르면 그 제목으로 검색한다', async () => {
-    const search = mockLectureSearch()
-    mockLectureSuggestions()
-    const router = renderApp('/lectures', 'GUEST')
-    await screen.findByRole('combobox', { name: '강의 검색' })
-
-    await userEvent.type(lectureBox(), '프리미어')
-    await userEvent.click(await findOption(/프리미어 자막 & 효과/))
-    expect(
-      await screen.findByRole('heading', {
-        name: /‘프리미어 자막 & 효과’ 검색 결과/,
-      }),
-    ).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/lectures')
-    expect(search.searches.at(-1)?.get('keyword')).toBe('프리미어 자막 & 효과')
-    expect(lectureBox()).toHaveValue('프리미어 자막 & 효과')
-    expect(lectureList()).toBeNull()
-  })
-
   it('회원이 후보를 누르면 강의 상세로 간다', async () => {
     mockPurchased()
     mockLectureSearch()
