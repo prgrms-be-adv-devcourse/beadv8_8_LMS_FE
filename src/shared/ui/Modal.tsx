@@ -25,13 +25,6 @@ const TABBABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',')
 
-/** 열 때 포커스를 줄 첫 입력 칸 */
-const FIELD = [
-  'input:not([disabled]):not([type="hidden"])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-].join(',')
-
 function tabbables(dialog: HTMLElement) {
   return [...dialog.querySelectorAll<HTMLElement>(TABBABLE)]
 }
@@ -50,7 +43,8 @@ function sameRadioGroup(a: Element, b: Element | null) {
 
 /**
  * 모달. Esc·바깥 클릭으로 닫는다.
- * 포커스: 열면 모달 안으로 옮기고(이미 안에 있으면 그대로 둔다. autoFocus 칸 등), 없으면 첫 입력 칸, 그것도 없으면 모달 자체.
+ * 포커스: 열면 모달 자체(제목이 이름)로 옮긴다. 이미 안에 있으면(autoFocus 칸 등) 그대로 둔다.
+ * 입력 칸에 바로 주지 않는 것은 모바일에서 키보드가 저절로 올라오지 않게 하려는 것이다.
  * Tab·Shift+Tab은 모달 안에서 돈다. 닫으면 열 때 포커스가 있던 곳(연 버튼)으로 돌려준다.
  */
 export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
@@ -74,13 +68,7 @@ export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
     if (!dialog) return
     if (!dialog.contains(document.activeElement)) {
       const back = focusedInside.current
-      const target =
-        back && dialog.contains(back)
-          ? back
-          : (dialog.querySelector<HTMLElement>(FIELD) ?? dialog)
-      target.focus()
-      // 숨긴 칸이라 포커스를 받지 못했으면 모달 자체에 준다.
-      if (!dialog.contains(document.activeElement)) dialog.focus()
+      ;(back && dialog.contains(back) ? back : dialog).focus()
     }
     return () => {
       const active = document.activeElement
