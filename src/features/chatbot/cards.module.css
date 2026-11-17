@@ -1,0 +1,95 @@
+/* 추천 카드: 창 안에서 세로로 쌓는다(가로 스크롤 없음). 하나씩 차례로 나타난다(--i: 순서) */
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cards > li {
+  animation: card-in 0.24s ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  min-width: 0;
+  transition:
+    border-color 0.12s,
+    transform 0.12s;
+}
+.card:hover {
+  border-color: var(--signal);
+  transform: translateY(-1px);
+}
+.influencer {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.title {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.meta {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.reason {
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/* 카드 아래 안내(관심사 입력·인기순·추천 불가) */
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.interest {
+  display: flex;
+  gap: 6px;
+}
+.interest input {
+  flex: 1;
+  min-width: 0;
+}
+.fieldError {
+  font-size: 12px;
+  color: var(--bad);
+}
+.retry {
+  align-self: flex-start;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cards > li {
+    animation: none;
+  }
+  .card {
+    transition: none;
+  }
+}

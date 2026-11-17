@@ -24,6 +24,11 @@
   align-self: flex-end;
   align-items: flex-end;
 }
+/* 카드를 담는 말풍선은 창 너비를 다 쓴다 */
+.wide {
+  width: 100%;
+  max-width: 100%;
+}
 .bubble {
   padding: 9px 13px;
   border-radius: 4px 14px 14px 14px;
@@ -31,6 +36,10 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 14px;
+}
+.wide > .bubble {
+  align-self: flex-start;
+  max-width: 88%;
 }
 .me .bubble {
   border-radius: 14px 4px 14px 14px;

@@ -22,7 +22,7 @@ describe('저장한 대화 읽기', () => {
     expect(parseSaved(stored({ version: 1, memberId: 3 }))).toBeNull()
   })
 
-  it('되살릴 수 없는 말풍선(모르는 종류)은 버린다', () => {
+  it('되살릴 수 없는 말풍선(모르는 종류, 결과를 기다리던 추천)은 버린다', () => {
     const saved = parseSaved(
       stored({
         version: 1,
@@ -30,6 +30,13 @@ describe('저장한 대화 읽기', () => {
         items: [
           { id: 'a', kind: 'notice', text: '안내' },
           { id: 'b', kind: 'unknown' },
+          {
+            id: 'c',
+            kind: 'recommendation',
+            target: 'LECTURE',
+            interest: null,
+            result: null,
+          },
         ],
       }),
     )

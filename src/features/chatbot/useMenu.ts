@@ -1,7 +1,8 @@
-import { choose, type MenuOption } from './conversation'
+import { choose, MENU_LABEL, type MenuOption } from './conversation'
 import { newItemId, updateItems } from './store'
+import { useRecommend } from './useRecommend'
 
-/** 버튼마다 고른 뒤 챗봇이 붙이는 안내. 추천 버튼은 4단위에서 요청을 보낸다 */
+/** 고른 뒤 챗봇이 붙이는 안내(입력창으로 이어지는 버튼) */
 const GUIDE: Partial<Record<MenuOption, string>> = {
   FAQ_QUESTION:
     '자주 묻는 질문에서 찾아 답해 드릴게요. 궁금한 것을 아래에 적어 주세요.',
@@ -10,7 +11,12 @@ const GUIDE: Partial<Record<MenuOption, string>> = {
 
 /** 말풍선 안 버튼을 눌렀을 때 할 일 */
 export function useMenu() {
+  const recommend = useRecommend()
   return (option: MenuOption) => {
+    if (option === 'LECTURE' || option === 'INFLUENCER') {
+      recommend(option, null, MENU_LABEL[option])
+      return
+    }
     const text = GUIDE[option]
     updateItems((items) =>
       choose(

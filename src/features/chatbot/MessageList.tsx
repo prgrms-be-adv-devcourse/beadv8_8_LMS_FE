@@ -1,6 +1,7 @@
 import styles from './bubbles.module.css'
 import { isLatest, type ChatItem } from './conversation'
 import { QuickReplies } from './QuickReplies'
+import { RecommendationBubble } from './RecommendationBubble'
 import { useMenu } from './useMenu'
 
 /** 대화의 말풍선을 종류별로 그린다 */
@@ -26,6 +27,15 @@ export function MessageList({ items }: { items: readonly ChatItem[] }) {
               <div key={item.id} className={styles.me}>
                 <p className={styles.bubble}>{item.text}</p>
               </div>
+            )
+          case 'recommendation':
+            return (
+              <RecommendationBubble
+                key={item.id}
+                item={item}
+                active={isLatest(items, item.id)}
+                onChoose={onChoose}
+              />
             )
           case 'notice':
             return (

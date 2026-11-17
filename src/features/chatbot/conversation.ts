@@ -1,3 +1,8 @@
+import type {
+  InfluencerRecommendation,
+  LectureRecommendation,
+} from '@/entities/chatbot/types'
+
 /**
  * 챗봇 대화의 상태 전이. 화면·스토어와 떨어진 순수 함수라 단위 테스트한다(conversation.test.ts).
  * 대화는 서버가 저장하지 않아 FE가 갖고 있고(탭의 sessionStorage, 로그아웃 때 비운다), 자유 질문 history도 여기서 만든다.
@@ -14,7 +19,12 @@ export const MENU_LABEL: Record<MenuOption, string> = {
 }
 
 /** 처음 열었을 때와 결과 뒤에 다시 보여 주는 메뉴 */
-export const MAIN_MENU: readonly MenuOption[] = ['FAQ_QUESTION', 'FREE']
+export const MAIN_MENU: readonly MenuOption[] = [
+  'FAQ_QUESTION',
+  'LECTURE',
+  'INFLUENCER',
+  'FREE',
+]
 
 /** 챗봇의 정해진 안내 문구와 그 아래 버튼. history에 넣지 않는다 */
 export type GuideItem = {
@@ -30,8 +40,24 @@ export type ChoiceItem = { id: string; kind: 'choice'; text: string }
 /** 안내(호출 한도·오류). 대화가 아니라 history에 넣지 않는다 */
 export type NoticeItem = { id: string; kind: 'notice'; text: string }
 
+/** 추천받기 버튼의 대상 */
+export type RecommendTarget = 'LECTURE' | 'INFLUENCER'
+
+/**
+ * 추천받기 결과(이유 붙은 카드). result가 null이면 기다리는 중이다. interest는 보낸 관심사(없으면 null)로,
+ * 다시 시도할 때 같은 값으로 부른다. history에 넣지 않는다
+ */
+export type RecommendationItem = {
+  id: string
+  kind: 'recommendation'
+  interest: string | null
+} & (
+  | { target: 'LECTURE'; result: LectureRecommendation | null }
+  | { target: 'INFLUENCER'; result: InfluencerRecommendation | null }
+)
+
 /** 화면에 쌓이는 말풍선 하나. id로 찾아 바꾸고, 이미 지운(새 대화) id로 늦게 온 결과는 무시한다 */
-export type ChatItem = GuideItem | ChoiceItem | NoticeItem
+export type ChatItem = GuideItem | ChoiceItem | NoticeItem | RecommendationItem
 
 /** 대화 끝에 말풍선을 더한다 */
 export function appendItem(items: readonly ChatItem[], item: ChatItem) {
@@ -76,4 +102,22 @@ export function choose(
   ]
   if (guide) next.push({ id: ids.guide, kind: 'guide', ...guide })
   return next
+}
+
+/** 답을 기다리는 말풍선이 있는지. 있으면 버튼·입력을 잠근다(같은 요청을 두 번 보내지 않게) */
+export function isBusy(items: readonly ChatItem[]) {
+  return items.some(
+    (item) => item.kind === 'recommendation' && item.result === null,
+  )
+}
+
+/** id 말풍선을 여러 말풍선으로 바꾼다(실패한 요청을 안내로). id가 없으면 그대로 */
+export function replaceItem(
+  items: readonly ChatItem[],
+  id: string,
+  replacement: readonly ChatItem[],
+): readonly ChatItem[] {
+  const index = items.findIndex((item) => item.id === id)
+  if (index === -1) return items
+  return [...items.slice(0, index), ...replacement, ...items.slice(index + 1)]
 }

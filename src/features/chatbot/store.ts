@@ -47,6 +47,18 @@ export function closeChatbot() {
   useChatbotStore.setState({ open: false })
 }
 
+/** 좁은 화면(768px 미만) 기준. 창이 화면을 거의 다 덮는 폭이다(ChatbotWindow.module.css) */
+const NARROW = '(max-width: 767px)'
+
+/**
+ * 추천 카드로 다른 화면에 갈 때: 좁은 화면에서는 창이 이동한 화면을 가리므로 닫는다(대화는 남는다).
+ * 넓은 화면에서는 창을 연 채로 둔다.
+ */
+export function closeOnNarrowScreen() {
+  if (typeof matchMedia === 'function' && matchMedia(NARROW).matches)
+    closeChatbot()
+}
+
 export function toggleChatbot() {
   useChatbotStore.setState((s) => ({ open: !s.open }))
 }

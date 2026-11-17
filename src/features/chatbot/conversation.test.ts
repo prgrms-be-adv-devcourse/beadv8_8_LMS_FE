@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   appendItem,
   choose,
+  isBusy,
   isLatest,
+  replaceItem,
   updateItem,
   type ChatItem,
 } from './conversation'
@@ -66,5 +68,40 @@ describe('말풍선 안 버튼', () => {
     expect(choose([], 'LECTURE', { choice: 'c', guide: 'g' })).toEqual([
       { id: 'c', kind: 'choice', text: '강의 추천' },
     ])
+  })
+})
+
+describe('추천받기 진행', () => {
+  const waiting: ChatItem = {
+    id: 'r',
+    kind: 'recommendation',
+    target: 'LECTURE',
+    interest: null,
+    result: null,
+  }
+
+  it('결과를 기다리는 추천이 있으면 진행 중이다', () => {
+    expect(isBusy([notice('a'), waiting])).toBe(true)
+    expect(
+      isBusy([
+        {
+          ...waiting,
+          result: {
+            items: [],
+            needsInterest: false,
+            basis: 'POPULAR',
+            fallback: false,
+          },
+        } as ChatItem,
+      ]),
+    ).toBe(false)
+    expect(isBusy([])).toBe(false)
+  })
+
+  it('실패한 요청 자리를 안내로 바꾼다. 지운 id면 그대로다', () => {
+    const items = [notice('a'), waiting, notice('b')]
+    const next = replaceItem(items, 'r', [notice('x'), notice('y')])
+    expect(next.map((i) => i.id)).toEqual(['a', 'x', 'y', 'b'])
+    expect(replaceItem(items, 'gone', [notice('x')])).toBe(items)
   })
 })
