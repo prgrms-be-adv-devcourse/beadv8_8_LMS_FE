@@ -1,7 +1,12 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { endSession } from '@/features/chatbot/store'
+import { applyStreamEvent, streamingAnswer } from '@/features/chatbot/answer'
+import {
+  endSession,
+  updateItems,
+  useChatbotStore,
+} from '@/features/chatbot/store'
 import {
   deferred,
   lectureRecommendation,
@@ -255,6 +260,43 @@ describe('대화 저장', () => {
     )
     expect(saves).toHaveLength(2)
     setItem.mockRestore()
+  })
+
+  it('답을 받는 중에 새로고침하면 질문은 남고 답은 끊겼다고 표시하며 메뉴를 붙인다', async () => {
+    const user = userEvent.setup()
+    renderApp('/lectures', 'USER')
+    await openWindow(user)
+    // 질문을 보낸 순간(받는 중이 시작됨): 이때 저장한다.
+    act(() =>
+      updateItems((items) => [
+        ...items,
+        { id: 'q', kind: 'question', mode: 'FREE', text: '새로고침 전 질문' },
+        streamingAnswer('a', 'FREE'),
+      ]),
+    )
+    // 조각이 오는 동안은 저장하지 않는다.
+    act(() =>
+      updateItems((items) =>
+        applyStreamEvent(items, 'a', { type: 'token', text: '받던 글' }),
+      ),
+    )
+    expect(await screen.findByText('받던 글')).toBeInTheDocument()
+
+    // 새로고침: 화면과 메모리의 대화는 사라지고 sessionStorage만 남는다.
+    cleanup()
+    useChatbotStore.setState({ open: false, memberId: null, items: [] })
+    renderApp('/lectures', 'USER')
+    const restored = await openWindow(user)
+    expect(within(restored).getByText('새로고침 전 질문')).toBeInTheDocument()
+    expect(within(restored).queryByText('받던 글')).toBeNull()
+    expect(within(restored).getByRole('alert')).toHaveTextContent(
+      '화면을 새로 고쳐서 답을 끝까지 받지 못했어요.',
+    )
+    expect(
+      within(restored)
+        .getAllByRole('button', { name: '강의 추천' })
+        .some((b) => !(b as HTMLButtonElement).disabled),
+    ).toBe(true)
   })
 })
 

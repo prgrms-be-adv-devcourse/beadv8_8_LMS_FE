@@ -165,7 +165,7 @@ describe('자유 질문 history', () => {
 })
 
 describe('새로고침으로 되살리기', () => {
-  it('받던 답은 받은 글까지 남기고 끊겼다고 표시한다', () => {
+  it('받던 답은 저장된 글을 그대로 두고 끊겼다고 표시한다', () => {
     expect(restoreAnswer(answer('a', { text: '앞' }))).toMatchObject({
       status: 'error',
       text: '앞',

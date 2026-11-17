@@ -99,7 +99,7 @@ export function failAnswer(
   return replaceItem(items, id, failureItems(message, ids))
 }
 
-/** 새로고침으로 되살릴 때 받던 답은 끊긴 것으로 바꾼다 */
+/** 새로고침으로 되살릴 때 받던 답은 끊긴 것으로 바꾼다(저장된 글이 있으면 그대로 둔다) */
 export function restoreAnswer(answer: AnswerItem): AnswerItem {
   return answer.status === 'streaming'
     ? { ...answer, status: 'error', errorMessage: RELOADED_MESSAGE }
