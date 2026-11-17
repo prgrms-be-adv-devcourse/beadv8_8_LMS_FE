@@ -110,6 +110,19 @@ const appShellCartDefault = [
 ]
 
 /**
+ * 알림센터: 회원 상단 헤더의 알림 배지(안 읽은 수)를 위해 항상 부른다. 기본은 알림 없음이다.
+ * 알림 화면 테스트는 src/test/notificationMock.ts(mockNotifications)로 덮어쓴다.
+ */
+const appShellNotificationDefaults = [
+  http.get('*/api/v1/notifications/unread-count', () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: { count: 0 } }),
+  ),
+  http.get('*/api/v1/notifications', () =>
+    HttpResponse.json({ statusCode: 200, message: '', data: [] }),
+  ),
+]
+
+/**
  * 지갑 화면의 거래 원장·지급 예정 수익: 지갑을 여는 테스트마다 부른다(수익은 인플루언서만).
  * 화면별 응답은 src/test/walletHistory.ts의 mockTransactions·mockEarnings로 덮어쓴다.
  */
@@ -258,6 +271,7 @@ export const server = setupServer(
   ...contentCategoriesDefault,
   ...chatTicketDefault,
   ...appShellCartDefault,
+  ...appShellNotificationDefaults,
   ...appShellDefaults,
   ...adminHomeDefaults,
   ...walletHistoryDefaults,

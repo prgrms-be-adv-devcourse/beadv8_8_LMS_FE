@@ -7,6 +7,11 @@ import type { CartItem } from '@/entities/cart/types'
 import type { ChatRoom } from '@/entities/chat/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { headerChatLink } from '@/test/headerChat'
+import {
+  headerAlertsLink,
+  mockNotifications,
+  notification,
+} from '@/test/notificationMock'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -132,17 +137,18 @@ describe('상단 헤더 장바구니', () => {
   })
 })
 
-describe('상단 헤더 알림·권한', () => {
-  // 알림은 BE API가 없어 진입점을 숨긴다(#101).
+describe('상단 헤더 알림', () => {
   it.each([
-    ['상단 바', '/lectures'],
-    ['홈 헤더', '/'],
-  ] as const)('%s에 회원 알림 링크가 없다', async (_, path) => {
+    ['유저 상단 바', '/lectures', 'USER'],
+    ['인플루언서 상단 바', '/lectures', 'INFLUENCER'],
+    ['인증된 인플루언서 홈 헤더', '/', 'VERIFIED_INFLUENCER'],
+  ] as const)('%s에 알림 링크가 있다', async (_, path, viewer) => {
     mockCart(0)
-    renderApp(path, 'USER')
+    renderApp(path, viewer)
     const bar = await header()
-    await within(bar).findByRole('link', { name: '장바구니' })
-    expect(within(bar).queryByRole('link', { name: '알림' })).toBeNull()
+    expect(
+      await within(bar).findByRole('link', { name: '알림' }),
+    ).toHaveAttribute('href', '/alerts')
   })
 
   it.each([
@@ -155,10 +161,77 @@ describe('상단 헤더 알림·권한', () => {
     const bar = await header()
     await within(bar).findByRole('link', { name: '합방 홈' })
     expect(within(bar).queryByRole('link', { name: /장바구니/ })).toBeNull()
-    expect(within(bar).queryByRole('link', { name: '알림' })).toBeNull()
+    expect(within(bar).queryByRole('link', { name: /^알림/ })).toBeNull()
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
     expect(within(nav).queryByRole('link', { name: /장바구니/ })).toBeNull()
-    expect(within(nav).queryByRole('link', { name: '알림' })).toBeNull()
+    expect(within(nav).queryByRole('link', { name: /^알림/ })).toBeNull()
+  })
+
+  it('안 읽은 알림 수를 배지로 보이고 링크 이름에 넣는다', async () => {
+    mockNotifications([
+      notification(1),
+      notification(2, { readAt: '2026-11-16T04:00:00Z' }),
+      notification(3),
+    ])
+    renderApp('/lectures', 'USER')
+    await waitFor(() =>
+      expect(headerAlertsLink()).toHaveAccessibleName('알림, 안 읽은 알림 2개'),
+    )
+    const badge = within(headerAlertsLink()).getByText('2')
+    expect(badge).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('안 읽은 알림이 없으면 배지를 숨긴다', async () => {
+    mockNotifications([notification(1, { readAt: '2026-11-16T04:00:00Z' })])
+    renderApp('/lectures', 'USER')
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(['notifications', 'unread-count'])?.status,
+      ).toBe('success'),
+    )
+    expect(headerAlertsLink()).toHaveAccessibleName('알림')
+    expect(headerAlertsLink()).toHaveTextContent(/^$/)
+  })
+
+  it('안 읽은 수를 불러오지 못하면 아이콘만 보인다', async () => {
+    server.use(
+      http.get('*/api/v1/notifications/unread-count', () =>
+        HttpResponse.json(
+          { status: 400, code: 'X', detail: '오류' },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/lectures', 'USER')
+    await waitFor(() =>
+      expect(
+        queryClient.getQueryState(['notifications', 'unread-count'])?.status,
+      ).toBe('error'),
+    )
+    expect(headerAlertsLink()).toHaveAccessibleName('알림')
+    expect(headerAlertsLink()).toHaveTextContent(/^$/)
+  })
+
+  it('/alerts에서는 알림 아이콘이 켜져 있고 다른 화면에서는 꺼져 있다', async () => {
+    renderApp('/alerts', 'USER')
+    const bar = await header()
+    expect(
+      await within(bar).findByRole('link', { name: '알림' }),
+    ).toHaveAttribute('aria-current', 'page')
+    await userEvent.click(within(bar).getByRole('link', { name: '지갑' }))
+    expect(within(bar).getByRole('link', { name: '알림' })).not.toHaveAttribute(
+      'aria-current',
+    )
+  })
+
+  it('좁은 화면 드로어에는 알림이 없다(모든 폭에서 헤더에 있다)', async () => {
+    renderApp('/lectures', 'USER')
+    await within(await header()).findByRole('link', { name: '알림' })
+    await userEvent.click(
+      await screen.findByRole('button', { name: '메뉴 열기' }),
+    )
+    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).queryByRole('link', { name: /^알림/ })).toBeNull()
   })
 })
 
@@ -199,7 +272,7 @@ describe('상단 헤더 채팅', () => {
     expect(within(bar).queryByRole('link', { name: /채팅/ })).toBeNull()
   })
 
-  it('헤더 순서는 HP · 장바구니 · 채팅 · 프로필이다', async () => {
+  it('헤더 순서는 HP · 장바구니 · 채팅 · 알림 · 프로필이다', async () => {
     mockCart(0)
     renderApp('/lectures', 'INFLUENCER')
     const bar = await header()
@@ -208,6 +281,7 @@ describe('상단 헤더 채팅', () => {
       within(bar).getByRole('link', { name: '지갑' }),
       within(bar).getByRole('link', { name: '장바구니' }),
       within(bar).getByRole('link', { name: '채팅' }),
+      within(bar).getByRole('link', { name: '알림' }),
       within(bar).getByRole('button', { name: '하늘 메뉴' }),
     ]
     actions.slice(1).forEach((el, i) => {
