@@ -21,13 +21,15 @@ const RELOADED_AT_KEY = 'hapbang:chunk-reloaded-at'
 /** 이 시간 안에 또 실패하면 새로고침을 반복하지 않고 안내를 보인다 */
 const RELOAD_GUARD_MS = 10_000
 
-/**
- * 새로고침을 한 번만 한다. 했으면 true, 방금 새로고침했는데 또 실패했거나 기록을 남길 수 없으면 false(안내를 보인다).
- * 기록을 남길 수 없을 때 새로고침하면 끝없이 반복할 수 있어 하지 않는다.
- */
 /** 새로고침. 테스트에서 바꿔 끼울 수 있게 객체로 둔다(jsdom의 location.reload는 바꿀 수 없다) */
 export const page = { reload: () => location.reload() }
 
+/**
+ * 새로고침을 한 번만 한다. 했으면 true, 방금 새로고침했는데 또 실패했거나 기록을 남길 수 없으면 false(안내를 보인다).
+ * 기록을 남길 수 없을 때 새로고침하면 끝없이 반복할 수 있어 하지 않는다.
+ * 네트워크가 끊겨 화면 파일을 못 받은 경우도 브라우저 문구가 같아 구분하지 못한다. 이때도 한 번 새로고침하고,
+ * 안내 문구가 두 경우(새 버전·연결 끊김)를 함께 말한다.
+ */
 export function reloadOnce(
   reload: () => void = () => page.reload(),
   now: number = Date.now(),
