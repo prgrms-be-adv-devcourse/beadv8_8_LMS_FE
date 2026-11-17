@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -275,6 +275,27 @@ describe('고객센터 (회원)', () => {
       q: '환전',
       sort: 'OLDEST',
     })
+  })
+
+  it('검색한 직후(이동이 끝나기 전) 정렬을 바꿔도 검색어가 남는다', async () => {
+    server.use(http.get('*/api/v1/inquiries', () => rs(page([summary()]))))
+    const router = renderApp('/support?category=OTHER', 'USER')
+    await screen.findByRole('link', { name: /환전이 늦어요/ })
+
+    // fireEvent는 기다리지 않고 바로 이어 보내, 검색 이동(rootLoader 대기)이 끝나기 전에 정렬을 바꾼다.
+    fireEvent.change(screen.getByLabelText('내 문의 검색'), {
+      target: { value: '환전' },
+    })
+    fireEvent.submit(screen.getByRole('search'))
+    fireEvent.change(screen.getByLabelText('정렬'), {
+      target: { value: 'OLDEST' },
+    })
+
+    await waitFor(() =>
+      expect(
+        Object.fromEntries(new URLSearchParams(router.state.location.search)),
+      ).toEqual({ category: 'OTHER', q: '환전', sort: 'OLDEST' }),
+    )
   })
 
   it('뒤로 가기로 검색 전 주소로 돌아가면 내 문의 검색창을 비우고, 앞으로 가면 되살린다', async () => {

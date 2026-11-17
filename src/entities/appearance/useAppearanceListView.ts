@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { appearanceListViewOf, type AppearanceListView } from './api'
 
 /**
@@ -6,11 +6,10 @@ import { appearanceListViewOf, type AppearanceListView } from './api'
  * 보기를 바꾸면 성립한 출연 목록만 첫 페이지부터 본다(요청 목록 페이지는 그대로)
  */
 export function useAppearanceListView() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const view = appearanceListViewOf(params.get('aview'))
   const select = (next: AppearanceListView) =>
-    setParams((prev) => {
-      const search = new URLSearchParams(prev)
+    merge((search) => {
       if (next === 'ended') search.set('aview', 'ended')
       else search.delete('aview')
       search.delete('apage')

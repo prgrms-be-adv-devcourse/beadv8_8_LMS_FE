@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { myApplicationsQuery, recruitsQuery } from '@/entities/appearance/api'
 import type {
   Application,
@@ -22,6 +22,7 @@ import { INFLUENCER } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -40,7 +41,7 @@ const TABS: { value: Tab; label: string }[] = [
 export function RecruitsPage() {
   const viewer = useViewer()
   const influencer = viewer !== undefined && INFLUENCER.includes(viewer)
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const requested = params.get('tab')
   // 내 모집글·내 지원은 인플루언서만 쓴다. 다른 역할은 주소에 있어도 모집 중을 보여 준다.
   const tab: Tab =
@@ -50,7 +51,7 @@ export function RecruitsPage() {
   const [writing, setWriting] = useState(false)
 
   const selectTab = (next: Tab) =>
-    setParams(next === 'open' ? {} : { tab: next })
+    merge(() => new URLSearchParams(next === 'open' ? {} : { tab: next }))
   const list =
     tab === 'applications' ? (
       <MyApplications />

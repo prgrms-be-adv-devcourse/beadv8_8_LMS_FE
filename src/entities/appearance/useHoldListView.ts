@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { holdListViewOf, type HoldListView } from './api'
 
 /**
@@ -6,11 +6,10 @@ import { holdListViewOf, type HoldListView } from './api'
  * 보기를 바꾸면 첫 페이지부터 본다
  */
 export function useHoldListView() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const view = holdListViewOf(params.get('view'))
   const select = (next: HoldListView) =>
-    setParams((prev) => {
-      const search = new URLSearchParams(prev)
+    merge((search) => {
       if (next === 'failed') search.set('view', 'failed')
       else search.delete('view')
       search.delete('page')

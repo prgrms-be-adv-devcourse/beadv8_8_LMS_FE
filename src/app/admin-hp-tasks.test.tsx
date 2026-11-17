@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -185,6 +185,38 @@ describe('관리자 강의 HP 작업 목록', () => {
     await userEvent.click(screen.getByRole('button', { name: '다음' }))
     await waitFor(() => expect(router.state.location.search).toBe('?page=3'))
     await waitFor(() => expect(pages.at(-1)).toBe('2/20'))
+  })
+
+  it('조건을 바꾼 직후(이동이 끝나기 전) 다른 조건과 페이지를 바꿔도 앞서 바꾼 조건이 남는다', async () => {
+    server.use(
+      http.get('*/api/v1/lectures/admin/hp-tasks', ({ request }) =>
+        rs({
+          content: [lectureHpTaskDb.items[0]],
+          page: {
+            size: 20,
+            number: Number(new URL(request.url).searchParams.get('page')),
+            totalElements: 41,
+            totalPages: 3,
+          },
+        }),
+      ),
+    )
+    const router = renderApp('/admin/hp-tasks', 'ADMIN')
+    await item(71)
+    const group = screen.getByRole('group', { name: '작업 상태' })
+
+    // fireEvent는 기다리지 않고 바로 이어 보내, 앞선 이동(rootLoader 대기)이 끝나기 전에 다음 조건을 바꾼다.
+    fireEvent.click(within(group).getByRole('button', { name: '대기' }))
+    fireEvent.change(screen.getByLabelText('작업 유형'), {
+      target: { value: 'HOLD' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '다음' }))
+
+    await waitFor(() =>
+      expect(
+        Object.fromEntries(new URLSearchParams(router.state.location.search)),
+      ).toEqual({ status: 'PENDING', taskType: 'HOLD', page: '2' }),
+    )
   })
 
   it('멈춘 작업이 없으면 빈 상태를 보여 준다', async () => {

@@ -1,23 +1,28 @@
-import { useEffect } from 'react'
-import { useSearchParams } from 'react-router'
+import { useCallback, useEffect } from 'react'
 import type { PagedModel } from '@/shared/api/types'
+import { useMergedSearchParams } from './useMergedSearchParams'
 
-/** URL의 1부터 세는 페이지 번호(key)를 0부터 세는 값으로 읽고 쓴다. 다른 검색어는 그대로 둔다. */
+/**
+ * URL의 1부터 세는 페이지 번호(key)를 0부터 세는 값으로 읽고 쓴다. 다른 검색어는 그대로 둔다.
+ * 조건을 바꾼 직후 페이지를 넘겨도 조건이 사라지지 않게 useMergedSearchParams로 합친다.
+ */
 export function usePageParam(key: string) {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const requested = Number(params.get(key) ?? 1)
   const page =
     Number.isSafeInteger(requested) && requested > 0 ? requested - 1 : 0
-  const setPage = (next: number, { replace = false } = {}) =>
-    setParams(
-      (prev) => {
-        const params = new URLSearchParams(prev)
-        if (next > 0) params.set(key, String(next + 1))
-        else params.delete(key)
-        return params
-      },
-      { replace },
-    )
+  const setPage = useCallback(
+    (next: number, { replace = false } = {}) =>
+      merge(
+        (current) => {
+          if (next > 0) current.set(key, String(next + 1))
+          else current.delete(key)
+          return current
+        },
+        { replace },
+      ),
+    [key, merge],
+  )
   return [page, setPage] as const
 }
 

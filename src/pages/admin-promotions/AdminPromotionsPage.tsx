@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useSearchParams } from 'react-router'
 import {
   REJECTION_REASON_MAX,
   upgradeReviewsQuery,
@@ -18,6 +17,7 @@ import {
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -39,13 +39,13 @@ const REJECT_TEMPLATES = [
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 심사 대기다. 바꾸면 첫 페이지로 간다. */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const status =
     TABS.find((t) => t.status === params.get('status'))?.status ?? 'PENDING'
   const setStatus = (next: UpgradeRequestStatus) => {
     const search = new URLSearchParams()
     if (next !== 'PENDING') search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }
