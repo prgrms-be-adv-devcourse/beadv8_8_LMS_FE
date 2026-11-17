@@ -375,7 +375,11 @@ async function rootLoader({ request }: LoaderFunctionArgs) {
   return null
 }
 
-/** loaded를 넘기면 그 화면은 따로 불러오지 않고 바로 쓴다. */
+/**
+ * loaded를 넘기면 그 화면은 따로 불러오지 않고 바로 쓴다.
+ * 오류 화면은 두 겹이다. 화면이 그리다 실패하거나 화면 파일을 못 받으면 앱 셸 안(경로 없는 자식 라우트)에서 보여
+ * 헤더·메뉴가 남는다. 맨 바깥은 rootLoader·앱 셸이 실패했을 때다.
+ */
 export function createRoutes(loaded?: LoadedPages): RouteObject[] {
   return [
     {
@@ -384,8 +388,13 @@ export function createRoutes(loaded?: LoadedPages): RouteObject[] {
       element: <AppShell />,
       errorElement: <RouteErrorPage />,
       children: [
-        ...PAGES.map((page) => toRoute(page, loaded)),
-        { path: '*', element: <NotFoundPage /> },
+        {
+          errorElement: <RouteErrorPage />,
+          children: [
+            ...PAGES.map((page) => toRoute(page, loaded)),
+            { path: '*', element: <NotFoundPage /> },
+          ],
+        },
       ],
     },
   ]

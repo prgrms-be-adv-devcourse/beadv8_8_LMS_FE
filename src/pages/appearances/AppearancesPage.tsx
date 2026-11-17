@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import {
   appearanceRequestsQuery,
   appearancesQuery,
@@ -20,6 +20,7 @@ import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -47,7 +48,7 @@ function useRoleTabs() {
 }
 
 export function AppearancesPage() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const side: RequestSide = params.get('tab') === 'guest' ? 'guest' : 'host'
   // 요청 목록 페이지. 성립한 출연 목록은 apage로 따로 넘긴다. 한쪽을 넘겨도 다른 쪽 페이지는 남는다.
   const [page, setPage] = usePageParam('page')
@@ -62,7 +63,7 @@ export function AppearancesPage() {
 
   // 역할을 바꾸면 두 목록 모두 첫 페이지·기본 보기부터 본다.
   const selectTab = (tab: RequestSide) =>
-    setParams(tab === 'guest' ? { tab: 'guest' } : {})
+    merge(() => new URLSearchParams(tab === 'guest' ? { tab: 'guest' } : {}))
 
   return (
     <div className="page">

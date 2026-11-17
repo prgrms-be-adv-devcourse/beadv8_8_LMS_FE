@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import type { LectureStatus } from '@/entities/lecture/types'
 import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -21,13 +22,13 @@ const TABS: { status: LectureStatus; label: string; empty: string }[] = [
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 검수 대기다. 바꾸면 첫 페이지로 간다. */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const status =
     TABS.find((t) => t.status === params.get('status'))?.status ?? PENDING
   const setStatus = (next: LectureStatus) => {
     const search = new URLSearchParams()
     if (next !== PENDING) search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }

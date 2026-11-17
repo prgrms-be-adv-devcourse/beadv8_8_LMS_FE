@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
 import { appearanceHpTasksQuery } from '@/entities/appearance-hp-task/api'
 import {
   APPEARANCE_HP_TASK_STATUS_FILTERS,
@@ -15,6 +14,7 @@ import {
 } from '@/features/appearance-hp-task-admin/useRetryAppearanceHpTask'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -29,7 +29,7 @@ type StatusFilter = (typeof APPEARANCE_HP_TASK_STATUS_FILTERS)[number]
  * 페이지는 usePageParam이 맡는다.
  */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const filter: StatusFilter =
     APPEARANCE_HP_TASK_STATUS_FILTERS.find(
       (f) => f.status === params.get('status'),
@@ -37,7 +37,7 @@ function useStatusParam() {
   const update = (next: StatusFilter['status']) => {
     const search = new URLSearchParams()
     if (next !== 'DEAD') search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return { filter, update }
 }

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { adminCouponQuery, adminCouponsQuery } from '@/entities/coupon/api'
 import {
   discountLabel,
@@ -18,6 +18,7 @@ import {
 import { PlatformCouponFormModal } from '@/features/coupon-admin/PlatformCouponFormModal'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -40,14 +41,14 @@ const DEFAULT_STATUS: CouponStatus = 'REVIEW'
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 심사 중이다 */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const status =
     FILTERS.find((f) => f.status === params.get('status'))?.status ??
     DEFAULT_STATUS
   const setStatus = (next: CouponStatus) => {
     const search = new URLSearchParams()
     if (next !== DEFAULT_STATUS) search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }

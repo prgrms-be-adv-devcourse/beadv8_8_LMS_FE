@@ -3,7 +3,10 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { isChunkLoadError } from './chunkLoad'
 import { NotFoundPage } from './NotFoundPage'
 
-/** 화면을 그리다 실패했을 때. 앱 셸 없이 단독으로 보일 수 있어 여백을 따로 준다. */
+/**
+ * 화면을 그리다 실패했을 때. 화면 하나가 실패하면 앱 셸 안에 보이고(헤더·메뉴가 남아 다른 화면으로 갈 수 있다),
+ * rootLoader·앱 셸이 실패하면 앱 셸 없이 단독으로 보인다. 단독일 때를 위해 여백을 따로 준다.
+ */
 export function RouteErrorPage() {
   const error = useRouteError()
   if (isRouteErrorResponse(error) && error.status === 404)

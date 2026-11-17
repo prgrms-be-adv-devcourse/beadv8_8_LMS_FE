@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
 import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { STATUS_LABEL } from '@/entities/inquiry/category'
 import type { InquirySort, InquiryStatus } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -20,8 +20,7 @@ const STATUSES: (InquiryStatus | undefined)[] = [
  * 상태·정렬은 URL에 둔다(?status=&sort=). 기본은 답변 대기 · 오래된 순이고, 바꾸면 첫 페이지로 간다.
  * 페이지는 usePageParam이 맡는다.
  */
-function useListParams() {
-  const [params, setParams] = useSearchParams()
+function parseListParams(params: URLSearchParams) {
   const statusParam = params.get('status')
   const status: InquiryStatus | undefined =
     statusParam === 'ALL'
@@ -31,17 +30,24 @@ function useListParams() {
         : 'WAITING'
   const sort: InquirySort =
     params.get('sort') === 'LATEST' ? 'LATEST' : 'OLDEST'
+  return { status, sort }
+}
+
+function useListParams() {
+  const [params, merge] = useMergedSearchParams()
+  const { status, sort } = parseListParams(params)
 
   const update = (
     next: Partial<{ status: InquiryStatus | undefined; sort: InquirySort }>,
-  ) => {
-    const merged = { status, sort, ...next }
-    const search = new URLSearchParams()
-    if (merged.status !== 'WAITING')
-      search.set('status', merged.status ?? 'ALL')
-    if (merged.sort !== 'OLDEST') search.set('sort', merged.sort)
-    setParams(search)
-  }
+  ) =>
+    merge((current) => {
+      const merged = { ...parseListParams(current), ...next }
+      const search = new URLSearchParams()
+      if (merged.status !== 'WAITING')
+        search.set('status', merged.status ?? 'ALL')
+      if (merged.sort !== 'OLDEST') search.set('sort', merged.sort)
+      return search
+    })
   return { status, sort, update }
 }
 

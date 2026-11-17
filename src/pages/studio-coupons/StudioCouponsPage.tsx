@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { sellerCouponQuery, sellerCouponsQuery } from '@/entities/coupon/api'
 import { CouponStatusPill } from '@/entities/coupon/ui/CouponStatusPill'
 import {
@@ -19,6 +19,7 @@ import {
   type MyLectureOptions,
 } from '@/features/coupon-seller/useMyLectureOptions'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -29,13 +30,13 @@ const STATUSES = Object.keys(COUPON_STATUS) as CouponStatus[]
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 전체(null)다 */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const raw = params.get('status')
   const status = STATUSES.find((s) => s === raw) ?? null
   const setStatus = (next: CouponStatus | null) => {
     const search = new URLSearchParams()
     if (next) search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }

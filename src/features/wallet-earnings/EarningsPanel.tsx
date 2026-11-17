@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
 import { earningSummaryQuery, earningsQuery } from '@/entities/wallet/api'
 import {
   EARNING_FILTERS,
@@ -14,6 +13,7 @@ import { EarningStatusPill } from '@/entities/wallet/ui/EarningStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Pager } from '@/shared/ui/Pager'
@@ -33,7 +33,7 @@ const EMPTY: Record<EarningFilter, string> = {
  * 요약을 불러오지 못하면(출처 장애 503 등) 이 패널만 오류로 보여 준다. 목록만 실패하면 목록 자리에 보여 준다.
  */
 export function EarningsPanel() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const filter = parseEarningFilter(params.get(EARNING_FILTER_PARAM))
   const [page, setPage] = usePageParam(PAGE_PARAM)
   const summary = useQuery(earningSummaryQuery)
@@ -41,8 +41,7 @@ export function EarningsPanel() {
   const moving = useClampPage(page, list, setPage)
 
   const setFilter = (next: EarningFilter) =>
-    setParams((prev) => {
-      const params = new URLSearchParams(prev)
+    merge((params) => {
       if (next === 'unpaid') params.delete(EARNING_FILTER_PARAM)
       else params.set(EARNING_FILTER_PARAM, next)
       params.delete(PAGE_PARAM)

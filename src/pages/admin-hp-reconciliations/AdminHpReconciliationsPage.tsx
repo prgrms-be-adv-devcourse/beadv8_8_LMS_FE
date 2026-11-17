@@ -1,6 +1,6 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import {
   latestHpReconciliationQuery,
   RECONCILIATION_POLL_MS,
@@ -25,6 +25,7 @@ import {
 } from '@/features/hp-reconciliation-admin/useRunHpReconciliation'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
@@ -38,7 +39,7 @@ const TABS: { value: ReconciliationApp; label: string }[] = [
 
 /** 앱은 URL에 둔다(?app=appearance). 없거나 모르는 값은 강의다 */
 export function AdminHpReconciliationsPage() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const app: ReconciliationApp =
     params.get('app') === 'appearance' ? 'appearance' : 'lecture'
 
@@ -53,7 +54,12 @@ export function AdminHpReconciliationsPage() {
         items={TABS}
         value={app}
         onChange={(next) =>
-          setParams(next === 'appearance' ? { app: 'appearance' } : {})
+          merge(
+            () =>
+              new URLSearchParams(
+                next === 'appearance' ? { app: 'appearance' } : {},
+              ),
+          )
         }
       >
         {app === 'lecture' ? (

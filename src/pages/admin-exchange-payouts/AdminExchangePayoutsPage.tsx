@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import {
   adminExchangePayoutsQuery,
   adminExchangesQuery,
@@ -13,6 +13,7 @@ import { ExchangePayoutStatusPill } from '@/entities/wallet/ui/ExchangePayoutSta
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -24,14 +25,14 @@ const DEFAULT_STATUS: AdminPayoutFilter = 'MANUAL_REVIEW_REQUIRED'
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 운영자 확인이다. 바꾸면 첫 페이지로 간다. */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const filter =
     ADMIN_PAYOUT_FILTERS.find((f) => f.status === params.get('status')) ??
     ADMIN_PAYOUT_FILTERS[0]
   const setStatus = (next: AdminPayoutFilter) => {
     const search = new URLSearchParams()
     if (next !== DEFAULT_STATUS) search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [filter, setStatus] as const
 }

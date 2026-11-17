@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { lectureHpTasksQuery } from '@/entities/hp-task/api'
 import { hpTaskErrorLabel } from '@/entities/hp-task/errorCode'
 import {
@@ -13,6 +13,7 @@ import { HpTaskStatusPill } from '@/entities/hp-task/ui/HpTaskStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -26,25 +27,31 @@ const TASK_TYPES = Object.keys(HP_TASK_TYPE_LABEL) as HpTaskType[]
  * 상태·유형은 URL에 둔다(?status=&taskType=). 기본은 멈춘 작업 · 모든 유형이고, 바꾸면 첫 페이지로 간다.
  * 없거나 모르는 값은 기본값으로 본다. 페이지는 usePageParam이 맡는다.
  */
-function useListParams() {
-  const [params, setParams] = useSearchParams()
+function parseListParams(params: URLSearchParams) {
   const status: HpTaskStatusFilter =
     HP_TASK_STATUS_FILTERS.find((f) => f.status === params.get('status'))
       ?.status ?? 'DEAD'
   const taskType = TASK_TYPES.find((t) => t === params.get('taskType'))
+  return { status, taskType }
+}
+
+function useListParams() {
+  const [params, merge] = useMergedSearchParams()
+  const { status, taskType } = parseListParams(params)
 
   const update = (
     next: Partial<{
       status: HpTaskStatusFilter
       taskType: HpTaskType | undefined
     }>,
-  ) => {
-    const merged = { status, taskType, ...next }
-    const search = new URLSearchParams()
-    if (merged.status !== 'DEAD') search.set('status', merged.status)
-    if (merged.taskType) search.set('taskType', merged.taskType)
-    setParams(search)
-  }
+  ) =>
+    merge((current) => {
+      const merged = { ...parseListParams(current), ...next }
+      const search = new URLSearchParams()
+      if (merged.status !== 'DEAD') search.set('status', merged.status)
+      if (merged.taskType) search.set('taskType', merged.taskType)
+      return search
+    })
   return { status, taskType, update }
 }
 

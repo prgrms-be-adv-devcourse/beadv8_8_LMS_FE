@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { adminExchangesQuery } from '@/entities/wallet/adminExchangeApi'
 import {
   SETTLEMENT_NOTE,
@@ -16,6 +16,7 @@ import type { AdminExchange } from '@/entities/wallet/types'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -25,14 +26,14 @@ import styles from './AdminExchangesPage.module.css'
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 승인 대기다. 바꾸면 첫 페이지로 간다. */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const status: AdminExchangeFilter =
     ADMIN_EXCHANGE_FILTERS.find((f) => f.status === params.get('status'))
       ?.status ?? 'REQUESTED'
   const setStatus = (next: AdminExchangeFilter) => {
     const search = new URLSearchParams()
     if (next !== 'REQUESTED') search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }
