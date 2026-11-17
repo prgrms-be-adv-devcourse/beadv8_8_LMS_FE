@@ -1,10 +1,10 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { createMemoryRouter } from 'react-router'
+import { createMemoryRouter, type RouteObject } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { queryClient } from '@/app/queryClient'
-import { routes } from '@/app/router'
+import { createRoutes, loadAllPages } from '@/app/router'
 import type { Wallet } from '@/entities/wallet/types'
 import { meQuery, type Me } from '@/shared/auth/me'
 import { setAccessToken } from '@/shared/auth/token'
@@ -19,6 +19,12 @@ export const TEST_ACCESS_TOKEN = 'test-access-token'
 export const rs = <T,>(data: T, status = 200) =>
   HttpResponse.json({ statusCode: status, message: '', data }, { status })
 
+/**
+ * 앱 라우트. 운영은 화면을 이동할 때 그 화면 파일을 불러오지만, 테스트는 모든 화면을 미리 불러 둔 라우트를 쓴다
+ * (화면 이동 직후 주소·화면을 바로 확인하는 테스트가 그대로 돈다). 화면을 나눠 불러오는 동작은 code-splitting.test.tsx가 본다.
+ */
+export const testRoutes = createRoutes(await loadAllPages())
+
 type WalletResponder = () => Response | Promise<Response>
 
 /**
@@ -26,11 +32,13 @@ type WalletResponder = () => Response | Promise<Response>
  * 회원이면 access token을 메모리에 넣고, refresh token 쿠키가 있는 것처럼 재발급이 성공하게 한다(TEST_ACCESS_TOKEN을
  * 다시 준다). 재발급 실패를 보려면 테스트에서 덮어쓴다.
  * wallet에 함수를 넘기면 지갑 응답을 직접 만든다(실패·지연 확인용).
+ * routes를 넘기면 그 라우트로 그린다(화면을 나눠 불러오는 운영 라우트 확인용).
  */
 export function renderApp(
   path: string,
   viewer: Viewer,
   wallet: Partial<Wallet> | WalletResponder = {},
+  { routes = testRoutes }: { routes?: RouteObject[] } = {},
 ) {
   const me: Me | null =
     viewer === 'GUEST'

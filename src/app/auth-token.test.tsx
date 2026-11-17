@@ -5,12 +5,17 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { routes } from '@/app/router'
 import { api } from '@/shared/api/client'
 import { meQuery } from '@/shared/auth/me'
 import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
-import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
+import {
+  ME_ID,
+  renderApp,
+  rs,
+  TEST_ACCESS_TOKEN,
+  testRoutes,
+} from '@/test/renderApp'
 import { server } from '@/test/server'
 
 const me = {
@@ -24,7 +29,7 @@ const me = {
 
 /** 새로고침처럼 메모리에 토큰도 내 정보도 없는 상태로 앱을 연다 */
 function openFresh(path: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
+  const router = createMemoryRouter(testRoutes, { initialEntries: [path] })
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

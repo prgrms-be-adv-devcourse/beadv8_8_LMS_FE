@@ -6,12 +6,11 @@ import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
-import { routes } from '@/app/router'
 import { meQuery, type Me } from '@/shared/auth/me'
 import type { Viewer } from '@/shared/auth/role'
 import { setAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
+import { rs, TEST_ACCESS_TOKEN, testRoutes } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 function renderAt(path: string, viewer: Viewer) {
@@ -47,7 +46,7 @@ function renderAt(path: string, viewer: Viewer) {
       }),
     ),
   )
-  const router = createMemoryRouter(routes, { initialEntries: [path] })
+  const router = createMemoryRouter(testRoutes, { initialEntries: [path] })
   render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

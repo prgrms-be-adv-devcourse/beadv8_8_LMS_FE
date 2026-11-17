@@ -140,6 +140,45 @@
   min-width: 0;
 }
 
+/* 화면 이동 중(다음 화면 파일·데이터를 받는 동안) 맨 위에 진행 막대를 보인다. 빨리 끝나는 이동에서는 깜빡이지 않게 조금 뒤에 나타난다 */
+.main[aria-busy='true']::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  background: var(--signal);
+  transform-origin: left;
+  animation: navProgress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
+}
+
+@keyframes navProgress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .main[aria-busy='true']::before {
+    transform: none;
+    animation: navProgressAppear 0s linear 150ms both;
+  }
+}
+
+@keyframes navProgressAppear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* 메뉴 버튼·드로어 배경은 좁은 화면에서만 보인다 */
 .menuBtn {
   display: none;
