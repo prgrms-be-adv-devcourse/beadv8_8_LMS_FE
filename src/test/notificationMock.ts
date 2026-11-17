@@ -39,16 +39,21 @@ const problem = (status: number, code: string, detail: string) =>
 type MockOptions = {
   /** 읽음 요청에 이 응답을 준다(실패 확인용). 없으면 BE처럼 처리한다 */
   readResponse?: () => Response
+  /**
+   * 목록·안 읽은 수 조회의 응답을 이 Promise가 끝날 때까지 늦춘다(없으면 바로). 응답 값은 요청을 받은 때의 값이다
+   * (응답이 늦게 도착하는 사이 새 알림이 저장되는 경우 확인용)
+   */
+  hold?: () => Promise<void> | undefined
 }
 
 /**
  * 알림 목록을 items로 두고 BE 알림 API를 켠다. 읽음·전체 읽음은 이후 조회에 반영한다.
  * 보낸 읽음 요청의 알림 ID는 reads, 전체 읽음 요청 수는 readAllCount(), 목록·안 읽은 수 조회 수는
- * listCount()·unreadCountCount()로 본다.
+ * listCount()·unreadCountCount()로 본다. save(item)은 BE가 새 알림을 저장한 것처럼 목록 맨 앞에 넣는다(같은 ID는 바꾼다).
  */
 export function mockNotifications(
   items: NotificationItem[],
-  { readResponse }: MockOptions = {},
+  { readResponse, hold }: MockOptions = {},
 ) {
   let list = items.slice(0, 20)
   const reads: number[] = []
@@ -56,13 +61,17 @@ export function mockNotifications(
   let listed = 0
   let counted = 0
   server.use(
-    http.get('*/api/v1/notifications', () => {
+    http.get('*/api/v1/notifications', async () => {
       listed++
-      return ok(list)
+      const data = list
+      await hold?.()
+      return ok(data)
     }),
-    http.get('*/api/v1/notifications/unread-count', () => {
+    http.get('*/api/v1/notifications/unread-count', async () => {
       counted++
-      return ok({ count: list.filter((n) => n.readAt == null).length })
+      const count = list.filter((n) => n.readAt == null).length
+      await hold?.()
+      return ok({ count })
     }),
     http.patch('*/api/v1/notifications/read-all', () => {
       readAll++
@@ -91,6 +100,9 @@ export function mockNotifications(
     readAllCount: () => readAll,
     listCount: () => listed,
     unreadCountCount: () => counted,
+    save: (item: NotificationItem) => {
+      list = [item, ...list.filter((n) => n.id !== item.id)].slice(0, 20)
+    },
   }
 }
 
@@ -105,22 +117,25 @@ export const headerAlertsLink = () =>
 /**
  * 실시간 연결 티켓 응답. 티켓은 `n-<부른 횟수>`이고 연결 만료는 15분 뒤다. 받은 Authorization과 횟수를 남긴다.
  * respond가 부른 횟수마다 다른 응답을 정한다.
- * - 상태 코드: 그 오류(429 TOO_MANY_REQUESTS + Retry-After, 503 CONNECTION_TICKET_UNAVAILABLE, 403)
+ * - 상태 코드: 그 오류(401은 빈 본문, 429 TOO_MANY_REQUESTS + Retry-After, 503 CONNECTION_TICKET_UNAVAILABLE, 403)
  * - 'network': 응답 없음
  * - { connectionExpiresAt }: 그 연결 만료로 발급한다(이미 지난 만료 확인용)
+ * Promise를 돌려주면 그 값이 나올 때까지 응답을 늦춘다.
  */
+type TicketAnswer = number | 'network' | { connectionExpiresAt: string } | null
+
 export function mockNotificationTickets(
-  respond: (
-    call: number,
-  ) => number | 'network' | { connectionExpiresAt: string } | null = () => null,
+  respond: (call: number) => TicketAnswer | Promise<TicketAnswer> = () => null,
 ) {
   const state = { calls: 0, authorizations: [] as (string | null)[] }
   server.use(
-    http.post('*/api/v1/notifications/ws-tickets', ({ request }) => {
+    http.post('*/api/v1/notifications/ws-tickets', async ({ request }) => {
       state.calls++
       state.authorizations.push(request.headers.get('Authorization'))
-      const answer = respond(state.calls)
+      const call = state.calls
+      const answer = await respond(call)
       if (answer === 'network') return HttpResponse.error()
+      if (answer === 401) return new HttpResponse(null, { status: 401 })
       if (typeof answer === 'number') {
         if (answer === 429)
           return HttpResponse.json(
@@ -134,7 +149,7 @@ export function mockNotificationTickets(
         )
       }
       return ok<NotificationConnectionTicket>({
-        ticket: `n-${state.calls}`,
+        ticket: `n-${call}`,
         expiresInSeconds: 30,
         connectionExpiresAt:
           answer?.connectionExpiresAt ??

@@ -7,7 +7,7 @@ import { API_BASE } from '@/shared/api/client'
 import { clearSession } from '@/shared/auth/session'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { requestNotificationTicket } from './connectionTicket'
-import { applyNotificationFrame, isNotificationFrame } from './incoming'
+import { isNotificationFrame, receiveNotificationFrame } from './incoming'
 
 /** 내 알림을 받는 곳. 이 연결은 이것만 구독하고 아무것도 보내지 않는다(다른 구독·SEND는 서버가 닫는다) */
 export const NOTIFICATION_QUEUE = '/user/queue/notifications'
@@ -30,7 +30,8 @@ const sleep = (ms: number) =>
 
 /**
  * 알림센터 실시간 연결(BE auxiliary-app notification 자체 STOMP, 채팅 연결과 별개). 화면에는 아무것도 그리지 않는다.
- * 새 알림 프레임으로 목록 맨 앞과 안 읽은 수(헤더 배지)를 바로 바꾼다(incoming.ts).
+ * 새 알림 프레임으로 목록 맨 앞과 안 읽은 수(헤더 배지)를 바로 바꾼다(incoming.ts). 그때 읽고 있던 조회는 취소하고
+ * 다시 읽는다(늦게 온 옛 응답이 프레임을 덮어쓰지 않게).
  * - 연결·재연결마다 일회용 티켓을 받아 주소에 싣는다(CONNECT에는 토큰을 넣지 않는다, connectionTicket.ts)
  * - 실시간 전달은 유실될 수 있어 연결될 때마다(최초 연결 포함) 목록과 안 읽은 수를 다시 읽는다
  * - 같은 연결의 재인증은 없다. 서버는 연결 만료(connectionExpiresAt)에 4401로 닫고, 그 밖의 비정상 종료·핸드셰이크
@@ -96,7 +97,7 @@ export function NotificationConnection({ userId }: { userId: number }) {
             return
           }
           if (isNotificationFrame(body))
-            applyNotificationFrame(queryClient, body)
+            void receiveNotificationFrame(queryClient, body, () => !disposed)
         })
         // 구독 전(끊긴 동안 포함)에 온 알림은 프레임으로 오지 않는다. 구독한 뒤 다시 읽어 맞춘다.
         void queryClient.invalidateQueries({ queryKey: notificationKeys.all })

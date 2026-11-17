@@ -46,3 +46,23 @@ export function applyNotificationFrame(
     count: unreadCount,
   })
 }
+
+/**
+ * 프레임을 받아 캐시에 넣는다. 목록·안 읽은 수를 읽는 중이면(연결 직후 다시 읽기, 창 포커스 등) 그 응답은 이 알림 전의
+ * 값일 수 있어, 늦게 도착해 프레임을 덮어쓰지 않게 그 조회를 취소하고 프레임을 넣은 뒤 다시 읽는다. 서버는 저장을
+ * commit한 뒤 프레임을 보내므로 새 조회에는 이 알림이 들어 있다.
+ * active가 false가 되면(취소를 기다리는 사이 연결을 정리함) 넣지 않는다.
+ */
+export async function receiveNotificationFrame(
+  queryClient: QueryClient,
+  frame: NotificationFrame,
+  active: () => boolean,
+) {
+  const queryKey = notificationKeys.all
+  const fetching = queryClient.isFetching({ queryKey }) > 0
+  // 취소한 조회는 시작 전 값으로 돌아간다. 돌아간 뒤에 넣어야 하므로 기다린다.
+  if (fetching) await queryClient.cancelQueries({ queryKey })
+  if (!active()) return
+  applyNotificationFrame(queryClient, frame)
+  if (fetching) void queryClient.invalidateQueries({ queryKey })
+}
