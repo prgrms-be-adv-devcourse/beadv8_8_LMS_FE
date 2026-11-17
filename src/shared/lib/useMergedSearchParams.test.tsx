@@ -6,15 +6,22 @@ import { useMergedSearchParams } from './useMergedSearchParams'
 
 type Update = ReturnType<typeof useMergedSearchParams>[1]
 
-/** loader를 붙잡아 이동을 끝나지 않은 채로 둘 수 있는 라우터 */
+/** loader를 붙잡아 이동을 끝나지 않은 채로 둘 수 있는 라우터. 훅을 두 곳(목록 조건·페이지처럼)에서 쓴다. */
 function setup(initial = '/') {
-  const probe: { update?: Update } = {}
+  const probe: { update?: Update; other?: Update } = {}
   let hold = false
   const pending: (() => void)[] = []
   function Probe() {
     const [, update] = useMergedSearchParams()
     useEffect(() => {
       probe.update = update
+    })
+    return <OtherProbe />
+  }
+  function OtherProbe() {
+    const [, update] = useMergedSearchParams()
+    useEffect(() => {
+      probe.other = update
     })
     return null
   }
@@ -35,9 +42,15 @@ function setup(initial = '/') {
       p.set(key, value)
       return p
     })
+  const setOther = (key: string, value: string) =>
+    probe.other?.((p) => {
+      p.set(key, value)
+      return p
+    })
   return {
     router,
     set,
+    setOther,
     hold: () => {
       hold = true
     },
@@ -62,6 +75,20 @@ describe('useMergedSearchParams', () => {
     expect(
       Object.fromEntries(new URLSearchParams(router.state.location.search)),
     ).toEqual({ verified: 'true', minFollowers: '10000' })
+  })
+
+  it('다른 곳에서 쓰는 같은 훅이 보낸 값 위에도 합친다(조건을 바꾼 직후 페이지를 넘기는 경우)', async () => {
+    const { router, set, setOther, hold, release } = setup()
+    await act(async () => {})
+    hold()
+
+    await act(async () => set('status', 'PENDING'))
+    await act(async () => setOther('page', '2'))
+    await release()
+
+    expect(
+      Object.fromEntries(new URLSearchParams(router.state.location.search)),
+    ).toEqual({ status: 'PENDING', page: '2' })
   })
 
   it('보낸 이동이 끝나기 전에 다른 이동으로 바뀌면, 멈춘 뒤의 실제 URL 위에 합친다', async () => {

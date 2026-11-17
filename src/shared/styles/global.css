@@ -278,6 +278,10 @@ p {
 .modal.wide {
   max-width: 640px;
 }
+/* 입력 칸이 없는 모달은 열 때 모달 자체에 포커스를 준다(Modal). 모달 테두리에 포커스 링을 그리지 않는다 */
+.modal:focus {
+  outline: none;
+}
 .modal header {
   display: flex;
   align-items: center;

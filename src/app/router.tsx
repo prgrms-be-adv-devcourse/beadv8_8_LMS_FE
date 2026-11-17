@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import {
   redirect,
   type LoaderFunctionArgs,
@@ -21,68 +21,20 @@ import { consumeReturnTo } from '@/shared/auth/session'
 import { getAccessToken, refreshAccessToken } from '@/shared/auth/token'
 import { NotFoundPage } from '@/app/fallbacks/NotFoundPage'
 import { PlaceholderPage } from '@/app/fallbacks/PlaceholderPage'
+import { reloadOnChunkError } from '@/app/fallbacks/chunkLoad'
 import { RouteErrorPage } from '@/app/fallbacks/RouteErrorPage'
-import { AdminChannelsPage } from '@/pages/admin-channels/AdminChannelsPage'
-import { AdminAppearanceHpTasksPage } from '@/pages/admin-appearance-hp-tasks/AdminAppearanceHpTasksPage'
-import { AdminDashboardPage } from '@/pages/admin-dashboard/AdminDashboardPage'
-import { AdminHpTaskPage } from '@/pages/admin-hp-task/AdminHpTaskPage'
-import { AdminHpTasksPage } from '@/pages/admin-hp-tasks/AdminHpTasksPage'
-import { AdminHpReconciliationsPage } from '@/pages/admin-hp-reconciliations/AdminHpReconciliationsPage'
-import { AdminExchangePage } from '@/pages/admin-exchange/AdminExchangePage'
-import { AdminExchangePayoutsPage } from '@/pages/admin-exchange-payouts/AdminExchangePayoutsPage'
-import { AdminExchangesPage } from '@/pages/admin-exchanges/AdminExchangesPage'
-import { AdminPlatformWalletPage } from '@/pages/admin-platform-wallet/AdminPlatformWalletPage'
-import { AdminChatHistoryPage } from '@/pages/admin-chat-history/AdminChatHistoryPage'
-import { AppearanceDetailPage } from '@/pages/appearance-detail/AppearanceDetailPage'
-import { AppearanceRequestPage } from '@/pages/appearance-request/AppearanceRequestPage'
-import { AdminInquiriesPage } from '@/pages/admin-inquiries/AdminInquiriesPage'
-import { AdminInquiryPage } from '@/pages/admin-inquiry/AdminInquiryPage'
-import { AdminLecturePage } from '@/pages/admin-lecture/AdminLecturePage'
-import { AdminLecturesPage } from '@/pages/admin-lectures/AdminLecturesPage'
-import { AdminPromotionsPage } from '@/pages/admin-promotions/AdminPromotionsPage'
-import { AppearancesPage } from '@/pages/appearances/AppearancesPage'
-import { CartPage } from '@/pages/cart/CartPage'
-import { ChargeResultPage } from '@/pages/charge-result/ChargeResultPage'
-import { ChatPage } from '@/pages/chat/ChatPage'
-import { ChzzkResultPage } from '@/pages/chzzk-result/ChzzkResultPage'
-import { LoginFailurePage } from '@/pages/login/LoginFailurePage'
-import { InfluencerProfilePage } from '@/pages/influencer-profile/InfluencerProfilePage'
-import { InfluencersPage } from '@/pages/influencers/InfluencersPage'
-import { InquiryPage } from '@/pages/inquiry/InquiryPage'
-import { MyProfilePage } from '@/pages/my-profile/MyProfilePage'
-import { PromotePage } from '@/pages/promote/PromotePage'
-import { RecruitDetailPage } from '@/pages/recruit-detail/RecruitDetailPage'
-import { RecruitsPage } from '@/pages/recruits/RecruitsPage'
-import { SettingsPage } from '@/pages/settings/SettingsPage'
-import { WithdrawPage } from '@/pages/settings-withdraw/WithdrawPage'
-import { StudioPage } from '@/pages/studio/StudioPage'
-import { SupportPage } from '@/pages/support/SupportPage'
-import { SupportFaqPage } from '@/pages/support-faq/SupportFaqPage'
-import { VerifyPage } from '@/pages/verify/VerifyPage'
 import { HomePage } from '@/pages/home/HomePage'
-import { LectureDetailPage } from '@/pages/lecture-detail/LectureDetailPage'
-import { LecturesPage } from '@/pages/lectures/LecturesPage'
-import { LectureEditPage } from '@/pages/lecture-edit/LectureEditPage'
-import { LectureNewPage } from '@/pages/lecture-new/LectureNewPage'
-import { LibraryPage } from '@/pages/library/LibraryPage'
-import { CouponsPage } from '@/pages/coupons/CouponsPage'
-import { StudioCouponsPage } from '@/pages/studio-coupons/StudioCouponsPage'
-import { AdminCouponsPage } from '@/pages/admin-coupons/AdminCouponsPage'
-import { OrderDonePage } from '@/pages/order-done/OrderDonePage'
-import { OrdersPage } from '@/pages/orders/OrdersPage'
-import { ReviewWritePage } from '@/pages/review-write/ReviewWritePage'
-import { WalletPage } from '@/pages/wallet/WalletPage'
-import { ExchangeRequestPage } from '@/pages/wallet-exchange/ExchangeRequestPage'
-import { WatchPage } from '@/pages/watch/WatchPage'
 
 // /api, /swagger-ui, /v3/api-docs로 시작하는 경로는 BE로 가므로 쓰지 않는다(docs/deploy.md).
 
 type PageDef = { path: string; title: string; roles: readonly Viewer[] }
+type PageModule = { Component: ComponentType }
 
 /** 내비 레일에 없는 화면: 상단 헤더로 들어가는 화면과 상세·하위 화면 (docs/mockup-ui.html의 EXTRA_ROUTES) */
 const EXTRA_ROUTES: PageDef[] = [
   { path: '/', title: '홈', roles: ALL },
   { path: '/cart', title: '장바구니', roles: MEMBER },
+  { path: '/alerts', title: '알림', roles: MEMBER },
   { path: '/lectures/:lectureId', title: '강의 상세', roles: SIGNED_IN },
   { path: '/recruits/:recruitId', title: '모집 상세', roles: SIGNED_IN },
   {
@@ -143,66 +95,247 @@ const PAGES: PageDef[] = [
   ...EXTRA_ROUTES,
 ]
 
-/** 만든 화면. 여기 없는 경로는 자리표시 화면이다. */
-const PAGE_ELEMENTS: Record<string, ReactNode> = {
-  '/lectures': <LecturesPage />,
-  '/lectures/:lectureId': <LectureDetailPage />,
-  '/cart': <CartPage />,
-  '/library': <LibraryPage />,
-  '/library/orders': <OrdersPage />,
-  '/library/orders/:orderId/done': <OrderDonePage />,
-  '/library/:lectureId/watch': <WatchPage />,
-  '/library/:lectureId/review': <ReviewWritePage />,
-  '/influencers': <InfluencersPage />,
-  '/influencers/:memberId': <InfluencerProfilePage />,
-  '/verify': <VerifyPage />,
-  '/mypage': <ChzzkResultPage />,
-  '/login': <LoginFailurePage />,
-  '/settings': <SettingsPage />,
-  '/settings/withdraw': <WithdrawPage />,
-  '/profile/edit': <MyProfilePage />,
-  '/promote': <PromotePage />,
-  '/appearances': <AppearancesPage />,
-  '/recruits': <RecruitsPage />,
-  '/recruits/:recruitId': <RecruitDetailPage />,
-  '/chat': <ChatPage />,
-  '/chat/:chatRoomId': <ChatPage />,
-  '/appearances/requests/:requestId': <AppearanceRequestPage />,
-  '/appearances/:appearanceId': <AppearanceDetailPage />,
-  '/studio': <StudioPage />,
-  '/studio/lectures/new': <LectureNewPage />,
-  '/studio/lectures/:lectureId/edit': <LectureEditPage />,
-  '/admin': <AdminDashboardPage />,
-  '/admin/chats': <AdminChatHistoryPage />,
-  '/admin/chats/:chatRoomId': <AdminChatHistoryPage />,
-  '/support': <SupportPage />,
-  '/support/faq': <SupportFaqPage />,
-  '/support/inquiries/:inquiryId': <InquiryPage />,
-  '/admin/lectures': <AdminLecturesPage />,
-  '/admin/channels': <AdminChannelsPage />,
-  '/admin/hp-tasks': <AdminHpTasksPage />,
-  '/admin/hp-tasks/:taskId': <AdminHpTaskPage />,
-  '/admin/appearance-hp-tasks': <AdminAppearanceHpTasksPage />,
-  '/admin/hp-reconciliations': <AdminHpReconciliationsPage />,
-  '/admin/exchanges': <AdminExchangesPage />,
-  '/admin/exchanges/:exchangeId': <AdminExchangePage />,
-  '/admin/exchange-payouts': <AdminExchangePayoutsPage />,
-  '/admin/platform-wallet': <AdminPlatformWalletPage />,
-  '/admin/promotions': <AdminPromotionsPage />,
-  '/admin/coupons': <AdminCouponsPage />,
-  '/admin/coupons/:couponId': <AdminCouponsPage />,
-  '/library/coupons': <CouponsPage />,
-  '/studio/coupons': <StudioCouponsPage />,
-  '/studio/coupons/:couponId': <StudioCouponsPage />,
-  '/admin/lectures/:lectureId': <AdminLecturePage />,
-  '/admin/inquiries': <AdminInquiriesPage />,
-  '/admin/inquiries/:inquiryId': <AdminInquiryPage />,
-  '/wallet': <WalletPage />,
-  '/wallet/charge/result': <ChargeResultPage />,
-  '/wallet/exchange': <ExchangeRequestPage />,
+/**
+ * 만든 화면. 여기 없는 경로는 자리표시 화면이다.
+ * 화면마다 따로 불러온다(첫 파일에는 앱 셸·홈·공통 모듈만 남는다). 처음 열 때는 rootLoader와 함께 기다리고, 화면을 옮길 때는
+ * 그 화면 파일을 받을 때까지 이전 화면을 둔 채 앱 셸 맨 위에 진행 막대를 보인다(AppShell main의 aria-busy).
+ */
+export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
+  '/lectures': () =>
+    import('@/pages/lectures/LecturesPage').then((m) => ({
+      Component: m.LecturesPage,
+    })),
+  '/lectures/:lectureId': () =>
+    import('@/pages/lecture-detail/LectureDetailPage').then((m) => ({
+      Component: m.LectureDetailPage,
+    })),
+  '/cart': () =>
+    import('@/pages/cart/CartPage').then((m) => ({ Component: m.CartPage })),
+  '/alerts': () =>
+    import('@/pages/alerts/AlertsPage').then((m) => ({
+      Component: m.AlertsPage,
+    })),
+  '/library': () =>
+    import('@/pages/library/LibraryPage').then((m) => ({
+      Component: m.LibraryPage,
+    })),
+  '/library/orders': () =>
+    import('@/pages/orders/OrdersPage').then((m) => ({
+      Component: m.OrdersPage,
+    })),
+  '/library/orders/:orderId/done': () =>
+    import('@/pages/order-done/OrderDonePage').then((m) => ({
+      Component: m.OrderDonePage,
+    })),
+  '/library/:lectureId/watch': () =>
+    import('@/pages/watch/WatchPage').then((m) => ({ Component: m.WatchPage })),
+  '/library/:lectureId/review': () =>
+    import('@/pages/review-write/ReviewWritePage').then((m) => ({
+      Component: m.ReviewWritePage,
+    })),
+  '/influencers': () =>
+    import('@/pages/influencers/InfluencersPage').then((m) => ({
+      Component: m.InfluencersPage,
+    })),
+  '/influencers/:memberId': () =>
+    import('@/pages/influencer-profile/InfluencerProfilePage').then((m) => ({
+      Component: m.InfluencerProfilePage,
+    })),
+  '/verify': () =>
+    import('@/pages/verify/VerifyPage').then((m) => ({
+      Component: m.VerifyPage,
+    })),
+  '/mypage': () =>
+    import('@/pages/chzzk-result/ChzzkResultPage').then((m) => ({
+      Component: m.ChzzkResultPage,
+    })),
+  '/login': () =>
+    import('@/pages/login/LoginFailurePage').then((m) => ({
+      Component: m.LoginFailurePage,
+    })),
+  '/settings': () =>
+    import('@/pages/settings/SettingsPage').then((m) => ({
+      Component: m.SettingsPage,
+    })),
+  '/settings/withdraw': () =>
+    import('@/pages/settings-withdraw/WithdrawPage').then((m) => ({
+      Component: m.WithdrawPage,
+    })),
+  '/profile/edit': () =>
+    import('@/pages/my-profile/MyProfilePage').then((m) => ({
+      Component: m.MyProfilePage,
+    })),
+  '/promote': () =>
+    import('@/pages/promote/PromotePage').then((m) => ({
+      Component: m.PromotePage,
+    })),
+  '/appearances': () =>
+    import('@/pages/appearances/AppearancesPage').then((m) => ({
+      Component: m.AppearancesPage,
+    })),
+  '/recruits': () =>
+    import('@/pages/recruits/RecruitsPage').then((m) => ({
+      Component: m.RecruitsPage,
+    })),
+  '/recruits/:recruitId': () =>
+    import('@/pages/recruit-detail/RecruitDetailPage').then((m) => ({
+      Component: m.RecruitDetailPage,
+    })),
+  '/chat': () =>
+    import('@/pages/chat/ChatPage').then((m) => ({ Component: m.ChatPage })),
+  '/chat/:chatRoomId': () =>
+    import('@/pages/chat/ChatPage').then((m) => ({ Component: m.ChatPage })),
+  '/appearances/requests/:requestId': () =>
+    import('@/pages/appearance-request/AppearanceRequestPage').then((m) => ({
+      Component: m.AppearanceRequestPage,
+    })),
+  '/appearances/:appearanceId': () =>
+    import('@/pages/appearance-detail/AppearanceDetailPage').then((m) => ({
+      Component: m.AppearanceDetailPage,
+    })),
+  '/studio': () =>
+    import('@/pages/studio/StudioPage').then((m) => ({
+      Component: m.StudioPage,
+    })),
+  '/studio/lectures/new': () =>
+    import('@/pages/lecture-new/LectureNewPage').then((m) => ({
+      Component: m.LectureNewPage,
+    })),
+  '/studio/lectures/:lectureId/edit': () =>
+    import('@/pages/lecture-edit/LectureEditPage').then((m) => ({
+      Component: m.LectureEditPage,
+    })),
+  '/admin': () =>
+    import('@/pages/admin-dashboard/AdminDashboardPage').then((m) => ({
+      Component: m.AdminDashboardPage,
+    })),
+  '/admin/chats': () =>
+    import('@/pages/admin-chat-history/AdminChatHistoryPage').then((m) => ({
+      Component: m.AdminChatHistoryPage,
+    })),
+  '/admin/chats/:chatRoomId': () =>
+    import('@/pages/admin-chat-history/AdminChatHistoryPage').then((m) => ({
+      Component: m.AdminChatHistoryPage,
+    })),
+  '/support': () =>
+    import('@/pages/support/SupportPage').then((m) => ({
+      Component: m.SupportPage,
+    })),
+  '/support/faq': () =>
+    import('@/pages/support-faq/SupportFaqPage').then((m) => ({
+      Component: m.SupportFaqPage,
+    })),
+  '/support/inquiries/:inquiryId': () =>
+    import('@/pages/inquiry/InquiryPage').then((m) => ({
+      Component: m.InquiryPage,
+    })),
+  '/admin/lectures': () =>
+    import('@/pages/admin-lectures/AdminLecturesPage').then((m) => ({
+      Component: m.AdminLecturesPage,
+    })),
+  '/admin/channels': () =>
+    import('@/pages/admin-channels/AdminChannelsPage').then((m) => ({
+      Component: m.AdminChannelsPage,
+    })),
+  '/admin/hp-tasks': () =>
+    import('@/pages/admin-hp-tasks/AdminHpTasksPage').then((m) => ({
+      Component: m.AdminHpTasksPage,
+    })),
+  '/admin/hp-tasks/:taskId': () =>
+    import('@/pages/admin-hp-task/AdminHpTaskPage').then((m) => ({
+      Component: m.AdminHpTaskPage,
+    })),
+  '/admin/appearance-hp-tasks': () =>
+    import('@/pages/admin-appearance-hp-tasks/AdminAppearanceHpTasksPage').then(
+      (m) => ({ Component: m.AdminAppearanceHpTasksPage }),
+    ),
+  '/admin/hp-reconciliations': () =>
+    import('@/pages/admin-hp-reconciliations/AdminHpReconciliationsPage').then(
+      (m) => ({ Component: m.AdminHpReconciliationsPage }),
+    ),
+  '/admin/exchanges': () =>
+    import('@/pages/admin-exchanges/AdminExchangesPage').then((m) => ({
+      Component: m.AdminExchangesPage,
+    })),
+  '/admin/exchanges/:exchangeId': () =>
+    import('@/pages/admin-exchange/AdminExchangePage').then((m) => ({
+      Component: m.AdminExchangePage,
+    })),
+  '/admin/exchange-payouts': () =>
+    import('@/pages/admin-exchange-payouts/AdminExchangePayoutsPage').then(
+      (m) => ({ Component: m.AdminExchangePayoutsPage }),
+    ),
+  '/admin/platform-wallet': () =>
+    import('@/pages/admin-platform-wallet/AdminPlatformWalletPage').then(
+      (m) => ({ Component: m.AdminPlatformWalletPage }),
+    ),
+  '/admin/promotions': () =>
+    import('@/pages/admin-promotions/AdminPromotionsPage').then((m) => ({
+      Component: m.AdminPromotionsPage,
+    })),
+  '/admin/coupons': () =>
+    import('@/pages/admin-coupons/AdminCouponsPage').then((m) => ({
+      Component: m.AdminCouponsPage,
+    })),
+  '/admin/coupons/:couponId': () =>
+    import('@/pages/admin-coupons/AdminCouponsPage').then((m) => ({
+      Component: m.AdminCouponsPage,
+    })),
+  '/library/coupons': () =>
+    import('@/pages/coupons/CouponsPage').then((m) => ({
+      Component: m.CouponsPage,
+    })),
+  '/studio/coupons': () =>
+    import('@/pages/studio-coupons/StudioCouponsPage').then((m) => ({
+      Component: m.StudioCouponsPage,
+    })),
+  '/studio/coupons/:couponId': () =>
+    import('@/pages/studio-coupons/StudioCouponsPage').then((m) => ({
+      Component: m.StudioCouponsPage,
+    })),
+  '/admin/lectures/:lectureId': () =>
+    import('@/pages/admin-lecture/AdminLecturePage').then((m) => ({
+      Component: m.AdminLecturePage,
+    })),
+  '/admin/inquiries': () =>
+    import('@/pages/admin-inquiries/AdminInquiriesPage').then((m) => ({
+      Component: m.AdminInquiriesPage,
+    })),
+  '/admin/inquiries/:inquiryId': () =>
+    import('@/pages/admin-inquiry/AdminInquiryPage').then((m) => ({
+      Component: m.AdminInquiryPage,
+    })),
+  '/wallet': () =>
+    import('@/pages/wallet/WalletPage').then((m) => ({
+      Component: m.WalletPage,
+    })),
+  '/wallet/charge/result': () =>
+    import('@/pages/charge-result/ChargeResultPage').then((m) => ({
+      Component: m.ChargeResultPage,
+    })),
+  '/wallet/exchange': () =>
+    import('@/pages/wallet-exchange/ExchangeRequestPage').then((m) => ({
+      Component: m.ExchangeRequestPage,
+    })),
 }
 
-function toRoute({ path, title, roles }: PageDef): RouteObject {
+/** 화면 경로 → 불러 둔 화면. 테스트는 모든 화면을 미리 불러 넘긴다(화면 이동 직후 바로 확인하는 테스트가 그대로 돈다). */
+export type LoadedPages = Record<string, ComponentType>
+
+/** 모든 화면을 불러 둔다(테스트용). */
+export async function loadAllPages(): Promise<LoadedPages> {
+  const entries = await Promise.all(
+    Object.entries(PAGE_LOADERS).map(
+      async ([path, load]) => [path, (await load()).Component] as const,
+    ),
+  )
+  return Object.fromEntries(entries)
+}
+
+function toRoute(
+  { path, title, roles }: PageDef,
+  loaded?: LoadedPages,
+): RouteObject {
   if (path === '/') {
     // 홈은 모든 역할 공통 첫 화면이다(비회원 포함).
     return {
@@ -211,9 +344,15 @@ function toRoute({ path, title, roles }: PageDef): RouteObject {
       handle: { title, roles, layout: 'top' } satisfies RouteHandle,
     }
   }
+  const Loaded = loaded?.[path]
+  const load = PAGE_LOADERS[path]
   return {
     path: path.slice(1),
-    element: PAGE_ELEMENTS[path] ?? <PlaceholderPage />,
+    ...(Loaded
+      ? { Component: Loaded }
+      : load
+        ? { lazy: reloadOnChunkError(load) }
+        : { element: <PlaceholderPage /> }),
     handle: { title, roles } satisfies RouteHandle,
   }
 }
@@ -240,12 +379,29 @@ async function rootLoader({ request }: LoaderFunctionArgs) {
   return null
 }
 
-export const routes: RouteObject[] = [
-  {
-    path: '/',
-    loader: rootLoader,
-    element: <AppShell />,
-    errorElement: <RouteErrorPage />,
-    children: [...PAGES.map(toRoute), { path: '*', element: <NotFoundPage /> }],
-  },
-]
+/**
+ * loaded를 넘기면 그 화면은 따로 불러오지 않고 바로 쓴다.
+ * 오류 화면은 두 겹이다. 화면이 그리다 실패하거나 화면 파일을 못 받으면 앱 셸 안(경로 없는 자식 라우트)에서 보여
+ * 헤더·메뉴가 남는다. 맨 바깥은 rootLoader·앱 셸이 실패했을 때다.
+ */
+export function createRoutes(loaded?: LoadedPages): RouteObject[] {
+  return [
+    {
+      path: '/',
+      loader: rootLoader,
+      element: <AppShell />,
+      errorElement: <RouteErrorPage />,
+      children: [
+        {
+          errorElement: <RouteErrorPage />,
+          children: [
+            ...PAGES.map((page) => toRoute(page, loaded)),
+            { path: '*', element: <NotFoundPage /> },
+          ],
+        },
+      ],
+    },
+  ]
+}
+
+export const routes = createRoutes()

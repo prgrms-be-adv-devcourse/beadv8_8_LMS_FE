@@ -10,11 +10,13 @@ import {
 import { MY_ACTIVITY, navFor, shadowedByChild } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import type { RouteHandle } from '@/app/routeHandle'
+import { unreadCountQuery } from '@/entities/notification/api'
 import { walletQuery } from '@/entities/wallet/api'
 import { useCartCount } from '@/features/cart/useCartCount'
 import { ChatConnection } from '@/features/chat/ChatConnection'
 import { ChatbotRoot } from '@/features/chatbot/ChatbotRoot'
 import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
+import { NotificationConnection } from '@/features/notification/NotificationConnection'
 import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, viewerLabel, type Viewer } from '@/shared/auth/role'
@@ -45,14 +47,29 @@ function chatLabel(unread: number) {
   return unread ? `채팅, 안 읽은 메시지 ${unread}개` : '채팅'
 }
 
-/** 가장 안쪽 라우트의 화면 틀 (RouteHandle.layout) */
-function useLayout() {
+/** 알림 링크의 읽는 이름. 안 읽은 알림이 없거나 수를 모르면 개수를 붙이지 않는다. */
+function alertsLabel(unread: number | undefined) {
+  return unread ? `알림, 안 읽은 알림 ${unread}개` : '알림'
+}
+
+/** 가장 안쪽 라우트부터 handle에 그 값이 있는 것을 찾는다. */
+function useInnermostHandle<K extends keyof RouteHandle>(name: K) {
   const matches = useMatches()
   for (let i = matches.length - 1; i >= 0; i--) {
-    const layout = (matches[i].handle as RouteHandle | undefined)?.layout
-    if (layout) return layout
+    const value = (matches[i].handle as RouteHandle | undefined)?.[name]
+    if (value) return value
   }
   return undefined
+}
+
+const APP_NAME = '합방'
+
+/** 브라우저 탭 제목: 가장 안쪽 라우트의 handle.title로 "<제목> · 합방", 제목이 없으면 "합방" */
+function useDocumentTitle() {
+  const title = useInnermostHandle('title')
+  useEffect(() => {
+    document.title = title ? `${title} · ${APP_NAME}` : APP_NAME
+  }, [title])
 }
 
 /**
@@ -79,7 +96,8 @@ export function AppShell() {
   }, [navOpen])
 
   const { data: me } = useQuery(meQuery)
-  const topLayout = useLayout() === 'top'
+  const topLayout = useInnermostHandle('layout') === 'top'
+  useDocumentTitle()
   const toggleNav = () => setOpenedAt(navOpen ? null : pathname)
 
   return (
@@ -88,6 +106,10 @@ export function AppShell() {
     >
       {me && CHAT_VIEWERS.includes(me.role) && (
         <ChatConnection userId={me.id} />
+      )}
+      {/* 알림센터 실시간 연결: 알림을 받는 회원만(관리자는 알림을 받지 않는다) */}
+      {me && MEMBER.includes(me.role) && (
+        <NotificationConnection userId={me.id} />
       )}
       {topLayout ? (
         <HomeHeader viewer={viewer} navOpen={navOpen} onToggleNav={toggleNav} />
@@ -205,10 +227,9 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
 }
 
 /**
- * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 채팅 · 프로필 메뉴.
- * HP 칸이 지갑 진입점이다(관리자는 지갑이 없어 숨긴다). 채팅은 채팅을 쓰는 역할에만 보인다.
- * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다. 채팅은 모든 폭에서 헤더에 둔다.
- * 알림은 BE API가 없어 두지 않는다(#101).
+ * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 채팅 · 알림 · 프로필 메뉴.
+ * HP 칸이 지갑 진입점이다(관리자는 지갑이 없어 숨긴다). 채팅은 채팅을 쓰는 역할에만, 알림은 회원에게만 보인다(관리자는 알림을 받지 않는다).
+ * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다. 채팅·알림은 모든 폭에서 헤더에 둔다.
  */
 function HeaderActions({
   viewer,
@@ -234,6 +255,7 @@ function HeaderActions({
       {member && <HpPill />}
       {member && <CartLink />}
       {CHAT_VIEWERS.includes(viewer) && <ChatLink />}
+      {member && <AlertsLink />}
       <ProfileMenu viewer={viewer} />
     </>
   )
@@ -310,6 +332,47 @@ function ChatIcon() {
       aria-hidden="true"
     >
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+/** 알림센터. 좁은 화면에서도 헤더에 둔다. 안 읽은 수를 불러오지 못하면 배지만 숨긴다. */
+function AlertsLink() {
+  const { data: unread } = useQuery({
+    ...unreadCountQuery,
+    select: (d) => d.count,
+  })
+  return (
+    <NavLink
+      to="/alerts"
+      className={styles.iconBtn}
+      aria-label={alertsLabel(unread)}
+    >
+      <BellIcon />
+      {!!unread && (
+        <span className={styles.badge} aria-hidden="true">
+          {badgeText(unread)}
+        </span>
+      )}
+    </NavLink>
+  )
+}
+
+/** docs/mockup-ui.html ICONS.bell */
+function BellIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10 21h4" />
     </svg>
   )
 }

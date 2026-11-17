@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { walletQuery } from '@/entities/wallet/api'
 import {
   DEFAULT_CHARGE_AMOUNT,
@@ -16,6 +16,7 @@ import { RefundModal } from '@/features/wallet-refund/RefundModal'
 import { TransactionLedger } from '@/features/wallet-transactions/TransactionLedger'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { tossClientKey } from '@/shared/lib/tossPayments'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -29,7 +30,7 @@ export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
   const { data: me } = useQuery(meQuery)
   const clientKey = tossClientKey()
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const [chargeAmount, setChargeAmount] = useState<number | null>(() =>
     clientKey ? parseChargeAmountParam(params.get('charge')) : null,
   )
@@ -40,15 +41,14 @@ export function WalletPage() {
   // 모달을 연 뒤 주소에서 지워, 새로고침하거나 돌아와도 다시 열리지 않게 한다.
   useEffect(() => {
     if (!hasChargeParam) return
-    setParams(
-      (prev) => {
-        const next = new URLSearchParams(prev)
+    merge(
+      (next) => {
         next.delete('charge')
         return next
       },
       { replace: true },
     )
-  }, [hasChargeParam, setParams])
+  }, [hasChargeParam, merge])
 
   // 내 정보를 받기 전에는 수익 HP를 보여 주지 않는다(유저에게 잠깐 보이지 않게).
   const earns = me ? me.role !== 'USER' : false

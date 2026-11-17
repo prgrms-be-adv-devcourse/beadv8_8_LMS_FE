@@ -227,7 +227,7 @@ describe('강의 목록', () => {
     )
     const router = renderApp('/lectures', 'GUEST')
     await screen.findByRole('button', { name: /썸네일 잘 만들기/ })
-    const box = screen.getByRole('searchbox', { name: '강의 검색' })
+    const box = screen.getByRole('combobox', { name: '강의 검색' })
     await userEvent.type(box, 'AI{Enter}')
     await waitFor(() =>
       expect(router.state.location.search).toBe('?keyword=AI'),
@@ -235,10 +235,10 @@ describe('강의 목록', () => {
 
     await act(() => router.navigate(-1))
     expect(router.state.location.search).toBe('')
-    expect(screen.getByRole('searchbox', { name: '강의 검색' })).toHaveValue('')
+    expect(screen.getByRole('combobox', { name: '강의 검색' })).toHaveValue('')
 
     await act(() => router.navigate(1))
-    expect(screen.getByRole('searchbox', { name: '강의 검색' })).toHaveValue(
+    expect(screen.getByRole('combobox', { name: '강의 검색' })).toHaveValue(
       'AI',
     )
   })
@@ -255,7 +255,7 @@ describe('강의 목록', () => {
     )
     const router = renderApp('/lectures', 'GUEST')
     await screen.findByRole('button', { name: /썸네일 잘 만들기/ })
-    const box = screen.getByRole('searchbox', { name: '강의 검색' })
+    const box = screen.getByRole('combobox', { name: '강의 검색' })
     await userEvent.type(box, '마이')
     await userEvent.selectOptions(
       screen.getByRole('combobox', { name: '정렬' }),

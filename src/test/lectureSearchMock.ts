@@ -92,21 +92,60 @@ function toItem(d: SearchDoc, keyword: string | null): LectureSearchItem {
   const { description, contentTitles, ...item } = d
   return {
     ...item,
-    highlights: keyword
-      ? {
-          title: highlight(d.title, keyword),
-          sellerNickname: highlight(d.sellerNickname, keyword),
-          description: highlight(description, keyword),
-          contentTitles: contentTitles
-            .map((t) => highlight(t, keyword))
-            .filter((t): t is string => t !== null),
-        }
-      : null,
+    // 초성으로 찾으면 원문에 강조할 자리가 없어 칸이 모두 비어 있다(객체는 있다)
+    highlights: !keyword
+      ? null
+      : isChosungOnly(keyword)
+        ? {
+            title: null,
+            sellerNickname: null,
+            description: null,
+            contentTitles: [],
+          }
+        : {
+            title: highlight(d.title, keyword),
+            sellerNickname: highlight(d.sellerNickname, keyword),
+            description: highlight(description, keyword),
+            contentTitles: contentTitles
+              .map((t) => highlight(t, keyword))
+              .filter((t): t is string => t !== null),
+          },
   }
 }
 
-/** 관련도: 제목 > 콘텐츠 제목·판매자 닉네임 > 소개 */
+const CHOSUNG = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ'
+
+/** 음절마다 첫소리로 바꾼다(`방송 장비` → `ㅂㅅ ㅈㅂ`). 한글 음절이 아니면 그대로 둔다 */
+function chosungOf(text: string) {
+  return [...text]
+    .map((ch) => {
+      const code = ch.charCodeAt(0) - 0xac00
+      return code >= 0 && code < 11172 ? CHOSUNG[Math.floor(code / 588)] : ch
+    })
+    .join('')
+}
+
+/** 낱자 자음과 띄어쓰기로만 된 검색어(서버의 초성 검색어). `ㅂ송`처럼 섞인 말은 아니다 */
+export const isChosungOnly = (keyword: string) =>
+  /^[ㄱ-ㅎ\s]+$/.test(keyword) && /[ㄱ-ㅎ]/.test(keyword)
+
+/** 초성 검색: 띄어쓰기를 뺀 초성이 원문 앞부분이거나 낱말 앞부분이다 */
+function chosungHit(text: string | null, keyword: string) {
+  if (!text) return false
+  const key = keyword.replace(/\s+/g, '')
+  const chosung = chosungOf(text)
+  return (
+    chosung.replace(/\s+/g, '').startsWith(key) ||
+    chosung.split(/\s+/).some((word) => word.startsWith(key))
+  )
+}
+
+/** 관련도: 제목 > 콘텐츠 제목·판매자 닉네임 > 소개. 초성 검색어는 제목·판매자 닉네임 초성으로 찾는다 */
 function relevance(d: SearchDoc, keyword: string) {
+  if (isChosungOnly(keyword)) {
+    if (chosungHit(d.title, keyword)) return 3
+    return chosungHit(d.sellerNickname, keyword) ? 2 : 0
+  }
   const has = (text: string | null) =>
     !!text && text.toLowerCase().includes(keyword.toLowerCase())
   if (has(d.title)) return 3
@@ -255,6 +294,82 @@ export function mockLectureSearch({
     /** 다음 검색 요청 times번을 이 오류로 거절한다 */
     fail(code: SearchFailure, times = 1) {
       failure = { code, times }
+    },
+  }
+}
+
+/** 자동완성: 제목·판매자 닉네임의 낱말 앞부분, 초성 검색어면 초성 앞부분 */
+function suggests(d: SearchDoc, keyword: string) {
+  if (isChosungOnly(keyword))
+    return chosungHit(d.title, keyword) || chosungHit(d.sellerNickname, keyword)
+  const startsWord = (text: string | null) =>
+    !!text &&
+    (text.toLowerCase().startsWith(keyword.toLowerCase()) ||
+      text
+        .toLowerCase()
+        .split(/\s+/)
+        .some((word) => word.startsWith(keyword.toLowerCase())))
+  return startsWord(d.title) || startsWord(d.sellerNickname)
+}
+
+/**
+ * 강의 검색어 자동완성(GET /search/lectures/suggestions) 흉내. keyword가 없으면 400, 50자를 넘으면 400 INVALID_REQUEST,
+ * 정리해 비면 빈 목록이다. 후보는 최대 5개(리뷰 많은 순). 받은 쿼리를 requests에 모은다.
+ * fail(…)로 429·503을 몇 번 줄지, hold(검색어)로 그 검색어의 응답을 풀 때까지 미룬다(늦게 온 응답 확인용).
+ */
+export function mockLectureSuggestions({
+  docs = SEARCH_DOCS,
+}: { docs?: SearchDoc[] } = {}) {
+  const requests: URLSearchParams[] = []
+  const held = new Map<string, Promise<void>>()
+  let failure: { code: SearchFailure; times: number } | null = null
+
+  server.use(
+    http.get('*/api/v1/search/lectures/suggestions', async ({ request }) => {
+      const params = new URL(request.url).searchParams
+      requests.push(params)
+      const raw = params.get('keyword')
+      if (raw === null || raw.length > 50)
+        return problem(400, 'INVALID_REQUEST', '요청 값이 올바르지 않습니다.')
+      const keyword = raw.trim().replace(/\s+/g, ' ')
+      if (!keyword)
+        return HttpResponse.json({ statusCode: 200, message: '', data: [] })
+      await held.get(keyword)
+      if (failure && failure.times > 0) {
+        failure.times -= 1
+        return failure.code === 'TOO_MANY_REQUESTS'
+          ? problem(429, 'TOO_MANY_REQUESTS', '요청이 너무 많습니다.', {
+              'Retry-After': '30',
+            })
+          : problem(503, 'SEARCH_UNAVAILABLE', '지금은 검색할 수 없습니다.')
+      }
+      return HttpResponse.json({
+        statusCode: 200,
+        message: '강의 검색어 자동완성 후보를 찾았습니다.',
+        data: docs
+          .filter((d) => suggests(d, keyword))
+          .sort((a, b) => b.reviewCount - a.reviewCount)
+          .slice(0, 5)
+          .map(({ lectureId, title, sellerNickname }) => ({
+            lectureId,
+            title,
+            sellerNickname,
+          })),
+      })
+    }),
+  )
+
+  return {
+    requests,
+    /** 다음 자동완성 요청 times번을 이 오류로 거절한다 */
+    fail(code: SearchFailure, times = 1) {
+      failure = { code, times }
+    },
+    /** 이 검색어의 응답을 돌려준 함수를 부를 때까지 미룬다 */
+    hold(keyword: string) {
+      let release = () => {}
+      held.set(keyword, new Promise<void>((resolve) => (release = resolve)))
+      return () => release()
     },
   }
 }

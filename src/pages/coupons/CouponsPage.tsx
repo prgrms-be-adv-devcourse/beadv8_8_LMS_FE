@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useSearchParams } from 'react-router'
+import { Link } from 'react-router'
 import { myCouponsQuery } from '@/entities/coupon/api'
 import { MemberCouponStatusPill } from '@/entities/coupon/ui/CouponStatusPill'
 import {
@@ -10,6 +10,7 @@ import {
 import type { MemberCoupon, MemberCouponStatus } from '@/entities/coupon/types'
 import { lectureQuery } from '@/entities/lecture/api'
 import { formatDate } from '@/shared/lib/date'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -24,14 +25,14 @@ const FILTERS: { status: MemberCouponStatus; empty: string }[] = [
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 사용 가능이고, 기본값일 때는 URL에서 뺀다. */
 function useStatusParam() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const status =
     FILTERS.find((f) => f.status === params.get('status'))?.status ??
     'AVAILABLE'
   const setStatus = (next: MemberCouponStatus) => {
     const search = new URLSearchParams()
     if (next !== 'AVAILABLE') search.set('status', next)
-    setParams(search)
+    merge(() => search)
   }
   return [status, setStatus] as const
 }

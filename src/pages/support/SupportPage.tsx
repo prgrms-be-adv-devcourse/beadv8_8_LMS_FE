@@ -6,6 +6,7 @@ import { isInquiryCategory } from '@/entities/inquiry/category'
 import type { InquirySort } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
 import { NewInquiryForm } from '@/features/inquiry/NewInquiryForm'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { useSearchDraft } from '@/shared/lib/useSearchDraft'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -42,16 +43,20 @@ export function SupportPage() {
  * 내 문의 검색어·정렬은 URL에 둔다(?q=&sort=). 바꾸면 첫 페이지로 간다. 페이지는 usePageParam이 맡는다.
  * 상세에서 돌아와도 보던 목록이 남는다. 새 문의 미리 채우기 값(category·orderItemId)은 건드리지 않는다.
  */
-function useListParams() {
-  const [params, setParams] = useSearchParams()
+function parseListParams(params: URLSearchParams) {
   const keyword = params.get('q') ?? ''
   const sort: InquirySort =
     params.get('sort') === 'OLDEST' ? 'OLDEST' : 'LATEST'
+  return { keyword, sort }
+}
 
-  const update = (next: Partial<{ keyword: string; sort: InquirySort }>) => {
-    const merged = { keyword, sort, ...next }
-    setParams((prev) => {
-      const search = new URLSearchParams(prev)
+function useListParams() {
+  const [params, merge] = useMergedSearchParams()
+  const { keyword, sort } = parseListParams(params)
+
+  const update = (next: Partial<{ keyword: string; sort: InquirySort }>) =>
+    merge((search) => {
+      const merged = { ...parseListParams(search), ...next }
       if (merged.keyword) search.set('q', merged.keyword)
       else search.delete('q')
       if (merged.sort !== 'LATEST') search.set('sort', merged.sort)
@@ -59,7 +64,6 @@ function useListParams() {
       search.delete('page')
       return search
     })
-  }
   return { keyword, sort, update }
 }
 

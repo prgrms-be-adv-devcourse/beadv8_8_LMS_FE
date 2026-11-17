@@ -148,6 +148,18 @@ export type LectureSearchItem = {
   highlights: LectureSearchHighlights | null
 }
 
+/**
+ * GET /search/lectures/suggestions 후보 하나. 제목·판매자 닉네임의 낱말 앞부분(초성·치는 도중의 글자 포함)으로 걸린다.
+ * 검색어 강조는 없다(초성으로 맞은 후보는 강조할 자리가 없다)
+ */
+export type LectureSuggestion = {
+  lectureId: number
+  /** 원문 */
+  title: string
+  /** 아직 모르면 null */
+  sellerNickname: string | null
+}
+
 /** GET /lectures/thumbnails. 요청한 강의 ID마다 키가 있고, 썸네일을 줄 수 없는 강의는 null이다 */
 export type LectureThumbnails = Record<string, string | null>
 

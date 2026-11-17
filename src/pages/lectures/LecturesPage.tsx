@@ -4,7 +4,6 @@ import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
   LECTURE_BROWSE_SORTS,
-  LECTURE_KEYWORD_MAX,
   listSortOf,
   normalizeKeyword,
   parseBrowseSort,
@@ -12,6 +11,7 @@ import {
 } from '@/entities/lecture/search'
 import type { LectureBrowseSort } from '@/entities/lecture/types'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
+import { LectureKeywordBox } from '@/features/lecture-search/LectureKeywordBox'
 import { LectureRecommendWidget } from '@/features/recommend-widget/LectureRecommendWidget'
 import { LectureSearchResults } from '@/features/lecture-search/LectureSearchResults'
 import { useKeywordInput } from '@/features/lecture-search/useKeywordInput'
@@ -67,8 +67,10 @@ export function LecturesPage() {
   const { keyword, sort, update } = useBrowseParams()
   const [page, setPage] = usePageParam('page')
   // 검색어를 고쳐 가는 동안(검색어 → 다른 검색어)은 방문 기록을 하나만 남긴다
-  const { draft, setDraft, submit } = useKeywordInput(keyword, (next) =>
-    update({ keyword: next }, { replace: keyword !== '' && next !== '' }),
+  const { draft, setDraft, submit, searchFor } = useKeywordInput(
+    keyword,
+    (next) =>
+      update({ keyword: next }, { replace: keyword !== '' && next !== '' }),
   )
   const flagsOf = (lecture: CardLecture) => buyerFlags(lecture, buyer)
 
@@ -101,14 +103,11 @@ export function LecturesPage() {
       )}
       <div className="toolbar">
         <form className={styles.search} role="search" onSubmit={search}>
-          <input
-            className="input"
-            type="search"
+          <LectureKeywordBox
             value={draft}
-            maxLength={LECTURE_KEYWORD_MAX}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="강의 제목, 강 제목, 판매자로 찾기"
-            aria-label="강의 검색"
+            onChange={setDraft}
+            guest={guest}
+            onSearchTitle={searchFor}
           />
           <button type="submit" className="btn">
             검색
