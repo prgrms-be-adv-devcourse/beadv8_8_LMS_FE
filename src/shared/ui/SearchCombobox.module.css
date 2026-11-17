@@ -1,0 +1,31 @@
+.box {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+/* 후보 목록. 상단 헤더(z-index 20)보다 아래에 둔다. 움직임은 넣지 않는다 */
+.list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.option[aria-selected='true'] {
+  background: var(--sunken);
+}

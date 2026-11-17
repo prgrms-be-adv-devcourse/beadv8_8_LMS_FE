@@ -7,6 +7,8 @@ import type { ContentCategory, RatingSummary } from './types'
 
 /** 검색어 최대 길이 (BE ApiV1SearchSpec) */
 export const SEARCH_KEYWORD_MAX = 100
+/** 자동완성 검색어 최대 길이 (BE ApiV1SearchSpec). 본 검색(100자)보다 짧아 넘는 부분은 잘라 보낸다 */
+export const SUGGESTION_KEYWORD_MAX = 50
 /** 콘텐츠 분야 필터 최대 개수 (BE ApiV1SearchSpec) */
 export const SEARCH_CATEGORY_MAX = 10
 /** 앞에서부터 볼 수 있는 검색 결과 수. totalElements도 여기까지만 센다 (BE InfluencerSearchFacade) */
@@ -104,4 +106,35 @@ export const influencerSearchQuery = (
       }),
     placeholderData: keepPreviousData,
     retry: (count, error) => !isApiError(error) && count < 2,
+  })
+
+/** GET /search/influencers/suggestions 후보 하나. 닉네임 낱말 앞부분(초성·치는 도중의 글자 포함)으로 걸린다 */
+export type InfluencerSuggestion = {
+  userId: number
+  nickname: string
+}
+
+/** 서버처럼 앞뒤·연속 공백을 정리하고 자동완성 최대 길이로 자른다. 비면 빈 문자열(부르지 않는다)이다 */
+export function suggestionKeyword(value: string) {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, SUGGESTION_KEYWORD_MAX)
+    .trim()
+}
+
+/**
+ * 인플루언서 검색어 자동완성(로그인 회원). 후보는 최대 5개이고 호출 제한은 없다.
+ * 실패(503·연결 끊김)하면 부른 쪽이 후보만 숨기므로 다시 부르지 않는다. 쓰지 않게 된 요청은 signal로 끊는다
+ */
+export const influencerSuggestionsQuery = (keyword: string) =>
+  queryOptions({
+    queryKey: [...memberKeys.all, 'search-suggestions', keyword] as const,
+    queryFn: ({ signal }) =>
+      api<InfluencerSuggestion[]>('/search/influencers/suggestions', {
+        query: { keyword },
+        signal,
+      }),
+    staleTime: 60_000,
+    retry: false,
   })
