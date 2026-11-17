@@ -1,6 +1,7 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { CHATBOT_WINDOW_ID } from './ChatbotLauncher'
 import styles from './ChatbotWindow.module.css'
+import { Composer } from './Composer'
 import { Greeting } from './Greeting'
 import { MessageList } from './MessageList'
 import { clearConversation, closeChatbot, useChatbotStore } from './store'
@@ -68,6 +69,7 @@ export function ChatbotWindow() {
         <Greeting active={items.length === 0} />
         <MessageList items={items} />
       </div>
+      <Composer />
     </section>
   )
 }

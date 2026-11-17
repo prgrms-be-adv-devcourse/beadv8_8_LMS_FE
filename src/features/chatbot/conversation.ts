@@ -1,4 +1,6 @@
 import type {
+  ChatCards,
+  FaqSource,
   InfluencerRecommendation,
   LectureRecommendation,
 } from '@/entities/chatbot/types'
@@ -56,8 +58,46 @@ export type RecommendationItem = {
   | { target: 'INFLUENCER'; result: InfluencerRecommendation | null }
 )
 
+/**
+ * 질문을 보낼 곳
+ * - FREE: 자유 질문(지난 대화를 함께 보내고 추천 카드가 올 수 있다)
+ * - FAQ: FAQ에서만 찾아 답한다(질문 하나만 보낸다)
+ */
+export type AskMode = 'FREE' | 'FAQ'
+
+/** 사용자가 입력창에 직접 쓴 질문(내 말풍선). 답을 받았으면 history에 USER로 넣는다 */
+export type QuestionItem = {
+  id: string
+  kind: 'question'
+  mode: AskMode
+  text: string
+}
+
+/**
+ * 챗봇의 답. 스트림 조각(token)을 이어 붙인다. 글이 있으면 history에 ASSISTANT로 넣는다(카드·근거·오류 안내는 넣지 않는다).
+ * - streaming: 받는 중 / done: 끝 / error: 글을 받다가 실패(받은 글은 남기고 errorMessage를 붙인다)
+ */
+export type AnswerItem = {
+  id: string
+  kind: 'answer'
+  mode: AskMode
+  status: 'streaming' | 'done' | 'error'
+  text: string
+  /** 추천을 부른 종류의 카드(자유 질문만). cards 이벤트로만 그린다 */
+  cards: ChatCards
+  /** 답이 참고한 FAQ */
+  sources: FaqSource[]
+  errorMessage: string | null
+}
+
 /** 화면에 쌓이는 말풍선 하나. id로 찾아 바꾸고, 이미 지운(새 대화) id로 늦게 온 결과는 무시한다 */
-export type ChatItem = GuideItem | ChoiceItem | NoticeItem | RecommendationItem
+export type ChatItem =
+  | GuideItem
+  | ChoiceItem
+  | NoticeItem
+  | RecommendationItem
+  | QuestionItem
+  | AnswerItem
 
 /** 대화 끝에 말풍선을 더한다 */
 export function appendItem(items: readonly ChatItem[], item: ChatItem) {
@@ -107,7 +147,9 @@ export function choose(
 /** 답을 기다리는 말풍선이 있는지. 있으면 버튼·입력을 잠근다(같은 요청을 두 번 보내지 않게) */
 export function isBusy(items: readonly ChatItem[]) {
   return items.some(
-    (item) => item.kind === 'recommendation' && item.result === null,
+    (item) =>
+      (item.kind === 'recommendation' && item.result === null) ||
+      (item.kind === 'answer' && item.status === 'streaming'),
   )
 }
 

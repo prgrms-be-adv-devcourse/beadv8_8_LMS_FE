@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { appendItem, type ChatItem } from './conversation'
+import { appendItem, type AskMode, type ChatItem } from './conversation'
 import {
   clearSavedConversation,
   loadConversation,
@@ -13,6 +13,10 @@ type ChatbotState = {
   memberId: number | null
   /** 대화(오래된 것부터). 이 탭의 sessionStorage에도 둔다(persistence.ts) */
   items: readonly ChatItem[]
+  /** 입력창에 쓴 질문을 보낼 곳. FAQ 질문하기를 고르면 다음 한 번만 FAQ다 */
+  mode: AskMode
+  /** 입력창에 포커스를 줄 때마다 늘린다(입력창이 바뀐 값을 보고 포커스를 옮긴다) */
+  focusTick: number
 }
 
 /** 앱 전역 챗봇 상태. 창을 닫거나 다른 화면으로 옮겨도 대화가 남도록 컴포넌트 밖에 둔다 */
@@ -20,6 +24,8 @@ export const useChatbotStore = create<ChatbotState>(() => ({
   open: false,
   memberId: null,
   items: [],
+  mode: 'FREE',
+  focusTick: 0,
 }))
 
 // 대화가 바뀔 때마다 저장한다(회원이 있을 때만).
@@ -63,6 +69,16 @@ export function toggleChatbot() {
   useChatbotStore.setState((s) => ({ open: !s.open }))
 }
 
+/** 입력창에 쓴 질문을 보낼 곳을 정한다 */
+export function setAskMode(mode: AskMode) {
+  useChatbotStore.setState({ mode })
+}
+
+/** 입력창으로 포커스를 옮긴다(자유 질문·FAQ 질문하기를 고르거나 답이 끝났을 때) */
+export function focusComposer() {
+  useChatbotStore.setState((s) => ({ focusTick: s.focusTick + 1 }))
+}
+
 /** 대화 끝에 말풍선을 더한다 */
 export function addItem(item: ChatItem) {
   useChatbotStore.setState((s) => ({ items: appendItem(s.items, item) }))
@@ -95,7 +111,7 @@ function abortAll() {
 /** 새 대화: 진행 중인 요청을 끊고 대화를 비운다. 창은 그대로 둔다 */
 export function clearConversation() {
   abortAll()
-  useChatbotStore.setState({ items: [] })
+  useChatbotStore.setState({ items: [], mode: 'FREE' })
 }
 
 /**
@@ -111,12 +127,18 @@ export function startSession(memberId: number) {
     open: false,
     memberId,
     items: saved?.memberId === memberId ? saved.items : [],
+    mode: 'FREE',
   })
 }
 
 /** 로그아웃·로그인 만료: 진행 중인 요청을 끊고 대화와 저장값을 지우고 창을 닫는다 */
 export function endSession() {
   abortAll()
-  useChatbotStore.setState({ open: false, memberId: null, items: [] })
+  useChatbotStore.setState({
+    open: false,
+    memberId: null,
+    items: [],
+    mode: 'FREE',
+  })
   clearSavedConversation()
 }

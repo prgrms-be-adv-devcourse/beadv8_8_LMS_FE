@@ -1,0 +1,103 @@
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+/* FAQ 질문하기 중 표시 */
+.mode {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: var(--signal-soft);
+  color: var(--signal);
+  font-size: 12px;
+  font-weight: 600;
+  animation: mode-in 0.18s ease-out;
+}
+.modeOff {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+.modeOff:hover {
+  background: color-mix(in srgb, var(--signal) 15%, transparent);
+}
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.field {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 120px;
+}
+.field:focus {
+  outline: none;
+  border-color: var(--ink-3);
+}
+.field:disabled {
+  background: var(--sunken);
+  color: var(--ink-3);
+}
+.send {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--signal);
+  color: var(--signal-ink);
+  display: grid;
+  place-items: center;
+  transition: transform 0.08s;
+}
+.send:active:not(:disabled) {
+  transform: scale(0.92);
+}
+.send:disabled {
+  background: var(--sunken);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+.counter {
+  align-self: flex-end;
+  font: 11px var(--f-mono);
+  color: var(--ink-3);
+}
+.over {
+  color: var(--bad);
+}
+@keyframes mode-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mode {
+    animation: none;
+  }
+  .send {
+    transition: none;
+  }
+}

@@ -1,3 +1,4 @@
+import { AnswerBubble } from './AnswerBubble'
 import styles from './bubbles.module.css'
 import { isLatest, type ChatItem } from './conversation'
 import { QuickReplies } from './QuickReplies'
@@ -31,6 +32,21 @@ export function MessageList({ items }: { items: readonly ChatItem[] }) {
           case 'recommendation':
             return (
               <RecommendationBubble
+                key={item.id}
+                item={item}
+                active={isLatest(items, item.id)}
+                onChoose={onChoose}
+              />
+            )
+          case 'question':
+            return (
+              <div key={item.id} className={styles.me}>
+                <p className={styles.bubble}>{item.text}</p>
+              </div>
+            )
+          case 'answer':
+            return (
+              <AnswerBubble
                 key={item.id}
                 item={item}
                 active={isLatest(items, item.id)}

@@ -170,11 +170,15 @@ export type ChatbotMockState = {
   widget: () => Reply
   /** 자유 질문 스트림 응답 */
   stream: (request: ChatRequest) => Reply
+  /** FAQ 질문하기 스트림 응답(POST /chatbot/chat/faq/stream) */
+  faqStream: (message: string) => Reply
   /** 받은 요청 기록 */
   faqQueries: (string | null)[]
   lectureInterests: (string | null)[]
   influencerInterests: (string | null)[]
   streamRequests: ChatRequest[]
+  /** FAQ 질문하기로 받은 본문 */
+  faqRequests: unknown[]
   widgetCalls: number
 }
 
@@ -190,7 +194,21 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
         { event: 'token', data: { text: '안녕하세요' } },
         { event: 'done', data: { sources: [], fallback: false } },
       ]),
+    faqStream: () =>
+      sseResponse([
+        { event: 'token', data: { text: 'FAQ에서 찾은 답이에요.' } },
+        {
+          event: 'done',
+          data: {
+            sources: [
+              { code: 'HP_REFUND', question: 'HP 환불은 어떻게 하나요?' },
+            ],
+            fallback: false,
+          },
+        },
+      ]),
     faqQueries: [],
+    faqRequests: [],
     lectureInterests: [],
     influencerInterests: [],
     streamRequests: [],
@@ -237,6 +255,11 @@ export function mockChatbot(init: Partial<ChatbotMockState> = {}) {
       const body = (await request.json()) as ChatRequest
       state.streamRequests.push(body)
       return state.stream(body)
+    }),
+    http.post('*/api/v1/chatbot/chat/faq/stream', async ({ request }) => {
+      const body = (await request.json()) as { message: string }
+      state.faqRequests.push(body)
+      return state.faqStream(body.message)
     }),
     ...Object.keys(INFLUENCER_NICKNAMES).map((id) =>
       http.get(`*/api/v1/members/${id}`, () => rs(profileOf(Number(id)))),

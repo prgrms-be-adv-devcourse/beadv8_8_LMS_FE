@@ -1,3 +1,4 @@
+import { restoreAnswer } from './answer'
 import type { ChatItem } from './conversation'
 
 /**
@@ -13,18 +14,24 @@ export type SavedConversation = { memberId: number; items: ChatItem[] }
 
 type Stored = SavedConversation & { version: number }
 
-/** 저장해 둘 말풍선. 진행 중인 요청은 새로고침하면 끊기므로 끝난 말풍선만 남긴다 */
+/**
+ * 저장해 둘 말풍선. 진행 중인 요청은 새로고침하면 끊기므로 결과를 기다리던 추천은 버리고,
+ * 받던 답은 받은 글까지 남기고 끊겼다고 표시한다. 모르는 종류(옛 형식)는 버린다.
+ */
 export function restorableItems(items: readonly ChatItem[]): ChatItem[] {
-  return items.filter((item) => {
+  return items.flatMap((item): ChatItem[] => {
     switch (item.kind) {
       case 'guide':
       case 'choice':
       case 'notice':
-        return true
+      case 'question':
+        return [item]
       case 'recommendation':
-        return item.result !== null
+        return item.result === null ? [] : [item]
+      case 'answer':
+        return [restoreAnswer(item)]
       default:
-        return false
+        return []
     }
   })
 }

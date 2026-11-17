@@ -55,10 +55,10 @@ export function useRecommend() {
         {
           id: newItemId(),
           kind: 'notice',
-          text: errorNotice(
-            error,
-            '추천을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
-          ),
+          text: errorNotice(error, {
+            fallback: '추천을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.',
+            invalid: '관심사는 앞뒤 공백을 빼고 1~100자로 적어 주세요.',
+          }),
         },
         {
           id: newItemId(),

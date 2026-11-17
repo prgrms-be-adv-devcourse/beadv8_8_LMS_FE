@@ -5,7 +5,7 @@ import { clearAccessToken, setAccessToken } from '@/shared/auth/token'
 import { mockChatbot, sseResponse, tooManyRequests } from '@/test/chatbotMock'
 import { rs } from '@/test/renderApp'
 import { server } from '@/test/server'
-import { streamChat } from './stream'
+import { streamChat, streamFaqChat } from './stream'
 import type { ChatStreamEvent } from './types'
 
 afterEach(() => clearAccessToken())
@@ -87,5 +87,14 @@ describe('streamChat', () => {
     )
     const error = await collect().catch((e: unknown) => e)
     expect(isApiError(error, 'UNAUTHORIZED') && error.sessionEnded).toBe(true)
+  })
+
+  it('FAQ 질문하기는 질문 하나만 FAQ 스트림 API로 보낸다', async () => {
+    setAccessToken('t1', 900)
+    const state = mockChatbot()
+    const events: ChatStreamEvent[] = []
+    await streamFaqChat('환불은?', { onEvent: (e) => events.push(e) })
+    expect(state.faqRequests).toEqual([{ message: '환불은?' }])
+    expect(events.map((e) => e.type)).toEqual(['token', 'done'])
   })
 })

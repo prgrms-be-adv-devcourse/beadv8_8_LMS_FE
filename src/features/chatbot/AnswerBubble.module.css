@@ -1,0 +1,43 @@
+/* 받는 중인 글 끝의 깜빡이는 커서 */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--ink-2);
+  animation: blink 0.9s steps(2, start) infinite;
+}
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.sources {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sourcesTitle {
+  font-weight: 600;
+}
+.sources ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.note {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.error {
+  font-size: 13px;
+  color: var(--bad);
+}
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    animation: none;
+  }
+}
