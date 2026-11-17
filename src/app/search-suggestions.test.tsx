@@ -105,7 +105,40 @@ describe('강의 검색어 자동완성', () => {
     expect(lectureList()).toBeNull()
   })
 
-  it('앞 검색어의 응답이 늦게 와도 마지막 입력의 후보만 보인다', async () => {
+  it('입력을 줄여도 멈추기 전에는 받아 둔 이전 검색어의 후보를 보이지 않는다', async () => {
+    mockLectureSearch()
+    const suggestions = mockLectureSuggestions()
+    renderApp('/lectures', 'GUEST')
+    await screen.findByRole('combobox', { name: '강의 검색' })
+
+    await userEvent.type(lectureBox(), '방송 장')
+    expect(await findOption(/방송 장비 가이드/)).toBeInTheDocument()
+
+    // '방'으로 줄이면 멈춘 검색어는 아직 '방송 장'이다. 그 후보(캐시)를 '방'의 후보처럼 보이지 않는다
+    await userEvent.type(lectureBox(), '{Backspace}{Backspace}{Backspace}')
+    expect(lectureBox()).toHaveValue('방')
+    expect(options()).toHaveLength(0)
+    expect(lectureBox()).toHaveAttribute('aria-expanded', 'false')
+
+    // 멈추면 '방'의 후보로 바뀐다
+    await waitFor(() => expect(options()).toHaveLength(5))
+    expect(suggestions.requests.at(-1)?.get('keyword')).toBe('방')
+  })
+
+  it('판매자 닉네임을 모르는 후보는 제목만 보인다', async () => {
+    mockLectureSearch()
+    mockLectureSuggestions()
+    renderApp('/lectures', 'GUEST')
+    await screen.findByRole('combobox', { name: '강의 검색' })
+
+    await userEvent.type(lectureBox(), '방송 장')
+    // 시험 강의 16은 sellerNickname이 null이다
+    const option = await findOption(/방송 장비 가이드/)
+    expect(option.textContent).toBe('방송 장비 가이드')
+    expect(option.children).toHaveLength(1)
+  })
+
+  it('늦게 온 앞 검색어의 응답이 다른 검색어의 후보를 덮지 않는다', async () => {
     mockLectureSearch()
     const suggestions = mockLectureSuggestions()
     const release = suggestions.hold('방')
