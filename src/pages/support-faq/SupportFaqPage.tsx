@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router'
 import { faqsQuery } from '@/entities/chatbot/api'
 import {
   FAQ_CATEGORIES,
@@ -8,6 +7,7 @@ import {
 } from '@/entities/chatbot/labels'
 import type { FaqCategory } from '@/entities/chatbot/types'
 import { FaqList } from '@/entities/chatbot/ui/FaqList'
+import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -26,13 +26,13 @@ const TAB_ITEMS: { value: Tab; label: string }[] = [
  * 고른 분류는 URL(?category=)에 두고, 모르는 값이면 전체로 본다. 분류는 너비에 맞춰 여러 줄로 놓는다.
  */
 export function SupportFaqPage() {
-  const [params, setParams] = useSearchParams()
+  const [params, merge] = useMergedSearchParams()
   const raw = params.get('category')
   const category = isFaqCategory(raw) ? raw : null
 
   const choose = (tab: Tab) =>
-    setParams((prev) => {
-      const next = new URLSearchParams(prev)
+    merge((current) => {
+      const next = new URLSearchParams(current)
       if (tab === 'ALL') next.delete('category')
       else next.set('category', tab)
       return next
