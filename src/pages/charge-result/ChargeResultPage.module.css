@@ -1,0 +1,191 @@
+/* 충전 결과: 위쪽 색 막대가 결과를 먼저 알린다(성공=수익 초록, 실패=빨강, 확인 중=신호색, 취소=회색) */
+.result:global(.panel) {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  padding: 40px 28px 28px;
+  gap: 14px;
+}
+.result::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--line);
+}
+.ok::before {
+  background: var(--earn);
+}
+.bad::before {
+  background: var(--bad);
+}
+/* 확인 중: 신호색 조각이 막대를 따라 흐른다(진행 중 표시) */
+.wait::before {
+  background: color-mix(in srgb, var(--signal) 22%, transparent);
+}
+.wait::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 3px;
+  background: var(--grad-signal);
+  transform: translateX(-100%);
+  animation: sweep 1.3s var(--ease-in-out) infinite;
+}
+@keyframes sweep {
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.title {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.text {
+  max-width: 46ch;
+  color: var(--ink-2);
+}
+
+.ico:global(.result-ico) {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  animation: pop var(--t-slow) var(--ease-spring) both;
+}
+.wait .ico:global(.result-ico) {
+  animation: none;
+}
+/* 확인 중: 아이콘 둘레가 천천히 번지며 "기다리는 중"을 보인다 */
+.wait .ico::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--signal) 45%, transparent);
+  opacity: 0;
+  animation: halo 1.6s var(--ease-out) infinite;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes halo {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+/* 성공 체크: 원이 튀어나온 뒤 체크가 그려진다 */
+.check {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.check path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw 320ms var(--ease-out) 180ms forwards;
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 영수증처럼 읽히는 결제 내역 */
+.receipt:global(.breakdown) {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  gap: 10px;
+  margin-top: 4px;
+}
+.orderRow:global(.row) {
+  align-items: center;
+}
+.orderCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+.orderId {
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  padding: 3px 8px;
+  user-select: all;
+  min-width: 0;
+}
+.copy:global(.btn) {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.note {
+  text-align: center;
+  margin-top: 4px;
+}
+
+@media (max-width: 480px) {
+  .result:global(.panel) {
+    padding: 32px 16px 20px;
+  }
+  .title {
+    font-size: 22px;
+  }
+  .orderRow:global(.row) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .orderCell {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .orderCell :global(.order-id) {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wait::after,
+  .wait .ico::after,
+  .ico:global(.result-ico) {
+    animation: none;
+  }
+  .wait::after {
+    display: none;
+  }
+  .check path {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

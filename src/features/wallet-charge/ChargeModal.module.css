@@ -1,0 +1,115 @@
+/* 빠른 금액: 같은 폭의 타일로 나란히. 고른 타일에는 작은 신호색 램프를 켠다 */
+.presets:global(.amt-chips) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.presets :global(.chip) {
+  position: relative;
+  min-height: 44px;
+  border-radius: var(--r-sm);
+  font: 600 15px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+.presets :global(.chip):hover {
+  border-color: var(--ink-3);
+}
+.presets :global(.chip):active {
+  transform: scale(0.97);
+}
+.presets :global(.chip.on) {
+  color: var(--surface);
+}
+.presets :global(.chip.on)::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+@media (max-width: 480px) {
+  .presets:global(.amt-chips) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 직접 입력: 숫자를 크게, 단위는 칸 안 오른쪽에 */
+.amountBox {
+  position: relative;
+}
+.amountInput:global(.input) {
+  font-size: 24px;
+  font-weight: 600;
+  padding: 10px 40px 10px 14px;
+  min-height: 52px;
+  letter-spacing: -0.01em;
+}
+.unit {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.reading {
+  margin-top: -8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.reading :global(.num) {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* 확인 전 요약: 결제 수단과 충전될 HP */
+.summary:global(.breakdown) {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  gap: 10px;
+}
+.method {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.method::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--charge);
+}
+.total:global(.row) {
+  align-items: baseline;
+  font-weight: 600;
+}
+.total b {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.total small {
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 4px;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .presets :global(.chip) {
+    transition: none;
+  }
+}

@@ -9,6 +9,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { isUserCancel } from '@/shared/lib/tossPayments'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
+import styles from './ChargeModal.module.css'
 import { useStartCharge } from './useStartCharge'
 
 type ChargeModalProps = {
@@ -56,7 +57,11 @@ export function ChargeModal({
         </>
       }
     >
-      <div className="amt-chips">
+      <div
+        className={`amt-chips ${styles.presets}`}
+        role="group"
+        aria-label="빠른 금액 선택"
+      >
         {CHARGE_PRESETS.map((preset) => (
           <button
             key={preset}
@@ -75,28 +80,41 @@ export function ChargeModal({
         error={value === '' ? undefined : (error ?? undefined)}
         hint="1,000원 단위 · 1원 = 1 HP"
       >
-        <input
-          id="charge-amount"
-          className="input num"
-          inputMode="numeric"
-          value={value}
-          onChange={(e) =>
-            setValue(
-              e.target.value
-                .replace(/\D/g, '')
-                .slice(0, CHARGE_INPUT_MAX_DIGITS),
-            )
-          }
-        />
+        <div className={styles.amountBox}>
+          <input
+            id="charge-amount"
+            className={`input num ${styles.amountInput}`}
+            inputMode="numeric"
+            value={value}
+            onChange={(e) =>
+              setValue(
+                e.target.value
+                  .replace(/\D/g, '')
+                  .slice(0, CHARGE_INPUT_MAX_DIGITS),
+              )
+            }
+          />
+          <span className={styles.unit} aria-hidden="true">
+            원
+          </span>
+        </div>
       </Field>
-      <div className="breakdown">
+      {amount >= 10_000 && (
+        <p className={styles.reading}>
+          <span className="num">{readAmount(amount)}</span>을 결제해요
+        </p>
+      )}
+      <div className={`breakdown ${styles.summary}`}>
         <div className="row sub">
           <span>결제 수단</span>
-          <span>토스페이먼츠 (테스트)</span>
+          <span className={styles.method}>토스페이먼츠 (테스트)</span>
         </div>
-        <div className="row total">
+        <div className={`row total ${styles.total}`}>
           <span>충전될 HP</span>
-          <b className="num">+{formatNumber(amount)}</b>
+          <b className="num c-charge">
+            +{formatNumber(amount)}
+            <small>HP</small>
+          </b>
         </div>
       </div>
       {start.error && <StartError error={start.error} />}
@@ -125,6 +143,15 @@ function StartError({ error }: { error: unknown }) {
       {message}
     </div>
   )
+}
+
+/** 큰 금액을 만 단위로 읽어 준다(예: 125,000 → 12만 5,000원). 자릿수를 잘못 읽지 않게 돕는 표시용이다. */
+function readAmount(amount: number): string {
+  const man = Math.floor(amount / 10_000)
+  const rest = amount % 10_000
+  return rest
+    ? `${formatNumber(man)}만 ${formatNumber(rest)}원`
+    : `${formatNumber(man)}만 원`
 }
 
 /** SDK 오류는 Error가 아닐 수도 있어 message만 꺼낸다. */

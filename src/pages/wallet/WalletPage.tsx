@@ -19,7 +19,8 @@ import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { tossClientKey } from '@/shared/lib/tossPayments'
 import { PageHead } from '@/shared/ui/PageHead'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
+import styles from './WalletPage.module.css'
 
 /**
  * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, HP 거래 원장.
@@ -67,7 +68,7 @@ export function WalletPage() {
       {error && !wallet ? (
         <LoadError error={error} retry={() => void refetch()} />
       ) : !wallet ? (
-        <Loading />
+        <WalletCardsSkeleton />
       ) : (
         <WalletCards
           wallet={wallet}
@@ -117,21 +118,39 @@ function WalletCards({
   onRefund,
   onExchange,
 }: WalletCardsProps) {
+  // 막대는 BE가 준 잔액의 몫만 나눠 보인다(금액을 다시 계산하지 않는다). 둘 다 0이면 빈 막대.
+  const charge = wallet.chargeBalanceHp
+  const revenue = earns ? wallet.revenueBalanceHp : 0
+  const empty = charge <= 0 && revenue <= 0
   return (
     <div className="wallet-grid">
-      <section className="bal" aria-label="보유 HP">
+      <section className={`bal ${styles.card}`} aria-label="보유 HP">
+        <span className={styles.band} aria-hidden="true">
+          {!empty && (
+            <>
+              <i
+                className={styles.charge}
+                style={{ flexGrow: Math.max(charge, 0) }}
+              />
+              <i
+                className={styles.earn}
+                style={{ flexGrow: Math.max(revenue, 0) }}
+              />
+            </>
+          )}
+        </span>
         <div className="lbl">
-          <span>보유 HP</span>
+          <span className={styles.eyebrow}>보유 HP</span>
           <span className="fine">바로 쓸 수 있는 HP</span>
         </div>
-        <div className="amt">
+        <div className={`amt ${styles.amt}`}>
           {formatNumber(wallet.availableTotalHp)}
           <small>HP</small>
         </div>
-        <div className="hold-lines">
+        <div className={`hold-lines ${styles.lines}`}>
           <div>
             <span>
-              <i className="dot charge" />
+              <i className="dot charge" aria-hidden="true" />
               충전 HP
             </span>
             <span className="num c-charge">
@@ -141,7 +160,7 @@ function WalletCards({
           {earns && (
             <div>
               <span>
-                <i className="dot earn" />
+                <i className="dot earn" aria-hidden="true" />
                 수익 HP
               </span>
               <span className="num c-earn">
@@ -155,10 +174,10 @@ function WalletCards({
             ? '충전한 HP와 출연료·강의 판매로 받은 HP를 합친 금액이에요.'
             : '충전한 HP 중 아직 쓰지 않은 금액이에요.'}
         </p>
-        <div className="acts">
+        <div className={`acts ${styles.acts}`}>
           <button
             type="button"
-            className="btn primary sm"
+            className="btn primary"
             disabled={!canCharge}
             onClick={onCharge}
           >
@@ -166,7 +185,7 @@ function WalletCards({
           </button>
           <button
             type="button"
-            className="btn sm"
+            className="btn"
             disabled={!canRefund(wallet.chargeBalanceHp)}
             onClick={onRefund}
           >
@@ -175,7 +194,7 @@ function WalletCards({
           {earns && (
             <button
               type="button"
-              className="btn sm"
+              className="btn"
               disabled={!canExchange(wallet.revenueBalanceHp)}
               onClick={onExchange}
             >
@@ -184,31 +203,65 @@ function WalletCards({
           )}
         </div>
       </section>
-      <section className="bal" aria-label="보류 중">
+      <section
+        className={`bal ${styles.card} ${styles.held}`}
+        aria-label="보류 중"
+      >
+        <span className={styles.band} aria-hidden="true">
+          <i className={styles.hold} />
+        </span>
         <div className="lbl">
-          <span>
-            <i className="dot hold" />
+          <span className={styles.eyebrow}>
+            <i className="dot hold" aria-hidden="true" />
             보류 중
           </span>
           <span className="pill warn">사용 불가</span>
         </div>
-        <div className="amt c-hold">
+        <div className={`amt c-hold ${styles.amt}`}>
           {formatNumber(wallet.heldTotalHp)}
           <small>HP</small>
         </div>
-        <div className="hold-lines">
+        <div className={`hold-lines ${styles.lines}`}>
           <div>
-            <span className="muted">충전 보류</span>
+            <span className="muted">
+              <i className="dot charge" aria-hidden="true" />
+              충전 보류
+            </span>
             <span className="num">{formatNumber(wallet.heldChargeHp)}</span>
           </div>
           {earns && (
             <div>
-              <span className="muted">수익 보류</span>
+              <span className="muted">
+                <i className="dot earn" aria-hidden="true" />
+                수익 보류
+              </span>
               <span className="num">{formatNumber(wallet.heldRevenueHp)}</span>
             </div>
           )}
         </div>
+        <p className={styles.why}>
+          강의 결제·출연료·환전·환불처럼 아직 끝나지 않은 거래에 묶인 HP예요.
+          거래가 끝나면 상대에게 지급되거나 다시 쓸 수 있게 돌아와요.
+        </p>
       </section>
+    </div>
+  )
+}
+
+/** 잔액을 받기 전: 카드 모양 그대로 금액 자리만 비워 둔다(화면이 덜컥 바뀌지 않게). */
+function WalletCardsSkeleton() {
+  return (
+    <div className="wallet-grid" role="status">
+      <span className="sr-only">불러오는 중…</span>
+      {[0, 1].map((i) => (
+        <div key={i} className={`bal ${styles.card}`} aria-hidden="true">
+          <span className={styles.band} />
+          <span className={`${styles.skel} ${styles.skLbl}`} />
+          <span className={`${styles.skel} ${styles.skAmt}`} />
+          <span className={`${styles.skel} ${styles.skLine}`} />
+          <span className={`${styles.skel} ${styles.skShort}`} />
+        </div>
+      ))}
     </div>
   )
 }

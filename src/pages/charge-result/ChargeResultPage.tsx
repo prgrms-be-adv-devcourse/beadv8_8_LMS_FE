@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router'
 import { cartQuery } from '@/entities/cart/api'
 import { walletQuery } from '@/entities/wallet/api'
@@ -13,6 +13,7 @@ import {
   type ChargeFailure,
 } from '@/features/wallet-charge/useChargeConfirm'
 import { formatNumber } from '@/shared/lib/money'
+import styles from './ChargeResultPage.module.css'
 
 const USER_CANCELED = 'PAY_PROCESS_CANCELED'
 
@@ -48,7 +49,7 @@ export function ChargeResultPage() {
           }}
         />
       )}
-      <p className="fine" style={{ textAlign: 'center' }}>
+      <p className={`fine ${styles.note}`}>
         테스트 결제라 실제 금액은 청구되지 않아요.
       </p>
     </div>
@@ -209,7 +210,11 @@ type ResultPanelProps = {
 }
 
 const ICON: Record<ResultPanelProps['tone'], ReactNode> = {
-  ok: '✓',
+  ok: (
+    <svg className={styles.check} viewBox="0 0 24 24" focusable="false">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  ),
   bad: '!',
   mute: '×',
   wait: <span className="spinner" />,
@@ -225,13 +230,16 @@ function ResultPanel({
   actions,
 }: ResultPanelProps) {
   return (
-    <section className="panel result" aria-busy={tone === 'wait' && !actions}>
-      <span className={`result-ico ${tone}`} aria-hidden="true">
+    <section
+      className={`panel result ${styles.result} ${styles[tone]}`}
+      aria-busy={tone === 'wait' && !actions}
+    >
+      <span className={`result-ico ${tone} ${styles.ico}`} aria-hidden="true">
         {ICON[tone]}
       </span>
-      <h1>{title}</h1>
-      <p className="lede">{text}</p>
-      <div className="breakdown">
+      <h1 className={styles.title}>{title}</h1>
+      <p className={`lede ${styles.text}`}>{text}</p>
+      <div className={`breakdown ${styles.receipt}`}>
         {amount !== null && (
           <div className="row sub">
             <span>결제 금액</span>
@@ -243,14 +251,45 @@ function ResultPanel({
           <span>토스페이먼츠 (테스트)</span>
         </div>
         {orderId && (
-          <div className="row sub">
+          <div className={`row sub ${styles.orderRow}`}>
             <span>주문 번호</span>
-            <span className="num order-id">{orderId}</span>
+            <span className={styles.orderCell}>
+              <span className={`num order-id ${styles.orderId}`}>
+                {orderId}
+              </span>
+              <CopyButton text={orderId} />
+            </span>
           </div>
         )}
         {rows}
       </div>
       {actions && <div className="result-actions">{actions}</div>}
     </section>
+  )
+}
+
+/** 문의할 때 주문 번호를 옮겨 적지 않게 복사 버튼을 둔다. 클립보드를 못 쓰는 환경(http 등)이면 숨긴다. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1600)
+    return () => clearTimeout(timer)
+  }, [copied])
+  if (typeof navigator.clipboard?.writeText !== 'function') return null
+  return (
+    <button
+      type="button"
+      className={`btn sm ghost ${styles.copy}`}
+      title="주문 번호 복사"
+      onClick={() =>
+        navigator.clipboard.writeText(text).then(
+          () => setCopied(true),
+          () => setCopied(false),
+        )
+      }
+    >
+      {copied ? '복사됨' : '복사'}
+    </button>
   )
 }
