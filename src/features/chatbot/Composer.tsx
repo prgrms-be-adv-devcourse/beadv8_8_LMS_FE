@@ -77,7 +77,7 @@ export function Composer() {
               ? '답을 기다리는 중이에요…'
               : mode === 'FAQ'
                 ? 'FAQ에서 찾을 질문을 적어 주세요'
-                : '무엇이든 물어보세요'
+                : '구체적으로 물어보세요 (예: 영상 편집 입문 강의 추천해 줘)'
           }
           value={value}
           disabled={busy}
