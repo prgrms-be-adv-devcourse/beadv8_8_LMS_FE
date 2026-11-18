@@ -7,30 +7,127 @@
   gap: 8px;
   border-bottom: 0;
   overflow: visible;
+  margin-bottom: 4px;
 }
 .categories :global(.tab) {
   margin: 0;
+  min-height: 36px;
   padding: 6px 14px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--surface);
   color: var(--ink-2);
   font-size: 14px;
+  box-shadow: var(--shadow-1);
   transition:
-    background 0.12s,
-    color 0.12s;
+    background var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
 }
 .categories :global(.tab:hover) {
   color: var(--ink);
   border-color: var(--line-2);
 }
+.categories :global(.tab:active) {
+  transform: scale(0.96);
+}
+.categories :global(.tab:focus-visible) {
+  outline: none;
+  box-shadow: var(--ring);
+}
+/* 고른 분류: 잉크 칩 + 신호색 점(선택됨) */
 .categories :global(.tab.on) {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--surface);
 }
+.categories :global(.tab.on)::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--signal);
+  vertical-align: middle;
+}
+
+/* 목록 아래 다음 길: 챗봇·고객센터 */
+.askMore {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.askMark {
+  flex: none;
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--surface);
+  display: grid;
+  place-items: center;
+}
+/* 챗봇 버튼과 같은 탤리 램프 */
+.askMark::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+.askText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.askText h2 {
+  font-size: 16px;
+  font-weight: 700;
+}
+.askText p {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.askActions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .askMore {
+    flex-wrap: wrap;
+  }
+  .askText {
+    flex-basis: calc(100% - 64px);
+  }
+  .askActions {
+    flex-basis: 100%;
+  }
+  .askActions > * {
+    flex: 1;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .categories :global(.tab) {
     transition: none;
+  }
+  .categories :global(.tab:active) {
+    transform: none;
   }
 }

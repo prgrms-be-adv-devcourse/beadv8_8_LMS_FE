@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { formatDate } from '@/shared/lib/date'
 import type { InquirySummary } from '../types'
+import styles from './Inquiry.module.css'
 import { CategoryPill, InquiryStatusPill } from './InquiryPills'
 
 type Props = {
@@ -14,27 +15,16 @@ export function InquiryList({ inquiries, to, showUser }: Props) {
   return (
     <ul className="rows" aria-label="문의 목록">
       {inquiries.map((q) => (
-        <li key={q.inquiryId} className="row-item">
-          <Link
-            to={to(q.inquiryId)}
-            className="row-main"
-            style={{ color: 'inherit', textDecoration: 'none' }}
-          >
-            <span
-              style={{
-                display: 'flex',
-                gap: 6,
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              }}
-            >
+        <li key={q.inquiryId} className={`row-item ${styles.row}`}>
+          <Link to={to(q.inquiryId)} className={`row-main ${styles.link}`}>
+            <span className={styles.meta}>
               <CategoryPill category={q.category} />
-              <span className="fine">
+              <span className={styles.date}>
                 {showUser && `회원 #${q.userId} · `}
                 {formatDate(q.createdAt)}
               </span>
             </span>
-            <span className="row-title">{q.title}</span>
+            <span className={`row-title ${styles.rowTitle}`}>{q.title}</span>
           </Link>
           <InquiryStatusPill status={q.status} />
         </li>

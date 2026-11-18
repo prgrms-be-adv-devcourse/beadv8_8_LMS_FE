@@ -1,8 +1,8 @@
-/* 말풍선 (src/pages/chat/ChatPage.module.css의 .bubble과 같은 모양, 말꼬리 쪽 모서리만 작게) */
+/* 말풍선: 답은 흰 면(얇은 테두리 + 놓인 그림자), 내 질문은 잉크. 말꼬리 쪽 모서리만 작게 */
 .list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 .list:empty {
   display: none;
@@ -15,14 +15,16 @@
   max-width: 88%;
   min-width: 0;
   /* 새 말풍선은 살짝 떠오르며 나타난다 */
-  animation: bubble-in 0.2s ease-out both;
+  animation: bubble-in var(--t) var(--ease-out) both;
 }
 .bot {
   align-self: flex-start;
+  transform-origin: left bottom;
 }
 .me {
   align-self: flex-end;
   align-items: flex-end;
+  transform-origin: right bottom;
 }
 /* 카드를 담는 말풍선은 창 너비를 다 쓴다 */
 .wide {
@@ -30,38 +32,47 @@
   max-width: 100%;
 }
 .bubble {
-  padding: 9px 13px;
-  border-radius: 4px 14px 14px 14px;
-  background: var(--sunken);
+  padding: 10px 14px;
+  border-radius: var(--r-xs) var(--r-lg) var(--r-lg) var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-size: 14px;
+  line-height: 1.6;
 }
 .wide > .bubble {
   align-self: flex-start;
   max-width: 88%;
 }
 .me .bubble {
-  border-radius: 14px 4px 14px 14px;
+  border-radius: var(--r-lg) var(--r-xs) var(--r-lg) var(--r-lg);
   background: var(--ink);
+  border-color: var(--ink);
   color: var(--surface);
 }
-/* 안내(호출 한도·오류). 대화가 아니라 history에 넣지 않는다 */
+/* 안내(호출 한도·오류). 대화가 아니라 history에 넣지 않는다. 가운데 작은 띠로 대화와 구분한다 */
 .notice {
   align-self: center;
   max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   text-align: center;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--ink-2);
-  background: var(--sunken);
-  border-radius: 999px;
+  background: var(--surface);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-pill);
   padding: 6px 14px;
-  animation: bubble-in 0.2s ease-out both;
+  animation: bubble-in var(--t) var(--ease-out) both;
 }
 @keyframes bubble-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px) scale(0.97);
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -1,0 +1,62 @@
+/* 문의 목록·상세 머리 */
+.meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.date {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* 목록 행: 줄 전체가 눌리는 링크처럼 보이게 호버 면을 깔고, 상태 필은 오른쪽에 둔다 */
+.row:global(.row-item) {
+  position: relative;
+  margin: 0 -10px;
+  padding: 14px 10px;
+  border-radius: var(--r-sm);
+  transition: background var(--t-fast) var(--ease-out);
+}
+.row:hover {
+  background: var(--hover);
+}
+.row:has(.link:active) {
+  background: var(--press);
+}
+.link {
+  color: inherit;
+  text-decoration: none;
+}
+/* 링크가 줄 전체를 덮어 어디를 눌러도 상세로 간다 */
+.link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.link:focus-visible {
+  outline: none;
+}
+.link:focus-visible::after {
+  box-shadow: var(--ring);
+}
+.rowTitle {
+  overflow-wrap: anywhere;
+}
+.row:hover .rowTitle {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--line-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    transition: none;
+  }
+}

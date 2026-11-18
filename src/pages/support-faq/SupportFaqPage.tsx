@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router'
 import { faqsQuery } from '@/entities/chatbot/api'
 import {
   FAQ_CATEGORIES,
@@ -7,6 +8,10 @@ import {
 } from '@/entities/chatbot/labels'
 import type { FaqCategory } from '@/entities/chatbot/types'
 import { FaqList } from '@/entities/chatbot/ui/FaqList'
+import { ChatbotIcon } from '@/features/chatbot/ChatbotIcon'
+import { focusComposer, openChatbot } from '@/features/chatbot/store'
+import { MEMBER } from '@/shared/auth/role'
+import { useViewer } from '@/shared/auth/session'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -54,7 +59,45 @@ export function SupportFaqPage() {
           <Faqs category={category} />
         </Tabs>
       </div>
+      <AskMore />
     </div>
+  )
+}
+
+/**
+ * 목록 아래 다음 길: 챗봇 창을 열어 바로 입력칸으로 보내고, 회원(관리자 제외)에게는 고객센터 문의도 함께 보인다.
+ * 이 화면은 로그인 회원만 들어오므로 챗봇은 누구나 쓸 수 있다.
+ */
+function AskMore() {
+  const viewer = useViewer()
+  const canInquire = !!viewer && MEMBER.includes(viewer)
+  return (
+    <section className={styles.askMore} aria-labelledby="faq-ask-more">
+      <span className={styles.askMark} aria-hidden="true">
+        <ChatbotIcon size={22} />
+      </span>
+      <div className={styles.askText}>
+        <h2 id="faq-ask-more">찾는 답이 없나요?</h2>
+        <p>챗봇에게 상황을 적어 물어보면 FAQ를 찾아 답해 드려요.</p>
+      </div>
+      <div className={styles.askActions}>
+        <button
+          type="button"
+          className="btn primary"
+          onClick={() => {
+            openChatbot()
+            focusComposer()
+          }}
+        >
+          챗봇에게 물어보기
+        </button>
+        {canInquire && (
+          <Link to="/support" className="btn ghost">
+            고객센터 문의
+          </Link>
+        )}
+      </div>
+    </section>
   )
 }
 

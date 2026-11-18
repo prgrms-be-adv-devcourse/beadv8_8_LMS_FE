@@ -1,6 +1,7 @@
 /*
  * 겹침 순서: 헤더 20 < 챗봇 25 < 드로어 30·40 < 모달 50 < 토스트 60
  * 버튼 크기·위치는 채팅창 위치의 기준이라 ChatbotWindow.module.css의 --launcher-* 와 맞춘다(바꿀 때 함께 바꾼다).
+ * 모양: 잉크 원(스튜디오 장비) + 신호색 점(탤리 램프). 넓은 면을 주황으로 칠하지 않는다.
  */
 .launcher {
   position: fixed;
@@ -11,24 +12,75 @@
   height: 56px;
   border-radius: 50%;
   border: 0;
-  background: var(--signal);
-  color: var(--signal-ink);
-  box-shadow: var(--shadow);
-  display: grid;
-  place-items: center;
-  transition: transform 0.15s ease-out;
-}
-.launcher:hover {
-  transform: scale(1.06);
-}
-/* 열려 있을 때: 닫기 버튼 */
-.open {
   background: var(--ink);
   color: var(--surface);
+  box-shadow: var(--shadow-2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    transform var(--t) var(--ease-out),
+    box-shadow var(--t) var(--ease-out);
 }
-.closeMark {
-  font-size: 20px;
-  line-height: 1;
+.launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
+}
+.launcher:active {
+  transform: scale(0.94);
+  transition-duration: var(--t-fast);
+}
+.launcher:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-2), var(--ring);
+}
+
+/* 두 아이콘을 같은 칸에 겹쳐 두고 하나만 보인다 */
+.icon {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  transition:
+    transform var(--t) var(--ease-out),
+    opacity var(--t-fast) var(--ease-out);
+}
+.closeIcon {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.6);
+}
+.open .botIcon {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.6);
+}
+.open .closeIcon {
+  opacity: 1;
+  transform: none;
+}
+
+/* 탤리 램프: 닫혀 있을 때 오른쪽 위에서 잔잔히 숨 쉰다. 잉크 테두리로 원과 떼어 놓는다 */
+.tally {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 2px var(--ink);
+  transition:
+    transform var(--t) var(--ease-out),
+    opacity var(--t-fast) var(--ease-out);
+  animation: tally 2.4s var(--ease-in-out) infinite;
+}
+.open .tally {
+  opacity: 0;
+  transform: scale(0.4);
+  animation: none;
+}
+@keyframes tally {
+  50% {
+    opacity: 0.55;
+  }
 }
 
 /* 좁은 화면: 가운데 아래 토스트(최대 폭 = 화면 - 32px)와 겹치지 않게 그 위로 올린다 */
@@ -39,9 +91,20 @@
     width: 52px;
     height: 52px;
   }
+  .tally {
+    top: 6px;
+    right: 6px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .launcher {
+  .launcher,
+  .icon,
+  .tally {
     transition: none;
+    animation: none;
+  }
+  .launcher:hover,
+  .launcher:active {
+    transform: none;
   }
 }

@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 14px 10px;
+  padding: 10px 14px 8px;
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
@@ -13,16 +13,16 @@
   align-items: center;
   gap: 4px;
   padding: 2px 4px 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--signal-soft);
-  color: var(--signal);
+  color: var(--signal-text);
   font-size: 12px;
   font-weight: 600;
-  animation: mode-in 0.18s ease-out;
+  animation: mode-in var(--t) var(--ease-out);
 }
 .modeOff {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: 0;
   border-radius: 50%;
   background: none;
@@ -30,62 +30,104 @@
   display: grid;
   place-items: center;
   font-size: 11px;
+  cursor: pointer;
 }
 .modeOff:hover {
   background: color-mix(in srgb, var(--signal) 15%, transparent);
 }
+.modeOff:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+/* 입력칸과 보내기 버튼을 한 상자에 담는다. 포커스는 상자 전체에 링으로 보인다 */
 .form {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px 4px 4px 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    background var(--t-fast) var(--ease-out);
+}
+.form:focus-within {
+  border-color: var(--signal);
+  box-shadow: var(--ring);
+}
+/* 답을 기다리는 동안 잠긴 상태 */
+.form:has(.field:disabled) {
+  background: var(--sunken);
+  border-color: var(--line);
 }
 .field {
   flex: 1;
   min-width: 0;
   resize: none;
-  border: 1px solid var(--line-2);
-  border-radius: 12px;
-  background: var(--surface);
-  padding: 9px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 7px 10px;
+  font: inherit;
   font-size: 14px;
   line-height: 1.5;
   max-height: 120px;
 }
 .field:focus {
   outline: none;
-  border-color: var(--ink-3);
 }
-.field:disabled {
-  background: var(--sunken);
+.field::placeholder {
   color: var(--ink-3);
 }
+.field:disabled {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+/* 창에서 가장 중요한 행동 하나라 신호색으로 채운다 */
 .send {
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border: 0;
   border-radius: 50%;
   background: var(--signal);
   color: var(--signal-ink);
   display: grid;
   place-items: center;
-  transition: transform 0.08s;
+  cursor: pointer;
+  transition:
+    background var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+.send:hover:not(:disabled) {
+  background: var(--signal-strong);
 }
 .send:active:not(:disabled) {
-  transform: scale(0.92);
+  transform: scale(0.9);
+}
+.send:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 .send:disabled {
   background: var(--sunken);
   color: var(--ink-3);
   cursor: not-allowed;
 }
+.form:has(.field:disabled) .send:disabled {
+  background: transparent;
+}
 .counter {
   align-self: flex-end;
   font: 11px var(--f-mono);
+  letter-spacing: 0.02em;
   color: var(--ink-3);
 }
 .over {
   color: var(--bad);
+  font-weight: 600;
 }
 @keyframes mode-in {
   from {
@@ -97,6 +139,7 @@
   .mode {
     animation: none;
   }
+  .form,
   .send {
     transition: none;
   }

@@ -38,13 +38,31 @@ export function ChatbotLauncher({
           : openLoginModal('챗봇은 로그인한 뒤에 쓸 수 있어요.')
       }
     >
-      {open ? (
-        <span className={styles.closeMark} aria-hidden="true">
-          ✕
-        </span>
-      ) : (
-        <ChatbotIcon size={30} />
-      )}
+      {/* 두 아이콘을 겹쳐 두고 열림 여부로 회전·페이드 전환한다. 신호색 점은 닫혀 있을 때의 '대기 중' 램프다 */}
+      <span className={`${styles.icon} ${styles.botIcon}`} aria-hidden="true">
+        <ChatbotIcon size={28} />
+      </span>
+      <span className={`${styles.icon} ${styles.closeIcon}`} aria-hidden="true">
+        <CloseIcon />
+      </span>
+      <span className={styles.tally} aria-hidden="true" />
     </button>
+  )
+}
+
+/** 닫기 표시. 글자(✕)는 서체마다 굵기·위치가 달라 선으로 그린다 */
+function CloseIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
   )
 }

@@ -1,26 +1,60 @@
 /* 알림 목록 (docs/mockup-ui.html AlertsScreen, .alert-item·.alert-dot·.todo-main) */
 .list {
-  padding: 4px 20px;
+  padding: 6px;
+  gap: 2px;
 }
 .item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
+  min-height: 64px;
   border: 0;
-  border-top: 1px solid var(--line);
+  border-radius: var(--r-sm);
   background: none;
   text-align: left;
-  padding: 14px 0;
+  padding: 12px 14px 12px 10px;
   font-size: 14px;
-  color: inherit;
+  color: var(--ink-2);
+  cursor: default;
+  transition: background var(--t-fast) var(--ease-out);
+}
+/* 사이 구분선: 둥근 행 사이에 짧게 */
+.item + .item::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  /* 점·아이콘을 지나 글자 시작점부터 */
+  left: 76px;
+  right: 14px;
+  border-top: 1px solid var(--line);
+}
+/* 누르면 무언가 일어나는 알림(안 읽음 또는 갈 곳 있음)만 손가락 모양·호버 */
+.unread,
+.navigable {
+  cursor: pointer;
+}
+.unread:hover,
+.navigable:hover {
+  background: var(--hover);
+}
+.unread:active,
+.navigable:active {
+  background: var(--press);
 }
 .item[aria-disabled='true'] {
   cursor: default;
 }
-.item:first-child {
-  border-top: 0;
+.item:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
+.unread {
+  color: var(--ink);
+}
+
+/* 왼쪽 신호색 점(탤리 램프): 안 읽은 알림에만 켜진다 */
 .dot {
   width: 8px;
   height: 8px;
@@ -30,15 +64,136 @@
 }
 .dot.on {
   background: var(--signal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 18%, transparent);
 }
+
+/* 종류 아이콘 */
+.icon {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  background: var(--sunken);
+  color: var(--ink-3);
+}
+.unread .icon {
+  background: var(--ink);
+  color: var(--surface);
+}
+
 .main {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  overflow-wrap: anywhere;
 }
 /* 안 읽은 알림의 문구 (목업의 hot: fontWeight 600) */
 .main b {
   font-weight: 600;
+}
+.time {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
+.go {
+  flex: none;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+  transition:
+    transform var(--t) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.navigable:hover .go {
+  color: var(--ink);
+  transform: translateX(3px);
+}
+
+/* 화면을 연 뒤 들어온 알림: 신호색 바탕이 한 번 번쩍였다가 가라앉는다 */
+.fresh {
+  animation: arrive var(--t-slow) var(--ease-out) both;
+}
+.fresh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--signal-soft);
+  pointer-events: none;
+  opacity: 0;
+  animation: flash 1.6s var(--ease-out);
+}
+/* 강조 바탕 위로 글자·아이콘을 올린다 */
+.fresh > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes flash {
+  0%,
+  25% {
+    opacity: 1;
+  }
+}
+
+/* 빈 상태: 공용 빈 상태 상자 위쪽에 그림을 얹는다 */
+.empty {
+  position: relative;
+}
+.empty :global(.empty-state) {
+  padding-top: 140px;
+}
+.emptyArt {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  margin-left: -44px;
+}
+.artBg {
+  fill: var(--sunken);
+}
+.artLine {
+  stroke: var(--ink-3);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.artLamp {
+  fill: var(--line-2);
+}
+
+@media (max-width: 560px) {
+  .list {
+    padding: 4px;
+  }
+  .item {
+    gap: 10px;
+    padding: 12px 10px 12px 6px;
+  }
+  .item + .item::before {
+    left: 68px;
+    right: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .go {
+    transition: none;
+  }
+  .navigable:hover .go {
+    transform: none;
+  }
+  .fresh,
+  .fresh::after {
+    animation: none;
+  }
 }

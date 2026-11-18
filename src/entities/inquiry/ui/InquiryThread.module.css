@@ -1,35 +1,90 @@
+/* 문의 스레드: 왼쪽 얼굴 표식을 세로선으로 이은 대화 */
 .thread {
-  padding: 4px 20px;
-  gap: 0;
+  padding: 20px;
+  gap: 16px;
 }
 .msg {
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+/* 다음 글까지 잇는 세로선 */
+.msg:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 40px;
+  bottom: -14px;
+  border-left: 2px solid var(--line);
+}
+.avatar {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+.admin .avatar {
+  background: var(--ink);
+  color: var(--surface);
+}
+.card {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs) var(--r) var(--r) var(--r);
+  background: var(--surface);
 }
-.msg:first-child {
-  border-top: 0;
-}
-.admin {
-  background: var(--sunken);
-  margin: 0 -20px;
-  padding: 14px 20px;
+.admin .card {
+  background: var(--surface-2);
+  border-left: 3px solid var(--ink);
 }
 .head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px 10px;
   font-size: 13px;
   flex-wrap: wrap;
+}
+.time {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
 }
 .spacer {
   flex: 1;
 }
 .text {
   font-size: 14px;
-  color: var(--ink-2);
+  line-height: 1.7;
+  color: var(--ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  .thread {
+    padding: 14px;
+  }
+  .msg {
+    gap: 10px;
+  }
+  .avatar {
+    width: 30px;
+    height: 30px;
+  }
+  .msg:not(:last-child)::before {
+    left: 14px;
+    top: 34px;
+  }
+  .card {
+    padding: 10px 12px 12px;
+  }
 }
