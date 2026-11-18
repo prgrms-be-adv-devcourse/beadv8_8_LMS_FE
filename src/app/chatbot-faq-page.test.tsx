@@ -129,14 +129,14 @@ describe('자주 묻는 질문 페이지', () => {
     expect(labels).not.toContain('고객센터')
   })
 
-  it('챗봇 첫 인사의 "FAQ 전체 보기 ↗"는 창을 연 채로 이 화면으로 가고 대화에 남지 않는다', async () => {
+  it('챗봇 창 헤더의 "FAQ ↗"는 창을 연 채로 이 화면으로 가고 대화에 남지 않는다', async () => {
     const user = userEvent.setup()
     mockChatbot()
     const router = renderApp('/lectures', 'USER')
     await user.click(await screen.findByRole('button', { name: '챗봇 열기' }))
     const dialog = await screen.findByRole('dialog', { name: '합방 챗봇' })
     await user.click(
-      within(dialog).getByRole('link', { name: 'FAQ 전체 보기 ↗' }),
+      within(dialog).getByRole('link', { name: 'FAQ 전체 보기' }),
     )
     expect(router.state.location.pathname).toBe('/support/faq')
     expect(
