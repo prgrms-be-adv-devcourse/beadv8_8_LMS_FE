@@ -1,0 +1,223 @@
+/* 신호 없음 화면: 컬러바 모니터 + 큰 모노 코드 + 제목 + 행동 버튼 */
+.screen {
+  max-width: 520px;
+  min-height: min(72vh, 640px);
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: rise var(--t-slow) var(--ease-out);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 모니터: 흰 베젤 안에 컬러바 화면, 오른쪽 위 탤리 램프 */
+.monitor {
+  position: relative;
+  width: min(320px, 100%);
+  padding: 10px;
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-2);
+  margin-bottom: 28px;
+}
+.tally {
+  position: absolute;
+  top: -5px;
+  right: 18px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-2);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+.screen[data-tone='error'] .tally {
+  background: var(--bad);
+  animation: blink 1.2s var(--ease-in-out) infinite;
+}
+.screen[data-tone='nosignal'] .tally {
+  background: var(--signal);
+}
+.glass {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 66fr 9fr 25fr;
+  background: var(--ink);
+}
+.bars,
+.subBars,
+.pluge {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.pluge {
+  grid-template-columns: 5fr 5fr 5fr 9fr 4fr;
+}
+.glass span[data-c='gray'] {
+  background: color-mix(in srgb, var(--line-2) 70%, var(--surface));
+}
+.glass span[data-c='yellow'] {
+  background: color-mix(in srgb, var(--hold) 70%, var(--hold-soft));
+}
+.glass span[data-c='cyan'] {
+  background: color-mix(in srgb, var(--charge) 45%, var(--earn));
+}
+.glass span[data-c='green'] {
+  background: var(--earn);
+}
+.glass span[data-c='magenta'] {
+  background: color-mix(in srgb, var(--bad) 60%, var(--charge));
+}
+.glass span[data-c='red'] {
+  background: var(--signal);
+}
+.glass span[data-c='blue'] {
+  background: var(--charge);
+}
+.glass span[data-c='black'] {
+  background: var(--ink);
+}
+.glass span[data-c='white'] {
+  background: var(--surface);
+}
+.glass span[data-c='navy'] {
+  background: color-mix(in srgb, var(--charge) 40%, var(--ink));
+}
+.glass span[data-c='violet'] {
+  background: color-mix(in srgb, var(--bad) 45%, var(--charge));
+}
+.screen[data-tone='standby'] .bars,
+.screen[data-tone='standby'] .subBars,
+.screen[data-tone='standby'] .pluge {
+  opacity: 0.55;
+}
+.screen[data-tone='error'] .bars {
+  animation: jitter 2.4s steps(1) infinite;
+}
+
+/* 화면 위 안내 띠(장식). 글자는 data-label에서 가져와 DOM 글자로 남지 않는다 */
+.glass::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 7px 12px;
+  border-radius: var(--r-xs);
+  background: color-mix(in srgb, var(--ink) 82%, transparent);
+  color: var(--surface);
+  font: 600 11px/1 var(--f-mono);
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+/* 위에서 아래로 지나가는 주사선 */
+.scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 30%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--surface) 22%, transparent),
+    transparent
+  );
+  transform: translateY(-100%);
+  animation: scan 3.6s linear infinite;
+}
+@keyframes scan {
+  to {
+    transform: translateY(340%);
+  }
+}
+@keyframes jitter {
+  0%,
+  86%,
+  100% {
+    transform: none;
+  }
+  88% {
+    transform: translateX(-3px);
+  }
+  92% {
+    transform: translateX(4px);
+  }
+}
+@keyframes blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.bigCode {
+  margin: 0 0 6px;
+  font: 600 clamp(44px, 10vw, 64px) / 1 var(--f-mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.code {
+  margin: 0 0 10px;
+  font: 600 11px/1.2 var(--f-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--signal-text);
+}
+.title {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.25;
+  color: var(--ink);
+}
+h2.title {
+  font-size: 22px;
+}
+.desc {
+  margin: 10px 0 0;
+  max-width: 36ch;
+}
+.actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.actions > :global(.btn) {
+  min-height: 40px;
+}
+
+@media (max-width: 480px) {
+  .screen {
+    padding: 32px 4px;
+  }
+  .title {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen,
+  .scan,
+  .tally,
+  .screen[data-tone='error'] .tally,
+  .screen[data-tone='error'] .bars {
+    animation: none;
+  }
+  .scan {
+    display: none;
+  }
+}

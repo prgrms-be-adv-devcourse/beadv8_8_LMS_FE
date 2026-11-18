@@ -6,6 +6,30 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#ffffff"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#171a20"
+    />
+    <script>
+      // 첫 그리기 전에 저장된 화면 테마를 적용해 깜빡임을 막는다. 키·값·색은 src/shared/lib/theme.ts와 같다.
+      try {
+        var t = localStorage.getItem('hapbang.theme')
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.dataset.theme = t
+          document
+            .querySelectorAll('meta[name="theme-color"]')
+            .forEach(function (m) {
+              m.content = t === 'dark' ? '#171a20' : '#ffffff'
+            })
+        }
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

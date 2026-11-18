@@ -1,306 +1,266 @@
 .root {
+  /* 상단 바 높이. 레일(sticky)·드로어가 이 아래에서 시작한다. 본문에서 sticky 요소를 둘 때도 이 값을 쓴다 */
+  --app-top: 60px;
   min-height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg);
 }
 
-/* 상단 바 */
-.top {
+/* 키보드로 처음 Tab을 누르면 보이는 본문 건너뛰기 링크 */
+.skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 70;
+  padding: 10px 16px;
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: var(--shadow-3);
+  opacity: 0;
+  transform: translateY(-160%);
+  transition:
+    transform var(--t) var(--ease-out),
+    opacity var(--t) var(--ease-out);
+}
+.skip:focus {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── 상단 바(공통): 유리 면. 스크롤하면 아래에 얇은 그림자가 깔린다 ── */
+.bar {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--line);
+  height: var(--app-top);
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 10px 16px;
+  padding: 0 max(16px, env(safe-area-inset-right)) 0
+    max(16px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(14px);
+  backdrop-filter: saturate(1.8) blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .bar {
+    background: var(--surface);
+  }
+}
+.bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 14px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--ink) 9%, transparent),
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--t) var(--ease-out);
+}
+.bar[data-scrolled='true']::after {
+  opacity: 1;
+}
+.homeTop {
+  padding-inline: max(24px, env(safe-area-inset-left))
+    max(24px, env(safe-area-inset-right));
+}
+
+/* 로고: 마우스를 올리면 ON AIR 램프가 켜진다 */
 .logo {
-  font-family: var(--f-display);
-  font-size: 26px;
-  line-height: 1;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
-  letter-spacing: -0.01em;
+  border-radius: var(--r-sm);
   text-decoration: none;
   color: var(--ink);
+}
+.wordmark {
+  font-family: var(--f-display);
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.logo:hover .wordmark {
+  transform: translateY(-1px);
+}
+.logo:active .wordmark {
+  transform: scale(0.97);
 }
 .onair {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font: 600 10px var(--f-mono);
+  gap: 5px;
+  font: 600 10px/1 var(--f-mono);
   letter-spacing: 0.1em;
-  color: var(--signal);
-  border: 1.5px solid var(--signal);
-  border-radius: 4px;
-  padding: 1px 5px 1px 4px;
+  color: var(--signal-text);
+  background: color-mix(in srgb, var(--signal) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--signal) 55%, transparent);
+  border-radius: var(--r-xs);
+  padding: 4px 6px 4px 5px;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
 }
-.onair::before {
-  content: '';
+.logo:hover .onair {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--signal-ink);
+}
+.lamp {
+  position: relative;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--signal);
-  animation: blink 1.6s infinite;
+  animation: blink 1.6s var(--ease-in-out) infinite;
+}
+/* 램프 둘레로 번지는 빛 */
+.lamp::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--signal);
+  opacity: 0;
+  animation: halo 1.6s var(--ease-out) infinite;
+}
+.logo:hover .lamp,
+.logo:hover .lamp::after {
+  background: var(--signal-ink);
 }
 @keyframes blink {
   50% {
-    opacity: 0.25;
+    opacity: 0.3;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .onair::before {
-    animation: none;
+@keyframes halo {
+  0% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
   }
 }
+
 .right {
   margin-left: auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
+/* 지갑 HP 칸. 동전 테두리는 충전(파랑)+수익(초록)을 합친 잔액이라는 표시다 */
 .hpPill {
+  min-width: 0;
+  height: 40px;
   display: flex;
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
   background: var(--surface);
-  border-radius: 999px;
-  padding: 5px 12px 5px 6px;
+  border-radius: var(--r-pill);
+  padding: 0 14px 0 5px;
   text-decoration: none;
   color: var(--ink);
   font-weight: 600;
+  white-space: nowrap;
+  box-shadow: var(--shadow-1);
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+.hpPill:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
+}
+.hpPill:active {
+  transform: scale(0.98);
+}
+.hpPill > :last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .coin {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--surface);
-  font: 700 10px var(--f-mono);
-  display: grid;
-  place-items: center;
-}
-.meText small {
-  display: block;
-  color: var(--ink-3);
-  font-size: 11px;
-  line-height: 1.2;
-}
-
-/* 셸 */
-.shell {
-  display: grid;
-  grid-template-columns: 216px minmax(0, 1fr);
-  flex: 1;
-}
-.side {
-  border-right: 1px solid var(--line);
-  padding: 20px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.navGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.navGroup h4 {
-  margin: 0 0 4px 10px;
-  font: 600 11px var(--f-mono);
-  letter-spacing: 0.08em;
-  color: var(--ink-3);
-}
-.navItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 8px;
-  color: var(--ink-2);
-  font-weight: 500;
-  text-decoration: none;
-}
-.navItem:hover {
-  background: var(--sunken);
-  color: var(--ink);
-}
-.navItem.on {
-  background: var(--ink);
-  color: var(--surface);
-}
-.main {
-  padding: 28px 32px 64px;
-  min-width: 0;
-}
-
-/* 화면 이동 중(다음 화면 파일·데이터를 받는 동안) 맨 위에 진행 막대를 보인다. 빨리 끝나는 이동에서는 깜빡이지 않게 조금 뒤에 나타난다 */
-.main[aria-busy='true']::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  z-index: 60;
-  background: var(--signal);
-  transform-origin: left;
-  animation: navProgress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
-}
-
-@keyframes navProgress {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(0.9);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .main[aria-busy='true']::before {
-    transform: none;
-    animation: navProgressAppear 0s linear 150ms both;
-  }
-}
-
-@keyframes navProgressAppear {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* 메뉴 버튼·드로어 배경은 좁은 화면에서만 보인다 */
-.menuBtn {
-  display: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: 16px;
-  place-items: center;
   flex: none;
-}
-.navScrim {
-  display: none;
-}
-
-/* 좁은 화면: 내비 레일을 왼쪽에서 열리는 드로어로 바꾼다 */
-@media (max-width: 860px) {
-  .menuBtn {
-    display: grid;
-  }
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .side {
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 40;
-    width: min(280px, 84vw);
-    overflow-y: auto;
-    background: var(--surface);
-    border-right: 1px solid var(--line);
-    box-shadow: var(--shadow);
-    transform: translateX(-100%);
-    visibility: hidden;
-    transition:
-      transform 0.2s ease-out,
-      visibility 0.2s;
-  }
-  .sideOpen {
-    transform: none;
-    visibility: visible;
-  }
-  .navScrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-    background: rgba(10, 12, 16, 0.5);
-  }
-  .main {
-    padding: 20px 16px 56px;
-  }
-}
-@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
-  .side {
-    transition: none;
-  }
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--ink), var(--ink)) padding-box,
+    conic-gradient(var(--charge) 0 50%, var(--earn) 0) border-box;
+  color: var(--surface);
+  font: 700 9px/1 var(--f-mono);
+  letter-spacing: 0.02em;
+  display: grid;
+  place-items: center;
 }
 
-.cnt {
-  font: 600 11px/18px var(--f-mono);
-  min-width: 18px;
-  padding: 0 6px;
-  border-radius: 9px;
-  background: var(--signal);
-  color: var(--signal-ink);
-  text-align: center;
-}
-.navItem.on .cnt {
-  background: var(--signal);
-}
-
-/* ── 홈 레이아웃 (RouteHandle.layout = 'top', 디자인: 합방 홈 화면) ── */
-.homeTop {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 24px;
-}
-.topnav {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-.topnavItem {
-  padding: 8px 12px;
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--ink-2);
-  font-weight: 500;
-}
-.topnavItem:hover {
-  color: var(--ink);
-  background: var(--sunken);
-}
-.topnavItem.on {
-  color: var(--ink);
-  font-weight: 700;
-}
+/* 아이콘 버튼(장바구니·채팅·알림·테마) */
 .iconBtn {
   position: relative;
+  flex: none;
   width: 40px;
   height: 40px;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--surface);
   display: grid;
   place-items: center;
   color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
 }
+.iconBtn:hover {
+  color: var(--ink);
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+.iconBtn:active {
+  transform: scale(0.94);
+}
+/* 지금 그 화면에 있으면 잉크 테두리 + 아래 탤리 점 */
 .iconBtn[aria-current='page'] {
   border-color: var(--ink);
   color: var(--ink);
+}
+.iconBtn[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--signal);
 }
 .badge {
   position: absolute;
@@ -314,13 +274,82 @@
   font: 600 11px/18px var(--f-mono);
   padding: 0 5px;
   text-align: center;
+  box-shadow: 0 0 0 2px var(--surface);
+  animation: badgeIn var(--t) var(--ease-spring);
 }
-/* 좁은 화면 드로어에서만 보이는 내비 항목 */
-.narrowOnly {
+@keyframes badgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* 메뉴 버튼: 세 줄이 X로 접힌다. 좁은 화면·홈에서만 보인다 */
+.menuBtn {
   display: none;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  place-items: center;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
 }
+.menuBtn:hover {
+  border-color: var(--line-2);
+}
+.menuBtn:active {
+  transform: scale(0.94);
+}
+.menuBtn[aria-expanded='true'] {
+  border-color: var(--ink);
+}
+.burger {
+  position: relative;
+  width: 18px;
+  height: 12px;
+}
+.burger i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1.5px;
+  border-radius: 2px;
+  background: currentColor;
+  transition:
+    transform var(--t) var(--ease-out),
+    opacity var(--t-fast) var(--ease-out);
+}
+.burger i:nth-child(1) {
+  top: 0;
+}
+.burger i:nth-child(2) {
+  top: 5.25px;
+}
+.burger i:nth-child(3) {
+  top: 10.5px;
+}
+.menuBtn[aria-expanded='true'] .burger i:nth-child(1) {
+  transform: translateY(5.25px) rotate(45deg);
+}
+.menuBtn[aria-expanded='true'] .burger i:nth-child(2) {
+  opacity: 0;
+  transform: scaleX(0.2);
+}
+.menuBtn[aria-expanded='true'] .burger i:nth-child(3) {
+  transform: translateY(-5.25px) rotate(-45deg);
+}
+
+/* ── 프로필 메뉴 ── */
 .profile {
   position: relative;
+  flex: none;
 }
 .avatarBtn {
   border: 0;
@@ -328,34 +357,368 @@
   padding: 0;
   border-radius: 50%;
   display: grid;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out);
+}
+.avatarBtn:hover {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--line-2);
+}
+.avatarBtn[aria-expanded='true'] {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 4px var(--ink);
+}
+.avatarBtn:active {
+  transform: scale(0.95);
 }
 .profileMenu {
   position: absolute;
   right: 0;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   z-index: 25;
-  min-width: 180px;
+  width: 252px;
+  max-width: calc(100vw - 24px);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 12px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-3);
+  padding: 8px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  gap: 2px;
+  transform-origin: top right;
+  animation: menuIn var(--t) var(--ease-out);
+}
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+.meCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 10px;
+}
+.meAvatar {
+  display: grid;
+  flex: none;
+}
+.meText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
-.profileMenu .meText {
-  display: block;
-  padding: 4px 8px 8px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 4px;
+.rolePill {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  color: var(--ink-2);
 }
-.profileMenu :global(.btn) {
-  justify-content: flex-start;
+.themeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px 4px;
+}
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+}
+.segment {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: var(--r-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.segment:hover {
+  color: var(--ink);
+}
+.segment:has(input:checked) {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--signal);
+  outline-offset: 1px;
+}
+.menuRule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 6px 4px;
+}
+.menuItem {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.menuItem svg {
+  color: var(--ink-3);
+}
+.menuItem:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.menuItem:active {
+  background: var(--press);
 }
 
-/* 홈에서는 내비 레일이 늘 햄버거로 여는 드로어다 */
+/* 모노 머리표(내비 그룹·프로필 메뉴 칸 이름) */
+.eyebrow {
+  font: 600 11px/1.2 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ── 셸: 레일 + 본문 ── */
+.shell {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  flex: 1;
+}
+/* 넓은 화면 레일은 헤더 아래에 붙어 있어 긴 화면을 내려도 메뉴가 남는다. 넘치면 레일만 스크롤한다 */
+.side {
+  position: sticky;
+  top: var(--app-top);
+  align-self: start;
+  max-height: calc(100dvh - var(--app-top));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 20px 12px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.navGroup h4 {
+  margin: 0 0 6px 12px;
+}
+/* 선택 항목: 흰 카드 + 왼쪽 신호색 막대(탤리) + 굵은 글자 */
+.navItem {
+  position: relative;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.navItem svg {
+  flex: none;
+  color: var(--ink-3);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.navLabel {
+  flex: 1;
+  min-width: 0;
+}
+.navItem:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.navItem:hover svg {
+  color: var(--ink-2);
+  transform: scale(1.08);
+}
+.navItem:active {
+  background: var(--press);
+}
+.navItem.on {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow:
+    var(--shadow-1),
+    inset 0 0 0 1px var(--line);
+}
+.navItem.on svg {
+  color: var(--signal-text);
+}
+.navItem.on::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--signal);
+  animation: tally var(--t) var(--ease-out);
+}
+@keyframes tally {
+  from {
+    opacity: 0;
+    transform: scaleY(0.2);
+  }
+}
+.cnt {
+  font: 600 11px/18px var(--f-mono);
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--signal);
+  color: var(--signal-ink);
+  text-align: center;
+}
+
+.main {
+  padding: 28px 32px 64px;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+}
+/* 건너뛰기 링크로 포커스가 와도 본문 전체에 테두리를 그리지 않는다 */
+.main:focus {
+  outline: none;
+}
+
+/* 화면 이동 중(다음 화면 파일·데이터를 받는 동안) 맨 위에 진행 막대를 보인다. 빨리 끝나는 이동에서는 깜빡이지 않게 조금 뒤에 나타난다 */
+.main[aria-busy='true']::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 60;
+  background: var(--grad-signal);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--signal) 60%, transparent);
+  border-radius: 0 3px 3px 0;
+  transform-origin: left;
+  animation: navProgress 8s cubic-bezier(0.1, 0.7, 0.2, 1) 150ms both;
+}
+
+@keyframes navProgress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.9);
+  }
+}
+
+@keyframes navProgressAppear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.navScrim {
+  display: none;
+}
+/* 좁은 화면 드로어에서만 보이는 내비 항목 */
+.narrowOnly {
+  display: none;
+}
+
+/* ── 드로어: 좁은 화면(≤860px)과 홈. 상단 바 아래에서 열려 메뉴 버튼(X)으로 바로 닫을 수 있다 ── */
+@media (max-width: 860px) {
+  .menuBtn {
+    display: grid;
+  }
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .main {
+    padding: 20px 16px 56px;
+    border-left: 0;
+  }
+  .side {
+    position: fixed;
+    top: var(--app-top);
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(300px, 86vw);
+    max-height: none;
+    padding: 18px 12px calc(28px + env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    box-shadow: var(--shadow-3);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform var(--t) var(--ease-out),
+      visibility 0s linear var(--t);
+  }
+  .sideOpen {
+    transform: none;
+    visibility: visible;
+    transition:
+      transform var(--t) var(--ease-out),
+      visibility 0s;
+  }
+  /* 드로어는 흰 면이라 선택 항목을 들어간 면으로 구분한다 */
+  .side .navItem.on {
+    background: var(--sunken);
+    box-shadow: none;
+  }
+  .navScrim {
+    display: block;
+    position: fixed;
+    inset: var(--app-top) 0 0 0;
+    z-index: 30;
+    background: var(--scrim);
+    animation: fadeIn var(--t) var(--ease-out);
+  }
+}
 .topLayout .menuBtn {
   display: grid;
 }
@@ -364,39 +727,97 @@
 }
 .topLayout .side {
   position: fixed;
-  top: 0;
+  top: var(--app-top);
   bottom: 0;
   left: 0;
   z-index: 40;
-  width: min(280px, 84vw);
-  overflow-y: auto;
+  width: min(300px, 86vw);
+  max-height: none;
+  padding: 18px 12px calc(28px + env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
   background: var(--surface);
   border-right: 1px solid var(--line);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3);
   transform: translateX(-100%);
   visibility: hidden;
   transition:
-    transform 0.2s ease-out,
-    visibility 0.2s;
+    transform var(--t) var(--ease-out),
+    visibility 0s linear var(--t);
 }
 .topLayout .sideOpen {
   transform: none;
   visibility: visible;
+  transition:
+    transform var(--t) var(--ease-out),
+    visibility 0s;
+}
+.topLayout .side .navItem.on {
+  background: var(--sunken);
+  box-shadow: none;
 }
 .topLayout .navScrim {
   display: block;
   position: fixed;
-  inset: 0;
+  inset: var(--app-top) 0 0 0;
   z-index: 30;
-  background: rgba(10, 12, 16, 0.5);
+  background: var(--scrim);
+  animation: fadeIn var(--t) var(--ease-out);
 }
-/* 홈 섹션은 화면 끝까지 꽉 찬 띠라 바깥 여백을 두지 않는다 */
+/* 홈 섹션은 화면 끝까지 꽉 찬 띠라 바깥 여백·레일 경계선을 두지 않는다 */
 .topLayout .main {
   padding: 0;
+  border-left: 0;
 }
-@media (prefers-reduced-motion: reduce) {
-  .topLayout .side {
-    transition: none;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── 홈 헤더의 가로 메뉴. 줄바꿈하면 상단 바 높이가 달라지므로 넘치면 가로로 민다 ── */
+.topnav {
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  padding-block: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topnavItem {
+  position: relative;
+  flex: none;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  text-decoration: none;
+  color: var(--ink-2);
+  font-weight: 500;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.topnavItem:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+.topnavItem.on {
+  color: var(--ink);
+  font-weight: 700;
+}
+.topnavItem.on::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--signal);
+  animation: tallyX var(--t) var(--ease-out);
+}
+@keyframes tallyX {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
   }
 }
 
@@ -408,30 +829,47 @@
 }
 @media (max-width: 720px) {
   .homeTop {
-    gap: 6px;
-    padding: 8px 8px 8px 12px;
+    gap: 8px;
+    padding-inline: max(12px, env(safe-area-inset-left))
+      max(12px, env(safe-area-inset-right));
   }
   .homeTop .onair {
     display: none;
   }
 }
+/* 360px 폭에서도 한 줄에 들어가게 간격을 줄인다. 터치 대상은 40px을 지킨다 */
 @media (max-width: 480px) {
-  .top {
-    gap: 8px;
-    padding-inline: 12px;
+  .root {
+    --app-top: 56px;
   }
-  .top .onair {
+  .bar {
+    gap: 8px;
+    padding-inline: max(12px, env(safe-area-inset-left))
+      max(12px, env(safe-area-inset-right));
+  }
+  .onair {
     display: none;
+  }
+  .wordmark {
+    font-size: 23px;
   }
   .right {
     gap: 6px;
   }
   .hpPill {
-    padding: 4px 10px 4px 4px;
+    padding: 0 12px 0 4px;
+    gap: 6px;
   }
-  .iconBtn {
-    width: 34px;
-    height: 34px;
+}
+@media (max-width: 400px) {
+  .right {
+    gap: 4px;
+  }
+  .coin {
+    display: none;
+  }
+  .hpPill {
+    padding: 0 12px;
   }
 }
 
@@ -443,5 +881,47 @@
   }
   .narrowOnly {
     display: contents;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip,
+  .bar::after,
+  .wordmark,
+  .onair,
+  .hpPill,
+  .iconBtn,
+  .menuBtn,
+  .burger i,
+  .avatarBtn,
+  .segment,
+  .menuItem,
+  .navItem,
+  .navItem svg,
+  .topnavItem,
+  .side,
+  .sideOpen,
+  .topLayout .side,
+  .topLayout .sideOpen {
+    transition: none;
+  }
+  .lamp,
+  .lamp::after,
+  .badge,
+  .profileMenu,
+  .navItem.on::before,
+  .topnavItem.on::after,
+  .navScrim {
+    animation: none;
+  }
+  .hpPill:hover,
+  .iconBtn:hover,
+  .logo:hover .wordmark,
+  .navItem:hover svg {
+    transform: none;
+  }
+  .main[aria-busy='true']::before {
+    transform: none;
+    animation: navProgressAppear 0s linear 150ms both;
   }
 }
