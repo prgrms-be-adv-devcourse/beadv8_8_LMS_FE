@@ -201,6 +201,38 @@ export type PlatformWallet = {
   feeIncomeBalance: number
 }
 
+/** 관리자 프로모션 지갑 칸별 잔액(BE PromotionWalletResponse). 플랫폼 쿠폰의 플랫폼 부담분을 대는 프로모션 HP다 */
+export type PromotionWallet = {
+  walletId: number
+  /** 가용 잔액(HP). 쿠폰 예산으로 묶지 않은 HP. 예산 예약·관리자 회수는 여기서만 뺀다 */
+  availableHp: number
+  /** 예약 잔액(HP). 쿠폰 예산으로 묶었지만 아직 주문 항목에 보류하지 않은 HP */
+  reservedHp: number
+  /** 보류 잔액(HP). 주문 항목에 보류한 쿠폰 예산 */
+  heldHp: number
+}
+
+/** 프로모션 지갑 충전 요청(BE PromotionFundingRequest). 출처는 관리자 발행(ADMIN_GRANT)만 있다 */
+export type PromotionFundingInput = {
+  /** 충전 작업 ID(영문·숫자·-·_ 1~200자). 같은 ID·같은 내용의 재요청은 새로 충전하지 않는다 */
+  fundingWorkId: string
+  amountHp: number
+  /** 충전 근거 번호(결재 번호 등, 1~200자) */
+  sourceRef: string
+  /** 메모(선택, 500자 이하) */
+  memo?: string
+}
+
+/** 프로모션 지갑 충전 결과(BE PromotionFundingResponse) */
+export type PromotionFunding = {
+  fundingWorkId: string
+  amountHp: number
+  /** 응답 시점의 가용 잔액(HP) */
+  availableHp: number
+  /** 같은 충전 작업 ID의 재요청이라 새로 충전하지 않았으면 true */
+  replayed: boolean
+}
+
 /** 환전 수수료 수입 한 건(BE FeeIncomeResponse). 환전 한 건에 한 줄이다 */
 export type FeeIncome = {
   ledgerId: number

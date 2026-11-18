@@ -43,6 +43,7 @@ export const NAV: NavGroup[] = [
       { path: '/admin/exchanges', label: '환전 승인', roles: ADMIN },
       { path: '/admin/exchange-payouts', label: '송금 확인', roles: ADMIN },
       { path: '/admin/platform-wallet', label: '수수료 수입', roles: ADMIN },
+      { path: '/admin/promotion-wallet', label: '프로모션 지갑', roles: ADMIN },
       { path: '/admin/inquiries', label: '문의 답변', roles: ADMIN },
       { path: '/admin/chats', label: '채팅 기록', roles: ADMIN },
       { path: '/admin/coupons', label: '쿠폰 운영', roles: ADMIN },
