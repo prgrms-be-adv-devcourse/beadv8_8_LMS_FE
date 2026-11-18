@@ -26,11 +26,6 @@
 .reply:active:not(:disabled) {
   transform: scale(0.95);
 }
-/* 다른 화면으로 가는 링크(FAQ 전체 보기). 버튼과 같은 모양이고 테두리만 점선이다 */
-.link {
-  border-style: dashed;
-  text-decoration: none;
-}
 /* 지난 말풍선의 버튼 */
 .reply:disabled {
   opacity: 0.4;

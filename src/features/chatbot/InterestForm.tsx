@@ -32,7 +32,7 @@ export function InterestForm({
       <input
         className="input"
         aria-label="관심사"
-        placeholder="예: 데이터 분석, 게임 방송"
+        placeholder="구체적으로 적을수록 잘 맞아요"
         maxLength={INTEREST_MAX_LENGTH * 2}
         value={value}
         disabled={!active}

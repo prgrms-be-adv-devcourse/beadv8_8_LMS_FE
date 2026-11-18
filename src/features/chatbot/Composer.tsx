@@ -26,13 +26,23 @@ export function Composer() {
     if (focusTick > 0) field.current?.focus()
   }, [focusTick])
 
-  // 글에 맞춰 높이를 늘린다.
+  const placeholder = busy
+    ? '답을 기다리는 중이에요…'
+    : mode === 'FAQ'
+      ? 'FAQ에서 찾을 질문을 적어 주세요'
+      : '배우고 싶은 분야나 찾는 인플루언서를 구체적으로 적어 주세요. 자세히 적을수록 잘 맞춰 드려요'
+
+  // 글에 맞춰 높이를 늘린다. 비어 있으면 안내 문구가 줄바꿈돼도 잘리지 않게 그 문구로 잰다
+  // (브라우저마다 placeholder를 scrollHeight에 넣는지가 달라, 잠깐 값으로 넣어 재고 되돌린다).
   useEffect(() => {
     const el = field.current
     if (!el) return
     el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT_PX)}px`
-  }, [value])
+    if (!value) el.value = placeholder
+    const height = el.scrollHeight
+    if (!value) el.value = ''
+    el.style.height = `${Math.min(height, MAX_HEIGHT_PX)}px`
+  }, [value, placeholder])
 
   const length = textLength(value.trim())
   const tooLong = length > MESSAGE_MAX_LENGTH
@@ -72,13 +82,7 @@ export function Composer() {
           rows={1}
           aria-label="챗봇에게 질문"
           aria-describedby={counterId}
-          placeholder={
-            busy
-              ? '답을 기다리는 중이에요…'
-              : mode === 'FAQ'
-                ? 'FAQ에서 찾을 질문을 적어 주세요'
-                : '무엇이든 물어보세요'
-          }
+          placeholder={placeholder}
           value={value}
           disabled={busy}
           onChange={(e) => setValue(e.target.value)}
