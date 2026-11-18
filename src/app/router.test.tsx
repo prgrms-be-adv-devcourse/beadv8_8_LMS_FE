@@ -195,7 +195,12 @@ describe('라우트 가드', () => {
       await screen.findByRole('heading', { level: 1, name: '계정 설정' }),
     ).toBeInTheDocument()
     expect(screen.getByText('a@b.c')).toBeInTheDocument()
-    expect(screen.getByText('관리자', { selector: 'dd' })).toBeInTheDocument()
+    // 회원 등급은 프로필 카드의 필로 보인다(헤더·메뉴의 같은 글자와 구분하려고 본문 안에서 찾는다)
+    expect(
+      within(screen.getByRole('main')).getByText('관리자', {
+        selector: '.pill',
+      }),
+    ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/settings')
     expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
   })
