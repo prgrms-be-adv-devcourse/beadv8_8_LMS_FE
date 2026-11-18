@@ -84,9 +84,10 @@
   padding-inline: max(24px, env(safe-area-inset-left))
     max(24px, env(safe-area-inset-right));
 }
-/* 비회원·회원 헤더: 넓은 화면에서 로고·메뉴가 본문 페이지 폭(1120px)의 양 끝에 맞춰 선다 */
+/* 비회원·회원 헤더: 로고는 화면 왼쪽 끝, 로그인·계정 버튼은 오른쪽 끝에 둔다(관리자 헤더와 같은 여백) */
 .siteTop {
-  padding-inline: max(32px, calc((100% - 1120px) / 2));
+  padding-inline: max(24px, env(safe-area-inset-left))
+    max(24px, env(safe-area-inset-right));
 }
 .siteTop .topnav {
   margin-left: 8px;
