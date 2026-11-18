@@ -1,5 +1,6 @@
 import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { ReconciliationStatus } from '../types'
+import styles from './StatusPill.module.css'
 
 const LABEL: Record<ReconciliationStatus, StatusLabel> = {
   RUNNING: ['info', '실행 중'],
@@ -16,8 +17,10 @@ export function ReconciliationStatusPill({
   const [tone, label] = statusOf(LABEL, status)
   return (
     <span className={`pill ${tone}`}>
-      {status === 'RUNNING' && (
+      {status === 'RUNNING' ? (
         <span className="spinner xs" aria-hidden="true" />
+      ) : (
+        <span className={styles.glyph} data-tone={tone} aria-hidden="true" />
       )}
       {label}
     </span>

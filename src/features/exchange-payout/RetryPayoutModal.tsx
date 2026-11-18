@@ -41,7 +41,7 @@ export function RetryPayoutModal({
         <dt>송금액</dt>
         <dd className="num">{formatNumber(exchange.expectedPayoutAmount)}원</dd>
       </dl>
-      <p>
+      <p className="notice warn">
         은행이 실패를 확정한 송금을 새 요청으로 다시 보내요. 보낸 송금은 되돌릴
         수 없어요.
       </p>

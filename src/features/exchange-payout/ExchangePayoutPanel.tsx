@@ -161,7 +161,12 @@ function Actions({
   if (!checkable && !decidable) return null
 
   return (
-    <div className={styles.decide}>
+    <div
+      className={styles.decide}
+      data-tone={decidable ? 'bad' : 'warn'}
+      role="group"
+      aria-label="송금 처리"
+    >
       {checkable && (
         <p className="fine">
           마지막 송금의 결과가 확정되지 않았어요. 결과 재확인은 같은 지급 요청
@@ -174,7 +179,7 @@ function Actions({
           송금하거나, 최종 실패로 끝내 신청자에게 돌려줄 수 있어요.
         </p>
       )}
-      <div className={styles.actions}>
+      <div className={admin.actionRow}>
         {checkable && (
           <button
             type="button"
@@ -190,7 +195,7 @@ function Actions({
           <>
             <button
               type="button"
-              className="btn"
+              className="btn danger"
               disabled={busy}
               onClick={() => setOpen('final')}
             >

@@ -236,7 +236,12 @@ function Count({
   children: number
 }) {
   return (
-    <div className="sum" role="group" aria-label={label}>
+    <div
+      className={`sum ${styles.count}`}
+      data-tone={children > 0 ? tone : ''}
+      role="group"
+      aria-label={label}
+    >
       <span>{label}</span>
       <b className={tone && `c-${tone}`}>{formatNumber(children)}건</b>
     </div>
@@ -259,7 +264,12 @@ function Mismatches<M extends { rule: string }>({
   const mismatches = rows.filter((m) => m.rule !== 'HP_TASK_DEAD')
   return (
     <>
-      <section className="panel" aria-labelledby="hp-reconciliation-mismatches">
+      <section
+        className={
+          mismatches.length > 0 ? `panel ${admin.dangerZone}` : 'panel'
+        }
+        aria-labelledby="hp-reconciliation-mismatches"
+      >
         <h2 id="hp-reconciliation-mismatches">어긋난 건</h2>
         {mismatches.length === 0 ? (
           <p className="fine">
@@ -309,7 +319,7 @@ function RuleCell({ rule }: { rule: string }) {
 function LectureTable({ rows }: { rows: LectureMismatch[] }) {
   return (
     <div className={`tbl-wrap ${admin.tableWrap}`}>
-      <table className="tbl">
+      <table className={`tbl ${styles.compare}`}>
         <thead>
           <tr>
             <th>규칙</th>
@@ -347,7 +357,7 @@ function LectureTable({ rows }: { rows: LectureMismatch[] }) {
 function AppearanceTable({ rows }: { rows: AppearanceMismatch[] }) {
   return (
     <div className={`tbl-wrap ${admin.tableWrap}`}>
-      <table className="tbl">
+      <table className={`tbl ${styles.compare}`}>
         <thead>
           <tr>
             <th>규칙</th>

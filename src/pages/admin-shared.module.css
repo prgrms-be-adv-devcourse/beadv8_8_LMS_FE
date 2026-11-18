@@ -190,86 +190,75 @@
 .kv > dd {
   overflow-wrap: anywhere;
 }
+/* 금액·계좌처럼 대조할 값은 굵은 모노 */
+.kv > dd:global(.num) {
+  font-weight: 600;
+}
 
-/* ── 상세 2단: 왼쪽 내용, 오른쪽 판단 패널(넓은 화면에서 따라 내려온다) ── */
-.detail {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
-  align-items: start;
-}
-.detailMain {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-}
+/* ── 상세 2단(.split) 오른쪽 판단 패널: 위에 잉크 띠를 둘러 "여기서 결정한다"를 보인다 ── */
 .decide {
-  position: sticky;
-  top: 16px;
   box-shadow: var(--shadow-1);
+  border-top: 3px solid var(--ink);
 }
-@media (max-width: 960px) {
-  .detail {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .decide {
-    position: static;
-  }
+.decide > h2 {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
-/* 위험한 행동(반려·무효화·지급 실패 처리)은 주요 행동과 떨어뜨려 오조작을 막는다 */
+/* 되돌릴 수 없는 행동만 모은 패널(보류 무효화 등): 위험색 띠로 다른 판단 패널과 구분한다 */
+.dangerZone {
+  box-shadow: var(--shadow-1);
+  border-top: 3px solid var(--bad);
+}
+.dangerZone > h2 {
+  color: var(--bad);
+}
+
+/* 주요 행동은 오른쪽, 위험한 행동(거절·반려·무효화)은 왼쪽 끝으로 떨어뜨려 오조작을 막는다 */
 .actionRow {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }
 .actionRow > :global(.btn.danger) {
   margin-right: auto;
 }
+.actionRow > :global(.btn) {
+  min-height: 40px;
+}
 
-/* ── 계산서: 신청 HP → 수수료 → 지급액 ── */
-.receipt {
-  display: flex;
-  flex-direction: column;
-  margin: 0;
-  padding: 4px 14px;
+/* ── 계산서: 신청 HP → 수수료 → 지급액(.breakdown을 영수증처럼) ── */
+.receipt :global(.breakdown) {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  font-size: 13px;
+  gap: 0;
+  padding: 4px 16px;
 }
-.receipt > div {
-  display: flex;
-  justify-content: space-between;
+.receipt :global(.breakdown) > :global(.row) {
   align-items: baseline;
-  gap: 12px;
-  padding: 9px 0;
+  padding: 10px 0;
   border-top: 1px dashed var(--line-2);
 }
-.receipt > div:first-child {
+.receipt :global(.breakdown) > :global(.row):first-child {
   border-top: 0;
 }
-.receipt dt {
-  color: var(--ink-3);
-}
-.receipt dd {
-  margin: 0;
-  font-family: var(--f-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  text-align: right;
-}
-.receipt > .total {
+.receipt :global(.breakdown) > :global(.row.total) {
   border-top: 1px solid var(--ink);
-}
-.receipt > .total dt {
-  color: var(--ink);
   font-weight: 700;
 }
-.receipt > .total dd {
-  font-size: 18px;
+.receipt :global(.breakdown) :global(.num) {
+  font-variant-numeric: tabular-nums;
+}
+.receipt :global(.breakdown) > :global(.row.total) :global(.num) {
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 /* 작은 머리표(계기판 눈금) */
