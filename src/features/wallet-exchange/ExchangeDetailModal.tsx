@@ -6,6 +6,7 @@ import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
 import { isApiError } from '@/shared/api/ApiError'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { Modal } from '@/shared/ui/Modal'
+import { ExchangeProgress } from './ExchangeSteps'
 import { ExchangeSummary } from './ExchangeSummary'
 import { useCancelExchange } from './useCancelExchange'
 
@@ -84,6 +85,7 @@ export function ExchangeDetailModal({
           <div>
             <ExchangeStatusPill status={exchange.status} />
           </div>
+          <ExchangeProgress status={exchange.status} />
           <ExchangeSummary exchange={exchange} />
         </>
       )}
