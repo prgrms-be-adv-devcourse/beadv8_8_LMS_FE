@@ -24,14 +24,9 @@ export function StudioPage() {
         title="강의 판매"
         lede="등록한 강의는 관리자 검수를 통과하면 공개돼요. 판매 수익은 구매일 다음 날부터 30일이 지나면 지급돼요."
         actions={
-          <>
-            <Link className="btn" to="/studio/coupons">
-              쿠폰 신청
-            </Link>
-            <Link className="btn primary" to="/studio/lectures/new">
-              <span aria-hidden="true">+</span> 강의 등록
-            </Link>
-          </>
+          <Link className="btn primary" to="/studio/lectures/new">
+            <span aria-hidden="true">+</span> 강의 등록
+          </Link>
         }
       />
       <MyLectures />

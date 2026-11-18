@@ -34,11 +34,6 @@ export function LibraryPage() {
       <PageHead
         title="내 강의"
         lede="재생하거나 자료를 받으면 구매가 확정돼요. 확정 전에는 단순 변심으로 구매 취소할 수 있어요."
-        actions={
-          <Link className="btn" to="/library/orders">
-            주문 내역
-          </Link>
-        }
       />
       {isPending ? (
         <Loading />

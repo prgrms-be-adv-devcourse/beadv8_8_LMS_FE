@@ -470,7 +470,7 @@ describe('판매자 쿠폰 신청', () => {
     ).toHaveAttribute('href', '/studio/coupons')
   })
 
-  it('강의 판매 화면에 쿠폰 신청 링크가 있다', async () => {
+  it('강의 판매 화면의 스튜디오 탭에 쿠폰 신청 링크가 있다', async () => {
     serveLectures()
     server.use(
       http.get('*/api/v1/lectures/sales', () =>
@@ -482,11 +482,12 @@ describe('판매자 쿠폰 신청', () => {
     )
     renderApp('/studio', 'VERIFIED_INFLUENCER')
 
-    const head = (
-      await screen.findByRole('heading', { level: 1, name: '강의 판매' })
-    ).closest('.page-head') as HTMLElement
+    // 강의 판매와 쿠폰 신청은 화면 위 스튜디오 탭으로 오간다
+    const tabs = await screen.findByRole('navigation', {
+      name: '스튜디오 메뉴',
+    })
     expect(
-      within(head).getByRole('link', { name: '쿠폰 신청' }),
+      within(tabs).getByRole('link', { name: '쿠폰 신청' }),
     ).toHaveAttribute('href', '/studio/coupons')
   })
 
