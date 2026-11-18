@@ -269,6 +269,10 @@ export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
     import('@/pages/admin-platform-wallet/AdminPlatformWalletPage').then(
       (m) => ({ Component: m.AdminPlatformWalletPage }),
     ),
+  '/admin/promotion-wallet': () =>
+    import('@/pages/admin-promotion-wallet/AdminPromotionWalletPage').then(
+      (m) => ({ Component: m.AdminPromotionWalletPage }),
+    ),
   '/admin/promotions': () =>
     import('@/pages/admin-promotions/AdminPromotionsPage').then((m) => ({
       Component: m.AdminPromotionsPage,
