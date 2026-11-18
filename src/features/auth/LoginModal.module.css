@@ -1,29 +1,311 @@
-/* 개발용 테스트 계정 로그인 (목업에 없는 영역, 로컬·dev 서버에서만 보인다) */
-.testAccounts {
+/* ── 첫 만남: 로고 서체 + ON AIR 램프 + 한 줄 소개 ── */
+.brand {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--line);
-}
-.accounts {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  align-items: center;
   gap: 8px;
+  padding: 6px 0 2px;
+  text-align: center;
+}
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-display);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.onair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 600 10px var(--f-mono);
+  letter-spacing: 0.1em;
+  color: var(--signal-text);
+  border: 1.5px solid var(--signal);
+  border-radius: var(--r-xs);
+  padding: 2px 6px 2px 5px;
+}
+/* 탤리 램프: 방송 중처럼 천천히 숨 쉰다 */
+.onair::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  animation: tally 2.4s var(--ease-in-out) infinite;
+}
+@keyframes tally {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.tagline {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-3);
 }
 
-/* 구글 로그인과 이메일 로그인 사이 구분 (목업에 없는 영역) */
+/* 로그인이 필요한 이유(헤더 버튼이 아니라 회원 기능에서 열렸을 때) */
+.reason {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--signal);
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ── 구글 로그인: 흰 면 + 테두리 + G 로고(공식 가이드 모양) ── */
+:global(.btn).google {
+  min-height: 46px;
+  font-size: 15px;
+  border-color: var(--line-2);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-1);
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+:global(.btn).google:hover {
+  background: var(--surface-2);
+  border-color: var(--ink-3);
+  box-shadow: var(--shadow-2);
+}
+:global(.btn).google:active {
+  transform: scale(0.98);
+}
+:global(.btn).google:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-ink);
+}
+.googleNote {
+  margin-top: -8px;
+  text-align: center;
+}
+
+/* 구글 로그인과 이메일 로그인 사이 구분 */
 .divider {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0;
+  gap: 12px;
+  margin: 2px 0;
   color: var(--ink-3);
-  font-size: 12px;
+  font: 500 11px var(--f-mono);
+  letter-spacing: 0.08em;
 }
 .divider::before,
 .divider::after {
   content: '';
   flex: 1;
   border-top: 1px solid var(--line);
+}
+
+/* ── 이메일 폼 ── */
+/* 제출 중: 글자는 그대로 두고 앞에 도는 표시를 붙인다(버튼 이름이 바뀌지 않게) */
+.submit[aria-busy='true']::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* 가입·비밀번호 찾기: 제출 버튼 아래 한 줄(좁으면 두 줄) */
+.links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 8px;
+  flex-wrap: wrap;
+  margin-top: -4px;
+}
+.links :global(.btn) {
+  min-height: 40px;
+}
+/* 실패 안내는 튀지 않게 살짝 올라오며 나타난다 */
+.appear {
+  animation: appear var(--t) var(--ease-out);
+}
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ── 이메일 인증 단계 표시 ── */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: 500 11px var(--f-mono);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.steps li::before {
+  content: '';
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  transition: background-color var(--t) var(--ease-out);
+}
+.steps .past {
+  color: var(--ink-2);
+}
+.steps .past::before {
+  background: var(--ink-2);
+}
+.steps .current {
+  color: var(--ink);
+  font-weight: 600;
+}
+.steps .current::before {
+  background: var(--signal);
+}
+
+/* 인증 코드: 큰 모노 글자와 넓은 자간으로 여섯 자리를 한눈에 */
+:global(.input).code {
+  font: 600 24px var(--f-mono);
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+  text-align: center;
+  padding-block: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.code::placeholder {
+  color: var(--line-2);
+}
+.resendRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.resendRow > :global(.btn) {
+  flex: 1 1 auto;
+  min-height: 40px;
+}
+.countdown {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* ── 탈퇴 회원 복구: 안심되는 톤 ── */
+.restoreHead {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.restoreIcon {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--earn-soft);
+  color: var(--earn);
+}
+.restoreHead p {
+  margin: 0;
+}
+.restoreText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* ── 개발용 테스트 계정 (로컬·직접 빌드에서만 보인다) ── */
+.testAccounts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 12px 14px 14px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.devHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.devHead p {
+  margin: 0;
+}
+.devTag {
+  font: 600 10px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xs);
+  padding: 1px 6px;
+}
+.accounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+:global(.btn).chip {
+  border-radius: var(--r-pill);
+  min-height: 36px;
+}
+/* 역할을 색 점으로 구분한다(글자는 버튼 이름 그대로) */
+.chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+.chip[data-role='VERIFIED_INFLUENCER']::before {
+  background: var(--signal);
+}
+.chip[data-role='ADMIN']::before {
+  background: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onair::before,
+  .appear {
+    animation: none;
+  }
+  .submit[aria-busy='true']::before {
+    animation: none;
+  }
+  :global(.btn).google,
+  .steps li::before {
+    transition: none;
+  }
 }

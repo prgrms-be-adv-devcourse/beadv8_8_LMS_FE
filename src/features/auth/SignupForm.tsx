@@ -7,6 +7,8 @@ import { isApiError } from '@/shared/api/ApiError'
 import { signup } from '@/shared/auth/me'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
+import styles from './LoginModal.module.css'
+import { PasswordInput, PasswordRules } from './PasswordInput'
 import {
   EmailVerification,
   type RestartVerification,
@@ -169,17 +171,15 @@ function SignupDetailsForm({
         id={FIELD_ID.password}
         label="비밀번호"
         error={fields.error('password')}
-        hint="8~64자, 영문과 숫자를 하나 이상씩. 공백·한글은 쓸 수 없어요."
       >
-        <input
+        <PasswordInput
           ref={firstRef}
-          className="input"
-          type="password"
           autoComplete="new-password"
           value={values.password}
           {...fields.inputProps('password')}
           onChange={(e) => set('password')(e.target.value)}
         />
+        <PasswordRules value={values.password} />
       </Field>
       <Field
         id={FIELD_ID.passwordConfirm}
@@ -215,14 +215,15 @@ function SignupDetailsForm({
         />
       </Field>
       {failure && (
-        <p className="notice bad" role="alert">
+        <p className={`notice bad ${styles.appear}`} role="alert">
           {failure}
         </p>
       )}
       <button
         type="submit"
-        className="btn primary block"
+        className={`btn primary block ${styles.submit}`}
         disabled={save.isPending}
+        aria-busy={save.isPending || undefined}
         {...fields.submitProps}
       >
         가입하기

@@ -16,6 +16,7 @@ import {
 } from '@/shared/auth/emailCode'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
+import styles from './LoginModal.module.css'
 import { useCooldown } from './useCooldown'
 
 const EMAIL_FIELD = { email: 'verify-email' } as const
@@ -23,6 +24,12 @@ const CODE_FIELD = { code: 'verify-code' } as const
 
 /** 코드 확인 오류 중 코드 칸을 가리키는 것 */
 const CODE_ERRORS = new Set(['INVALID_EMAIL_CODE', 'EMAIL_CODE_EXPIRED'])
+
+/** 단계 표시의 마지막 칸 이름(용도별) */
+const LAST_STEP: Record<EmailCodePurpose, string> = {
+  SIGN_UP: '가입 정보',
+  PASSWORD_RESET: '새 비밀번호',
+}
 
 /** 인증 토큰이 만료·사용돼 처음부터 다시 할 때의 안내 */
 const EXPIRED_MESSAGE =
@@ -77,37 +84,74 @@ export function EmailVerification({
     setStep(next)
   }
 
+  const track = (
+    <StepTrack
+      current={step.name === 'email' ? 0 : step.name === 'code' ? 1 : 2}
+      last={LAST_STEP[purpose]}
+    />
+  )
   if (step.name === 'code')
     return (
-      <CodeStep
-        purpose={purpose}
-        email={step.email}
-        sent={step.sent}
-        onVerified={(token) =>
-          go({ name: 'done', verified: { email: step.email, token } })
-        }
-        onChangeEmail={() => go({ name: 'email', email: step.email })}
-      />
+      <>
+        {track}
+        <CodeStep
+          purpose={purpose}
+          email={step.email}
+          sent={step.sent}
+          onVerified={(token) =>
+            go({ name: 'done', verified: { email: step.email, token } })
+          }
+          onChangeEmail={() => go({ name: 'email', email: step.email })}
+        />
+      </>
     )
   if (step.name === 'done')
-    return children(step.verified, (emailError) =>
-      go({
-        name: 'email',
-        email: step.verified.email,
-        error: emailError ? { email: emailError } : { form: EXPIRED_MESSAGE },
-      }),
+    return (
+      <>
+        {track}
+        {children(step.verified, (emailError) =>
+          go({
+            name: 'email',
+            email: step.verified.email,
+            error: emailError
+              ? { email: emailError }
+              : { form: EXPIRED_MESSAGE },
+          }),
+        )}
+      </>
     )
   return (
-    <EmailStep
-      purpose={purpose}
-      label={label}
-      initialEmail={step.email}
-      initialError={step.error}
-      autoFocus={autoFocus || moved}
-      intro={intro}
-      onSent={(email, sent) => go({ name: 'code', email, sent })}
-      onBack={onBack}
-    />
+    <>
+      {track}
+      <EmailStep
+        purpose={purpose}
+        label={label}
+        initialEmail={step.email}
+        initialError={step.error}
+        autoFocus={autoFocus || moved}
+        intro={intro}
+        onSent={(email, sent) => go({ name: 'code', email, sent })}
+        onBack={onBack}
+      />
+    </>
+  )
+}
+
+/** 이메일 → 코드 → 마지막 칸 중 어디인지. 폼 이름이 단계를 알려 주므로 화면 낭독기에는 숨긴다 */
+function StepTrack({ current, last }: { current: number; last: string }) {
+  return (
+    <ol className={styles.steps} aria-hidden="true">
+      {['이메일', '인증 코드', last].map((name, i) => (
+        <li
+          key={name}
+          className={
+            i < current ? styles.past : i === current ? styles.current : ''
+          }
+        >
+          {`${i + 1} ${name}`}
+        </li>
+      ))}
+    </ol>
   )
 }
 
@@ -192,14 +236,15 @@ function EmailStep({
       </Field>
       {intro}
       {failure && (
-        <p className="notice bad" role="alert">
+        <p className={`notice bad ${styles.appear}`} role="alert">
           {failure}
         </p>
       )}
       <button
         type="submit"
-        className="btn primary block"
+        className={`btn primary block ${styles.submit}`}
         disabled={send.isPending}
+        aria-busy={send.isPending || undefined}
         {...fields.submitProps}
       >
         인증 코드 받기
@@ -294,9 +339,11 @@ function CodeStep({
       >
         <input
           ref={inputRef}
-          className="input"
+          className={`input ${styles.code}`}
           inputMode="numeric"
           autoComplete="one-time-code"
+          enterKeyHint="done"
+          placeholder="000000"
           value={code}
           {...fields.inputProps('code')}
           // 숫자 사이 공백·하이픈을 붙여 넣어도 숫자만 6자리까지 남긴다.
@@ -308,34 +355,43 @@ function CodeStep({
         />
       </Field>
       {failure && (
-        <p className="notice bad" role="alert">
+        <p className={`notice bad ${styles.appear}`} role="alert">
           {failure}
         </p>
       )}
       <button
         type="submit"
-        className="btn primary block"
+        className={`btn primary block ${styles.submit}`}
         disabled={verify.isPending}
+        aria-busy={verify.isPending || undefined}
         {...fields.submitProps}
       >
         확인
       </button>
-      <button
-        type="button"
-        className="btn sm"
-        disabled={cooldown.left > 0 || resend.isPending}
-        onClick={() => {
-          setFailure(null)
-          resend.mutate({ email, purpose })
-        }}
-      >
-        {cooldown.left > 0
-          ? `코드 다시 받기 (${cooldown.left}초)`
-          : '코드 다시 받기'}
-      </button>
-      <button type="button" className="btn ghost sm" onClick={onChangeEmail}>
-        이메일 바꾸기
-      </button>
+      <div className={styles.resendRow}>
+        <button
+          type="button"
+          className={`btn sm ${styles.submit}`}
+          disabled={cooldown.left > 0 || resend.isPending}
+          aria-busy={resend.isPending || undefined}
+          onClick={() => {
+            setFailure(null)
+            resend.mutate({ email, purpose })
+          }}
+        >
+          코드 다시 받기
+          {cooldown.left > 0 && (
+            // 사이 공백을 글자 마디로 넣어 버튼 이름이 '코드 다시 받기 (60초)'가 되게 한다.
+            <>
+              {' '}
+              <span className={styles.countdown}>({cooldown.left}초)</span>
+            </>
+          )}
+        </button>
+        <button type="button" className="btn ghost sm" onClick={onChangeEmail}>
+          이메일 바꾸기
+        </button>
+      </div>
     </form>
   )
 }

@@ -1,0 +1,191 @@
+/* ── 프로필 사진 + 요약 ── */
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.avatar {
+  position: relative;
+  flex: none;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 4px var(--line);
+}
+.avatar :global(.avatar) {
+  display: block;
+}
+/* 올리는 중: 사진 위에 얇은 덮개 + 도는 테두리 */
+.avatar[aria-busy='true']::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--ink);
+  border-right-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.summary {
+  flex: 1 1 180px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.photoActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.photoActions :global(.btn) {
+  min-height: 36px;
+}
+.photoHint {
+  flex-basis: 100%;
+}
+
+/* ── 닉네임: 입력과 저장을 한 줄로 ── */
+.inline {
+  display: flex;
+  gap: 8px;
+}
+.inline :global(.input) {
+  flex: 1 1 auto;
+}
+.inline :global(.btn) {
+  flex: none;
+  min-width: 72px;
+}
+
+/* ── 비밀번호 변경 (로그인·보안 카드 안의 한 칸) ── */
+.sub {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.sub h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.sub p {
+  margin: 0;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+/* 제출 중: 글자는 그대로 두고 앞에 도는 표시 */
+.busy[aria-busy='true']::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── 탈퇴하기 (마지막 확인) ── */
+:global(.panel).withdraw {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
+  box-shadow: var(--shadow-1);
+}
+.withdrawHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.withdrawHead h2 {
+  margin: 0;
+}
+.withdrawHead p {
+  margin: 0;
+}
+/* 동의하기 전에는 테두리만, 동의하면 bad로 채워 위험을 분명히 한다 */
+:global(.btn).confirm {
+  min-height: 46px;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+:global(.btn).confirm:not(:disabled) {
+  background: var(--bad);
+  border-color: var(--bad);
+  color: var(--surface);
+}
+:global(.btn).confirm:not(:disabled):hover {
+  background: color-mix(in srgb, var(--bad) 88%, var(--ink));
+}
+:global(.btn).confirm:not(:disabled):active {
+  transform: scale(0.98);
+}
+:global(.btn).confirm:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 30%, transparent);
+}
+
+/* 막힌 이유 목록 */
+.blockHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bad);
+}
+.count {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.blocks {
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line));
+  border-radius: var(--r);
+  padding: 2px 14px;
+  background: var(--surface);
+}
+.blocks :global(.wd-row) {
+  align-items: center;
+}
+.blocks :global(.row-main) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.blocks :global(.wd-row) > :global(.btn) {
+  margin-left: auto;
+  min-height: 36px;
+}
+.reveal {
+  animation: reveal var(--t) var(--ease-out);
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar[aria-busy='true']::after,
+  .busy[aria-busy='true']::before,
+  .reveal {
+    animation: none;
+  }
+  :global(.btn).confirm {
+    transition: none;
+  }
+}

@@ -7,6 +7,8 @@ import { pauseRefreshWhile } from '@/shared/auth/token'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { toast } from '@/shared/ui/toastStore'
+import { PasswordInput, PasswordRules } from '@/features/auth/PasswordInput'
+import styles from './account.module.css'
 
 const FIELD_ID = {
   currentPassword: 'settings-current-password',
@@ -103,8 +105,8 @@ export function PasswordForm() {
   }
 
   return (
-    <section className="panel" aria-labelledby="settings-password-title">
-      <h2 id="settings-password-title">비밀번호</h2>
+    <section className={styles.sub} aria-labelledby="settings-password-title">
+      <h3 id="settings-password-title">비밀번호</h3>
       <p className="fine">
         가입한 방식(구글 또는 이메일·비밀번호)으로만 로그인할 수 있어요. 구글로
         가입한 계정은 비밀번호가 없어요.
@@ -121,9 +123,7 @@ export function PasswordForm() {
           label="현재 비밀번호"
           error={fields.error('currentPassword')}
         >
-          <input
-            className="input"
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             value={values.currentPassword}
             {...fields.inputProps('currentPassword')}
@@ -134,16 +134,14 @@ export function PasswordForm() {
           id={FIELD_ID.newPassword}
           label="새 비밀번호"
           error={fields.error('newPassword')}
-          hint="8~64자, 영문과 숫자를 하나 이상씩. 공백·한글은 쓸 수 없어요."
         >
-          <input
-            className="input"
-            type="password"
+          <PasswordInput
             autoComplete="new-password"
             value={values.newPassword}
             {...fields.inputProps('newPassword')}
             onChange={(e) => set('newPassword')(e.target.value)}
           />
+          <PasswordRules value={values.newPassword} />
         </Field>
         <Field
           id={FIELD_ID.newPasswordConfirm}
@@ -164,14 +162,17 @@ export function PasswordForm() {
             {failure}
           </p>
         )}
-        <button
-          type="submit"
-          className="btn"
-          disabled={save.isPending}
-          {...fields.submitProps}
-        >
-          비밀번호 바꾸기
-        </button>
+        <div className={styles.actions}>
+          <button
+            type="submit"
+            className={`btn ${styles.busy}`}
+            disabled={save.isPending}
+            aria-busy={save.isPending || undefined}
+            {...fields.submitProps}
+          >
+            비밀번호 바꾸기
+          </button>
+        </div>
       </form>
     </section>
   )

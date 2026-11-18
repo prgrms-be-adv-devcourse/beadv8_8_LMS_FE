@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 import {
   deleteProfileImage,
   PROFILE_IMAGE_MAX_BYTES,
@@ -9,10 +9,17 @@ import {
 import type { Me } from '@/shared/auth/me'
 import { Avatar } from '@/shared/ui/Avatar'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './account.module.css'
 import { useApplyMe } from './useUpdateMe'
 
-/** 프로필 사진 바꾸기·지우기 (jpeg·png·webp, 5MB 이하) */
-export function ProfileImageEditor({ me }: { me: Me }) {
+/** 프로필 사진 바꾸기·지우기 (jpeg·png·webp, 5MB 이하). children은 사진 옆 요약(이름·등급 등) */
+export function ProfileImageEditor({
+  me,
+  children,
+}: {
+  me: Me
+  children?: ReactNode
+}) {
   const input = useRef<HTMLInputElement>(null)
   const applyMe = useApplyMe()
 
@@ -45,47 +52,44 @@ export function ProfileImageEditor({ me }: { me: Me }) {
 
   const busy = upload.isPending || remove.isPending
   return (
-    <div className="field">
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
-        프로필 사진
-      </span>
-      <div
-        style={{
-          display: 'flex',
-          gap: 12,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <Avatar name={me.nickname} imageUrl={me.profileImageUrl} size={64} />
-        <input
-          ref={input}
-          type="file"
-          accept={PROFILE_IMAGE_TYPES.join(',')}
-          hidden
-          aria-label="프로필 사진 파일"
-          onChange={(e) => pick(e.target.files?.[0])}
-        />
-        <button
-          type="button"
-          className="btn sm"
-          disabled={busy}
-          onClick={() => input.current?.click()}
-        >
-          {upload.isPending ? '올리는 중…' : '사진 바꾸기'}
-        </button>
-        {me.profileImageUrl && (
+    <div className={styles.profile}>
+      <div className={styles.avatar} aria-busy={busy || undefined}>
+        <Avatar name={me.nickname} imageUrl={me.profileImageUrl} size={72} />
+      </div>
+      <div className={styles.summary}>
+        {children}
+        <div className={styles.photoActions}>
+          <input
+            ref={input}
+            type="file"
+            accept={PROFILE_IMAGE_TYPES.join(',')}
+            hidden
+            aria-label="프로필 사진 파일"
+            onChange={(e) => pick(e.target.files?.[0])}
+          />
           <button
             type="button"
-            className="btn ghost sm"
+            className="btn sm"
             disabled={busy}
-            onClick={() => remove.mutate()}
+            onClick={() => input.current?.click()}
           >
-            지우기
+            {upload.isPending ? '올리는 중…' : '사진 바꾸기'}
           </button>
-        )}
+          {me.profileImageUrl && (
+            <button
+              type="button"
+              className="btn ghost sm"
+              disabled={busy}
+              onClick={() => remove.mutate()}
+            >
+              지우기
+            </button>
+          )}
+          <span className={`fine ${styles.photoHint}`}>
+            jpeg·png·webp, 5MB 이하
+          </span>
+        </div>
       </div>
-      <span className="fine">jpeg·png·webp, 5MB 이하</span>
     </div>
   )
 }
