@@ -1,10 +1,16 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { Link } from 'react-router'
 import { CHATBOT_WINDOW_ID } from './ChatbotLauncher'
 import styles from './ChatbotWindow.module.css'
 import { Composer } from './Composer'
 import { Greeting } from './Greeting'
 import { MessageList } from './MessageList'
-import { clearConversation, closeChatbot, useChatbotStore } from './store'
+import {
+  clearConversation,
+  closeChatbot,
+  closeOnNarrowScreen,
+  useChatbotStore,
+} from './store'
 import { useHeaderBottom } from './useHeaderBottom'
 
 const TITLE_ID = 'chatbot-title'
@@ -13,6 +19,7 @@ const TITLE_ID = 'chatbot-title'
  * 오른쪽 아래 버튼 위에 떠 있는 채팅창. 페이지를 가리는 모달이 아니라 왼쪽 페이지를 계속 보고 누를 수 있다
  * (배경을 어둡게 하지 않는다). 데스크톱은 헤더 아래부터 버튼 위까지 너비 50vw(400~720px), 768px 미만은 화면 거의 전체다.
  * 열리면 창으로 포커스를 옮기고, 창 안에서 Esc를 누르면 닫는다.
+ * 헤더의 'FAQ ↗'는 자주 묻는 질문 페이지로 가는 링크다. 창은 연 채로 두고(좁은 화면에서는 닫는다) 대화에 남지 않는다.
  */
 export function ChatbotWindow() {
   const items = useChatbotStore((s) => s.items)
@@ -48,6 +55,14 @@ export function ChatbotWindow() {
     >
       <header className={styles.head}>
         <h2 id={TITLE_ID}>합방 챗봇</h2>
+        <Link
+          to="/support/faq"
+          className="btn ghost sm"
+          aria-label="FAQ 전체 보기"
+          onClick={closeOnNarrowScreen}
+        >
+          FAQ ↗
+        </Link>
         <button
           type="button"
           className="btn ghost sm"
