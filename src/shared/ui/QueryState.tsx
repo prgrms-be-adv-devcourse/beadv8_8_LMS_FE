@@ -1,10 +1,45 @@
 import { EmptyState } from './EmptyState'
 
-/** 화면 데이터를 처음 불러오는 중 */
-export function Loading({ label = '불러오는 중…' }: { label?: string }) {
+/** 계기판 레벨 미터. 불러오는 중임을 보이는 장식이다 */
+function Meter() {
   return (
-    <div className="panel empty-state" role="status">
-      <span className="spinner" aria-hidden="true" />
+    <span className="meter" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
+  )
+}
+
+/**
+ * 화면 데이터를 처음 불러오는 중.
+ * rows를 주면 그만큼 글줄 뼈대를 함께 그려 목록이 들어올 자리를 미리 잡는다(문구는 그대로 읽힌다).
+ */
+export function Loading({
+  label = '불러오는 중…',
+  rows,
+}: {
+  label?: string
+  rows?: number
+}) {
+  if (rows && rows > 0)
+    return (
+      <div className="panel empty-state loading with-rows" role="status">
+        <div className="loading-head">
+          <Meter />
+          <p>{label}</p>
+        </div>
+        <div className="skeleton-stack" aria-hidden="true">
+          {Array.from({ length: rows }, (_, i) => (
+            <span key={i} className="skeleton text" />
+          ))}
+        </div>
+      </div>
+    )
+  return (
+    <div className="panel empty-state loading" role="status">
+      <Meter />
       <p>{label}</p>
     </div>
   )
@@ -21,6 +56,7 @@ export function LoadError({
   return (
     <EmptyState
       title="불러오지 못했어요"
+      art="error"
       action={
         retry && (
           <button type="button" className="btn" onClick={retry}>
@@ -51,7 +87,7 @@ export function InlineLoadError({
 }) {
   return (
     <div className="notice bad" role="alert">
-      <span>
+      <span className="notice-text">
         {title} {error.message}
       </span>
       <button

@@ -3,29 +3,43 @@
   flex: 1;
   min-width: 0;
 }
-/* 후보 목록. 상단 헤더(z-index 20)보다 아래에 둔다. 움직임은 넣지 않는다 */
+/* 후보 목록. 상단 헤더(z-index 20)보다 아래에 둔다. 입력 중 매번 다시 열리므로 등장 움직임은 넣지 않는다 */
 .list {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
   z-index: 10;
   margin: 0;
-  padding: 4px;
+  padding: 6px;
   list-style: none;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-3);
 }
 .option {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
   cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
+/* 고른 후보: 옅은 면 + 왼쪽 신호색 막대(탤리) */
 .option[aria-selected='true'] {
-  background: var(--sunken);
+  background: var(--hover);
+}
+.option[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--signal);
 }

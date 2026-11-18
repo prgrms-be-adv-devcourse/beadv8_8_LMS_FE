@@ -67,6 +67,8 @@
   --t-fast: 120ms;
   --t: 200ms;
   --t-slow: 360ms;
+  /* 뼈대(.skeleton) 위를 지나가는 옅은 빛. 다크에서는 더 약하게 */
+  --sheen: rgba(255, 255, 255, 0.65);
   color-scheme: light;
 }
 
@@ -102,6 +104,7 @@
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
     --shadow-3: 0 4px 10px rgba(0, 0, 0, 0.4), 0 24px 56px rgba(0, 0, 0, 0.5);
+    --sheen: rgba(255, 255, 255, 0.05);
     color-scheme: dark;
   }
 }
@@ -137,5 +140,6 @@
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
   --shadow-3: 0 4px 10px rgba(0, 0, 0, 0.4), 0 24px 56px rgba(0, 0, 0, 0.5);
+  --sheen: rgba(255, 255, 255, 0.05);
   color-scheme: dark;
 }
