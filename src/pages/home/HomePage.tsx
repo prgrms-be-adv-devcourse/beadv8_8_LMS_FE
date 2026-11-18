@@ -1,13 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef } from 'react'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
 import type { Viewer } from '@/shared/auth/role'
 import { startGoogleLogin, useViewer } from '@/shared/auth/session'
 import { Avatar } from '@/shared/ui/Avatar'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import styles from './HomePage.module.css'
+import { useReveal } from './useReveal'
 
 /** 히어로 아래 한 줄 안내 */
 const HERO_FINE: Record<Viewer, string> = {
@@ -43,26 +43,31 @@ const STEPS: { role: Viewer; no: string; name: string; can: string }[] = [
   },
 ]
 
+/** 출연료가 움직이는 4단계. rail은 그 단계에서 HP가 어떤 상태인지(색) */
 const FLOW = [
   {
     title: '출연 요청 · 모집',
     desc: '게스트 한 명에게 요청하거나, 모집 글로 여러 명을 모아요.',
     tone: 'sunken',
+    rail: null,
   },
   {
     title: '출연 성립 · HP 보류',
     desc: '게스트가 수락하거나 호스트가 선정하면 출연료가 보류돼요.',
     tone: 'hold',
+    rail: 'HOLD',
   },
   {
     title: '같이 방송',
     desc: '방송 전에 취소되면 정책에 따라 HP를 돌려받아요.',
     tone: 'signal',
+    rail: 'LIVE',
   },
   {
     title: '출연 확인 · 지급',
     desc: '호스트가 확인하거나 방송 7일 뒤 자동 확인되면 게스트에게 지급돼요.',
     tone: 'earn',
+    rail: 'PAID',
   },
 ] as const
 
@@ -75,7 +80,9 @@ const CHAPTERS = [
 /** 홈: 모든 역할 공통 첫 화면. 서비스 소개와 역할별 다음 행동, 최근 강의를 보여 준다. */
 export function HomePage() {
   const viewer = useViewer() ?? 'GUEST'
-  const videoRef = useRef<HTMLElement>(null)
+  const videoRef = useReveal<HTMLElement>()
+  const flowRef = useReveal<HTMLElement>()
+  const bandRef = useReveal<HTMLElement>()
   const scrollToVideo = () =>
     videoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
@@ -85,27 +92,41 @@ export function HomePage() {
       <section
         ref={videoRef}
         id="video"
-        className={`${styles.wrap} ${styles.video}`}
+        className={`${styles.wrap} ${styles.video} ${styles.reveal}`}
       >
-        <div
-          className={styles.player}
-          role="img"
-          aria-label="합방 소개 영상 자리"
-        >
-          <span className={styles.playerTop}>
-            <span className="onair">합방 소개</span>
-            <span className="num">영상 준비 중</span>
-          </span>
-          <span className={styles.play} aria-hidden="true">
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </span>
-          <span className={styles.playerTitle}>
-            처음 합방하는 날까지,
-            <br />
-            3단계면 돼요
-          </span>
+        <div className={styles.monitor}>
+          <div
+            className={styles.player}
+            role="img"
+            aria-label="합방 소개 영상 자리"
+          >
+            <span className={styles.ticks} aria-hidden="true" />
+            <span className={styles.playerTop}>
+              <span className="onair">합방 소개</span>
+              <span className={styles.rec}>
+                <span className={styles.recDot} aria-hidden="true" />
+                REC
+              </span>
+            </span>
+            <span className={styles.play} aria-hidden="true">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+            <span className={styles.playerBottom}>
+              <span className={styles.playerTitle}>
+                처음 합방하는 날까지,
+                <br />
+                3단계면 돼요
+              </span>
+              <span className={`num ${styles.timecode}`}>영상 준비 중</span>
+            </span>
+          </div>
         </div>
         <div className={styles.videoText}>
           <span className={styles.eyebrow}>VIDEO</span>
@@ -127,7 +148,10 @@ export function HomePage() {
         </div>
       </section>
       <Camp viewer={viewer} />
-      <section className={`${styles.wrap} ${styles.section}`}>
+      <section
+        ref={flowRef}
+        className={`${styles.wrap} ${styles.section} ${styles.reveal}`}
+      >
         <div className={styles.secText}>
           <span className={styles.eyebrow}>HOW IT WORKS</span>
           <h2 className={styles.h2}>출연료는 방송이 끝나야 움직여요</h2>
@@ -138,19 +162,32 @@ export function HomePage() {
         </div>
         <ol className={styles.flow}>
           {FLOW.map((f, i) => (
-            <li key={f.title}>
-              <span className={`${styles.k} ${styles[f.tone]}`}>{i + 1}</span>
-              <b>{f.title}</b>
-              <span className="fine">{f.desc}</span>
+            <li key={f.title} className={styles[`flow_${f.tone}`]}>
+              <span className={styles.rail} aria-hidden="true">
+                <span className={`${styles.k} ${styles[f.tone]}`}>{i + 1}</span>
+                {f.rail && <span className={styles.railTag}>{f.rail}</span>}
+              </span>
+              <span className={styles.flowBody}>
+                <b className={styles.flowTitle}>{f.title}</b>
+                <span className="fine">{f.desc}</span>
+              </span>
             </li>
           ))}
         </ol>
       </section>
       <LatestLectures guest={viewer === 'GUEST'} />
       {viewer === 'GUEST' && (
-        <section className={`${styles.wrap} ${styles.bandWrap}`}>
+        <section
+          ref={bandRef}
+          className={`${styles.wrap} ${styles.bandWrap} ${styles.reveal}`}
+        >
           <div className={styles.band}>
-            <div>
+            <span className={styles.bandGlow} aria-hidden="true" />
+            <div className={styles.bandText}>
+              <span className={styles.bandCue} aria-hidden="true">
+                <span className={styles.recDot} />
+                STAND BY
+              </span>
               <b className={styles.bandTitle}>구글 계정으로 바로 시작해요</b>
               <span className={styles.bandSub}>
                 가입 후 언제든 채널을 인증할 수 있어요.
@@ -158,7 +195,7 @@ export function HomePage() {
             </div>
             <button
               type="button"
-              className="btn"
+              className={`btn signal ${styles.bandBtn}`}
               onClick={() => startGoogleLogin('/')}
             >
               Google로 시작하기
@@ -188,13 +225,16 @@ function SupportLink({ viewer }: { viewer: Viewer }) {
 function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
   return (
     <section className={styles.heroBand}>
+      <span className={styles.heroGrid} aria-hidden="true" />
       <div className={`${styles.wrap} ${styles.hero}`}>
         <div className={styles.heroText}>
-          <span className="onair">방송하는 사람들의 거래소</span>
+          <span className={`onair ${styles.heroCue}`}>
+            방송하는 사람들의 거래소
+          </span>
           <h1 className={styles.h1}>
             합방 상대를 찾고,
             <br />
-            같이 방송해요
+            <span className={styles.h1Accent}>같이 방송해요</span>
           </h1>
           <p className={styles.heroLede}>
             채널을 인증한 인플루언서에게 출연을 요청하거나, 모집 글을 올려
@@ -205,10 +245,12 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
               <>
                 <button
                   type="button"
-                  className="btn primary"
+                  className="btn signal"
                   onClick={() => startGoogleLogin('/')}
                 >
-                  <GoogleIcon />
+                  <span className={styles.gBadge}>
+                    <GoogleIcon />
+                  </span>
                   Google로 시작하기
                 </button>
                 <button type="button" className="btn" onClick={onVideo}>
@@ -218,7 +260,7 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
             )}
             {viewer === 'USER' && (
               <>
-                <Link className="btn primary" to="/verify">
+                <Link className="btn signal" to="/verify">
                   채널 인증하기
                 </Link>
                 <button type="button" className="btn" onClick={onVideo}>
@@ -228,7 +270,7 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
             )}
             {(viewer === 'INFLUENCER' || viewer === 'VERIFIED_INFLUENCER') && (
               <>
-                <Link className="btn primary" to="/influencers">
+                <Link className="btn signal" to="/influencers">
                   게스트 찾기
                 </Link>
                 <Link className="btn" to="/recruits">
@@ -237,52 +279,71 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
               </>
             )}
             {viewer === 'ADMIN' && (
-              <Link className="btn primary" to="/admin">
+              <Link className="btn signal" to="/admin">
                 운영 화면으로
               </Link>
             )}
           </div>
           <p className={`fine ${styles.heroFine}`}>{HERO_FINE[viewer]}</p>
         </div>
-        {/* 화면 예시(장식). 실제 회원·거래가 아니다. */}
-        <div className={styles.example} aria-hidden="true">
-          <span className={styles.exampleLabel}>화면 예시</span>
-          <div className={`${styles.mini} ${styles.miniA}`}>
-            <Avatar name="윤" size={44} />
-            <span className={styles.miniText}>
-              <b>
-                새벽라디오 윤 <span className="pill info">인증</span>
-              </b>
-              <span className="fine">토크 · 팔로워 28,900 · 합방 31회</span>
-            </span>
-          </div>
-          <div className={`${styles.mini} ${styles.miniB}`}>
-            <Avatar name="곰" size={44} />
-            <span className={styles.miniText}>
-              <b>밤새는곰</b>
-              <span className="fine">게임 · 팔로워 12,840 · 합방 14회</span>
-            </span>
-          </div>
-          <div className={`${styles.mini} ${styles.miniC}`}>
-            <span className={styles.miniRow}>
-              <span className={styles.eyebrow}>출연 요청</span>
-              <span className="pill warn">수락 대기</span>
-            </span>
-            <b>10월 24일(토) 22:00 · 공포게임 합방</b>
-            <span className={styles.miniRow}>
-              <span className="fine">출연료 보류</span>
-              <b className="num">50,000 HP</b>
-            </span>
-          </div>
-        </div>
+        <HeroStage />
       </div>
     </section>
   )
 }
 
-function Camp({ viewer }: { viewer: Viewer }) {
+/**
+ * 히어로 오른쪽 그림(장식): 호스트와 게스트 두 방송 화면이 한 화면으로 합쳐지고 ON AIR가 켜진다.
+ * 실제 회원·거래가 아니어서 화면 낭독기에는 숨기고, 지어낸 통계(팔로워 수 등)는 넣지 않는다.
+ */
+function HeroStage() {
   return (
-    <section className={styles.camp}>
+    <div className={styles.stage} aria-hidden="true">
+      <div className={styles.screen}>
+        <span className={styles.screenBar}>
+          <span className={styles.tally}>
+            <span className={styles.lamp} />
+            ON AIR
+          </span>
+          <span className={styles.screenMeta}>화면 예시</span>
+        </span>
+        <span className={styles.split}>
+          <span className={`${styles.cam} ${styles.camA}`}>
+            <span className={styles.camTag}>HOST</span>
+            <Avatar name="윤" size={52} />
+            <b className={styles.camName}>새벽라디오 윤</b>
+          </span>
+          <span className={styles.seam}>
+            <span className={styles.seamMark}>합</span>
+          </span>
+          <span className={`${styles.cam} ${styles.camB}`}>
+            <span className={styles.camTag}>GUEST</span>
+            <Avatar name="곰" size={52} />
+            <b className={styles.camName}>밤새는곰</b>
+          </span>
+        </span>
+      </div>
+      <div className={styles.deal}>
+        <span className={styles.dealRow}>
+          <span className={styles.dealEyebrow}>출연 요청</span>
+          <span className="pill warn">수락 대기</span>
+        </span>
+        <b className={styles.dealTitle}>10월 24일(토) 22:00 · 공포게임 합방</b>
+        <span className={styles.dealRow}>
+          <span className="fine">출연료 보류</span>
+          <b className={`num ${styles.dealHp}`}>50,000 HP</b>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function Camp({ viewer }: { viewer: Viewer }) {
+  const ref = useReveal<HTMLElement>()
+  // 지금 등급의 위치. 비회원·관리자는 길 위에 없다(-1)
+  const at = STEPS.findIndex((s) => s.role === viewer)
+  return (
+    <section ref={ref} className={`${styles.camp} ${styles.reveal}`}>
       <div className={`${styles.wrap} ${styles.campInner}`}>
         <div className={styles.campHead}>
           <div className={styles.campText}>
@@ -299,20 +360,26 @@ function Camp({ viewer }: { viewer: Viewer }) {
           <CampAction viewer={viewer} />
         </div>
         <ol className={styles.steps}>
-          {STEPS.map((s) => {
-            const here = s.role === viewer
+          {STEPS.map((s, i) => {
+            const here = i === at
+            const state = here ? styles.here : i < at ? styles.done : ''
             return (
               <li
                 key={s.role}
-                className={here ? `${styles.step} ${styles.here}` : styles.step}
+                className={`${styles.step} ${state}`}
                 aria-current={here ? 'step' : undefined}
               >
-                <span className={styles.stepNo}>
-                  <span>{s.no}</span>
-                  {here && <span className={styles.hereTag}>지금 여기</span>}
+                <span className={styles.node} aria-hidden="true">
+                  {i < at && <CheckIcon />}
                 </span>
-                <b className={styles.stepName}>{s.name}</b>
-                <span className={styles.stepCan}>{s.can}</span>
+                <span className={styles.stepCard}>
+                  <span className={styles.stepNo}>
+                    <span>{s.no}</span>
+                    {here && <span className={styles.hereTag}>지금 여기</span>}
+                  </span>
+                  <b className={styles.stepName}>{s.name}</b>
+                  <span className={styles.stepCan}>{s.can}</span>
+                </span>
               </li>
             )
           })}
@@ -328,7 +395,7 @@ function CampAction({ viewer }: { viewer: Viewer }) {
     return (
       <button
         type="button"
-        className={`btn ${styles.campBtn}`}
+        className={`btn primary ${styles.campBtn}`}
         onClick={() => startGoogleLogin('/')}
       >
         Google로 시작하기
@@ -336,13 +403,13 @@ function CampAction({ viewer }: { viewer: Viewer }) {
     )
   if (viewer === 'USER')
     return (
-      <Link className={`btn ${styles.campBtn}`} to="/verify">
+      <Link className={`btn primary ${styles.campBtn}`} to="/verify">
         채널 인증하기
       </Link>
     )
   if (viewer === 'INFLUENCER')
     return (
-      <Link className={`btn ${styles.campBtn}`} to="/promote">
+      <Link className={`btn primary ${styles.campBtn}`} to="/promote">
         승급 신청하기
       </Link>
     )
@@ -351,28 +418,34 @@ function CampAction({ viewer }: { viewer: Viewer }) {
 
 /** 최근 판매 중인 강의 4개 (비회원도 볼 수 있는 강의 목록 API) */
 function LatestLectures({ guest }: { guest: boolean }) {
+  const ref = useReveal<HTMLElement>()
   // 강의 목록 첫 화면과 같은 쿼리(같은 캐시)를 써서 4개만 보여 준다. 홈에서 강의로 넘어가면 바로 그려진다.
   const { data, error, isPending, refetch } = useQuery(
     lecturesQuery({ sort: 'LATEST', page: 0 }),
   )
   const lectures = data?.content.slice(0, 4) ?? []
   return (
-    <section className={`${styles.wrap} ${styles.section}`}>
+    <section
+      ref={ref}
+      className={`${styles.wrap} ${styles.section} ${styles.reveal}`}
+    >
       <div className={styles.secHead}>
         <div className={styles.secText}>
           <span className={styles.eyebrow}>LECTURES</span>
           <h2 className={styles.h2}>인플루언서가 만든 방송 강의</h2>
         </div>
-        <Link className="btn ghost" to="/lectures">
+        <Link className={`btn ghost ${styles.more}`} to="/lectures">
           전체 강의 ›
         </Link>
       </div>
       {isPending ? (
-        <Loading />
+        <LectureSkeleton />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : lectures.length === 0 ? (
-        <p className="fine">아직 판매 중인 강의가 없어요.</p>
+        <div className={styles.lecEmpty}>
+          <p className="fine">아직 판매 중인 강의가 없어요.</p>
+        </div>
       ) : (
         <div className={styles.lectures}>
           {lectures.map((lecture) => (
@@ -385,6 +458,39 @@ function LatestLectures({ guest }: { guest: boolean }) {
         </div>
       )}
     </section>
+  )
+}
+
+/** 강의 카드 자리 뼈대. 불러오는 중 안내(role=status)는 화면 낭독기에 그대로 알린다 */
+function LectureSkeleton() {
+  return (
+    <div className={styles.lectures} role="status">
+      <span className="sr-only">불러오는 중…</span>
+      {[0, 1, 2, 3].map((i) => (
+        <span key={i} className={styles.skelCard} aria-hidden="true">
+          <span className={styles.skelThumb} />
+          <span className={styles.skelLine} />
+          <span className={`${styles.skelLine} ${styles.skelShort}`} />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
   )
 }
 
