@@ -16,18 +16,47 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  padding-right: 4px;
 }
+/* 칩 안의 앞으로·빼기 버튼: 작은 글자라도 누를 자리는 넉넉하게 */
 .chipButton {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
   border: 0;
+  border-radius: 50%;
   background: none;
   color: inherit;
-  padding: 0 3px;
-  font-size: 13px;
+  padding: 0;
+  font-size: 14px;
   line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--t-fast) var(--ease-out);
 }
+.chipButton:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.chipButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+/* 후보: 누르기 쉬운 칩 묶음(살짝 들어간 면 위) */
 .suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.suggestions > :global(.chip) {
+  min-height: 32px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chipButton {
+    transition: none;
+  }
 }

@@ -1,18 +1,69 @@
+/* 평균 요약: 큰 점수(계기판 숫자) + 역할별 평점 */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: 16px 28px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.total {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.score {
+  font: 600 34px/1 var(--f-mono);
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.totalMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bar {
+  color: var(--hold);
+  font-size: 15px;
+  letter-spacing: 1px;
+}
 .byRole {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 4px;
   font-size: 13px;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+}
+.roleName {
+  display: inline-block;
+  min-width: 52px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.list {
+  display: flex;
+  flex-direction: column;
 }
 .item {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 0;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
   border-top: 1px solid var(--line);
 }
 .item:first-of-type {
   border-top: 0;
+  padding-top: 4px;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 .head {
   display: flex;
@@ -21,10 +72,34 @@
   flex-wrap: wrap;
   font-size: 14px;
 }
+.reviewer {
+  overflow-wrap: anywhere;
+}
+.sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.date {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
 .content {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 14px;
+  line-height: 1.6;
   color: var(--ink-2);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.loading,
+.empty {
+  padding: 12px 0;
+}
+@media (max-width: 480px) {
+  .byRole {
+    padding-left: 0;
+    border-left: 0;
+  }
 }

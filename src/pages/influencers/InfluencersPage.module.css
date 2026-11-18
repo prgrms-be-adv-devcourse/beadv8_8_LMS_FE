@@ -1,42 +1,86 @@
 .results {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 .resultsHead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
 }
 .resultsHead h2 {
-  font-size: 16px;
+  font-size: 17px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
 }
+/* 결과 수는 계기판 숫자처럼 모노로 */
+.count {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--signal-text);
+}
+/* 정렬 기준 머리표 */
+.order {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+/* 넓으면 3~4열, 좁으면 2열·1열 */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 16px;
-  transition: opacity 0.15s;
+  transition: opacity var(--t) var(--ease-out);
 }
 /* 새 조건의 결과를 기다리는 동안 이전 결과를 흐리게 둔다 */
 .stale {
   opacity: 0.5;
 }
 .channel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   font-size: 13px;
   color: var(--ink-2);
+}
+.channelText {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
 .bio {
   font-size: 13px;
   color: var(--ink-2);
+  line-height: 1.55;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
   overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .grid {
+    transition: none;
+  }
 }

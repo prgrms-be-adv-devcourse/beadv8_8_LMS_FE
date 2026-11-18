@@ -1,0 +1,36 @@
+/* 미리보기: 점선 모니터 틀 안에 공개 프로필을 그대로 보인다 */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--r-xl);
+  background: var(--bg);
+  min-width: 0;
+}
+.monitorHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* 탤리 램프: 화면에 나가는 모습이라는 표시 */
+.lamp {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 3px var(--signal-soft);
+}
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--signal-text);
+}
+@media (max-width: 560px) {
+  .preview {
+    padding: 10px;
+    border-radius: var(--r-lg);
+  }
+}

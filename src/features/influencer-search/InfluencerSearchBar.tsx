@@ -82,7 +82,7 @@ export function InfluencerSearchBar({
           placeholder="닉네임·채널·콘텐츠 분야·자기소개로 찾기"
           maxLength={SEARCH_KEYWORD_MAX}
         />
-        <button type="submit" className="btn">
+        <button type="submit" className={`btn primary ${styles.submit}`}>
           검색
         </button>
       </form>
@@ -125,7 +125,7 @@ export function InfluencerSearchBar({
         />
       </div>
       {conditions.sort === 'rating' && (
-        <p className="fine">
+        <p className={`fine ${styles.note}`}>
           출연 평점 높은 순은 리뷰 수를 함께 반영한 순서예요. 리뷰가 적으면
           평균이 높아도 아래에 올 수 있어요.
         </p>
@@ -182,20 +182,30 @@ function OptionSelect<T>({
   onChange,
 }: OptionSelectProps<T>) {
   const key = (v: T | undefined) => (v === undefined ? '' : String(v))
+  // 첫 선택지 이름('전체' 등)만으로는 무엇을 거르는지 알기 어려워 칸 이름을 위에 보인다
   return (
-    <select
-      className="select sm"
-      aria-label={label}
-      value={key(value)}
-      onChange={(e) =>
-        onChange(options.find(([v]) => key(v) === e.target.value)?.[0])
+    <label
+      className={
+        value === undefined ? styles.filter : `${styles.filter} ${styles.on}`
       }
     >
-      {options.map(([v, name]) => (
-        <option key={key(v)} value={key(v)}>
-          {name}
-        </option>
-      ))}
-    </select>
+      <span className={styles.filterName} aria-hidden="true">
+        {label}
+      </span>
+      <select
+        className="select sm"
+        aria-label={label}
+        value={key(value)}
+        onChange={(e) =>
+          onChange(options.find(([v]) => key(v) === e.target.value)?.[0])
+        }
+      >
+        {options.map(([v, name]) => (
+          <option key={key(v)} value={key(v)}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }

@@ -6,6 +6,7 @@ import { InfluencerProfileForm } from '@/features/account/InfluencerProfileForm'
 import { meQuery } from '@/shared/auth/me'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './MyProfilePage.module.css'
 
 /**
  * 내 프로필: 콘텐츠 분야·자기소개 편집과 공개 프로필 미리보기(다른 회원이 인플루언서 목록에서 보는 모습 그대로).
@@ -42,8 +43,15 @@ export function MyProfilePage() {
       ) : profile.error ? (
         <LoadError error={profile.error} retry={profile.refetch} />
       ) : (
-        <section className="page" aria-label="미리보기" style={{ gap: 16 }}>
-          <span className="fine">다른 회원에게 이렇게 보여요</span>
+        // 모니터 화면처럼 테두리를 둘러 편집 폼과 구분한다
+        <section className={styles.preview} aria-label="미리보기">
+          <div className={styles.monitorHead}>
+            <span className={styles.lamp} aria-hidden="true" />
+            <span className={styles.eyebrow} aria-hidden="true">
+              PREVIEW
+            </span>
+            <span className="fine">다른 회원에게 이렇게 보여요</span>
+          </div>
           <MemberProfileView profile={profile.data} />
         </section>
       )}

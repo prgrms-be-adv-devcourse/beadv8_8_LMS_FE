@@ -16,6 +16,7 @@ import {
 import type { MemberProfile } from '@/entities/member/types'
 import {
   InfluencerCard,
+  InfluencerCardSkeleton,
   type InfluencerCardMember,
 } from '@/entities/member/ui/InfluencerCard'
 import { RequestFormModal } from '@/features/appearance-request/RequestFormModal'
@@ -33,7 +34,7 @@ import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import styles from './InfluencersPage.module.css'
 
 const isInfluencer = (role: string | undefined) =>
@@ -138,10 +139,10 @@ function AllInfluencers({
     <section className={styles.results} aria-labelledby="influencers-heading">
       <div className={styles.resultsHead}>
         <h2 id="influencers-heading">전체 인플루언서</h2>
-        <span className="fine">최신 가입순</span>
+        <span className={styles.order}>최신 가입순</span>
       </div>
       {isPending || moving ? (
-        <Loading />
+        <CardsLoading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
@@ -187,10 +188,13 @@ function SearchResults({
       <div className={styles.resultsHead}>
         <h2 id="influencers-heading">
           검색 결과{' '}
-          {data &&
-            (total >= SEARCH_RESULT_WINDOW
-              ? `${formatNumber(SEARCH_RESULT_WINDOW)}명 이상`
-              : `${formatNumber(total)}명`)}
+          {data && (
+            <span className={styles.count}>
+              {total >= SEARCH_RESULT_WINDOW
+                ? `${formatNumber(SEARCH_RESULT_WINDOW)}명 이상`
+                : `${formatNumber(total)}명`}
+            </span>
+          )}
         </h2>
         <button type="button" className="btn sm ghost" onClick={onReset}>
           조건 모두 지우기
@@ -204,7 +208,7 @@ function SearchResults({
           onFirstPage={() => onPage(0)}
         />
       ) : isPending || moving ? (
-        <Loading />
+        <CardsLoading />
       ) : data.content.length === 0 ? (
         <EmptyState
           title="조건에 맞는 인플루언서가 없어요."
@@ -252,6 +256,18 @@ function SearchResults({
   )
 }
 
+/** 카드가 올 자리를 뼈대로 채운다. 화면 읽기 프로그램에는 불러오는 중이라고만 알린다 */
+function CardsLoading() {
+  return (
+    <div className={styles.grid} role="status">
+      <span className="sr-only">불러오는 중…</span>
+      {Array.from({ length: 6 }, (_, i) => (
+        <InfluencerCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
 /** 대표 채널 이름·팔로워 수와 자기소개(2줄까지) */
 function SearchItemDetails({ item }: { item: InfluencerSearchItem }) {
   const followers = `팔로워 ${formatNumber(item.followerCount)}명`
@@ -259,7 +275,12 @@ function SearchItemDetails({ item }: { item: InfluencerSearchItem }) {
     <>
       {(item.channelName || item.followerCount > 0) && (
         <p className={styles.channel}>
-          {item.channelName ? `${item.channelName} · ${followers}` : followers}
+          <span className={styles.dot} aria-hidden="true" />
+          <span className={styles.channelText}>
+            {item.channelName
+              ? `${item.channelName} · ${followers}`
+              : followers}
+          </span>
         </p>
       )}
       {item.bio && <p className={styles.bio}>{item.bio}</p>}
