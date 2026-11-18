@@ -258,6 +258,38 @@ describe('쿠폰함', () => {
     expect(seen.every((search) => search === '')).toBe(true)
   })
 
+  it('BE 만료 배치 전이라 아직 사용 가능 상태여도 기한이 지난 쿠폰은 만료로 보이고 세지 않는다', async () => {
+    mockCoupons({
+      mine: [
+        memberCoupon({
+          memberCouponId: 1,
+          couponName: '쓸 수 있는 쿠폰',
+          expiresAt: '2999-11-30T14:00:00Z',
+        }),
+        // 기한은 지났지만 BE 배치(10분 간격)가 아직 EXPIRED로 바꾸지 않은 쿠폰
+        memberCoupon({
+          memberCouponId: 2,
+          couponId: 2,
+          couponName: '기한 지난 쿠폰',
+          expiresAt: '2020-01-01T00:00:00Z',
+        }),
+      ],
+    })
+    const user = userEvent.setup()
+    renderApp('/library/coupons', 'USER')
+
+    expect(await item('쓸 수 있는 쿠폰')).toBeInTheDocument()
+    expect(screen.getByLabelText('쿠폰 요약')).toHaveTextContent('사용 가능1장')
+    expect(
+      screen.queryByRole('listitem', { name: '기한 지난 쿠폰' }),
+    ).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: '지난 쿠폰' }))
+    const lapsed = await item('기한 지난 쿠폰')
+    expect(within(lapsed).getByText('만료')).toHaveClass('pill', 'mute')
+    expect(within(lapsed).queryByRole('link')).toBeNull()
+  })
+
   it('받은 쿠폰이 없으면 쿠폰 받는 곳을 안내하고 강의로 보낸다', async () => {
     mockCoupons()
     renderApp('/library/coupons', 'INFLUENCER')

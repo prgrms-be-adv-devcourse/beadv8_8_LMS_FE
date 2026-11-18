@@ -13,8 +13,21 @@ export const EXPIRING_DAYS = 3
  */
 const HELD: MemberCouponStatus[] = ['AVAILABLE', 'RESERVED']
 
-export const viewOf = (coupon: MemberCoupon): CouponView =>
-  HELD.includes(coupon.status) ? 'usable' : 'past'
+/**
+ * 쿠폰함에 보일 상태. BE는 기한이 지난 AVAILABLE을 배치(10분 간격)로 EXPIRED로 바꾸고 쿠폰함 조회는 저장된 상태를 그대로 준다.
+ * 그 사이에도 결제에서는 이미 쓸 수 없으므로 기한(expiresAt <= now, BE와 같은 경계)이 지났으면 만료로 본다.
+ * 주문에 묶인 쿠폰(RESERVED)은 BE도 돌려받을 때 기한을 보므로 그대로 둔다
+ */
+export const displayStatusOf = (
+  coupon: MemberCoupon,
+  now = new Date(),
+): MemberCouponStatus =>
+  coupon.status === 'AVAILABLE' && isPast(coupon.expiresAt, now)
+    ? 'EXPIRED'
+    : coupon.status
+
+export const viewOf = (coupon: MemberCoupon, now = new Date()): CouponView =>
+  HELD.includes(displayStatusOf(coupon, now)) ? 'usable' : 'past'
 
 /** 곧 만료: 쓸 수 있고 아직 지나지 않았으며 남은 날이 EXPIRING_DAYS 이하 */
 export const isExpiringSoon = (coupon: MemberCoupon, now = new Date()) =>
@@ -31,15 +44,16 @@ const expiresAtMs = (coupon: MemberCoupon) =>
  */
 export function splitCoupons(coupons: MemberCoupon[], now = new Date()) {
   const usable = coupons
-    .filter((c) => viewOf(c) === 'usable')
+    .filter((c) => viewOf(c, now) === 'usable')
     .sort((a, b) => {
       const rank = (c: MemberCoupon) => (c.status === 'AVAILABLE' ? 0 : 1)
       return rank(a) - rank(b) || expiresAtMs(a) - expiresAtMs(b)
     })
   return {
     usable,
-    past: coupons.filter((c) => viewOf(c) === 'past'),
-    available: coupons.filter((c) => c.status === 'AVAILABLE').length,
+    past: coupons.filter((c) => viewOf(c, now) === 'past'),
+    available: coupons.filter((c) => displayStatusOf(c, now) === 'AVAILABLE')
+      .length,
     expiring: coupons.filter((c) => isExpiringSoon(c, now)).length,
   }
 }

@@ -212,10 +212,10 @@ describe('채팅 연결 인증', () => {
       const client = await connectSocket()
 
       await vi.waitFor(() => expect(tickets.calls).toBe(1))
-      // 첫 대기는 3초다.
-      await act(() => vi.advanceTimersByTimeAsync(2_900))
+      // 첫 대기는 3초다. shouldAdvanceTime이라 실제로 흐른 시간도 더해지므로, 느린 CI에서도 3초 전에 확인하게 1초 여유를 둔다.
+      await act(() => vi.advanceTimersByTimeAsync(2_000))
       expect(tickets.calls).toBe(1)
-      await act(() => vi.advanceTimersByTimeAsync(200))
+      await act(() => vi.advanceTimersByTimeAsync(1_100))
       await vi.waitFor(() => expect(tickets.calls).toBe(2))
       // 두 번째 대기는 6초다.
       await act(() => vi.advanceTimersByTimeAsync(6_000))

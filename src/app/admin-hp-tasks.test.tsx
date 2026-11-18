@@ -33,8 +33,15 @@ afterEach(async () => {
 })
 
 const list = () => screen.findByRole('list', { name: 'HP 작업 목록' })
-const item = async (taskId: number) =>
-  within(await list()).findByRole('listitem', { name: `HP 작업 #${taskId}` })
+// 상태를 바꾸면 목록이 새 요소로 다시 그려질 수 있어, 처음 찾은 목록 안에서만 기다리지 않고 매번 목록부터 다시 찾는다
+// (느린 CI에서 옛 목록을 잡고 기다리다 시간 초과로 실패했다)
+const item = (taskId: number) =>
+  waitFor(() =>
+    within(screen.getByRole('list', { name: 'HP 작업 목록' })).getByRole(
+      'listitem',
+      { name: `HP 작업 #${taskId}` },
+    ),
+  )
 /** 상세 화면 머리글의 상태 배지 */
 const statusPill = () =>
   screen.findByText(/멈춤|대기|처리 중|완료/, {

@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import {
+  displayStatusOf,
   EXPIRING_DAYS,
   isExpiringSoon,
   splitCoupons,
@@ -139,7 +140,8 @@ function CouponBox({
 
 function CouponItem({ coupon }: { coupon: MemberCoupon }) {
   const nameId = useId()
-  const usable = coupon.status === 'AVAILABLE'
+  const status = displayStatusOf(coupon)
+  const usable = status === 'AVAILABLE'
   const expiring = isExpiringSoon(coupon)
   const className = [
     styles.ticket,
@@ -161,7 +163,7 @@ function CouponItem({ coupon }: { coupon: MemberCoupon }) {
           <b id={nameId} className="row-title">
             {coupon.couponName}
           </b>
-          <MemberCouponStatusPill status={coupon.status} />
+          <MemberCouponStatusPill status={status} />
           {coupon.stackable && (
             <span className="pill line">다른 쿠폰과 함께 사용 가능</span>
           )}

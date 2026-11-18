@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { MemberCouponStatus } from '@/entities/coupon/types'
 import { memberCoupon } from '@/test/couponMock'
-import { isExpiringSoon, splitCoupons, viewOf } from './couponBox'
+import {
+  displayStatusOf,
+  isExpiringSoon,
+  splitCoupons,
+  viewOf,
+} from './couponBox'
 
 const NOW = new Date('2026-11-18T03:00:00Z')
 
@@ -43,5 +48,33 @@ describe('쿠폰함 보기 나누기', () => {
     expect(result.past.map((c) => c.memberCouponId)).toEqual([4])
     expect(result.available).toBe(2)
     expect(result.expiring).toBe(1)
+  })
+
+  it('BE 만료 배치 전이라 AVAILABLE이어도 기한이 지났으면 만료로 보고 지난 쿠폰에 둔다', () => {
+    const lapsed = memberCoupon({
+      memberCouponId: 5,
+      expiresAt: '2026-11-18T03:00:00Z', // NOW와 같은 시각도 만료다(BE 경계 expiresAt <= now)
+    })
+    const reservedLapsed = memberCoupon({
+      memberCouponId: 6,
+      status: 'RESERVED',
+      expiresAt: '2026-11-17T00:00:00Z',
+    })
+    const live = memberCoupon({
+      memberCouponId: 7,
+      expiresAt: '2026-11-18T03:00:01Z',
+    })
+
+    expect(displayStatusOf(lapsed, NOW)).toBe('EXPIRED')
+    expect(viewOf(lapsed, NOW)).toBe('past')
+    // 주문에 묶인 쿠폰은 BE도 돌려받을 때 기한을 보므로 그대로 둔다
+    expect(displayStatusOf(reservedLapsed, NOW)).toBe('RESERVED')
+    expect(viewOf(reservedLapsed, NOW)).toBe('usable')
+    expect(displayStatusOf(live, NOW)).toBe('AVAILABLE')
+
+    const result = splitCoupons([lapsed, reservedLapsed, live], NOW)
+    expect(result.usable.map((c) => c.memberCouponId)).toEqual([7, 6])
+    expect(result.past.map((c) => c.memberCouponId)).toEqual([5])
+    expect(result.available).toBe(1)
   })
 })
