@@ -85,7 +85,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
   - HTTP 상태를 먼저 확인하고(429·400은 스트림을 열지 않고 ProblemDetail), `token`은 이어 붙이고 카드는 `cards` 이벤트로만 그린다(글에 강의 이름이 나와도 링크로 바꾸지 않는다). 파서는 `entities/chatbot/sse.ts`이고 모르는 이벤트는 무시한다.
   - `history`(`historyFor`, `entities/chatbot/history.ts`의 `buildHistory`): 최근 12개, 이번 질문 제외, 내가 쓴 질문과 답 글만 넣는다(버튼으로 고른 것·안내·카드·근거 FAQ·답을 못 받은 질문은 뺀다). 글자 수는 BE처럼 코드 포인트로 센다(`entities/chatbot/text.ts`의 `textLength`). BE는 역할 순서를 보지 않아 잘린 결과가 ASSISTANT로 시작해도 된다.
 - 대화 상태 전이는 화면과 떨어진 순수 함수(`features/chatbot/conversation.ts`·`answer.ts`)와 그 테스트에 둔다. 요청 결과는 말풍선 id로만 넣어(`updateItem`) 새 대화(`clearConversation`) 뒤 늦게 온 결과는 버리고, 새 대화·로그아웃이면 진행 중인 요청을 끊는다. 답을 기다리는 동안(`isBusy`)에는 입력과 버튼을 잠그고, 가장 마지막 말풍선의 버튼만 누를 수 있다. 429는 기다릴 시간을 안내하고 자동으로 다시 보내지 않는다.
-- 추천 띠(`RecommendStrip`, 카드 한 줄은 `CardRow`, `LectureRecommendWidget`·`InfluencerRecommendWidget`)는 위젯 API(LLM 없음)를 부른다. 검색 중·비회원·불러오는 중·429·오류·빈 목록이면 띠를 숨기고(`shownRecommendation`), `notice`가 오면 그 문구를 그대로 보인다. 띠 제목은 `basis`를 `switch`로 고르고 모르는 값은 중립 제목이다.
+- 추천 띠(`RecommendStrip`, 카드 한 줄은 `CardRow`, `LectureRecommendWidget`·`InfluencerRecommendWidget`)는 위젯 API(LLM 없음)를 부른다. 검색 중·비회원이거나, 아직 받은 결과가 없거나(불러오는 중·429·오류), 추천과 `notice`가 모두 비었으면 띠를 숨긴다(`shownRecommendation`). 한 번 받은 뒤 다시 불러오다 실패하면 이전 결과를 그대로 보인다. `notice`가 오면 그 문구를 그대로 보인다. 띠 제목은 `basis`를 `switch`로 고르고 모르는 값은 중립 제목이다.
 - 테스트의 BE 흉내는 `src/test/chatbotMock.ts`(`mockChatbot`, SSE 응답 `sseResponse`, 응답을 붙잡아 두는 `deferred`)다. 강의·인플루언서 목록이 회원에게 늘 위젯을 부르므로 기본 응답(빈 추천)은 `src/test/server.ts`에 있다.
 
 ## 배포·환경변수
