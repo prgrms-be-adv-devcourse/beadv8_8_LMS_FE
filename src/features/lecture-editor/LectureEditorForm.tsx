@@ -397,6 +397,28 @@ export function LectureEditorForm({
               </li>
             ))}
           </ul>
+          {!ready && (
+            <p className="fine">
+              제목, 1,000 HP 단위 가격, 모든 강의 제목과 파일이 있어야 해요.
+            </p>
+          )}
+          {!editing ? (
+            <p className="fine">
+              검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
+              공개·판매가 시작돼요.
+            </p>
+          ) : rejected ? (
+            <div className="notice warn">
+              반려 사유를 고친 뒤 다시 검수를 신청해요.
+            </div>
+          ) : changed.info ? (
+            <div className="notice">
+              <span className="pill ok">바로 반영</span>
+              제목·소개·가격·썸네일만 바뀌어 재검수 없이 반영돼요.
+            </div>
+          ) : (
+            <p className="fine">바뀐 내용이 없어요.</p>
+          )}
         </section>
 
         <div className={`panel ${styles.save}`}>
@@ -415,23 +437,6 @@ export function LectureEditorForm({
               {doneCount}/{checks.length} 준비
             </span>
           </div>
-          {!editing ? (
-            <p className="fine">
-              검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
-              공개·판매가 시작돼요.
-            </p>
-          ) : rejected ? (
-            <div className="notice warn">
-              반려 사유를 고친 뒤 다시 검수를 신청해요.
-            </div>
-          ) : changed.info ? (
-            <div className="notice">
-              <span className="pill ok">바로 반영</span>
-              제목·소개·가격·썸네일만 바뀌어 재검수 없이 반영돼요.
-            </div>
-          ) : (
-            <p className="fine">바뀐 내용이 없어요.</p>
-          )}
           {serverErrors.form && (
             <div className="notice bad" role="alert">
               {serverErrors.form}
@@ -447,11 +452,6 @@ export function LectureEditorForm({
             {submitting && <span className="spinner xs" aria-hidden="true" />}
             {submitLabel}
           </button>
-          {!ready && (
-            <p className="fine">
-              제목, 1,000 HP 단위 가격, 모든 강의 제목과 파일이 있어야 해요.
-            </p>
-          )}
         </div>
       </aside>
 
