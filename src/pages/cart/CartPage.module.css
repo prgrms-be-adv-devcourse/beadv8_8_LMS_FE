@@ -140,7 +140,8 @@
   /* 목록을 내려 보는 동안에도 합계와 주문 버튼이 손 닿는 곳에 있게 화면 아래에 붙인다 */
   .summary {
     top: auto;
-    bottom: 0;
+    /* 하단 탭바(--app-bottom, 앱 셸) 바로 위 */
+    bottom: var(--app-bottom, 0px);
     z-index: 20;
     flex-direction: row;
     align-items: center;

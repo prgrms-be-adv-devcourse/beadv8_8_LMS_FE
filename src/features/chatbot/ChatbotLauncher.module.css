@@ -6,7 +6,10 @@
 .launcher {
   position: fixed;
   right: 24px;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  /* 하단 탭바(--app-bottom, 앱 셸)가 있으면 그 위로 올린다 */
+  bottom: calc(
+    24px + max(var(--app-bottom, 0px), env(safe-area-inset-bottom, 0px))
+  );
   z-index: 25;
   width: 56px;
   height: 56px;
@@ -87,7 +90,9 @@
 @media (max-width: 767px) {
   .launcher {
     right: 16px;
-    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(
+      84px + max(var(--app-bottom, 0px), env(safe-area-inset-bottom, 0px))
+    );
     width: 52px;
     height: 52px;
   }

@@ -13,7 +13,7 @@
   right: 24px;
   bottom: calc(
     var(--launcher-bottom) + var(--launcher-size) + 12px +
-      env(safe-area-inset-bottom, 0px)
+      max(var(--app-bottom, 0px), env(safe-area-inset-bottom, 0px))
   );
   z-index: 25;
   width: min(clamp(400px, 50vw, 720px), calc(100vw - 48px));

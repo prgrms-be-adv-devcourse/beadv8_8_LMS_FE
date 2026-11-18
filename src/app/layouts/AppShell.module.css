@@ -1,10 +1,17 @@
 .root {
   /* 상단 바 높이. 레일(sticky)·드로어가 이 아래에서 시작한다. 본문에서 sticky 요소를 둘 때도 이 값을 쓴다 */
   --app-top: 60px;
+  /* 좁은 화면 하단 탭바 높이(홈 표시줄 포함). 탭바가 없으면 0. 화면 아래에 붙는 막대·버튼·토스트가 이만큼 올라간다 */
+  --app-bottom: 0px;
   min-height: 100%;
   display: flex;
   flex-direction: column;
   background: var(--bg);
+}
+
+/* 하단 탭바: 60px + 휴대폰 홈 표시줄 */
+.root[data-tab-bar] {
+  --app-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 키보드로 처음 Tab을 누르면 보이는 본문 건너뛰기 링크 */
@@ -76,6 +83,13 @@
 .homeTop {
   padding-inline: max(24px, env(safe-area-inset-left))
     max(24px, env(safe-area-inset-right));
+}
+/* 비회원·회원 헤더: 넓은 화면에서 로고·메뉴가 본문 페이지 폭(1120px)의 양 끝에 맞춰 선다 */
+.siteTop {
+  padding-inline: max(32px, calc((100% - 1120px) / 2));
+}
+.siteTop .topnav {
+  margin-left: 8px;
 }
 
 /* 로고: 마우스를 올리면 ON AIR 램프가 켜진다 */
@@ -380,8 +394,13 @@
   right: 0;
   top: calc(100% + 10px);
   z-index: 25;
-  width: 252px;
+  width: 272px;
   max-width: calc(100vw - 24px);
+  /* 메뉴 그룹이 많은 역할(인증된 인플루언서)도 낮은 창에서 끝까지 닿게 메뉴만 스크롤한다 */
+  max-height: calc(100dvh - var(--app-top) - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
@@ -625,6 +644,12 @@
   outline: none;
 }
 
+/* 비회원·회원: 레일이 없어 본문이 화면 폭을 다 쓴다(페이지는 1120px로 가운데) */
+.siteLayout .main {
+  flex: 1;
+  border-left: 0;
+}
+
 /* 화면 이동 중(다음 화면 파일·데이터를 받는 동안) 맨 위에 진행 막대를 보인다. 빨리 끝나는 이동에서는 깜빡이지 않게 조금 뒤에 나타난다 */
 .main[aria-busy='true']::before {
   content: '';
@@ -662,11 +687,6 @@
 .navScrim {
   display: none;
 }
-/* 좁은 화면 드로어에서만 보이는 내비 항목 */
-.narrowOnly {
-  display: none;
-}
-
 /* ── 드로어: 좁은 화면(≤860px)과 홈. 상단 바 아래에서 열려 메뉴 버튼(X)으로 바로 닫을 수 있다 ── */
 @media (max-width: 860px) {
   .menuBtn {
@@ -768,6 +788,15 @@
   padding: 0;
   border-left: 0;
 }
+/* 본문 끝(홈 푸터 포함)이 하단 탭바에 가리지 않게 탭바만큼 비운다 */
+@media (max-width: 860px) {
+  .siteLayout .main {
+    padding-bottom: calc(56px + var(--app-bottom));
+  }
+  .siteLayout.topLayout .main {
+    padding-bottom: var(--app-bottom);
+  }
+}
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -821,9 +850,18 @@
   }
 }
 
-/* 좁은 화면 (모바일 아트보드): 가로 메뉴는 숨기고 햄버거 드로어로 대신한다 */
+/* 좁은 화면: 관리자 홈의 가로 메뉴는 햄버거 드로어가, 비회원·회원의 주요 메뉴는 하단 탭바가 대신한다 */
 @media (max-width: 960px) {
-  .topnav {
+  .homeTop .topnav {
+    display: none;
+  }
+}
+@media (max-width: 860px) {
+  .siteTop {
+    padding-inline: max(16px, env(safe-area-inset-left))
+      max(16px, env(safe-area-inset-right));
+  }
+  .siteTop .topnav {
     display: none;
   }
 }
@@ -870,17 +908,6 @@
   }
   .hpPill {
     padding: 0 12px;
-  }
-}
-
-/* 좁은 화면: 상단 헤더의 장바구니를 드로어 '내 활동' 맨 위로 옮긴다(NarrowShortcuts).
-   .iconBtn·.narrowOnly 기본값보다 뒤에 두어야 덮어쓴다. */
-@media (max-width: 860px) {
-  .headerIcon {
-    display: none;
-  }
-  .narrowOnly {
-    display: contents;
   }
 }
 

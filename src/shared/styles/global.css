@@ -729,7 +729,10 @@ a.panel {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  /* 하단 탭바(--app-bottom, 앱 셸)가 있으면 그 위에 뜬다 */
+  bottom: calc(
+    24px + max(var(--app-bottom, 0px), env(safe-area-inset-bottom, 0px))
+  );
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
@@ -1835,8 +1838,8 @@ button.chip.on:hover {
   .m-cta {
     display: flex;
     position: sticky;
-    /* 홈 표시줄이 있는 휴대폰에서 버튼이 그 아래로 깔리지 않게 */
-    bottom: env(safe-area-inset-bottom, 0px);
+    /* 홈 표시줄이 있는 휴대폰·하단 탭바(--app-bottom, 앱 셸)가 있는 화면에서 버튼이 그 아래로 깔리지 않게 */
+    bottom: max(var(--app-bottom, 0px), env(safe-area-inset-bottom, 0px));
     z-index: 5;
     align-items: center;
     justify-content: space-between;
