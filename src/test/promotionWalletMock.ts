@@ -17,7 +17,16 @@ type FundingBody = {
 export const promotionWalletDb = {
   wallet: { walletId: 2, availableHp: 0, reservedHp: 0, heldHp: 0 },
   fundings: [] as FundingBody[],
-} as { wallet: PromotionWallet; fundings: FundingBody[] }
+  /** 받은 충전 요청 전부(실패시킨 요청 포함) */
+  fundingCalls: [] as FundingBody[],
+  /** 0보다 크면 그 횟수만큼 충전을 503으로 실패시킨다(BE는 처리하지 않은 것으로 둔다) */
+  failFundings: 0,
+} as {
+  wallet: PromotionWallet
+  fundings: FundingBody[]
+  fundingCalls: FundingBody[]
+  failFundings: number
+}
 
 export function resetPromotionWalletDb(patch: Partial<PromotionWallet> = {}) {
   promotionWalletDb.wallet = {
@@ -28,6 +37,8 @@ export function resetPromotionWalletDb(patch: Partial<PromotionWallet> = {}) {
     ...patch,
   }
   promotionWalletDb.fundings = []
+  promotionWalletDb.fundingCalls = []
+  promotionWalletDb.failFundings = 0
 }
 
 const json = <T>(data: T, status = 200) =>
@@ -44,6 +55,14 @@ export const promotionWalletHandlers: AnyHandler[] = [
     '*/api/v1/settlements/admin/promotion-wallet/fundings',
     async ({ request }) => {
       const body = (await request.json()) as FundingBody
+      promotionWalletDb.fundingCalls.push(body)
+      if (promotionWalletDb.failFundings > 0) {
+        promotionWalletDb.failFundings -= 1
+        return HttpResponse.json(
+          { status: 503, detail: '잠시 실패', code: 'SERVICE_UNAVAILABLE' },
+          { status: 503 },
+        )
+      }
       const first = promotionWalletDb.fundings.find(
         (x) => x.fundingWorkId === body.fundingWorkId,
       )

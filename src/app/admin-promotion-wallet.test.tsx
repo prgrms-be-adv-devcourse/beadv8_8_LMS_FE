@@ -66,6 +66,52 @@ describe('관리자 프로모션 지갑', () => {
     expect(screen.getByLabelText('충전 HP')).toHaveValue('')
   })
 
+  it('응답을 받지 못한 충전을 같은 내용으로 다시 보내면 같은 작업 ID를 쓰고, 내용을 바꾸면 새 ID를 쓴다', async () => {
+    const user = userEvent.setup()
+    promotionWalletDb.failFundings = 2
+    renderApp('/admin/promotion-wallet', 'ADMIN')
+    await balance()
+
+    await user.type(screen.getByLabelText('충전 HP'), '5000')
+    await user.type(screen.getByLabelText('충전 근거 번호'), '결재-1')
+    await user.click(screen.getByRole('button', { name: '충전하기' }))
+    expect(
+      await screen.findByText(/충전 결과를 확인하지 못했어요/),
+    ).toBeInTheDocument()
+    // 실패해도 입력은 남는다
+    expect(screen.getByLabelText('충전 HP')).toHaveValue('5000')
+
+    // 값이 바뀌지 않는 입력(숫자가 아닌 글자)은 새 충전으로 보지 않는다
+    await user.type(screen.getByLabelText('충전 HP'), 'a')
+    await user.click(screen.getByRole('button', { name: '충전하기' }))
+    await waitFor(() => expect(promotionWalletDb.fundingCalls).toHaveLength(2))
+    const [first, second] = promotionWalletDb.fundingCalls
+    expect(second.fundingWorkId).toBe(first.fundingWorkId)
+
+    await user.type(screen.getByLabelText('메모 (선택)'), '11월 프로모션')
+    await user.click(screen.getByRole('button', { name: '충전하기' }))
+    await waitFor(() => expect(promotionWalletDb.fundingCalls).toHaveLength(3))
+    expect(promotionWalletDb.fundingCalls[2].fundingWorkId).not.toBe(
+      first.fundingWorkId,
+    )
+    await waitFor(async () =>
+      expect(await balance()).toHaveTextContent('15,000HP'),
+    )
+  })
+
+  it('안전하게 다룰 수 없는 큰 금액은 보내지 않는다', async () => {
+    const user = userEvent.setup()
+    renderApp('/admin/promotion-wallet', 'ADMIN')
+    await balance()
+
+    await user.type(screen.getByLabelText('충전 HP'), '9007199254740993')
+    await user.type(screen.getByLabelText('충전 근거 번호'), '결재-1')
+    await user.click(screen.getByRole('button', { name: '충전하기' }))
+
+    expect(await screen.findByText('금액이 너무 커요.')).toBeInTheDocument()
+    expect(promotionWalletDb.fundingCalls).toHaveLength(0)
+  })
+
   it('금액이나 근거 번호가 비면 보내지 않고 칸 아래에 알린다', async () => {
     const user = userEvent.setup()
     renderApp('/admin/promotion-wallet', 'ADMIN')

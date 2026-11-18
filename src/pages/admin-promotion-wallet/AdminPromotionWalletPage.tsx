@@ -15,7 +15,7 @@ import { toast } from '@/shared/ui/toastStore'
 const SOURCE_REF_MAX = 200
 const MEMO_MAX = 500
 
-/** 충전 작업 ID(영문·숫자·-·_). 같은 내용으로 다시 보내면 BE가 새로 충전하지 않게 입력이 바뀔 때만 새로 만든다 */
+/** 충전 작업 ID(영문·숫자·-·_) */
 const newFundingWorkId = () =>
   `PF-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
@@ -60,7 +60,11 @@ function FundingForm() {
   const [memo, setMemo] = useState('')
   const [touched, setTouched] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const workId = useRef(newFundingWorkId())
+  /**
+   * 마지막으로 보낸 내용과 그때 쓴 충전 작업 ID. 응답을 받지 못한 요청은 BE가 처리했을 수 있으므로,
+   * 보낼 내용(금액·근거 번호·메모)이 같으면 같은 ID로 다시 보내 BE가 새로 충전하지 않게 한다. 내용이 다르면 새 ID다.
+   */
+  const lastSent = useRef<{ key: string; workId: string } | null>(null)
 
   const fund = useMutation({
     mutationFn: fundPromotionWallet,
@@ -68,15 +72,15 @@ function FundingForm() {
       queryClient.invalidateQueries({ queryKey: promotionWalletKeys.all }),
   })
 
-  /** 입력이 바뀌면 다른 충전이므로 작업 ID를 새로 만든다 */
-  const changed = () => {
-    workId.current = newFundingWorkId()
-    setFormError(null)
-  }
+  const changed = () => setFormError(null)
 
   const amountHp = Number(amount)
   const amountError =
-    amount === '' || amountHp < 1 ? '충전할 HP를 1 이상으로 적어 주세요.' : ''
+    amount === '' || amountHp < 1
+      ? '충전할 HP를 1 이상으로 적어 주세요.'
+      : !Number.isSafeInteger(amountHp)
+        ? '금액이 너무 커요.'
+        : ''
   const sourceRefError =
     sourceRef.trim() === '' ? '충전 근거 번호를 적어 주세요.' : ''
 
@@ -84,13 +88,16 @@ function FundingForm() {
     e.preventDefault()
     setTouched(true)
     if (fund.isPending || amountError || sourceRefError) return
+    const input = {
+      amountHp,
+      sourceRef: sourceRef.trim(),
+      memo: memo.trim() || undefined,
+    }
+    const key = JSON.stringify(input)
+    if (lastSent.current?.key !== key)
+      lastSent.current = { key, workId: newFundingWorkId() }
     fund.mutate(
-      {
-        fundingWorkId: workId.current,
-        amountHp,
-        sourceRef: sourceRef.trim(),
-        memo: memo.trim() || undefined,
-      },
+      { fundingWorkId: lastSent.current.workId, ...input },
       {
         onSuccess: (result) => {
           toast(`${formatNumber(result.amountHp)} HP를 충전했어요.`)
@@ -98,13 +105,14 @@ function FundingForm() {
           setSourceRef('')
           setMemo('')
           setTouched(false)
-          workId.current = newFundingWorkId()
+          lastSent.current = null
         },
+        // 응답을 받지 못했어도 BE가 충전했을 수 있다. 잔액은 onSettled가 다시 읽는다.
         onError: (error) =>
           setFormError(
-            isApiError(error) && error.status === 503
-              ? '잠시 후 다시 시도해 주세요.'
-              : error.message,
+            isApiError(error) && error.status < 500
+              ? error.message
+              : '충전 결과를 확인하지 못했어요. 가용 잔액을 확인하고, 늘지 않았으면 같은 내용으로 다시 충전해 주세요.',
           ),
       },
     )
