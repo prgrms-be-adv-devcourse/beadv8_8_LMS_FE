@@ -1,0 +1,189 @@
+/* 구매 패널의 '쿠폰 받기': 주요 행동(바로 구매)보다 한 단계 낮은 절취선 티켓 */
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px 8px 10px;
+  border: 1.5px dashed color-mix(in srgb, var(--signal) 45%, var(--line-2));
+  border-radius: var(--r);
+  background: color-mix(in srgb, var(--signal-soft) 45%, var(--surface));
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+.entry:hover {
+  background: var(--signal-soft);
+  border-color: color-mix(in srgb, var(--signal) 70%, var(--line-2));
+}
+.entry:active {
+  transform: scale(0.98);
+}
+.entry:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.ticketIcon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  padding: 5px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--signal-text);
+}
+.entryText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.entryText b {
+  font-size: 15px;
+  font-weight: 700;
+}
+.entryHint {
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.entryCount {
+  flex: none;
+  padding: 2px 9px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 700;
+}
+.entryCount :global(.num) {
+  font-family: var(--f-mono);
+  margin-right: 1px;
+}
+.chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--ink-3);
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.entry:hover .chevron {
+  transform: translateX(2px);
+}
+
+/* 팝업 */
+.lede {
+  margin: -4px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ticket {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'stub body action'
+    'stub message message';
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition: border-color var(--t) var(--ease-out);
+}
+.failed {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--line));
+}
+.stub {
+  grid-area: stub;
+  display: grid;
+  place-items: center;
+  padding: 10px 6px;
+  background: color-mix(in srgb, var(--signal-soft) 60%, var(--surface));
+  border-right: 2px dashed var(--line-2);
+  text-align: center;
+}
+.body {
+  grid-area: body;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+.body :global(.row-title) {
+  overflow-wrap: anywhere;
+}
+.discount {
+  font-weight: 600;
+}
+.action {
+  grid-area: action;
+  display: flex;
+  align-items: center;
+  padding: 12px 14px 12px 0;
+}
+.message {
+  grid-area: message;
+  margin: 0;
+  padding: 0 14px 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.message:empty {
+  padding: 0;
+}
+.failed .message {
+  color: var(--bad);
+}
+
+/* 팝업 아래: 모두 받기 진행·결과 */
+.bulkStatus {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: center;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 560px) {
+  .ticket {
+    grid-template-columns: 80px minmax(0, 1fr);
+    grid-template-areas:
+      'stub body'
+      'stub action'
+      'stub message';
+  }
+  .action {
+    padding: 0 14px 12px;
+  }
+  .bulkStatus:not(:empty) {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry,
+  .chevron,
+  .ticket {
+    transition: none;
+  }
+  .entry:active,
+  .entry:hover .chevron {
+    transform: none;
+  }
+}

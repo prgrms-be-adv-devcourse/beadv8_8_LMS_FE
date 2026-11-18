@@ -9,7 +9,7 @@ import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { Rating, Stars } from '@/entities/lecture/ui/Rating'
 import { useAddToCart } from '@/features/cart/useCartActions'
 import { CheckoutModal } from '@/features/checkout/CheckoutModal'
-import { LectureCoupons } from '@/features/coupon-issue/LectureCoupons'
+import { LectureCouponIssue } from '@/features/coupon-issue/LectureCouponIssue'
 import { ContentPreviewModal } from '@/features/lecture-preview/ContentPreviewModal'
 import {
   useBuyerState,
@@ -89,11 +89,10 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
         {seller ? (
           <SellerPanel lecture={lecture} />
         ) : (
-          <BuyPanel lecture={lecture} />
+          <BuyPanel lecture={lecture} couponViewer={couponViewer} />
         )}
       </div>
       <div className={styles.body}>
-        {couponViewer && <LectureCoupons lectureId={lecture.lectureId} />}
         {lecture.description && (
           <section className={`panel ${styles.section}`}>
             <h2>강의 소개</h2>
@@ -186,7 +185,14 @@ function SellerPanel({ lecture }: { lecture: LectureDetail }) {
   )
 }
 
-function BuyPanel({ lecture }: { lecture: LectureDetail }) {
+function BuyPanel({
+  lecture,
+  couponViewer,
+}: {
+  lecture: LectureDetail
+  /** 쿠폰을 받을 수 있는 회원이면 가격 아래에 '쿠폰 받기'를 둔다 */
+  couponViewer: boolean
+}) {
   const viewer = useViewer()
   const buyer = useBuyerState()
   const addToCart = useAddToCart()
@@ -202,6 +208,7 @@ function BuyPanel({ lecture }: { lecture: LectureDetail }) {
       <div className={styles.bigPrice}>
         {formatNumber(lecture.priceHp)} <span>HP</span>
       </div>
+      {couponViewer && <LectureCouponIssue lectureId={lecture.lectureId} />}
       {owned ? (
         <>
           <div className="notice">

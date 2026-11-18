@@ -53,7 +53,20 @@ function mockLectureDetail() {
   )
 }
 
-/** 강의 7 상세를 유저로 열고, 쿠폰 카드(쿠폰 이름으로 찾은 묶음)를 돌려준다 */
+/** 구매 패널의 쿠폰 버튼 이름(상태와 관계없이) */
+const ANY_ENTRY = /^(쿠폰 받기|받은 쿠폰|쿠폰 보기) \d+장$/
+
+/** 구매 패널의 '쿠폰 받기' 버튼(이름: '쿠폰 받기 n장' / '받은 쿠폰 n장' / '쿠폰 보기 n장') */
+const entryButton = (name: string | RegExp = /^쿠폰 받기 \d+장$/) =>
+  screen.findByRole('button', { name })
+
+/** 쿠폰 받기 팝업을 연다 */
+async function openSheet(name?: string | RegExp) {
+  await userEvent.click(await entryButton(name))
+  return screen.findByRole('dialog', { name: '받을 수 있는 쿠폰' })
+}
+
+/** 강의 7 상세를 유저로 열고 쿠폰 팝업을 연 뒤, 쿠폰 카드(쿠폰 이름으로 찾은 묶음)를 돌려준다 */
 async function openLecture(
   init: Parameters<typeof mockCoupons>[0] = {},
   name = '가을맞이 10% 할인',
@@ -64,8 +77,23 @@ async function openLecture(
     ...init,
   })
   renderApp('/lectures/7', 'USER')
-  const card = await screen.findByRole('group', { name })
-  return { coupons, card }
+  const sheet = await openSheet()
+  const card = await within(sheet).findByRole('group', { name })
+  return { coupons, card, sheet }
+}
+
+/** 발급 접수(POST)와 상태 조회(GET)를 일어난 순서대로 적는다. 응답은 mockCoupons가 준다(그보다 뒤에 부른다) */
+function recordIssueTraffic() {
+  const log: string[] = []
+  server.use(
+    http.post('*/api/v1/coupons/:couponId/issue-requests', ({ params }) => {
+      log.push(`접수 ${String(params.couponId)}`)
+    }),
+    http.get('*/api/v1/coupons/:couponId/issue-requests/:id', ({ params }) => {
+      log.push(`조회 ${String(params.couponId)}`)
+    }),
+  )
+  return log
 }
 
 const issueButton = (card: HTMLElement) =>
@@ -82,11 +110,11 @@ afterEach(() => {
 describe('강의 상세 쿠폰 발급', () => {
   it('쿠폰 이름·할인·만료 방식·남은 수량을 보이고, 접수 → 처리 중 → 발급 완료로 바뀐다', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    const { coupons, card } = await openLecture({
+    const { coupons, card, sheet } = await openLecture({
       issueStatuses: ['PENDING', 'ISSUED'],
     })
     expect(
-      screen.getByRole('heading', { name: '받을 수 있는 쿠폰' }),
+      within(sheet).getByRole('heading', { name: '받을 수 있는 쿠폰' }),
     ).toBeInTheDocument()
     expect(within(card).getByText('10% 할인')).toBeInTheDocument()
     expect(
@@ -182,6 +210,8 @@ describe('강의 상세 쿠폰 발급', () => {
     })
     renderApp('/lectures/7', 'USER')
 
+    // 받을 수 있는 쿠폰이 없고 받은 쿠폰이 있으면 버튼이 받은 수를 보인다(그래도 열 수 있다).
+    await openSheet('받은 쿠폰 1장')
     const soldOut = await screen.findByRole('group', { name: '다 나간 쿠폰' })
     expect(within(soldOut).getByRole('button', { name: '소진' })).toBeDisabled()
     const issued = screen.getByRole('group', { name: '받은 쿠폰' })
@@ -393,9 +423,7 @@ describe('강의 상세 쿠폰 발급', () => {
       expect(coupons.failNext['GET /coupons']).toBeUndefined(),
     )
     await act(() => Promise.resolve())
-    expect(
-      screen.queryByRole('heading', { name: '받을 수 있는 쿠폰' }),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ANY_ENTRY })).toBeNull()
   })
 
   // 비회원은 강의 상세에 들어오지 못한다(라우트 권한). 관리자와 판매자 본인은 이 강의를 사지 않으므로 쿠폰도 받지 않는다.
@@ -420,10 +448,230 @@ describe('강의 상세 쿠폰 발급', () => {
         await screen.findByRole('heading', { name: '첫 방송 세팅' }),
       ).toBeInTheDocument()
       await act(() => Promise.resolve())
-      expect(
-        screen.queryByRole('heading', { name: '받을 수 있는 쿠폰' }),
-      ).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: ANY_ENTRY })).toBeNull()
       expect(couponCalls).toBe(0)
     },
   )
+})
+
+describe('쿠폰 받기 팝업', () => {
+  it('들어올 때는 열지 않고, 구매 패널의 쿠폰 받기를 누르면 팝업에 쿠폰을 보인다', async () => {
+    mockLectureDetail()
+    mockCoupons({
+      lectureCoupons: {
+        7: [
+          couponSummary({ couponId: 1, name: '쿠폰 A' }),
+          couponSummary({
+            couponId: 2,
+            name: '쿠폰 B',
+            targetType: 'ANY_LECTURE',
+            lectureId: null,
+          }),
+        ],
+      },
+    })
+    renderApp('/lectures/7', 'USER')
+
+    const entry = await entryButton('쿠폰 받기 2장')
+    expect(
+      within(screen.getByRole('complementary')).getByRole('button', {
+        name: '쿠폰 받기 2장',
+      }),
+    ).toBe(entry)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await userEvent.click(entry)
+    const sheet = await screen.findByRole('dialog', {
+      name: '받을 수 있는 쿠폰',
+    })
+    expect(within(sheet).getAllByRole('group')).toHaveLength(2)
+    expect(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    ).toBeEnabled()
+    // 아직 받은 쿠폰이 없으면 쿠폰함으로 보내지 않는다.
+    expect(
+      within(sheet).queryByRole('link', { name: '쿠폰함에서 보기' }),
+    ).toBeNull()
+
+    await userEvent.click(within(sheet).getByRole('button', { name: '닫기' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('하나를 받으면 버튼 장수가 줄고 쿠폰함에서 보기가 생긴다', async () => {
+    const { coupons, sheet } = await openLecture(
+      {
+        lectureCoupons: {
+          7: [
+            couponSummary({ couponId: 1, name: '쿠폰 A' }),
+            couponSummary({ couponId: 2, name: '쿠폰 B' }),
+          ],
+        },
+        issueStatuses: ['ISSUED'],
+      },
+      '쿠폰 A',
+    )
+    const card = within(sheet).getByRole('group', { name: '쿠폰 A' })
+
+    await userEvent.click(issueButton(card))
+    expect(await within(card).findByText(/^발급 완료/)).toBeInTheDocument()
+    expect(
+      within(sheet).getByRole('link', { name: '쿠폰함에서 보기' }),
+    ).toHaveAttribute('href', '/library/coupons')
+    expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1])
+
+    await userEvent.click(within(sheet).getByRole('button', { name: '닫기' }))
+    expect(await entryButton('쿠폰 받기 1장')).toBeInTheDocument()
+  })
+
+  it('모두 받기는 받을 수 있는 쿠폰만 앞 쿠폰의 결과를 본 뒤 차례로 보내고, 다 받으면 받은 수로 바뀐다', async () => {
+    const { coupons, sheet } = await openLecture(
+      {
+        lectureCoupons: {
+          7: [
+            couponSummary({ couponId: 1, name: '쿠폰 A' }),
+            couponSummary({ couponId: 2, name: '받은 쿠폰', issued: true }),
+            couponSummary({ couponId: 3, name: '다 나간 쿠폰', soldOut: true }),
+            couponSummary({ couponId: 4, name: '쿠폰 D' }),
+          ],
+        },
+        issueStatuses: ['ISSUED'],
+      },
+      '쿠폰 A',
+    )
+    // mockCoupons보다 뒤에 걸어야 먼저 거친다(기록만 하고 넘긴다).
+    const log = recordIssueTraffic()
+
+    await userEvent.click(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    )
+    expect(await within(sheet).findByText('2장 받았어요')).toBeInTheDocument()
+    for (const name of ['쿠폰 A', '쿠폰 D']) {
+      const card = within(sheet).getByRole('group', { name })
+      expect(within(card).getByRole('button', { name: '받음' })).toBeDisabled()
+      expect(within(card).getByText(/^발급 완료/)).toBeInTheDocument()
+    }
+    expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1, 4])
+    // 앞 쿠폰의 처리 결과(ISSUED)를 본 뒤에 다음 쿠폰을 보낸다.
+    expect(log).toEqual(['접수 1', '조회 1', '접수 4', '조회 4'])
+
+    // 받을 것이 남지 않으면 모두 받기 대신 쿠폰함으로 이어 준다.
+    expect(
+      within(sheet).queryByRole('button', { name: '모두 받기' }),
+    ).toBeNull()
+    expect(
+      within(sheet).getByRole('link', { name: '쿠폰함에서 보기' }),
+    ).toHaveAttribute('href', '/library/coupons')
+
+    await userEvent.click(within(sheet).getByRole('button', { name: '닫기' }))
+    expect(await entryButton('받은 쿠폰 3장')).toBeInTheDocument()
+  })
+
+  it('모두 받기 중에는 잠그고, 일부가 실패하면 그 쿠폰에 표시한 채 나머지를 계속 받는다', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const { coupons, sheet } = await openLecture(
+      {
+        lectureCoupons: {
+          7: [
+            couponSummary({ couponId: 1, name: '쿠폰 A' }),
+            couponSummary({ couponId: 2, name: '쿠폰 B' }),
+            couponSummary({ couponId: 3, name: '쿠폰 C' }),
+          ],
+        },
+        issueStatuses: ['PENDING', 'ISSUED'],
+        failNext: {
+          'POST /coupons/2/issue-requests': couponProblem(
+            409,
+            'COUPON_SOLD_OUT',
+          ),
+        },
+      },
+      '쿠폰 A',
+    )
+    const card = (name: string) => within(sheet).getByRole('group', { name })
+
+    await userEvent.click(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    )
+    // 첫 쿠폰이 처리 중인 동안: 모두 받기와 다른 쿠폰 버튼을 잠근다.
+    expect(await within(sheet).findByText('받는 중 0/3')).toBeInTheDocument()
+    expect(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    ).toBeDisabled()
+    expect(issueButton(card('쿠폰 C'))).toBeDisabled()
+    expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1])
+
+    await advance(1_000)
+    expect(
+      await within(sheet).findByText('2장 받았어요 · 1장은 받지 못했어요'),
+    ).toBeInTheDocument()
+    expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1, 2, 3])
+    expect(
+      within(card('쿠폰 B')).getByText('모두 소진됐어요'),
+    ).toBeInTheDocument()
+    expect(
+      within(card('쿠폰 B')).getByRole('button', { name: '소진' }),
+    ).toBeDisabled()
+    for (const name of ['쿠폰 A', '쿠폰 C'])
+      expect(within(card(name)).getByText(/^발급 완료/)).toBeInTheDocument()
+  })
+
+  it('접수에 실패한 쿠폰은 모두 받기로 다시 보낼 수 있다(같은 요청 ID)', async () => {
+    const { coupons, sheet } = await openLecture(
+      {
+        lectureCoupons: {
+          7: [
+            couponSummary({ couponId: 1, name: '쿠폰 A' }),
+            couponSummary({ couponId: 2, name: '쿠폰 B' }),
+          ],
+        },
+        issueStatuses: ['ISSUED'],
+        failNext: { [ISSUE_KEY]: HttpResponse.error() },
+      },
+      '쿠폰 A',
+    )
+
+    await userEvent.click(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    )
+    expect(
+      await within(sheet).findByText('1장 받았어요 · 1장은 받지 못했어요'),
+    ).toBeInTheDocument()
+    const first = within(sheet).getByRole('group', { name: '쿠폰 A' })
+    expect(
+      within(first).getByText('요청을 보내지 못했어요. 다시 눌러 주세요'),
+    ).toBeInTheDocument()
+
+    await userEvent.click(
+      within(sheet).getByRole('button', { name: '모두 받기' }),
+    )
+    expect(await within(sheet).findByText('1장 받았어요')).toBeInTheDocument()
+    const sentForA = coupons.issueRequests.filter((r) => r.couponId === 1)
+    expect(sentForA).toHaveLength(2)
+    expect(sentForA[1].issueRequestId).toBe(sentForA[0].issueRequestId)
+  })
+
+  it('팝업을 닫았다 다시 열어도 쿠폰의 진행 상태와 요청 ID가 이어진다', async () => {
+    const { coupons, card, sheet } = await openLecture({
+      issueStatuses: ['ISSUED'],
+      failNext: { [ISSUE_KEY]: HttpResponse.error() },
+    })
+
+    await userEvent.click(issueButton(card))
+    await within(card).findByText('요청을 보내지 못했어요. 다시 눌러 주세요')
+    await userEvent.click(within(sheet).getByRole('button', { name: '닫기' }))
+
+    const again = await openSheet()
+    const reopened = within(again).getByRole('group', {
+      name: '가을맞이 10% 할인',
+    })
+    expect(
+      within(reopened).getByText('요청을 보내지 못했어요. 다시 눌러 주세요'),
+    ).toBeInTheDocument()
+    await userEvent.click(issueButton(reopened))
+    expect(await within(reopened).findByText(/^발급 완료/)).toBeInTheDocument()
+    expect(coupons.issueRequests).toHaveLength(2)
+    expect(coupons.issueRequests[1].issueRequestId).toBe(
+      coupons.issueRequests[0].issueRequestId,
+    )
+  })
 })
