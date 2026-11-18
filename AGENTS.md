@@ -79,7 +79,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 챗봇
 
-- BE auxiliary-app `chatbot` 모듈(계약은 BE `docs/api/chatbot.md`)이다. 비회원은 401이라 쓰지 않고, 관리자를 포함한 로그인 회원 전체가 쓴다. 화면은 오른쪽 아래 버튼으로 여닫는 떠 있는 창(`features/chatbot`, `AppShell`의 `ChatbotRoot`), 강의·인플루언서 목록 위 추천 띠(`features/recommend-widget`), 자주 묻는 질문 페이지(`/support/faq`, 내비 "지원" 그룹의 고객센터 위)다.
+- BE auxiliary-app `chatbot` 모듈(계약은 BE `docs/api/chatbot.md`)이다. 비회원은 401이라 쓰지 않고, 관리자를 포함한 로그인 회원 전체가 쓴다. 화면은 오른쪽 아래 버튼으로 여닫는 떠 있는 창(`features/chatbot`, `AppShell`의 `ChatbotRoot`), 강의·인플루언서 목록 위 추천 띠(`features/recommend-widget`), 자주 묻는 질문 페이지(`/support/faq`, 계정 메뉴(관리자는 레일) "지원" 그룹의 고객센터 위)다.
 - 대화는 서버가 저장하지 않아 FE가 갖는다. `features/chatbot/store.ts`(zustand)와 탭의 sessionStorage(키 `hapbang.chatbot`, 회원 ID와 형식 버전 `VERSION`을 함께 둔다, `persistence.ts`)에 두어 창을 닫거나 화면을 옮기거나 새로고침해도 남는다. `ChatbotRoot`가 내 정보의 회원 ID를 보고 로그아웃·로그인 만료·계정 전환 때 지운다(`startSession`·`endSession`). 인증 정보가 아니라 화면에 보이던 대화 기록이라, storage에 두지 않는 access token과는 다른 데이터다.
   - 답을 받는 동안(조각마다 바뀜)에는 저장하지 않고 요청을 시작할 때와 끝났을 때만 저장한다. 그래서 받는 중에 새로고침하면 질문은 남고 답은 끊겼다는 안내와 메뉴로 되살아난다(받던 글은 남지 않는다). 결과를 기다리던 추천도 안내와 메뉴로 바꾼다.
 - 자유 질문(`POST /chatbot/messages/stream`)과 FAQ 질문하기(`POST /chatbot/chat/faq/stream`, `{message}`만, history 없음)는 SSE를 POST로 받으므로 `shared/api/stream.ts`의 `openStream`으로 연다. `openStream`은 `api()`와 같은 토큰·재발급 규칙(401·403이면 한 번만 다시, 그사이 로그인이 바뀌었으면 다시 보내지 않음, `sessionEnded`)을 따로 갖는다. 인증 규칙을 바꾸면 `client.ts`·`upload.ts`·`stream.ts`를 함께 고친다.

@@ -5,9 +5,10 @@ export const NARROW_QUERY = '(max-width: 860px)'
 
 function subscribe(onChange: () => void) {
   if (typeof matchMedia !== 'function') return () => {}
+  // 오래된 브라우저(Safari 13 이하)의 MediaQueryList에는 addEventListener가 없다. 그때는 처음 폭만 쓴다.
   const list = matchMedia(NARROW_QUERY)
-  list.addEventListener('change', onChange)
-  return () => list.removeEventListener('change', onChange)
+  list.addEventListener?.('change', onChange)
+  return () => list.removeEventListener?.('change', onChange)
 }
 
 function snapshot() {
