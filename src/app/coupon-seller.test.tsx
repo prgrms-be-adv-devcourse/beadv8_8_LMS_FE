@@ -12,6 +12,7 @@ import {
   quietLectureRequests,
 } from '@/test/couponMock'
 import { expectFieldError } from '@/test/fieldError'
+import { openAccountMenu } from '@/test/accountMenu'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 import { expectSuccessToast } from '@/test/toast'
@@ -83,7 +84,7 @@ describe('판매자 쿠폰 신청', () => {
     const state = mockCoupons()
     renderApp('/studio/coupons', 'VERIFIED_INFLUENCER')
 
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await screen.findByRole('navigation', { name: '스튜디오 메뉴' })
     expect(
       within(nav).getByRole('link', { name: '쿠폰 신청' }),
     ).toHaveAttribute('href', '/studio/coupons')
@@ -492,7 +493,7 @@ describe('판매자 쿠폰 신청', () => {
   it('인증 전 인플루언서에게는 쿠폰 신청 메뉴가 없다', async () => {
     renderApp('/lectures', 'INFLUENCER')
 
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(
       within(nav).queryByRole('link', { name: '쿠폰 신청' }),
     ).not.toBeInTheDocument()

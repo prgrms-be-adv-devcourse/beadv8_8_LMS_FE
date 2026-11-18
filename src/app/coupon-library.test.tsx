@@ -11,6 +11,7 @@ import {
   quietLectureRequests,
 } from '@/test/couponMock'
 import { mockOrders } from '@/test/lectureOrders'
+import { openAccountMenu } from '@/test/accountMenu'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -265,7 +266,7 @@ describe('쿠폰함', () => {
   it('쿠폰함 메뉴는 회원에게만 보인다', async () => {
     mockCoupons()
     renderApp('/library/coupons', 'USER')
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(within(nav).getByRole('link', { name: '쿠폰함' })).toHaveAttribute(
       'href',
       '/library/coupons',
@@ -280,7 +281,7 @@ describe('쿠폰함', () => {
     async (path, viewer, child, parent) => {
       mockCoupons()
       renderApp(path, viewer)
-      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+      const nav = await openAccountMenu()
       expect(within(nav).getByRole('link', { name: child })).toHaveAttribute(
         'aria-current',
         'page',
@@ -295,7 +296,7 @@ describe('쿠폰함', () => {
   it('상위 메뉴의 다른 하위 경로에서는 상위 메뉴가 켜진다', async () => {
     mockOrders()
     renderApp('/library/orders', 'USER')
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(within(nav).getByRole('link', { name: '내 강의' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -306,12 +307,15 @@ describe('쿠폰함', () => {
     await settled()
   })
 
-  it.each(['GUEST', 'ADMIN'] as const)(
-    '%s에게는 쿠폰함 메뉴가 없다',
-    async (viewer) => {
-      renderApp('/', viewer)
-      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
-      expect(within(nav).queryByRole('link', { name: '쿠폰함' })).toBeNull()
-    },
-  )
+  it('비회원에게는 쿠폰함 메뉴가 없다', async () => {
+    renderApp('/', 'GUEST')
+    await screen.findByRole('navigation', { name: '둘러보기' })
+    expect(screen.queryByRole('link', { name: '쿠폰함' })).toBeNull()
+  })
+
+  it('관리자 레일에는 쿠폰함 메뉴가 없다', async () => {
+    renderApp('/', 'ADMIN')
+    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).queryByRole('link', { name: '쿠폰함' })).toBeNull()
+  })
 })

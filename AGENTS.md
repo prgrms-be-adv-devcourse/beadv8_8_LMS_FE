@@ -19,6 +19,7 @@ pnpm format         # Prettier 적용 / format:check는 검사만
 
 CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 dev 커밋만 이미지가 발행되고 운영에 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
 화면은 라우트별로 나눠 불러온다(`src/app/router.tsx` `PAGE_LOADERS`, route `lazy`). 새 화면은 `PAGE_LOADERS`에 더하고 라우터 파일에서 화면을 직접 import하지 않는다(홈만 첫 파일에 둔다). 테스트는 모든 화면을 미리 불러 둔 `testRoutes`(`src/test/renderApp.tsx`)를 쓰고, 나눠 불러오기와 배포 직후 옛 탭 처리(`app/fallbacks/chunkLoad.ts`)는 `src/app/code-splitting.test.tsx`가 본다.
+앱 셸(`src/app/layouts/AppShell.tsx`, 메뉴 데이터는 `src/app/nav.ts`)은 역할에 따라 둘이다. 비회원·회원은 상단 헤더 하나(로고 · 주요 메뉴 '둘러보기' · HP·장바구니·채팅·알림 · 아바타 계정 메뉴), 내 강의·스튜디오 목록 화면 맨 위의 구역 탭(`SECTIONS`, 화면 파일이 아니라 셸이 그린다), 좁은 화면(≤860px) 하단 탭바(홈·둘러보기·마이, `NO_TAB_BAR` 화면에서는 숨김, 높이는 셸의 `--app-bottom`)를 쓰고, 관리자만 왼쪽 메뉴 레일(좁은 화면은 햄버거 드로어)을 쓴다. 테스트에서 계정 메뉴는 `openAccountMenu`, 좁은 화면은 `stubNarrowScreen`(`src/test/accountMenu.ts`)이다.
 dev로 가는 PR에는 커밋마다 Claude Review(`.github/workflows/claude-review.yml`)가 리뷰 코멘트를 단다. 기준은 PR이 아니라 dev의 이 파일과 `docs/`다(PR이 고친 기준은 리뷰 대상). 재리뷰는 새 지적이 없으면 코멘트를 달지 않고, 실행 수치(turn·비용·도구 호출)는 run Summary와 로그에 남는다. 필수 체크가 아니다.
 Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 

@@ -11,6 +11,7 @@ import type {
 } from '@/entities/member/types'
 import type { Me } from '@/shared/auth/me'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { openAccountMenu } from '@/test/accountMenu'
 import { problem } from '@/test/emailCodeMock'
 import { expectFieldError, expectNoFieldError } from '@/test/fieldError'
 import { noAppearanceRating, noRating } from '@/test/memberProfile'
@@ -472,7 +473,7 @@ describe('채널 인증', () => {
     expect(
       screen.queryByRole('button', { name: '치지직 채널 연동하기' }),
     ).toBeNull()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(
       within(nav).getByRole('link', { name: '내 출연' }),
     ).toBeInTheDocument()

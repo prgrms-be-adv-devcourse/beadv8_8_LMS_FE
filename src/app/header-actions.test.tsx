@@ -1,11 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import type { CartItem } from '@/entities/cart/types'
 import type { ChatRoom } from '@/entities/chat/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { openAccountMenu, stubNarrowScreen } from '@/test/accountMenu'
 import { headerChatLink } from '@/test/headerChat'
 import {
   headerAlertsLink,
@@ -162,9 +163,8 @@ describe('상단 헤더 알림', () => {
     await within(bar).findByRole('link', { name: '합방 홈' })
     expect(within(bar).queryByRole('link', { name: /장바구니/ })).toBeNull()
     expect(within(bar).queryByRole('link', { name: /^알림/ })).toBeNull()
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    expect(within(nav).queryByRole('link', { name: /장바구니/ })).toBeNull()
-    expect(within(nav).queryByRole('link', { name: /^알림/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /장바구니/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: /^알림/ })).toBeNull()
   })
 
   it('안 읽은 알림 수를 배지로 보이고 링크 이름에 넣는다', async () => {
@@ -224,14 +224,15 @@ describe('상단 헤더 알림', () => {
     )
   })
 
-  it('좁은 화면 드로어에는 알림이 없다(모든 폭에서 헤더에 있다)', async () => {
+  it('좁은 화면에서도 알림은 헤더에 있고 하단 탭바·계정 메뉴에는 없다', async () => {
+    stubNarrowScreen()
     renderApp('/lectures', 'USER')
     await within(await header()).findByRole('link', { name: '알림' })
-    await userEvent.click(
-      await screen.findByRole('button', { name: '메뉴 열기' }),
-    )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    const tabs = screen.getByRole('navigation', { name: '주요 메뉴' })
+    expect(within(tabs).queryByRole('link', { name: /^알림/ })).toBeNull()
+    const nav = await openAccountMenu()
     expect(within(nav).queryByRole('link', { name: /^알림/ })).toBeNull()
+    vi.unstubAllGlobals()
   })
 })
 
@@ -345,15 +346,16 @@ describe('상단 헤더 채팅', () => {
     ).not.toHaveAttribute('aria-current')
   })
 
-  it('좁은 화면 드로어에는 채팅이 없다', async () => {
+  it('좁은 화면에서도 채팅은 헤더에 있고 하단 탭바·계정 메뉴에는 없다', async () => {
+    stubNarrowScreen()
     mockCart(0)
     renderApp('/lectures', 'INFLUENCER')
     await within(await header()).findByRole('link', { name: '채팅' })
-    await userEvent.click(
-      await screen.findByRole('button', { name: '메뉴 열기' }),
-    )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    const tabs = screen.getByRole('navigation', { name: '주요 메뉴' })
+    expect(within(tabs).queryByRole('link', { name: /채팅/ })).toBeNull()
+    const nav = await openAccountMenu()
     expect(within(nav).queryByRole('link', { name: /채팅/ })).toBeNull()
+    vi.unstubAllGlobals()
   })
 })
 
@@ -371,28 +373,21 @@ describe('상단 헤더 HP', () => {
   })
 })
 
-describe('좁은 화면 드로어', () => {
-  it('헤더 대신 드로어 내 활동 맨 위에 장바구니가 있다', async () => {
+describe('좁은 화면 헤더', () => {
+  it('장바구니는 좁은 화면에서도 헤더에 있다(하단 탭바·계정 메뉴에는 없다)', async () => {
+    stubNarrowScreen()
     mockCart(3)
     renderApp('/lectures', 'USER')
-    await userEvent.click(
-      await screen.findByRole('button', { name: '메뉴 열기' }),
-    )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    const group = within(nav).getByRole('group', { name: '내 활동' })
-    const cart = await within(group).findByRole('link', {
-      name: '장바구니 3개',
-    })
-    // 넓은 화면에서는 헤더에 있으므로 좁은 화면에서만 보인다(CSS).
-    const narrow = cart.closest('[data-narrow-only]')
-    expect(narrow).not.toBeNull()
+    const bar = await header()
     expect(
-      within(narrow as HTMLElement)
-        .getAllByRole('link')
-        .map((a) => a.getAttribute('href')),
-    ).toEqual(['/cart'])
-    expect(within(group).getAllByRole('link')[0]).toBe(cart)
-    expect(within(group).queryByRole('link', { name: '알림' })).toBeNull()
+      await within(bar).findByRole('link', { name: '장바구니 3개' }),
+    ).toHaveAttribute('href', '/cart')
+    const tabs = screen.getByRole('navigation', { name: '주요 메뉴' })
+    expect(within(tabs).queryByRole('link', { name: /장바구니/ })).toBeNull()
+    const nav = await openAccountMenu()
+    expect(within(nav).queryByRole('link', { name: /장바구니/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: '메뉴 열기' })).toBeNull()
+    vi.unstubAllGlobals()
   })
 })
 
