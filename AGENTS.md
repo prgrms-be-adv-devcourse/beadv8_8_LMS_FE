@@ -76,6 +76,18 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
   - 재인증은 없다. 연결 만료(4401)·비정상 종료·핸드셰이크 거절(티켓 401)·티켓 429·503·응답 없음은 채팅의 `RECONNECT` 간격으로 새 티켓을 받아 다시 연결한다. 토큰이 60초 안에 끝나거나 받은 `connectionExpiresAt`이 이미 지났으면 토큰부터 다시 받는다(`connectionTicket.ts`). heart-beat는 보내기·받기 모두 켠다(BE ND-068).
 - 테스트의 BE 흉내는 `src/test/notificationMock.ts`(`mockNotifications`, 연결 티켓 `mockNotificationTickets`)다. 헤더 배지 때문에 회원 화면은 늘 안 읽은 수를 부르고 알림 연결 티켓을 받으므로 기본 응답(알림 없음, 티켓)은 `src/test/server.ts`에 있다. 가짜 STOMP 클라이언트는 연결 경로로 구분한다(`FakeStompClient.latest()`는 채팅, `latest(NOTIFICATION_WS_PATH)`는 알림).
 
+## 챗봇
+
+- BE auxiliary-app `chatbot` 모듈(계약은 BE `docs/api/chatbot.md`)이다. 비회원은 401이라 쓰지 않고, 관리자를 포함한 로그인 회원 전체가 쓴다. 화면은 오른쪽 아래 버튼으로 여닫는 떠 있는 창(`features/chatbot`, `AppShell`의 `ChatbotRoot`), 강의·인플루언서 목록 위 추천 띠(`features/recommend-widget`), 자주 묻는 질문 페이지(`/support/faq`, 내비 "지원" 그룹의 고객센터 위)다.
+- 대화는 서버가 저장하지 않아 FE가 갖는다. `features/chatbot/store.ts`(zustand)와 탭의 sessionStorage(키 `hapbang.chatbot`, 회원 ID와 형식 버전 `VERSION`을 함께 둔다, `persistence.ts`)에 두어 창을 닫거나 화면을 옮기거나 새로고침해도 남는다. `ChatbotRoot`가 내 정보의 회원 ID를 보고 로그아웃·로그인 만료·계정 전환 때 지운다(`startSession`·`endSession`). 인증 정보가 아니라 화면에 보이던 대화 기록이라, storage에 두지 않는 access token과는 다른 데이터다.
+  - 답을 받는 동안(조각마다 바뀜)에는 저장하지 않고 요청을 시작할 때와 끝났을 때만 저장한다. 그래서 받는 중에 새로고침하면 질문은 남고 답은 끊겼다는 안내와 메뉴로 되살아난다(받던 글은 남지 않는다). 결과를 기다리던 추천도 안내와 메뉴로 바꾼다.
+- 자유 질문(`POST /chatbot/messages/stream`)과 FAQ 질문하기(`POST /chatbot/chat/faq/stream`, `{message}`만, history 없음)는 SSE를 POST로 받으므로 `shared/api/stream.ts`의 `openStream`으로 연다. `openStream`은 `api()`와 같은 토큰·재발급 규칙(401·403이면 한 번만 다시, 그사이 로그인이 바뀌었으면 다시 보내지 않음, `sessionEnded`)을 따로 갖는다. 인증 규칙을 바꾸면 `client.ts`·`upload.ts`·`stream.ts`를 함께 고친다.
+  - HTTP 상태를 먼저 확인하고(429·400은 스트림을 열지 않고 ProblemDetail), `token`은 이어 붙이고 카드는 `cards` 이벤트로만 그린다(글에 강의 이름이 나와도 링크로 바꾸지 않는다). 파서는 `entities/chatbot/sse.ts`이고 모르는 이벤트는 무시한다.
+  - `history`(`historyFor`, `entities/chatbot/history.ts`의 `buildHistory`): 최근 12개, 이번 질문 제외, 내가 쓴 질문과 답 글만 넣는다(버튼으로 고른 것·안내·카드·근거 FAQ·답을 못 받은 질문은 뺀다). 글자 수는 BE처럼 코드 포인트로 센다(`entities/chatbot/text.ts`의 `textLength`). BE는 역할 순서를 보지 않아 잘린 결과가 ASSISTANT로 시작해도 된다.
+- 대화 상태 전이는 화면과 떨어진 순수 함수(`features/chatbot/conversation.ts`·`answer.ts`)와 그 테스트에 둔다. 요청 결과는 말풍선 id로만 넣어(`updateItem`) 새 대화(`clearConversation`) 뒤 늦게 온 결과는 버리고, 새 대화·로그아웃이면 진행 중인 요청을 끊는다. 답을 기다리는 동안(`isBusy`)에는 입력과 버튼을 잠그고, 가장 마지막 말풍선의 버튼만 누를 수 있다. 429는 기다릴 시간을 안내하고 자동으로 다시 보내지 않는다.
+- 추천 띠(`RecommendStrip`, 카드 한 줄은 `CardRow`, `LectureRecommendWidget`·`InfluencerRecommendWidget`)는 위젯 API(LLM 없음)를 부른다. 검색 중·비회원·불러오는 중·429·오류·빈 목록이면 띠를 숨기고(`shownRecommendation`), `notice`가 오면 그 문구를 그대로 보인다. 띠 제목은 `basis`를 `switch`로 고르고 모르는 값은 중립 제목이다.
+- 테스트의 BE 흉내는 `src/test/chatbotMock.ts`(`mockChatbot`, SSE 응답 `sseResponse`, 응답을 붙잡아 두는 `deferred`)다. 강의·인플루언서 목록이 회원에게 늘 위젯을 부르므로 기본 응답(빈 추천)은 `src/test/server.ts`에 있다.
+
 ## 배포·환경변수
 
 `docs/deploy.md`가 기준이다. 운영(prod) 한 환경만 있고 **dev 병합이 곧 운영 배포**다(기본 브랜치 dev, #156). main은 서버 없는 안정화 표시다. `dev` push → `publish.yml`이 이미지(GHCR `:sha-<커밋>`)를 발행하고, Publish image가 성공하면 `deploy.yml`이 그 커밋을 자동 배포해 k3s의 `web` Deployment만 바꾼다(롤백은 수동 실행). manifest는 `k8s/`(base·overlays), 정적 서버는 Caddy(`Caddyfile`: SPA fallback, `/assets/` 장기 캐시)다.
