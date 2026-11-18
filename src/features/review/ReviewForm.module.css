@@ -1,29 +1,108 @@
+.form {
+  box-shadow: var(--shadow-1);
+  border-radius: var(--r-lg);
+  gap: 18px;
+}
 .label {
   font-size: 13px;
   font-weight: 600;
   color: var(--ink-2);
 }
+
+/* 별점: 손가락으로도 정확히 누를 수 있게 별마다 44px 칸을 준다 */
 .stars {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 2px;
+  margin-left: -6px;
 }
 .star {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
   border: 0;
+  border-radius: var(--r-sm);
   background: none;
+  padding: 0;
   font-size: 34px;
   line-height: 1;
-  padding: 0 2px;
   color: var(--line-2);
+  transition:
+    color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
+}
+.star:hover {
+  transform: scale(1.12);
+}
+.star:active {
+  transform: scale(0.94);
 }
 .star.on {
   color: var(--hold);
 }
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  margin-left: 10px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.score b {
+  font-size: 22px;
+  color: var(--ink);
+}
+.verdict {
+  margin-left: 8px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+.countOn {
+  color: var(--ink);
+  font-weight: 600;
+}
+
 .actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .spacer {
   flex: 1;
+}
+.submit {
+  min-width: 120px;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .actions :global(.btn) {
+    min-height: 44px;
+  }
+  .submit {
+    flex: 1 1 100%;
+    order: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    transition: none;
+  }
+  .star:hover,
+  .star:active {
+    transform: none;
+  }
 }

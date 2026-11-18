@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { myCouponsQuery } from '@/entities/coupon/api'
 import { MemberCouponStatusPill } from '@/entities/coupon/ui/CouponStatusPill'
+import { CouponValue } from '@/entities/coupon/ui/CouponValue'
 import {
   discountLabel,
   MEMBER_COUPON_STATUS,
@@ -9,7 +10,7 @@ import {
 } from '@/entities/coupon/rules'
 import type { MemberCoupon, MemberCouponStatus } from '@/entities/coupon/types'
 import { lectureQuery } from '@/entities/lecture/api'
-import { formatDate } from '@/shared/lib/date'
+import { daysUntil, formatDate, formatDday, isPast } from '@/shared/lib/date'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -82,22 +83,41 @@ export function CouponsPage() {
           {available && '강의 상세에서 받을 수 있는 쿠폰을 확인해 보세요.'}
         </EmptyState>
       ) : (
-        <section className="panel">
-          <ul className={`rows ${styles.list}`} aria-label="쿠폰 목록">
-            {data.map((coupon) => (
-              <CouponItem key={coupon.memberCouponId} coupon={coupon} />
-            ))}
-          </ul>
-        </section>
+        <ul className={styles.list} aria-label="쿠폰 목록">
+          {data.map((coupon) => (
+            <CouponItem key={coupon.memberCouponId} coupon={coupon} />
+          ))}
+        </ul>
       )}
     </div>
   )
 }
 
+/** 만료 임박으로 강조하는 남은 날(오늘 포함) */
+const EXPIRING_DAYS = 3
+
 function CouponItem({ coupon }: { coupon: MemberCoupon }) {
+  const usable = coupon.status === 'AVAILABLE'
+  const expiring =
+    usable &&
+    !isPast(coupon.expiresAt) &&
+    daysUntil(coupon.expiresAt) <= EXPIRING_DAYS
+  const className = [
+    styles.ticket,
+    usable ? '' : styles.spent,
+    expiring ? styles.expiring : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
-    <li className="row-item" aria-label={coupon.couponName}>
-      <div className="row-main">
+    <li className={className} aria-label={coupon.couponName}>
+      <div className={styles.stub}>
+        <CouponValue
+          discountType={coupon.discountType}
+          discountValue={coupon.discountValue}
+        />
+      </div>
+      <div className={styles.body}>
         <div className={styles.head}>
           <b className="row-title">{coupon.couponName}</b>
           <MemberCouponStatusPill status={coupon.status} />
@@ -110,6 +130,12 @@ function CouponItem({ coupon }: { coupon: MemberCoupon }) {
           <CouponTarget coupon={coupon} />
           {` · ${formatDate(coupon.expiresAt)}까지`}
         </span>
+        {expiring && (
+          <span className={styles.soon}>
+            <span className="num">{formatDday(coupon.expiresAt)}</span> 곧
+            만료돼요
+          </span>
+        )}
       </div>
     </li>
   )

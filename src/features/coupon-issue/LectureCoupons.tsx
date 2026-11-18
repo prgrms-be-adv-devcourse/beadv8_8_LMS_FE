@@ -5,8 +5,10 @@ import {
   expiryRuleLabel,
   remainingOf,
 } from '@/entities/coupon/rules'
+import { CouponValue } from '@/entities/coupon/ui/CouponValue'
 import { formatNumber } from '@/shared/lib/money'
 import { IssueCouponButton } from './IssueCouponButton'
+import styles from './LectureCoupons.module.css'
 
 /**
  * 강의 상세의 '받을 수 있는 쿠폰'. 이 강의에 지금 받을 수 있는 쿠폰(특정 강의 + 모든 강의)을 발급 버튼과 함께 보인다.
@@ -21,27 +23,35 @@ export function LectureCoupons({ lectureId }: { lectureId: number }) {
         <h2 id="lecture-coupons-title">받을 수 있는 쿠폰</h2>
         <span className="fine num">{coupons.length}장</span>
       </div>
-      <div className="rows">
+      <div className={styles.list}>
         {coupons.map((coupon) => (
           <div
             key={coupon.couponId}
-            className="row-item"
+            className={styles.ticket}
             role="group"
             aria-label={coupon.name}
           >
-            <div className="row-main">
+            <div className={styles.stub}>
+              <CouponValue
+                discountType={coupon.discountType}
+                discountValue={coupon.discountValue}
+              />
+            </div>
+            <div className={styles.body}>
               <span className="row-title">
                 {coupon.name}{' '}
                 {coupon.stackable && (
                   <span className="pill info">중복 사용 가능</span>
                 )}
               </span>
-              <span>{discountLabel(coupon)}</span>
+              <span className={styles.discount}>{discountLabel(coupon)}</span>
               <span className="fine">
                 {`${expiryRuleLabel(coupon)} · 남은 수량 ${formatNumber(remainingOf(coupon))}장`}
               </span>
             </div>
-            <IssueCouponButton coupon={coupon} lectureId={lectureId} />
+            <div className={styles.action}>
+              <IssueCouponButton coupon={coupon} lectureId={lectureId} />
+            </div>
           </div>
         ))}
       </div>

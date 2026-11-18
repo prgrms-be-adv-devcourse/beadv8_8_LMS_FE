@@ -21,15 +21,32 @@ export function IssueCouponButton({
 }) {
   const { state, issue } = useIssueCoupon(coupon.couponId, lectureId)
   const { label, disabled } = buttonOf(coupon, state)
+  const processing = state.phase === 'processing'
+  const done = label === '받음'
   return (
     <div className={styles.issue}>
       <button
         type="button"
-        className="btn primary sm"
+        className={done ? `btn sm ${styles.done}` : 'btn primary sm'}
         disabled={disabled}
-        aria-busy={state.phase === 'processing'}
+        aria-busy={processing}
         onClick={issue}
       >
+        {processing && <span className="spinner sm" aria-hidden="true" />}
+        {done && (
+          <svg
+            className={styles.check}
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3.5 8.5l3 3 6-7" />
+          </svg>
+        )}
         {label}
       </button>
       <span role="status" className={styles.message}>

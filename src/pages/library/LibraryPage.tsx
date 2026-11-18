@@ -15,6 +15,7 @@ import { formatDate, isPast } from '@/shared/lib/date'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './LibraryPage.module.css'
 
 type ModalState = {
   type: 'consent' | 'confirm' | 'cancel'
@@ -56,7 +57,11 @@ export function LibraryPage() {
           취소할 수 있어요.
         </EmptyState>
       ) : (
-        <section className="panel">
+        <section className={`panel ${styles.panel}`} aria-label="산 강의">
+          <div className={styles.listHead}>
+            <span className={styles.eyebrow}>My lectures</span>
+            <span className="fine num">{data.content.length}개</span>
+          </div>
           <div className="rows">
             {data.content.map((lecture) => (
               <LibraryRow
@@ -107,22 +112,15 @@ function LibraryRow({
     !before && dates !== undefined && !isPast(dates.payoutScheduledAt)
 
   return (
-    <div className="row-item">
+    <div className={`row-item ${styles.row}`}>
       <LectureThumb
         lectureId={lecture.lectureId}
         title={lecture.title}
         thumbnailUrl={lecture.thumbnailUrl}
         size="sm"
       />
-      <div className="row-main">
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+      <div className={`row-main ${styles.main}`}>
+        <div className={styles.titleLine}>
           <span className="row-title">{lecture.title}</span>
           <OrderItemStatusPill status={lecture.itemStatus} />
           {lecture.lectureDeleted && (
@@ -131,31 +129,40 @@ function LibraryRow({
         </div>
         {dates && (
           <>
-            <span className="fine">
+            <span className={before ? `fine ${styles.due}` : 'fine'}>
               {before
                 ? `${formatDate(dates.autoConfirmAt)} 전까지 구매 취소할 수 있어요`
                 : objectionOpen
                   ? `내용 다름 이의 제기 ${formatDate(dates.payoutScheduledAt)} 전까지`
                   : '이의 제기 기간이 끝났어요'}
             </span>
-            <div className="timeline">
-              <span>구매 {formatDate(dates.purchasedAt)}</span>
-              <span className={before ? 'hit' : undefined}>
+            <ol className={styles.steps} aria-label="구매 일정">
+              <li className={styles.done}>
+                구매 {formatDate(dates.purchasedAt)}
+              </li>
+              <li className={before ? styles.now : styles.done}>
                 확정 기한 {formatDate(dates.autoConfirmAt)}
-              </span>
-              <span className={objectionOpen ? 'hit' : undefined}>
+              </li>
+              <li
+                className={
+                  objectionOpen ? styles.now : before ? undefined : styles.done
+                }
+              >
                 판매자 지급 {formatDate(dates.payoutScheduledAt)}
-              </span>
-            </div>
+              </li>
+            </ol>
           </>
         )}
       </div>
-      <div className="row-actions">
+      <div className={`row-actions ${styles.actions}`}>
         <button
           type="button"
-          className="btn primary sm"
+          className={`btn primary sm ${styles.play}`}
           onClick={() => (before ? onAction('consent', item) : onWatch())}
         >
+          <svg viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 1.8v8.4L10 6z" fill="currentColor" />
+          </svg>
           재생
         </button>
         {before && (
@@ -170,7 +177,7 @@ function LibraryRow({
         {cancelable && (
           <button
             type="button"
-            className="btn danger sm"
+            className={`btn danger sm ${styles.danger}`}
             onClick={() => onAction('cancel', item)}
           >
             구매 취소

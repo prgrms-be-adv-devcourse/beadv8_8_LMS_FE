@@ -9,6 +9,7 @@ import { formatDate } from '@/shared/lib/date'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './ReviewWritePage.module.css'
 
 export function ReviewWritePage() {
   const lectureId = Number(useParams().lectureId)
@@ -45,15 +46,18 @@ export function ReviewWritePage() {
       )
     return (
       <>
-        <section className="panel">
-          <div className="row-item" style={{ padding: 0, flexWrap: 'nowrap' }}>
+        <section className={`panel ${styles.lecture}`}>
+          <div className={styles.lectureRow}>
             <LectureThumb
               lectureId={owned.lectureId}
               title={owned.title}
               thumbnailUrl={owned.thumbnailUrl}
               size="sm"
             />
-            <div className="row-main" style={{ minWidth: 0 }}>
+            <div className={styles.lectureMain}>
+              <span className={styles.eyebrow} aria-hidden="true">
+                Review
+              </span>
               <span className="row-title">{owned.title}</span>
               <span className="fine">
                 {formatDate(owned.purchasedAt)} 구매 · 구매 확정

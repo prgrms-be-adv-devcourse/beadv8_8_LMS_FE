@@ -3,10 +3,73 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+.filters :global(.btn) {
+  border-radius: var(--r-pill);
+  min-height: 36px;
+}
+
+/* 쿠폰 한 장이 티켓 한 장. 넓은 화면에서는 두 줄로 놓는다 */
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 14px;
+}
+
+.ticket {
+  --notch: 9px;
+  position: relative;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  min-height: 112px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+/* 절취선 위아래의 반원 홈. 페이지 바탕색으로 뚫린 것처럼 보인다 */
+.ticket::before,
+.ticket::after {
+  content: '';
+  position: absolute;
+  left: calc(108px - var(--notch));
+  width: calc(var(--notch) * 2);
+  height: calc(var(--notch) * 2);
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.ticket::before {
+  top: calc(var(--notch) * -1 - 1px);
+  clip-path: inset(50% 0 0 0);
+}
+.ticket::after {
+  bottom: calc(var(--notch) * -1 - 1px);
+  clip-path: inset(0 0 50% 0);
+}
+
+.stub {
+  display: grid;
+  place-items: center;
+  padding: 12px 8px;
+  border-radius: var(--r) 0 0 var(--r);
+  background: color-mix(in srgb, var(--signal-soft) 60%, var(--surface));
+  border-right: 2px dashed var(--line-2);
+  text-align: center;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 14px 16px;
+}
+.body :global(.row-title) {
+  overflow-wrap: anywhere;
 }
 .head {
   display: flex;
@@ -14,9 +77,49 @@
   align-items: center;
   flex-wrap: wrap;
 }
-/* 할인은 쿠폰에서 가장 먼저 보는 값이라 크게 */
+/* 할인 문구는 이름 다음으로 먼저 보는 값 */
 .discount {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--signal);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* 만료 임박: 신호색 테두리와 D-day 표식 */
+.expiring {
+  border-color: color-mix(in srgb, var(--signal) 55%, var(--line));
+}
+.soon {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--signal-soft);
+  color: var(--signal-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* 쓴 쿠폰·만료·사용 중인 쿠폰은 흐리게 */
+.spent .stub {
+  background: var(--sunken);
+  filter: grayscale(1);
+}
+.spent .stub > * {
+  opacity: 0.6;
+}
+.spent .discount {
+  color: var(--ink-2);
+}
+
+@media (max-width: 480px) {
+  .ticket {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+  .ticket::before,
+  .ticket::after {
+    left: calc(88px - var(--notch));
+  }
 }

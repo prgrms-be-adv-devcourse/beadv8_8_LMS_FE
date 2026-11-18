@@ -98,22 +98,31 @@ function Player({
 
   return (
     <div className={styles.split}>
-      <div className="page" style={{ gap: 16 }}>
-        {needsConsent ? (
-          <div className={styles.player}>
-            <p>재생하면 구매가 확정돼요.</p>
-            <button
-              type="button"
-              className="btn signal"
-              onClick={() => setConsentOpen(true)}
-            >
-              동의하고 재생
-            </button>
+      <div className={styles.stageCol}>
+        <div className={styles.stage}>
+          <div className={styles.stageBar} aria-hidden="true">
+            <span className={styles.tally} />
+            <span className={styles.stageNo}>
+              {String(index + 1).padStart(2, '0')} /{' '}
+              {String(contents.length).padStart(2, '0')}
+            </span>
           </div>
-        ) : (
-          <ContentView lectureId={owned.lectureId} content={current} />
-        )}
-        <div className="panel-head">
+          {needsConsent ? (
+            <div className={styles.player}>
+              <p>재생하면 구매가 확정돼요.</p>
+              <button
+                type="button"
+                className="btn signal"
+                onClick={() => setConsentOpen(true)}
+              >
+                동의하고 재생
+              </button>
+            </div>
+          ) : (
+            <ContentView lectureId={owned.lectureId} content={current} />
+          )}
+        </div>
+        <div className={styles.meta}>
           <div className={styles.heading}>
             <span className="fine">
               {title} · {sellerNickname}
@@ -142,14 +151,17 @@ function Player({
           </div>
         </div>
       </div>
-      <aside className="panel sticky">
+      <aside className={`panel sticky ${styles.curriculum}`}>
         <div className="panel-head">
           <h2>커리큘럼</h2>
           <span className="fine num">{contents.length}개</span>
         </div>
         <ol className={styles.curr}>
           {contents.map((c, i) => (
-            <li key={c.contentId}>
+            <li
+              key={c.contentId}
+              className={i === index ? styles.current : undefined}
+            >
               <span
                 className={
                   i === index ? `${styles.mark} ${styles.now}` : styles.mark

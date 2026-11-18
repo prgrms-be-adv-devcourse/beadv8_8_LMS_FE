@@ -20,6 +20,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './OrdersPage.module.css'
 
 export function OrdersPage() {
   const [page, setPage] = usePageParam('page')
@@ -51,9 +52,11 @@ export function OrdersPage() {
         />
       ) : (
         <>
-          {data.content.map((summary) => (
-            <OrderCard key={summary.orderId} summary={summary} />
-          ))}
+          <div className={styles.list}>
+            {data.content.map((summary) => (
+              <OrderCard key={summary.orderId} summary={summary} />
+            ))}
+          </div>
           <Pager
             page={data.page.number}
             totalPages={data.page.totalPages}
@@ -88,25 +91,30 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
   const discounted = discountHp > 0
 
   return (
-    <section className="panel" aria-label={`주문 번호 ${summary.orderId}`}>
-      <div className="panel-head">
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <section
+      className={`panel ${styles.card}`}
+      aria-label={`주문 번호 ${summary.orderId}`}
+    >
+      <div className={styles.head}>
+        <div className={styles.when}>
           <b>{formatDate(summary.orderedAt)} 주문</b>
           <span className="fine num">주문 번호 {summary.orderId}</span>
         </div>
-        <div style={{ textAlign: 'right' }}>
+        <div className={styles.amount}>
           {paidHp != null ? (
-            <b className="num">{formatNumber(paidHp)} HP</b>
+            <b className={`num ${styles.paid}`}>{formatNumber(paidHp)} HP</b>
           ) : (
             <span className="num">
               주문 금액(할인 전) {formatNumber(summary.totalAmountHp)} HP
             </span>
           )}
           {discounted && (
-            <div className="fine num">{formatNumber(discountHp)} HP 할인</div>
+            <div className={`num ${styles.discount}`}>
+              {formatNumber(discountHp)} HP 할인
+            </div>
           )}
           {orderNote && (
-            <div className="fine">
+            <div className={`fine ${styles.note}`}>
               {orderNote}
               {discounted && status === 'HOLD_FAILED' && ` · ${COUPON_RETRY}`}
             </div>
@@ -117,14 +125,10 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
         status={order ? order.processingStatus : summary.processingStatus}
       />
       {order ? (
-        <div className="rows">
+        <div className={styles.items}>
           {order.items.map((item) => (
-            <div
-              key={item.orderItemId}
-              className="row-item"
-              style={{ padding: '10px 0' }}
-            >
-              <div className="row-main">
+            <div key={item.orderItemId} className={styles.item}>
+              <div className={styles.itemMain}>
                 <span className="row-title">{item.lectureTitle}</span>
                 <span className="fine num">
                   {item.discountHp > 0
@@ -133,26 +137,28 @@ function OrderCard({ summary }: { summary: OrderSummary }) {
                 </span>
                 <ProcessingNote status={itemProcessingStatus(item)} />
               </div>
-              <OrderItemStatusPill status={item.status} />
-              {item.status === 'PURCHASED' &&
-                item.objectionStatus === 'NONE' &&
-                item.autoConfirmAt !== null &&
-                !isPast(item.autoConfirmAt) && (
-                  <button
-                    type="button"
-                    className="btn danger sm"
-                    onClick={() => setCanceling(item)}
-                  >
-                    구매 취소
-                  </button>
-                )}
+              <div className={styles.itemSide}>
+                <OrderItemStatusPill status={item.status} />
+                {item.status === 'PURCHASED' &&
+                  item.objectionStatus === 'NONE' &&
+                  item.autoConfirmAt !== null &&
+                  !isPast(item.autoConfirmAt) && (
+                    <button
+                      type="button"
+                      className="btn danger sm"
+                      onClick={() => setCanceling(item)}
+                    >
+                      구매 취소
+                    </button>
+                  )}
+              </div>
             </div>
           ))}
         </div>
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : (
-        <p className="fine">
+        <p className={`fine ${styles.pending}`}>
           {summary.representativeTitle}
           {summary.itemCount > 1 && ` 외 ${summary.itemCount - 1}개`}
         </p>
