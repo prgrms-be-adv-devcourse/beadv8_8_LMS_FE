@@ -1,0 +1,21 @@
+/* 내 문의 머리: 제목 옆 총 건수(계기판 숫자) */
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.count {
+  font: 500 12px var(--f-mono);
+  color: var(--ink-3);
+}
+/* 검색칸이 남는 너비를 쓰고 정렬은 오른쪽에 남는다 */
+.search {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+}

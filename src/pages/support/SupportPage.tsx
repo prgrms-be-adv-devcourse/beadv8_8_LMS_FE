@@ -13,6 +13,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './SupportPage.module.css'
 
 /**
  * 고객센터. 다른 화면에서 ?category=LECTURE_CONTENT_DISPUTE&orderItemId=12 로 보내면 새 문의를 미리 채운다.
@@ -82,13 +83,14 @@ function MyInquiries() {
 
   return (
     <aside className="panel">
-      <h2>내 문의</h2>
+      <h2 className={styles.title}>
+        내 문의{' '}
+        {data && data.page.totalElements > 0 && (
+          <span className={styles.count}>{data.page.totalElements}건</span>
+        )}
+      </h2>
       <div className="toolbar">
-        <form
-          role="search"
-          onSubmit={search}
-          style={{ display: 'flex', gap: 6 }}
-        >
+        <form role="search" onSubmit={search} className={styles.search}>
           <input
             className="input"
             type="search"
