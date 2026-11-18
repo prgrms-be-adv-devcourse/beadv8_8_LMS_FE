@@ -1,0 +1,68 @@
+/* 환불 가능한 금액(충전 HP)을 가장 먼저 읽히게 한다 */
+.balance:global(.breakdown) {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  gap: 8px;
+}
+.refundable:global(.row) {
+  align-items: center;
+  margin: 0 -6px;
+  padding: 8px 6px;
+  border-radius: var(--r-sm);
+  background: var(--charge-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.refundable :global(.num) {
+  font-size: 20px;
+  color: var(--charge);
+  letter-spacing: -0.02em;
+}
+.locked:global(.row) {
+  color: var(--ink-3);
+}
+
+.amountBox {
+  position: relative;
+}
+.amountInput:global(.input) {
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 50px;
+  padding-right: 48px;
+}
+.unit {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 500 13px var(--f-mono);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+/* 환불 조건: 놓치지 않게 호박색 띠로 */
+.rules:global(.fine) {
+  padding: 8px 12px;
+  border-left: 3px solid var(--hold);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  background: var(--hold-soft);
+  color: var(--ink-2);
+}
+
+/* 결과: 요청 금액을 크게, 나머지는 작은 줄로 */
+.result:global(.breakdown) {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.result > :global(.row:not(.sub)) {
+  align-items: baseline;
+  font-weight: 600;
+}
+.result > :global(.row:not(.sub)) :global(.num) {
+  font-size: 18px;
+}
+.guide:global(.fine) {
+  color: var(--ink-2);
+}

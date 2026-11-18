@@ -10,6 +10,7 @@ import {
 } from '@/entities/wallet/earning'
 import type { EarningAmount, EarningSummary } from '@/entities/wallet/types'
 import { EarningStatusPill } from '@/entities/wallet/ui/EarningStatusPill'
+import { RowsSkeleton } from '@/entities/wallet/ui/RowsSkeleton'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
@@ -17,7 +18,8 @@ import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
+import styles from './EarningsPanel.module.css'
 
 const PAGE_PARAM = 'earningPage'
 
@@ -61,18 +63,24 @@ export function EarningsPanel() {
       {!summary.data && summary.error ? (
         <LoadError error={summary.error} retry={retryAll} />
       ) : !summary.data ? (
-        <Loading />
+        <RowsSkeleton rows={2} />
       ) : (
         <>
           <SummaryList summary={summary.data} />
-          <p className="fine">{formatDateTime(summary.data.asOf)} 기준</p>
-          <div className="toolbar">
-            <div role="group" aria-label="수익 상태" className="amt-chips">
+          <p className={`fine ${styles.asOf}`}>
+            {formatDateTime(summary.data.asOf)} 기준
+          </p>
+          <div className={`toolbar ${styles.toolbar}`}>
+            <div
+              role="group"
+              aria-label="수익 상태"
+              className={`amt-chips ${styles.filters}`}
+            >
               {EARNING_FILTERS.map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
-                  className={filter === value ? 'btn sm primary' : 'btn sm'}
+                  className={filter === value ? 'chip on' : 'chip'}
                   aria-pressed={filter === value}
                   onClick={() => setFilter(value)}
                 >
@@ -84,7 +92,7 @@ export function EarningsPanel() {
           {listError ? (
             <LoadError error={listError} retry={() => void list.refetch()} />
           ) : !list.data || moving ? (
-            <Loading />
+            <RowsSkeleton rows={3} />
           ) : list.data.content.length === 0 ? (
             <EmptyState title={EMPTY[filter]} />
           ) : (
@@ -110,7 +118,7 @@ export function EarningsPanel() {
                             UNKNOWN_NAME}
                         </td>
                         <td>{item.title}</td>
-                        <td className="r num c-earn">
+                        <td className={`r num c-earn ${styles.amount}`}>
                           {formatNumber(item.amountHp)}
                         </td>
                         <td>
@@ -139,23 +147,33 @@ export function EarningsPanel() {
   )
 }
 
-const amountText = ({ amountHp, count }: EarningAmount) =>
-  `${formatNumber(amountHp)} HP · ${formatNumber(count)}건`
+/** 금액·건수. 글자는 "12,000 HP · 1건" 그대로 읽히고, 금액만 크게 보인다. */
+function Amount({ value }: { value: EarningAmount }) {
+  return (
+    <span className={styles.value}>
+      <b className="num">{formatNumber(value.amountHp)}</b> HP ·{' '}
+      <span className="num">{formatNumber(value.count)}</span>건
+    </span>
+  )
+}
 
-/** 아직 지급하지 않은 수익의 상태별 금액·건수와 합계(BE 값 그대로) */
+/** 아직 지급하지 않은 수익의 합계와 상태별 금액·건수(BE 값 그대로). 합계를 맨 앞 큰 칸에 둔다. */
 function SummaryList({ summary }: { summary: EarningSummary }) {
   return (
-    <ul className="breakdown" aria-label="수익 요약">
+    <ul className={styles.stats} aria-label="수익 요약">
+      <li className={`${styles.stat} ${styles.total}`}>
+        <span className={styles.label}>
+          <i className="dot earn" aria-hidden="true" />
+          합계
+        </span>
+        <Amount value={summary.total} />
+      </li>
       {EARNING_SUMMARY_ROWS.map(([key, label]) => (
-        <li key={key} className="row sub">
-          <span>{label}</span>
-          <span className="num">{amountText(summary[key])}</span>
+        <li key={key} className={styles.stat}>
+          <span className={styles.label}>{label}</span>
+          <Amount value={summary[key]} />
         </li>
       ))}
-      <li className="row total">
-        <b>합계</b>
-        <b className="num c-earn">{amountText(summary.total)}</b>
-      </li>
     </ul>
   )
 }

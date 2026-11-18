@@ -12,6 +12,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { lookup } from '@/shared/lib/statusLabel'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
+import styles from './RefundModal.module.css'
 import { useRefund } from './useRefund'
 
 type RefundModalProps = {
@@ -147,22 +148,22 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
         </>
       }
     >
-      <div className="breakdown">
+      <div className={`breakdown ${styles.balance}`}>
         <div className="row">
           <span>보유 HP</span>
           <b className="num">{formatNumber(wallet.availableTotalHp)} HP</b>
         </div>
-        <div className="row sub">
+        <div className={`row ${styles.refundable}`}>
           <span>
-            <i className="dot charge" />
+            <i className="dot charge" aria-hidden="true" />
             충전 HP · 환불 가능
           </span>
           <span className="num">{formatNumber(wallet.chargeBalanceHp)}</span>
         </div>
         {earns && (
-          <div className="row sub">
+          <div className={`row sub ${styles.locked}`}>
             <span>
-              <i className="dot earn" />
+              <i className="dot earn" aria-hidden="true" />
               수익 HP · 환불 불가, 환전으로 현금화
             </span>
             <span className="num">{formatNumber(wallet.revenueBalanceHp)}</span>
@@ -175,20 +176,25 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
         error={value === '' ? undefined : (error ?? undefined)}
         hint="충전 HP 안에서 원하는 만큼 부분 환불할 수 있어요. 1 HP = 1원"
       >
-        <input
-          id="refund-amount"
-          className="input num"
-          inputMode="numeric"
-          disabled={unknown || submitting}
-          value={value}
-          onChange={(e) =>
-            setValue(
-              e.target.value
-                .replace(/\D/g, '')
-                .slice(0, REFUND_INPUT_MAX_DIGITS),
-            )
-          }
-        />
+        <div className={styles.amountBox}>
+          <input
+            id="refund-amount"
+            className={`input num ${styles.amountInput}`}
+            inputMode="numeric"
+            disabled={unknown || submitting}
+            value={value}
+            onChange={(e) =>
+              setValue(
+                e.target.value
+                  .replace(/\D/g, '')
+                  .slice(0, REFUND_INPUT_MAX_DIGITS),
+              )
+            }
+          />
+          <span className={styles.unit} aria-hidden="true">
+            HP
+          </span>
+        </div>
       </Field>
       {rejection && !submitting && <RequestError error={rejection} />}
       {unknown && !submitting && (
@@ -196,7 +202,7 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
           응답을 받지 못했어요. 다시 시도하면 같은 신청으로 처리돼요.
         </div>
       )}
-      <p className="fine">
+      <p className={`fine ${styles.rules}`}>
         먼저 충전한 건부터 결제 취소돼요. 수익 HP와 거래에 보류된 HP는 환불할 수
         없어요.
       </p>
@@ -229,7 +235,7 @@ function RefundResult({ refund }: { refund: Refund }) {
       <div>
         <RefundStatusPill status={refund.status} />
       </div>
-      <div className="breakdown">
+      <div className={`breakdown ${styles.result}`}>
         <AmountRow label="요청 금액" amount={refund.requestedAmount} always />
         <AmountRow label="환불한 금액" amount={refund.completedAmount} />
         <AmountRow
@@ -238,7 +244,7 @@ function RefundResult({ refund }: { refund: Refund }) {
         />
         <AmountRow label="보류 중인 금액" amount={refund.pendingAmount} />
       </div>
-      {guide && <p className="fine">{guide}</p>}
+      {guide && <p className={`fine ${styles.guide}`}>{guide}</p>}
       {refund.status === 'MANUAL_REVIEW_REQUIRED' && (
         <Link className="btn sm" to="/support">
           고객센터 문의
