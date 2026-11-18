@@ -34,6 +34,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 목업의 `ctx` 전역 상태(지갑, 장부, 장바구니, 출연 등)와 `hold`/`unhold` 같은 잔액 계산은 프로토타입용이다. 실제로는 서버 데이터이므로 TanStack Query로 다루고 계산은 BE가 한다. 라우트·검색어·필터는 URL에 둔다.
 
 라이브러리는 직접 구현보다 성숙한 것을 선호한다(팀 방침). 스타일은 목업 CSS(토큰 + CSS Modules), 서버 상태는 TanStack Query로 정했다.
+목업의 토큰·클래스 이름은 그대로 두고 그 위에 다듬는다(UI/UX 리프레시). 화면 CSS는 숫자·색을 직접 쓰지 않고 `src/shared/styles/tokens.css`의 확장 토큰을 쓴다: 표면 `--surface-2`·`--hover`·`--press`·`--scrim`, 신호색 짝 `--signal-strong`·`--signal-text`(흰 면 위 작은 주황 글자), 모서리 `--r-xs`~`--r-xl`·`--r-pill`, 깊이 `--shadow-1`(놓인 카드)·`-2`(뜬 카드)·`-3`(메뉴·모달), 포커스 `--ring`, 움직임 `--ease-out`·`--t-fast`·`--t`. 움직임은 transform·opacity만 쓰고 `prefers-reduced-motion`에서 끈다. 불러오는 중은 `.skeleton`(+`.text`·`.title`·`.thumb`·`.circle`, 묶음에 `role="status"`와 문구)이나 `<Loading rows={n} />`, 빈 상태는 `<EmptyState art="empty|error|search|none">`를 쓴다. 화면 테마(라이트·다크·시스템)는 `shared/lib/theme.ts`가 `<html data-theme>`과 localStorage `hapbang.theme`에 둔다(첫 그리기 전 적용은 `index.html`). 헤더 아래에 붙는 sticky 요소는 셸의 `--app-top`, 화면 아래에 붙는 요소는 `--app-bottom`(모바일 하단 탭바 높이) 기준으로 둔다.
 탭은 `@/shared/ui/Tabs`(Radix Tabs, 수동 활성화: 화살표는 포커스만, Enter·Space·클릭으로 선택)를 쓴다. 관리자 상태 필터는 탭이 아니라 `aria-pressed` 버튼이다.
 
 ## BE 연동
