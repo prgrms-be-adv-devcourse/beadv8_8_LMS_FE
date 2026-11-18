@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { type FormEvent, type ReactNode } from 'react'
+import { useRef, type FormEvent, type ReactNode } from 'react'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { lecturesQuery } from '@/entities/lecture/api'
 import {
@@ -11,6 +11,10 @@ import {
 } from '@/entities/lecture/search'
 import type { LectureBrowseSort } from '@/entities/lecture/types'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
+import {
+  LectureGrid,
+  LectureGridSkeleton,
+} from '@/entities/lecture/ui/LectureGrid'
 import { LectureKeywordBox } from '@/features/lecture-search/LectureKeywordBox'
 import { LectureRecommendWidget } from '@/features/recommend-widget/LectureRecommendWidget'
 import { LectureSearchResults } from '@/features/lecture-search/LectureSearchResults'
@@ -20,12 +24,13 @@ import {
   type BuyerState,
 } from '@/features/purchase/useBuyerState'
 import { useViewer } from '@/shared/auth/session'
+import { formatNumber } from '@/shared/lib/money'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import styles from './LecturesPage.module.css'
 
 /**
@@ -73,6 +78,18 @@ export function LecturesPage() {
       update({ keyword: next }, { replace: keyword !== '' && next !== '' }),
   )
   const flagsOf = (lecture: CardLecture) => buyerFlags(lecture, buyer)
+  // 페이지를 넘기면 맨 아래 페이지 버튼에 머물지 않고 검색 줄(결과 위)로 올라간다
+  const toolbar = useRef<HTMLDivElement>(null)
+  const turnPage = (next: number) => {
+    setPage(next)
+    const reduce =
+      typeof matchMedia === 'function' &&
+      matchMedia('(prefers-reduced-motion: reduce)').matches
+    toolbar.current?.scrollIntoView?.({
+      block: 'start',
+      behavior: reduce ? 'auto' : 'smooth',
+    })
+  }
 
   const search = (e: FormEvent) => {
     e.preventDefault()
@@ -101,7 +118,7 @@ export function LecturesPage() {
       {!keyword && (
         <LectureRecommendWidget signedIn={viewer !== undefined && !guest} />
       )}
-      <div className="toolbar">
+      <div ref={toolbar} className={`toolbar ${styles.toolbar}`}>
         <form className={styles.search} role="search" onSubmit={search}>
           <LectureKeywordBox
             value={draft}
@@ -109,7 +126,7 @@ export function LecturesPage() {
             guest={guest}
             onSearchTitle={searchFor}
           />
-          <button type="submit" className="btn">
+          <button type="submit" className="btn primary">
             검색
           </button>
         </form>
@@ -117,6 +134,9 @@ export function LecturesPage() {
           {keyword && sort === 'RATING' && (
             <span className="fine">리뷰 수를 함께 반영한 순서예요</span>
           )}
+          <span className={styles.eyebrow} aria-hidden="true">
+            SORT
+          </span>
           <select
             className="select sm"
             value={sort}
@@ -140,6 +160,7 @@ export function LecturesPage() {
           sort={sort}
           page={page}
           setPage={setPage}
+          onPageTurn={turnPage}
           onShowAll={() => update({ keyword: '' })}
           guest={guest}
           flagsOf={flagsOf}
@@ -149,6 +170,7 @@ export function LecturesPage() {
           sort={sort}
           page={page}
           setPage={setPage}
+          onPageTurn={turnPage}
           guest={guest}
           flagsOf={flagsOf}
         />
@@ -162,12 +184,14 @@ function LectureList({
   sort,
   page,
   setPage,
+  onPageTurn,
   guest,
   flagsOf,
 }: {
   sort: LectureBrowseSort
   page: number
   setPage: ReturnType<typeof usePageParam>[1]
+  onPageTurn: (page: number) => void
   guest: boolean
   flagsOf: (lecture: CardLecture) => ReactNode
 }) {
@@ -175,15 +199,20 @@ function LectureList({
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
 
-  if (isPending || moving) return <Loading />
+  if (isPending || moving) return <LectureGridSkeleton />
   if (error) return <LoadError error={error} retry={refetch} />
   if (data.content.length === 0) {
     return <EmptyState title="아직 판매 중인 강의가 없어요" />
   }
   return (
     <>
-      <h2 className={styles.head}>전체 강의</h2>
-      <div className={styles.grid}>
+      <div className={styles.resultHead}>
+        <h2 className={styles.head}>전체 강의</h2>
+        <span className={styles.count}>
+          {formatNumber(data.page.totalElements)}개
+        </span>
+      </div>
+      <LectureGrid>
         {data.content.map((lecture) => (
           <LectureCard
             key={lecture.lectureId}
@@ -192,11 +221,11 @@ function LectureList({
             flags={flagsOf(lecture)}
           />
         ))}
-      </div>
+      </LectureGrid>
       <Pager
         page={data.page.number}
         totalPages={data.page.totalPages}
-        onChange={setPage}
+        onChange={onPageTurn}
       />
     </>
   )

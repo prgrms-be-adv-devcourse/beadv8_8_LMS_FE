@@ -1,6 +1,7 @@
-/* 소개 조각·콘텐츠 제목. 줄바꿈은 공백으로 보이고 두 줄까지만 보인다 */
+/* 소개 조각·콘텐츠 제목. 줄바꿈은 공백으로 보이고 두 줄까지만 보인다. 평점·가격 줄보다 위에 둔다 */
 .snippet {
-  margin: 4px 0 0;
+  order: 1;
+  margin: 2px 0 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-2);
