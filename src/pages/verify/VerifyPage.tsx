@@ -11,6 +11,8 @@ import { ChannelCard } from '@/entities/member/ui/ChannelCard'
 import { ChannelStatusPill } from '@/entities/member/ui/ChannelStatusPill'
 import { useConnectChzzk } from '@/features/channel/useConnectChzzk'
 import { useRequestApproval } from '@/features/channel/useRequestApproval'
+import { RoleJourney } from '@/features/upgrade/RoleJourney'
+import { StatusCard } from '@/features/upgrade/StatusCard'
 import { useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -39,6 +41,7 @@ export function VerifyPage() {
     refetch,
   } = useQuery(myChannelsQuery)
   const connect = useConnectChzzk()
+  const at = stepAt(verified, channels)
 
   return (
     <div className="page">
@@ -46,17 +49,31 @@ export function VerifyPage() {
         title="채널 인증"
         lede="치지직 채널을 인증하면 인플루언서가 되어 출연 요청·지원, 채팅, 환전을 쓸 수 있어요."
       />
+      <RoleJourney
+        current={
+          viewer === 'VERIFIED_INFLUENCER' ? 2 : viewer === 'INFLUENCER' ? 1 : 0
+        }
+        target={1}
+      />
       {verified ? (
-        <div className="notice" role="status">
-          <span className="pill ok">인증 완료</span>
-          채널 인증을 마쳤어요. 이제 출연 요청·지원, 채팅, 환전을 쓸 수 있어요.
-          <Link className="link" to="/">
-            홈으로
-          </Link>
-          <Link className="link" to="/influencers">
-            인플루언서 둘러보기
-          </Link>
-        </div>
+        <StatusCard
+          tone="ok"
+          role="status"
+          title={<span className="pill ok">인증 완료</span>}
+        >
+          <p>
+            채널 인증을 마쳤어요. 이제 출연 요청·지원, 채팅, 환전을 쓸 수
+            있어요.
+          </p>
+          <div className="row-actions">
+            <Link className="btn primary sm" to="/influencers">
+              인플루언서 둘러보기
+            </Link>
+            <Link className="btn sm" to="/">
+              홈으로
+            </Link>
+          </div>
+        </StatusCard>
       ) : (
         <ConnectResult result={params.get('chzzk')} code={params.get('code')} />
       )}
@@ -95,20 +112,37 @@ export function VerifyPage() {
         <aside className="panel">
           <h2>진행 순서</h2>
           <ol className={styles.steps}>
-            {STEPS.map(([title, desc], i) => (
-              <li key={title}>
-                <span className={styles.n}>{i + 1}</span>
-                <div>
-                  <b>{title}</b>
-                  <div className="fine">{desc}</div>
-                </div>
-              </li>
-            ))}
+            {STEPS.map(([title, desc], i) => {
+              const state = i < at ? 'done' : i === at ? 'now' : 'next'
+              return (
+                <li
+                  key={title}
+                  className={styles[state]}
+                  aria-current={state === 'now' ? 'step' : undefined}
+                >
+                  <span className={styles.n} aria-hidden="true">
+                    {state === 'done' ? '✓' : i + 1}
+                  </span>
+                  <div>
+                    <b>{title}</b>
+                    <div className="fine">{desc}</div>
+                  </div>
+                </li>
+              )
+            })}
           </ol>
         </aside>
       </div>
     </div>
   )
+}
+
+/**
+ * 진행 순서에서 지금 단계(화면 표시용). 인증을 마쳤으면 모두 지났고, 연동한 채널이 있으면 남은 일은 관리자 심사다
+ */
+function stepAt(verified: boolean, channels: MyChannel[] | undefined) {
+  if (verified) return STEPS.length
+  return channels && channels.length > 0 ? 2 : 0
 }
 
 function MyChannelRow({ channel }: { channel: MyChannel }) {
@@ -161,17 +195,22 @@ function ConnectResult({
 }) {
   if (result === 'registered')
     return (
-      <div className="notice">
-        채널을 등록했어요. 팔로워 {AUTO_APPROVE_FOLLOWER_COUNT}명 미만이라
-        아래에서 승인 요청을 해 주세요.
-      </div>
+      <StatusCard tone="info">
+        <p>
+          채널을 등록했어요. 팔로워 {AUTO_APPROVE_FOLLOWER_COUNT}명 미만이라
+          아래에서 승인 요청을 해 주세요.
+        </p>
+      </StatusCard>
     )
   if (result === 'failed')
     return (
-      <div className="notice bad" role="alert">
-        {(code && CHZZK_FAILURE_MESSAGE[code]) ??
-          '치지직 연동에 실패했어요. 잠시 후 다시 시도해 주세요.'}
-      </div>
+      <StatusCard tone="bad" role="alert">
+        <p>
+          {(code && CHZZK_FAILURE_MESSAGE[code]) ??
+            '치지직 연동에 실패했어요. 잠시 후 다시 시도해 주세요.'}
+        </p>
+        <span className="fine">아래 내 채널에서 다시 연동할 수 있어요.</span>
+      </StatusCard>
     )
   return null
 }

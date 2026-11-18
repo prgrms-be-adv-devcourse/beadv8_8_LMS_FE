@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { memberKeys } from '@/entities/member/api'
 import { refreshRole } from '@/shared/auth/session'
 import { Loading } from '@/shared/ui/QueryState'
+import styles from './ChzzkResultPage.module.css'
 
 /**
  * 치지직 연동 콜백 뒤 BE가 보내는 화면: /mypage?chzzk=approved|registered|failed&code=
@@ -33,7 +34,12 @@ export function ChzzkResultPage() {
   }, [params, navigate, queryClient])
 
   return (
-    <div className="page">
+    <div className={`page narrow ${styles.page}`}>
+      {/* 돌아온 직후 잠깐 보이는 연결 신호. 결과(성공·실패)는 채널 인증 화면의 상태 카드로 보인다 */}
+      <div className={styles.signal} aria-hidden="true">
+        <span className={styles.lamp} />
+        <span className={styles.eyebrow}>CHZZK · CONNECTING</span>
+      </div>
       <Loading label="치지직 연동 결과를 확인하는 중…" />
     </div>
   )

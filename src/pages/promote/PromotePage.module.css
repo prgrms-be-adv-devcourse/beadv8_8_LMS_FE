@@ -3,13 +3,25 @@
 }
 .submit {
   align-self: flex-start;
+  min-width: 120px;
 }
 .meta {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
+}
+.meta :global(.fine) {
+  font-family: var(--f-mono);
+  font-size: 12px;
 }
 .text {
   white-space: pre-line;
   overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+@media (max-width: 560px) {
+  .submit {
+    align-self: stretch;
+  }
 }
