@@ -5,6 +5,7 @@ import {
 import type { Exchange } from '@/entities/wallet/types'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import bill from './ExchangeBill.module.css'
 
 /**
  * 서버가 확정한 환전 신청 내용(금액·잠정 정산 예정일·신청 당시 계좌). 신청 결과와 상세에서 함께 쓴다.
@@ -27,21 +28,34 @@ export function ExchangeSummary({
   const { account } = exchange
   return (
     <>
-      <div className="breakdown">
+      <div className={`breakdown ${bill.bill}`}>
         <div className="row sub">
-          <span>신청 HP</span>
+          <span>
+            <i className={bill.op} aria-hidden="true" />
+            신청 HP
+          </span>
           <span className="num">{formatNumber(exchange.requestedAmount)}</span>
         </div>
         <div className="row sub">
-          <span>플랫폼 수수료</span>
+          <span>
+            <i className={bill.op} aria-hidden="true">
+              −
+            </i>
+            플랫폼 수수료
+          </span>
           <span className="num">−{formatNumber(exchange.feeAmount)}</span>
         </div>
-        <div className="row total">
-          <span>예상 수령액</span>
+        <div className={`row total ${bill.payout}`}>
+          <span>
+            <i className={bill.op} aria-hidden="true">
+              =
+            </i>
+            예상 수령액
+          </span>
           <b className="num">{formatNumber(exchange.expectedPayoutAmount)}원</b>
         </div>
       </div>
-      <dl className="kv">
+      <dl className={`kv ${bill.kv}`}>
         <dt>정산 예정일</dt>
         <dd>{formatSettlementDate(exchange.settlementRoundDate)} 예정</dd>
         <dt>받을 계좌</dt>

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
 import { chatbotKeys } from '@/entities/chatbot/api'
 import { endSession } from '@/features/chatbot/store'
+import { openAccountMenu } from '@/test/accountMenu'
 import { mockChatbot, problem } from '@/test/chatbotMock'
 import { renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
@@ -15,8 +16,11 @@ afterEach(() => {
   queryClient.removeQueries({ queryKey: chatbotKeys.all })
 })
 
-const navLabels = async () => {
-  const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+/** 회원은 계정 메뉴, 관리자는 왼쪽 레일의 링크 이름 */
+const navLabels = async (admin = false) => {
+  const nav = admin
+    ? await screen.findByRole('navigation', { name: '주 메뉴' })
+    : await openAccountMenu()
   return within(nav)
     .getAllByRole('link')
     .map((a) => a.textContent)
@@ -98,14 +102,14 @@ describe('자주 묻는 질문 페이지', () => {
     ).toBeInTheDocument()
   })
 
-  it('회원 내비 "지원"에서 고객센터 위에 있고, 이 화면에서 고객센터 메뉴는 켜지지 않는다', async () => {
+  it('회원 계정 메뉴 "지원"에서 고객센터 위에 있고, 이 화면에서 고객센터 메뉴는 켜지지 않는다', async () => {
     mockChatbot()
     renderApp('/support/faq', 'USER')
     const labels = await navLabels()
     expect(labels.indexOf('자주 묻는 질문')).toBe(
       labels.indexOf('고객센터') - 1,
     )
-    const nav = screen.getByRole('navigation', { name: '주 메뉴' })
+    const nav = screen.getByRole('navigation', { name: '계정 메뉴' })
     expect(
       within(nav).getByRole('link', { name: '자주 묻는 질문' }),
     ).toHaveAttribute('aria-current', 'page')
@@ -120,7 +124,7 @@ describe('자주 묻는 질문 페이지', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '자주 묻는 질문' }),
     ).toBeInTheDocument()
-    const labels = await navLabels()
+    const labels = await navLabels(true)
     expect(labels).toContain('자주 묻는 질문')
     expect(labels).not.toContain('고객센터')
   })

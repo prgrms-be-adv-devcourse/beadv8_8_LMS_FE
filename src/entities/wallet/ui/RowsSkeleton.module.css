@@ -1,0 +1,66 @@
+/* 지갑 목록(거래 원장·환전 내역·수익)의 불러오는 중 뼈대. 표가 아니라 div라 표 행 수를 세는 곳에 섞이지 않는다 */
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.row:last-child {
+  border-bottom: 0;
+}
+.bar {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  height: 12px;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+}
+.bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 55%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.wide {
+  width: 70%;
+}
+.mid {
+  width: 45%;
+}
+.amt {
+  height: 14px;
+  justify-self: end;
+  width: 100%;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (max-width: 560px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+  .row > :first-child {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar::after {
+    animation: none;
+  }
+}

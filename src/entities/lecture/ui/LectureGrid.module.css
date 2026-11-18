@@ -1,0 +1,110 @@
+/* 강의 카드 그리드: 넓으면 4열, 중간 3열, 좁으면 2열, 아주 좁으면 1열 */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px 18px;
+  transition: opacity var(--t) var(--ease-out);
+}
+@media (max-width: 1240px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 12px;
+  }
+}
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* 새 결과를 받는 동안 이전 결과를 흐리게 둔다 */
+.stale {
+  opacity: 0.5;
+}
+
+/* 불러오는 중 뼈대 카드: 실제 카드와 같은 틀(썸네일 16:9 + 글 줄)에 옅은 빛이 지나간다 */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  animation: rise var(--t) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 5) * 35ms);
+}
+.bone {
+  position: relative;
+  overflow: hidden;
+  background: var(--sunken);
+  border-radius: var(--r-xs);
+}
+.bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--surface) 55%, transparent) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.thumb {
+  aspect-ratio: 16 / 9;
+  border-radius: 0;
+}
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 14px 16px;
+}
+.line {
+  height: 12px;
+}
+.w90 {
+  width: 90%;
+}
+.w60 {
+  width: 60%;
+}
+.w40 {
+  width: 40%;
+}
+.foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.foot .line:last-child {
+  width: 30%;
+  height: 16px;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grid {
+    transition: none;
+  }
+  .skeleton,
+  .bone::after {
+    animation: none;
+  }
+}

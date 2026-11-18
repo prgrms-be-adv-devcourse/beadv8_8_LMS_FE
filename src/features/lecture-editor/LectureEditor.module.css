@@ -1,0 +1,383 @@
+/* 강의 등록·수정 작업대 */
+
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* 섹션 카드 */
+.card {
+  box-shadow: var(--shadow-1);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  font: 600 11px var(--f-mono);
+  color: var(--ink-2);
+}
+
+/* 가격: 큰 모노 숫자 + HP 단위 */
+.priceBox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 320px;
+}
+.priceBox input {
+  font: 600 26px var(--f-mono);
+  letter-spacing: -0.02em;
+  height: 56px;
+  padding-right: 56px;
+}
+.unit {
+  position: absolute;
+  right: 16px;
+  font: 600 14px var(--f-mono);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+/* 썸네일 드롭존 */
+.drop {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+.drop:hover {
+  border-color: var(--ink-3);
+}
+.dragging {
+  border-color: var(--signal);
+  background: var(--signal-soft);
+}
+.preview {
+  position: relative;
+  width: 192px;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--sunken);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.ratio {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.dropBody {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dropActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pickButton {
+  min-height: 40px;
+  background: var(--surface);
+  transition: border-color var(--t-fast) var(--ease-out);
+}
+.pickButton:hover:not(:disabled) {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+.pickButton:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.pickButton:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* 업로드 진행: 신호색 막대 + 모노 퍼센트 */
+.progressWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 120px;
+  max-width: 240px;
+}
+.pct {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bar {
+  flex: 1;
+}
+.bar > span {
+  background: var(--signal);
+  transform-origin: left center;
+  transition: transform var(--t) var(--ease-out);
+}
+
+/* 강 목록 */
+.lessons {
+  gap: 8px;
+}
+.lesson {
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+.lesson:first-child {
+  border-top: 1px solid var(--line);
+}
+.lesson:hover {
+  border-color: var(--line-2);
+}
+.no {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font: 600 12px var(--f-mono);
+}
+.lessonBad {
+  border-color: var(--bad);
+}
+.fileSlot {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+.fileSlot.dragging {
+  border-color: var(--signal);
+  background: var(--signal-soft);
+}
+.fileDone {
+  border-style: solid;
+  border-color: var(--line);
+}
+.fileError {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+.fileState {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fileButtons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.doneMark {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--earn);
+  color: var(--surface);
+  font-size: 10px;
+  line-height: 1;
+  flex: none;
+}
+.lessonTools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.order {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.order > button {
+  border: 0;
+  border-radius: 0;
+  min-width: 36px;
+}
+.order > button + button {
+  border-left: 1px solid var(--line);
+}
+
+.addLesson {
+  align-self: stretch;
+  justify-content: center;
+  border-style: dashed;
+  min-height: 44px;
+}
+
+/* 오른쪽: 미리보기 + 준비 상황 + 저장 */
+.side {
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.summary {
+  box-shadow: var(--shadow-1);
+}
+.summaryTitle {
+  overflow-wrap: anywhere;
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.check > span:last-child {
+  margin-left: auto;
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
+.dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  flex: none;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  line-height: 1;
+}
+.checkOk .dot {
+  border-color: var(--earn);
+  background: var(--earn);
+  color: var(--surface);
+}
+.checkBusy .dot {
+  border-color: var(--signal);
+  border-top-color: transparent;
+}
+.save {
+  box-shadow: var(--shadow-2);
+  gap: 10px;
+}
+.saveMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.progressText {
+  font: 600 12px var(--f-mono);
+  color: var(--ink-2);
+}
+.progressText.allSet {
+  color: var(--earn);
+}
+
+@media (max-width: 960px) {
+  /* 좁은 화면: 한 줄로 쌓고 저장 줄만 화면 아래에 붙인다(grid 칸에서는 sticky가 움직이지 않아 flex로) */
+  form.editor {
+    display: flex;
+    flex-direction: column;
+  }
+  .side {
+    display: contents;
+  }
+  .save {
+    position: sticky;
+    bottom: var(--app-bottom, 0px);
+    z-index: 10;
+    margin: 0 -4px;
+    box-shadow: var(--shadow-3);
+    border-radius: var(--r) var(--r) 0 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+}
+/* 768~960px은 챗봇 버튼이 오른쪽 아래에 있어 그만큼 비운다(그 아래 폭에서는 버튼이 저장 줄 위로 올라간다) */
+@media (min-width: 768px) and (max-width: 960px) {
+  .save {
+    padding-right: 96px;
+  }
+}
+@media (max-width: 560px) {
+  .preview {
+    width: 100%;
+  }
+  .lessonTools {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drop,
+  .lesson,
+  .fileSlot,
+  .pickButton,
+  .bar > span {
+    transition: none;
+  }
+}

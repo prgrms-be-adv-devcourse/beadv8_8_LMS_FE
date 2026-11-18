@@ -1,0 +1,203 @@
+/* 장바구니: 왼쪽 강의 목록 + 오른쪽 결제 요약. 좁은 화면에서는 요약이 화면 아래에 붙는 결제 막대가 된다 */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.list {
+  box-shadow: var(--shadow-1);
+  padding: 6px 20px;
+}
+.listHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.item:first-child {
+  border-top: 0;
+}
+.item.off .thumb,
+.item.off .title {
+  opacity: 0.55;
+}
+.thumb {
+  transition: opacity var(--t) var(--ease-out);
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.title {
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.price {
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.item.off .price {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+.remove {
+  min-height: 36px;
+}
+
+/* 결제 요약 */
+.summary {
+  position: sticky;
+  top: 84px;
+  box-shadow: var(--shadow-2);
+  border-radius: var(--r-lg);
+  gap: 16px;
+}
+.summaryHead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.totalLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.totalValue {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.totalUnit {
+  margin-left: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.pay {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* 목록을 내려 보는 동안에도 합계와 주문 버튼이 손 닿는 곳에 있게 화면 아래에 붙인다 */
+  .summary {
+    top: auto;
+    /* 하단 탭바(--app-bottom, 앱 셸) 바로 위 */
+    bottom: var(--app-bottom, 0px);
+    z-index: 20;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    box-shadow: var(--shadow-3);
+  }
+  .summaryHead,
+  .lines {
+    display: none;
+  }
+  .total {
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding-top: 0;
+    border-top: 0;
+    min-width: 0;
+  }
+  .totalLabel {
+    font-size: 12px;
+  }
+  .totalValue {
+    font-size: 22px;
+  }
+  .pay {
+    width: auto;
+    flex: 0 0 auto;
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .item {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'thumb main remove'
+      'thumb price remove';
+    row-gap: 4px;
+    column-gap: 12px;
+  }
+  .item > :first-child {
+    grid-area: thumb;
+  }
+  .main {
+    grid-area: main;
+  }
+  .price {
+    grid-area: price;
+    text-align: left;
+    font-size: 14px;
+  }
+  .remove {
+    grid-area: remove;
+  }
+}

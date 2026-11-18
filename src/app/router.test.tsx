@@ -10,6 +10,7 @@ import { meQuery, type Me } from '@/shared/auth/me'
 import type { Viewer } from '@/shared/auth/role'
 import { setAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
+import { openAccountMenu } from '@/test/accountMenu'
 import { rs, TEST_ACCESS_TOKEN, testRoutes } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -195,7 +196,12 @@ describe('라우트 가드', () => {
       await screen.findByRole('heading', { level: 1, name: '계정 설정' }),
     ).toBeInTheDocument()
     expect(screen.getByText('a@b.c')).toBeInTheDocument()
-    expect(screen.getByText('관리자', { selector: 'dd' })).toBeInTheDocument()
+    // 회원 등급은 프로필 카드의 필로 보인다(헤더·메뉴의 같은 글자와 구분하려고 본문 안에서 찾는다)
+    expect(
+      within(screen.getByRole('main')).getByText('관리자', {
+        selector: '.pill',
+      }),
+    ).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/settings')
     expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
   })
@@ -249,25 +255,37 @@ describe('라우트 가드', () => {
   )
 })
 
-describe('내비 레일', () => {
-  /** 넓은 화면 레일의 메뉴. 좁은 화면 드로어에만 보이는 항목(data-narrow-only)은 뺀다. */
-  const navLabels = async () => {
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
-    return within(nav)
+describe('역할별 메뉴', () => {
+  const linkLabels = (nav: HTMLElement) =>
+    within(nav)
       .getAllByRole('link')
-      .filter((a) => !a.closest('[data-narrow-only]'))
       .map((a) => a.textContent)
+
+  /**
+   * 그 역할이 메뉴로 갈 수 있는 화면 이름. 관리자는 왼쪽 레일, 비회원·회원은 상단 '둘러보기' + 계정 메뉴(회원만)다.
+   */
+  const navLabels = async (viewer: Viewer) => {
+    if (viewer === 'ADMIN')
+      return linkLabels(
+        await screen.findByRole('navigation', { name: '주 메뉴' }),
+      )
+    const top = linkLabels(
+      await screen.findByRole('navigation', { name: '둘러보기' }),
+    )
+    if (viewer === 'GUEST') return top
+    return [...top, ...linkLabels(await openAccountMenu())]
   }
 
   it('비회원은 강의만 본다', async () => {
     renderAt('/lectures', 'GUEST')
     // 홈은 로고로 간다. 출연 모집은 BE 목록·상세가 로그인 필수라 회원에게만 보인다.
-    expect(await navLabels()).toEqual(['강의'])
+    expect(await navLabels('GUEST')).toEqual(['강의'])
+    expect(screen.queryByRole('navigation', { name: '주 메뉴' })).toBeNull()
   })
 
-  it('회원 레일에는 홈·장바구니·알림이 없다', async () => {
+  it('회원 메뉴에는 홈·장바구니·알림이 없다(로고·헤더 아이콘으로 간다)', async () => {
     renderAt('/lectures', 'USER')
-    const labels = await navLabels()
+    const labels = await navLabels('USER')
     expect(labels).toContain('내 강의')
     expect(labels).not.toContain('홈')
     expect(labels).not.toContain('장바구니')
@@ -276,7 +294,7 @@ describe('내비 레일', () => {
 
   it('유저는 채널 인증을 보고 출연·강의 판매는 보지 않는다', async () => {
     renderAt('/lectures', 'USER')
-    const labels = await navLabels()
+    const labels = await navLabels('USER')
     expect(labels).toContain('채널 인증')
     expect(labels).not.toContain('내 출연')
     expect(labels).not.toContain('강의 판매')
@@ -284,7 +302,7 @@ describe('내비 레일', () => {
 
   it('관리자는 운영 메뉴를 보고 지갑은 보지 않는다', async () => {
     renderAt('/admin', 'ADMIN')
-    const labels = await navLabels()
+    const labels = await navLabels('ADMIN')
     expect(labels).toContain('강의 검수')
     expect(labels).not.toContain('지갑')
   })
@@ -319,28 +337,33 @@ describe('내비 레일', () => {
     ).toHaveAttribute('href', '/admin/inquiries')
   })
 
-  // 지갑은 상단 HP 칸, 채팅은 상단 채팅 아이콘으로 들어간다.
-  it.each([
-    ['/lectures', 'USER'],
-    ['/lectures', 'INFLUENCER'],
-    ['/lectures', 'VERIFIED_INFLUENCER'],
-    ['/admin', 'ADMIN'],
-  ] as const)('%s의 %s 레일에는 채팅·지갑이 없다', async (path, viewer) => {
-    renderAt(path, viewer)
-    const labels = await navLabels()
+  // 채팅은 상단 채팅 아이콘으로 들어간다. 지갑은 상단 HP 칸과 계정 메뉴에 있다(관리자는 지갑이 없다).
+  it.each(['USER', 'INFLUENCER', 'VERIFIED_INFLUENCER'] as const)(
+    '%s 메뉴에는 채팅이 없고 계정 메뉴에 지갑이 있다',
+    async (viewer) => {
+      renderAt('/lectures', viewer)
+      const labels = await navLabels(viewer)
+      expect(labels).not.toContain('채팅')
+      expect(labels).toContain('지갑')
+    },
+  )
+
+  it('관리자 레일에는 채팅·지갑이 없다', async () => {
+    renderAt('/admin', 'ADMIN')
+    const labels = await navLabels('ADMIN')
     expect(labels).not.toContain('채팅')
     expect(labels).not.toContain('지갑')
   })
 
-  it('관리자 레일에는 계정 설정이 없다(프로필 메뉴로 들어간다)', async () => {
+  it('관리자 레일에는 계정 설정이 없다(계정 메뉴로 들어간다)', async () => {
     renderAt('/admin', 'ADMIN')
-    expect(await navLabels()).not.toContain('계정 설정')
+    expect(await navLabels('ADMIN')).not.toContain('계정 설정')
   })
 })
 
-describe('모바일 내비 드로어', () => {
+describe('관리자 모바일 내비 드로어', () => {
   it('메뉴 버튼으로 열고 닫는다', async () => {
-    renderAt('/lectures', 'USER')
+    renderAt('/lectures', 'ADMIN')
     const user = userEvent.setup()
     const button = await screen.findByRole('button', { name: '메뉴 열기' })
     expect(button).toHaveAttribute('aria-expanded', 'false')
@@ -359,21 +382,21 @@ describe('모바일 내비 드로어', () => {
   })
 
   it('메뉴에서 화면을 고르면 닫힌다', async () => {
-    const router = renderAt('/lectures', 'USER')
+    const router = renderAt('/lectures', 'ADMIN')
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: '메뉴 열기' }))
 
     const nav = screen.getByRole('navigation', { name: '주 메뉴' })
-    await user.click(within(nav).getByRole('link', { name: '내 강의' }))
+    await user.click(within(nav).getByRole('link', { name: '대시보드' }))
 
-    expect(router.state.location.pathname).toBe('/library')
+    expect(router.state.location.pathname).toBe('/admin')
     expect(
       await screen.findByRole('button', { name: '메뉴 열기' }),
     ).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('Esc로 닫힌다', async () => {
-    renderAt('/lectures', 'USER')
+    renderAt('/lectures', 'ADMIN')
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: '메뉴 열기' }))
     await user.keyboard('{Escape}')
@@ -381,5 +404,11 @@ describe('모바일 내비 드로어', () => {
       'aria-expanded',
       'false',
     )
+  })
+
+  it('비회원·회원 화면에는 메뉴 버튼(햄버거)이 없다', async () => {
+    renderAt('/lectures', 'USER')
+    await screen.findByRole('navigation', { name: '둘러보기' })
+    expect(screen.queryByRole('button', { name: '메뉴 열기' })).toBeNull()
   })
 })

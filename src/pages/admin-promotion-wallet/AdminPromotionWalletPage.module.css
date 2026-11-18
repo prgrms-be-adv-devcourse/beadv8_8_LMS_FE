@@ -1,0 +1,92 @@
+/* 칸별 잔액: 가용 잔액을 크게, 예약·보류는 옆 칸에 작게 */
+.slots {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.slot {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.main {
+  border-radius: var(--r-lg);
+}
+.slotLabel {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.amt {
+  font: 600 34px/1.1 var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+.amt small {
+  font-size: 14px;
+  color: var(--ink-3);
+  margin-left: 4px;
+}
+.slotAmt {
+  font: 600 20px/1.2 var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+/* 보류 HP는 서비스 전체에서 호박색으로 고정이다 */
+.held {
+  border-left: 3px solid var(--hold);
+}
+.held .slotAmt {
+  color: var(--hold);
+}
+@media (max-width: 720px) {
+  .slots {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .main {
+    grid-column: 1 / -1;
+  }
+}
+
+/* 충전 폼 */
+.fund {
+  box-shadow: var(--shadow-1);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.submitRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.submitRow > :global(.btn) {
+  min-height: 40px;
+}
+.preview {
+  margin-right: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.preview b {
+  font-size: 18px;
+}

@@ -14,6 +14,9 @@ import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { Field } from '@/shared/ui/Field'
+import bill from './ExchangeBill.module.css'
+import styles from './ExchangeRequestForm.module.css'
+import { ExchangeProgress, ExchangeSteps } from './ExchangeSteps'
 import { ExchangeSummary } from './ExchangeSummary'
 import { useRequestExchange } from './useRequestExchange'
 
@@ -80,7 +83,18 @@ function ExchangeFields({
   const fee = estimateExchangeFee(amount)
 
   return (
-    <section className="panel">
+    <section className={`panel ${styles.panel}`}>
+      <ExchangeSteps current={0} />
+      <div className={styles.available}>
+        <span className={styles.eyebrow}>
+          <i className="dot earn" aria-hidden="true" />
+          환전할 수 있는 수익 HP
+        </span>
+        <span className={`num ${styles.availableAmt}`}>
+          {formatNumber(revenue)}
+          <small>HP</small>
+        </span>
+      </div>
       {!available && !unknown && (
         <div className="notice warn" role="status">
           환전할 수 있는 수익 HP가 없어요. 1,000 HP부터 신청할 수 있어요.
@@ -107,7 +121,7 @@ function ExchangeFields({
         >
           <input
             id="exchange-amount"
-            className="input num"
+            className={`input num ${styles.amountInput}`}
             inputMode="numeric"
             disabled={locked || !available}
             value={amountText}
@@ -120,73 +134,93 @@ function ExchangeFields({
             }
           />
         </Field>
-        <div className="breakdown">
+        <div className={`breakdown ${bill.bill}`}>
           <div className="row sub">
-            <span>신청 HP</span>
+            <span>
+              <i className={bill.op} aria-hidden="true" />
+              신청 HP
+            </span>
             <span className="num">{formatNumber(amount)}</span>
           </div>
           <div className="row sub">
-            <span>플랫폼 수수료 10% (원 미만 버림)</span>
+            <span>
+              <i className={bill.op} aria-hidden="true">
+                −
+              </i>
+              플랫폼 수수료 10% (원 미만 버림)
+            </span>
             <span className="num">−{formatNumber(fee)}</span>
           </div>
-          <div className="row total">
-            <span>예상 수령액</span>
+          <div className={`row total ${bill.payout}`}>
+            <span>
+              <i className={bill.op} aria-hidden="true">
+                =
+              </i>
+              예상 수령액
+            </span>
             <b className="num">{formatNumber(amount - fee)}원</b>
           </div>
         </div>
-        <Field
-          id="exchange-bank"
-          label="은행 코드"
-          error={bankCode === '' ? undefined : accountErrors.bankCode}
-          hint="숫자 3자리 (예: 004)"
-        >
-          <input
-            id="exchange-bank"
-            className="input num"
-            inputMode="numeric"
-            disabled={locked || !available}
-            value={bankCode}
-            onChange={(e) =>
-              setBankCode(e.target.value.replace(/\D/g, '').slice(0, 3))
-            }
-          />
-        </Field>
-        <Field
-          id="exchange-account"
-          label="계좌번호"
-          error={accountNumber === '' ? undefined : accountErrors.accountNumber}
-          hint="숫자만 8~20자리, 하이픈 없이"
-        >
-          <input
-            id="exchange-account"
-            className="input num"
-            inputMode="numeric"
-            autoComplete="off"
-            disabled={locked || !available}
-            value={accountNumber}
-            onChange={(e) =>
-              setAccountNumber(
-                e.target.value
-                  .replace(/\D/g, '')
-                  .slice(0, ACCOUNT_NUMBER_MAX_DIGITS),
-              )
-            }
-          />
-        </Field>
-        <Field
-          id="exchange-holder"
-          label="예금주"
-          error={holderName === '' ? undefined : accountErrors.holderName}
-        >
-          <input
+        <fieldset className={styles.account}>
+          <legend>받을 계좌</legend>
+          <div className={styles.accountRow}>
+            <Field
+              id="exchange-bank"
+              label="은행 코드"
+              error={bankCode === '' ? undefined : accountErrors.bankCode}
+              hint="숫자 3자리 (예: 004)"
+            >
+              <input
+                id="exchange-bank"
+                className="input num"
+                inputMode="numeric"
+                disabled={locked || !available}
+                value={bankCode}
+                onChange={(e) =>
+                  setBankCode(e.target.value.replace(/\D/g, '').slice(0, 3))
+                }
+              />
+            </Field>
+            <Field
+              id="exchange-account"
+              label="계좌번호"
+              error={
+                accountNumber === '' ? undefined : accountErrors.accountNumber
+              }
+              hint="숫자만 8~20자리, 하이픈 없이"
+            >
+              <input
+                id="exchange-account"
+                className="input num"
+                inputMode="numeric"
+                autoComplete="off"
+                disabled={locked || !available}
+                value={accountNumber}
+                onChange={(e) =>
+                  setAccountNumber(
+                    e.target.value
+                      .replace(/\D/g, '')
+                      .slice(0, ACCOUNT_NUMBER_MAX_DIGITS),
+                  )
+                }
+              />
+            </Field>
+          </div>
+          <Field
             id="exchange-holder"
-            className="input"
-            autoComplete="off"
-            disabled={locked || !available}
-            value={holderName}
-            onChange={(e) => setHolderName(e.target.value)}
-          />
-        </Field>
+            label="예금주"
+            error={holderName === '' ? undefined : accountErrors.holderName}
+          >
+            <input
+              id="exchange-holder"
+              className="input"
+              autoComplete="off"
+              disabled={locked || !available}
+              value={holderName}
+              onChange={(e) => setHolderName(e.target.value)}
+            />
+          </Field>
+        </fieldset>
         {rejection && !submitting && <RequestError error={rejection} />}
         {unknown && !submitting && (
           <div className="notice warn" role="status">
@@ -200,8 +234,7 @@ function ExchangeFields({
         </p>
         <button
           type="submit"
-          className="btn primary"
-          style={{ alignSelf: 'flex-start' }}
+          className={`btn primary ${styles.submit}`}
           disabled={invalid || !available || submitting}
         >
           {submitting && <span className="spinner sm" aria-hidden="true" />}
@@ -220,16 +253,20 @@ function ExchangeResult({
   onRestart: () => void
 }) {
   return (
-    <section className="panel result" aria-label="환전 신청 결과">
-      <span className="result-ico ok" aria-hidden="true">
+    <section
+      className={`panel result ${styles.result}`}
+      aria-label="환전 신청 결과"
+    >
+      <span className={`result-ico ok ${styles.ico}`} aria-hidden="true">
         ✓
       </span>
-      <h2>환전을 신청했어요</h2>
+      <h2 className={styles.resultTitle}>환전을 신청했어요</h2>
       <p className="lede">
         신청한 HP는 송금 전까지 보류돼요. 관리자 승인 전에는 지갑의 환전
         내역에서 취소할 수 있어요.
       </p>
       <ExchangeStatusPill status={exchange.status} />
+      <ExchangeProgress status={exchange.status} />
       <ExchangeSummary exchange={exchange} />
       <div className="result-actions">
         <Link className="btn" to="/wallet">

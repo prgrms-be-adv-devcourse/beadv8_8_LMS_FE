@@ -1,5 +1,6 @@
 import { statusOf, type StatusLabel } from '@/shared/lib/statusLabel'
 import type { HpTaskOutcome, HpTaskStatus } from '../types'
+import styles from './StatusPill.module.css'
 
 const LABEL: Record<HpTaskStatus, StatusLabel> = {
   DEAD: ['bad', '멈춤'],
@@ -26,8 +27,12 @@ export function HpTaskStatusPill({
   const finished = status === 'COMPLETED' && outcome && OUTCOME[outcome]
   return (
     <span className={`pill ${finished ? 'mute' : tone}`}>
-      {status === 'PROCESSING' && (
+      {status === 'PROCESSING' ? (
         <span className="spinner xs" aria-hidden="true" />
+      ) : (
+        !finished && (
+          <span className={styles.glyph} data-tone={tone} aria-hidden="true" />
+        )
       )}
       {finished || label}
     </span>

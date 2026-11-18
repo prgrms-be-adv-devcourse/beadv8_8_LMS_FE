@@ -1,0 +1,26 @@
+.panel {
+  box-shadow: var(--shadow-1);
+}
+.host {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.role {
+  font: 500 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.start {
+  align-self: flex-start;
+}
+/* 지원은 이 화면의 가장 중요한 행동이라 넉넉한 크기로 둔다 */
+.apply {
+  align-self: flex-start;
+  min-width: 160px;
+  min-height: 44px;
+}
+@media (max-width: 560px) {
+  .apply {
+    align-self: stretch;
+  }
+}

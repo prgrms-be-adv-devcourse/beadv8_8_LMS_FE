@@ -106,7 +106,7 @@ describe('홈', () => {
     expect(within(here).getByText('인증된 인플루언서')).toBeInTheDocument()
   })
 
-  it('홈은 맨 위 가로 메뉴를 쓰고, 둘러보기 메뉴는 햄버거로 연다', async () => {
+  it('홈도 다른 화면과 같은 상단 헤더(둘러보기 메뉴)를 쓰고 햄버거·왼쪽 메뉴가 없다', async () => {
     mockLectures(0)
     renderApp('/', 'VERIFIED_INFLUENCER')
 
@@ -115,27 +115,11 @@ describe('홈', () => {
       within(top)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['홈', '인플루언서', '출연 모집', '강의', '강의 판매'])
-    expect(within(top).getByRole('link', { name: '홈' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
-
-    const menu = screen.getByRole('button', { name: '메뉴 열기' })
-    expect(menu).toHaveAttribute('aria-expanded', 'false')
-    await userEvent.click(menu)
-    expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    )
-    const drawer = screen.getByRole('navigation', { name: '주 메뉴' })
-    // 홈은 로고로 간다. 장바구니는 상단 헤더에 있고, 드로어에는 좁은 화면에서만 보인다.
-    expect(within(drawer).queryByRole('link', { name: '홈' })).toBeNull()
-    expect(
-      within(drawer)
-        .getByRole('link', { name: '장바구니' })
-        .closest('[data-narrow-only]'),
-    ).not.toBeNull()
+    ).toEqual(['강의', '출연 모집', '인플루언서'])
+    // 홈은 로고로 간다. 홈에서는 켜진 메뉴가 없다.
+    expect(within(top).queryByRole('link', { current: 'page' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '메뉴 열기' })).toBeNull()
+    expect(screen.queryByRole('navigation', { name: '주 메뉴' })).toBeNull()
   })
 
   // 통합 검색은 BE API가 없어 진입점을 숨긴다(#101).
@@ -152,11 +136,15 @@ describe('홈', () => {
     },
   )
 
-  it('홈이 아닌 화면은 기존 상단 바를 쓴다', async () => {
+  it('홈이 아닌 화면도 같은 상단 헤더를 쓰고 지금 화면의 메뉴가 켜진다', async () => {
     mockLectures(0)
     renderApp('/lectures', 'GUEST')
     await screen.findByRole('heading', { name: '강의' })
-    expect(screen.queryByRole('navigation', { name: '둘러보기' })).toBeNull()
+    const top = screen.getByRole('navigation', { name: '둘러보기' })
+    expect(within(top).getByRole('link', { name: '강의' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
   })
 
   it('프로필 메뉴에서 로그아웃할 수 있다', async () => {
@@ -164,7 +152,7 @@ describe('홈', () => {
     renderApp('/', 'USER')
     const avatar = await screen.findByRole('button', { name: '하늘 메뉴' })
     await userEvent.click(avatar)
-    // 왼쪽 내비(드로어)에도 계정 설정이 있으므로 프로필 메뉴 안에서 찾는다.
+    // 계정 메뉴(아바타 드롭다운) 안에서 찾는다.
     const menu = avatar.parentElement as HTMLElement
     expect(
       within(menu).getByRole('button', { name: '로그아웃' }),

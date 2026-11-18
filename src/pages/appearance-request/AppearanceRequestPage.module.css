@@ -1,15 +1,83 @@
 .head {
   display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+.headLine {
+  display: flex;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 .head h1 {
-  font-size: 24px;
-  font-weight: 700;
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(24px, 4vw, 30px);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+/* 내 역할: 호스트는 잉크 채움, 게스트는 테두리만 */
+.role {
+  font: 600 11px/1 var(--f-mono);
+  letter-spacing: 0.06em;
+  padding: 5px 8px;
+  border-radius: var(--r-xs);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+}
+.host {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
 }
 .content {
   white-space: pre-line;
-  color: var(--ink-2);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.75;
+  max-width: 68ch;
   overflow-wrap: anywhere;
+}
+
+/* 오른쪽: 출연료(보류 여부) + 상태 안내 + 응답 행동 */
+.aside {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  gap: 16px;
+}
+.aside :global(.btn) {
+  min-height: 42px;
+}
+.money {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  font: 500 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.amount {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.amount b {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.unit {
+  font: 600 13px var(--f-mono);
+  color: var(--ink-3);
+}
+@media (max-width: 960px) {
+  /* 한 단이 되면 출연료·응답 버튼을 요청 내용보다 먼저 보여 준다 */
+  .aside {
+    order: -1;
+  }
 }

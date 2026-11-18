@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
-const DURATION_MS = 2600
+/** 안내를 띄워 두는 시간. Toast가 같은 값으로 사라지는 움직임을 맞춘다 */
+export const TOAST_DURATION_MS = 2600
 
 type ToastState = { message: string | null; id: number }
 
@@ -27,6 +28,6 @@ export function toast(message: string) {
   useToastStore.setState((s) => ({ message, id: s.id + 1 }))
   timer = setTimeout(
     () => useToastStore.setState({ message: null }),
-    DURATION_MS,
+    TOAST_DURATION_MS,
   )
 }

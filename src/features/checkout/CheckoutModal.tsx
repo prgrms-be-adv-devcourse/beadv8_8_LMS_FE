@@ -13,6 +13,7 @@ import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { formatNumber } from '@/shared/lib/money'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './CheckoutModal.module.css'
 
 export type CheckoutItem = { lectureId: number; title: string; priceHp: number }
 
@@ -20,19 +21,6 @@ type CheckoutModalProps = {
   items: CheckoutItem[]
   onClose: () => void
 }
-
-/** 화면에는 보이지 않고 스크린 리더만 읽는 글 */
-const VISUALLY_HIDDEN = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  margin: -1,
-  padding: 0,
-  overflow: 'hidden',
-  clip: 'rect(0 0 0 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-} as const
 
 /** 주문 요청의 쿠폰 부분. 쿠폰이 없으면 null(기존 주문과 같다) */
 type OrderCoupons = {
@@ -102,7 +90,10 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
               할인 계산 중…
             </button>
           ) : spend.short > 0 ? (
-            <Link className="btn primary" to={chargeHref(spend.short)}>
+            <Link
+              className={`btn primary ${styles.charge}`}
+              to={chargeHref(spend.short)}
+            >
               HP 충전하러 가기
             </Link>
           ) : (
@@ -128,20 +119,16 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
       }
     >
       {!applied && (
-        <div className="rows">
+        <ul className={styles.items} aria-label="주문할 강의">
           {items.map((item) => (
-            <div
-              key={item.lectureId}
-              className="row-item"
-              style={{ padding: '10px 0' }}
-            >
-              <div className="row-main">
-                <span className="row-title">{item.title}</span>
-              </div>
-              <span className="num">{formatNumber(item.priceHp)} HP</span>
-            </div>
+            <li key={item.lectureId} className={styles.item}>
+              <span className={styles.title}>{item.title}</span>
+              <span className={`num ${styles.price}`}>
+                {formatNumber(item.priceHp)} HP
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
       <CheckoutCoupons coupons={coupons} lines={items} />
       {applied && total === 0 && (
@@ -149,13 +136,25 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           결제할 HP가 없어 바로 주문이 끝나요.
         </p>
       )}
+      {/* 모자란 HP는 결제 버튼 대신 충전으로 이어지므로, 왜 결제할 수 없는지 내역보다 먼저 크게 보인다 */}
+      {spend.ready && !coupons.pending && spend.short > 0 && (
+        <div className={styles.short}>
+          <span className={styles.shortIco} aria-hidden="true">
+            !
+          </span>
+          <div className={styles.shortText}>
+            <b className="num">{`${formatNumber(spend.short)} HP가 부족해요`}</b>
+            <span>HP를 충전한 뒤 결제할 수 있어요.</span>
+          </div>
+        </div>
+      )}
       <HpSpendBreakdown
         spend={spend}
         label="결제할 HP"
         note="수익 HP를 먼저 쓰고 부족한 만큼 충전 HP를 써요. 결제한 HP는 구매일 다음 날부터 30일간 보류되고, 구매 취소하면 쓴 HP 종류 그대로 돌려받아요."
       />
       {/* 쿠폰을 바꾸면 결제할 HP가 바뀌므로 화면에는 보이지 않는 한 줄로 읽힌다(계산이 끝난 금액만) */}
-      <p aria-live="polite" style={VISUALLY_HIDDEN}>
+      <p aria-live="polite" className="sr-only">
         {coupons.pending ? '' : `결제할 HP ${formatNumber(total)} HP`}
       </p>
     </Modal>

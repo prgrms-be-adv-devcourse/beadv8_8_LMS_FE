@@ -55,7 +55,8 @@ export function ConfirmAppearanceModal({ appearance, onClose }: Props) {
     >
       <p>
         게스트가 방송에 출연했다면 확인해 주세요. 보류된 출연료{' '}
-        {formatNumber(appearance.fee)} HP가 게스트에게 지급돼요.
+        <b className="num c-earn">{formatNumber(appearance.fee)} HP</b>가
+        게스트에게 지급돼요.
       </p>
       <FinalNotice />
       <p className="fine">
@@ -81,7 +82,7 @@ export function AbsentModal({ appearance, onClose }: Props) {
           </button>
           <button
             type="button"
-            className="btn primary"
+            className="btn danger"
             disabled={absent.isPending}
             onClick={() => absent.mutate(reason.trim(), closeHandlers(onClose))}
           >
@@ -92,7 +93,7 @@ export function AbsentModal({ appearance, onClose }: Props) {
     >
       <p>
         게스트가 방송에 출연하지 않았다면 불참으로 처리해요. 보류된 출연료{' '}
-        {formatNumber(appearance.fee)} HP를 돌려받아요.
+        <b className="num">{formatNumber(appearance.fee)} HP</b>를 돌려받아요.
       </p>
       <FinalNotice />
       <Field

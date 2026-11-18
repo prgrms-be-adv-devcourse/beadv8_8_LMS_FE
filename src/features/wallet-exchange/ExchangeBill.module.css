@@ -1,0 +1,38 @@
+/* 환전 계산서(신청 폼·신청 결과·상세·관리자 상세가 함께 쓴다) */
+/* 신청 HP − 수수료 = 예상 수령액이 위에서 아래로 읽힌다 */
+.bill:global(.breakdown) {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 14px 16px;
+  gap: 10px;
+}
+.bill :global(.row) {
+  align-items: baseline;
+}
+.bill :global(.row) > span:first-child {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+}
+.op {
+  flex: none;
+  width: 16px;
+  font: 600 13px var(--f-mono);
+  font-style: normal;
+  color: var(--ink-3);
+}
+.bill .payout:global(.row) {
+  font-weight: 600;
+  border-top-style: dashed;
+}
+.payout b {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+/* 정산 예정일·계좌·일시: 결과 화면(가운데 정렬) 안에서도 표처럼 왼쪽 정렬 */
+.kv:global(.kv) {
+  width: 100%;
+  text-align: left;
+  padding: 0 4px;
+}

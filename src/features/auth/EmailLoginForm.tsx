@@ -3,6 +3,8 @@ import { isApiError } from '@/shared/api/ApiError'
 import { usePasswordLogin } from '@/shared/auth/session'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
+import styles from './LoginModal.module.css'
+import { PasswordInput } from './PasswordInput'
 
 const FIELD_ID = { email: 'login-email', password: 'login-password' } as const
 const FIELD_ORDER = ['email', 'password'] as const
@@ -97,9 +99,7 @@ export function EmailLoginForm({
         label="비밀번호"
         error={fields.error('password')}
       >
-        <input
-          className="input"
-          type="password"
+        <PasswordInput
           autoComplete="current-password"
           value={values.password}
           {...fields.inputProps('password')}
@@ -107,28 +107,31 @@ export function EmailLoginForm({
         />
       </Field>
       {failure && (
-        <p className="notice bad" role="alert">
+        <p className={`notice bad ${styles.appear}`} role="alert">
           {failure}
         </p>
       )}
       <button
         type="submit"
-        className="btn primary block"
+        className={`btn primary block ${styles.submit}`}
         disabled={login.isPending}
+        aria-busy={login.isPending || undefined}
         {...fields.submitProps}
       >
         이메일로 로그인
       </button>
-      <button type="button" className="btn ghost sm" onClick={onSignup}>
-        이메일로 가입하기
-      </button>
-      <button
-        type="button"
-        className="btn ghost sm"
-        onClick={() => onForgotPassword(values.email.trim())}
-      >
-        비밀번호를 잊으셨나요?
-      </button>
+      <div className={styles.links}>
+        <button type="button" className="btn ghost sm" onClick={onSignup}>
+          이메일로 가입하기
+        </button>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => onForgotPassword(values.email.trim())}
+        >
+          비밀번호를 잊으셨나요?
+        </button>
+      </div>
     </form>
   )
 }

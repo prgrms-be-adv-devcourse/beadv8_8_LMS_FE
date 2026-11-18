@@ -1,17 +1,52 @@
+/* 검색어·필터·분야를 한 장의 툴바로 묶는다 */
 .bar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
 }
 .search {
   display: flex;
   gap: 8px;
-  max-width: 560px;
+  min-width: 0;
+}
+.search > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.submit {
+  flex: none;
+  min-width: 72px;
 }
 .filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line);
+}
+.filter {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+/* 작은 머리표: 계기판 글자 */
+.filterName {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+/* 조건을 건 칸은 머리표를 신호색으로 켠다(어떤 조건이 걸렸는지 한눈에) */
+.on .filterName {
+  color: var(--signal-text);
+}
+.on :global(.select) {
+  border-color: var(--ink-2);
 }
 .categories {
   display: flex;
@@ -19,7 +54,20 @@
   gap: 6px;
 }
 .label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-2);
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.note {
+  margin: -4px 0 0;
+}
+@media (max-width: 860px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 480px) {
+  .bar {
+    padding: 12px;
+  }
 }

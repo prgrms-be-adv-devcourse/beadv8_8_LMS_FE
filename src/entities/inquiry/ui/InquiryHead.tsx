@@ -1,5 +1,6 @@
 import { formatDate, formatDateTime } from '@/shared/lib/date'
 import type { Inquiry } from '../types'
+import styles from './Inquiry.module.css'
 import {
   CategoryPill,
   HpReturnPill,
@@ -17,14 +18,7 @@ export function InquiryHead({
 }) {
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          gap: 6,
-          alignItems: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className={styles.meta}>
         <CategoryPill category={inquiry.category} />
         <InquiryStatusPill status={inquiry.status} />
         {inquiry.objectionResult && (
@@ -33,12 +27,12 @@ export function InquiryHead({
         {inquiry.hpReturnStatus && (
           <HpReturnPill status={inquiry.hpReturnStatus} />
         )}
-        <span className="fine">
+        <span className={styles.date}>
           {showUser && `회원 #${inquiry.userId} · `}
           {formatDate(inquiry.createdAt)} 접수
         </span>
       </div>
-      <h1 style={{ fontSize: 24, fontWeight: 700 }}>{inquiry.title}</h1>
+      <h1 className={styles.title}>{inquiry.title}</h1>
       {inquiry.targetType === 'LECTURE_ORDER_ITEM' && (
         <div className="notice">
           이의 제기 대상 · 강의 주문 항목 #{inquiry.targetId}

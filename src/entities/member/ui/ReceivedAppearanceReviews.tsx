@@ -39,13 +39,16 @@ export function ReceivedAppearanceReviews({
     <section className="panel" aria-labelledby={titleId}>
       <div className="panel-head">
         <h2 id={titleId}>받은 출연 리뷰</h2>
-        {rating.total.count > 0 && (
+      </div>
+      {rating.total.count > 0 && (
+        <div className={styles.summary}>
+          <TotalScore rating={rating.total} />
           <div className={styles.byRole}>
             <RoleRating label="호스트로" rating={rating.asHost} />
             <RoleRating label="게스트로" rating={rating.asGuest} />
           </div>
-        )}
-      </div>
+        </div>
+      )}
       {error ? (
         <InlineLoadError
           title="받은 출연 리뷰를 불러오지 못했어요."
@@ -54,12 +57,12 @@ export function ReceivedAppearanceReviews({
           retrying={isFetching}
         />
       ) : isPending || moving ? (
-        <p className="fine">불러오는 중…</p>
+        <p className={`fine ${styles.loading}`}>불러오는 중…</p>
       ) : data.content.length === 0 ? (
-        <p className="fine">아직 받은 출연 리뷰가 없어요.</p>
+        <p className={`fine ${styles.empty}`}>아직 받은 출연 리뷰가 없어요.</p>
       ) : (
         <>
-          <div>
+          <div className={styles.list}>
             {data.content.map((review) => (
               <ReviewItem key={review.reviewId} review={review} />
             ))}
@@ -75,6 +78,26 @@ export function ReceivedAppearanceReviews({
   )
 }
 
+/**
+ * 전체 평균을 크게 보인다. 같은 값은 프로필 지표가 이미 읽어 주므로 여기서는 보이기만 한다(장식).
+ */
+function TotalScore({ rating }: { rating: RatingSummary }) {
+  if (rating.average === null) return null
+  const filled = Math.round(rating.average)
+  return (
+    <div className={styles.total} aria-hidden="true">
+      <span className={styles.score}>{rating.average.toFixed(1)}</span>
+      <span className={styles.totalMeta}>
+        <span className={styles.bar}>
+          {'★'.repeat(filled)}
+          <span className="muted">{'★'.repeat(5 - filled)}</span>
+        </span>
+        <span className="fine">리뷰 {rating.count}개</span>
+      </span>
+    </div>
+  )
+}
+
 /** 받은 역할별 평점: 호스트로 ★ 4.7 (7) */
 function RoleRating({
   label,
@@ -85,7 +108,7 @@ function RoleRating({
 }) {
   return (
     <span role="group" aria-label={`${label} 받은 평점`}>
-      <span className="fine">{label}</span> <Rating {...rating} />
+      <span className={styles.roleName}>{label}</span> <Rating {...rating} />
     </span>
   )
 }
@@ -97,20 +120,24 @@ function ReviewItem({ review }: { review: ReceivedAppearanceReview }) {
       className={styles.item}
       aria-label={`${reviewer.nickname} 님의 리뷰`}
     >
-      <div className={styles.head}>
-        <Avatar
-          name={reviewer.nickname}
-          imageUrl={reviewer.profileImageUrl}
-          size={28}
-        />
-        <b>{reviewer.nickname}</b>
-        <Stars value={review.rating} />
-        <span className="pill line">
-          {revieweeRoleLabel(review.revieweeRole)}
-        </span>
-        <span className="fine">{formatDate(review.publishedAt)}</span>
+      <Avatar
+        name={reviewer.nickname}
+        imageUrl={reviewer.profileImageUrl}
+        size={36}
+      />
+      <div className={styles.body}>
+        <div className={styles.head}>
+          <b className={styles.reviewer}>{reviewer.nickname}</b>
+          <span className="pill line">
+            {revieweeRoleLabel(review.revieweeRole)}
+          </span>
+        </div>
+        <div className={styles.sub}>
+          <Stars value={review.rating} />
+          <span className={styles.date}>{formatDate(review.publishedAt)}</span>
+        </div>
+        {review.content && <p className={styles.content}>{review.content}</p>}
       </div>
-      {review.content && <p className={styles.content}>{review.content}</p>}
     </article>
   )
 }

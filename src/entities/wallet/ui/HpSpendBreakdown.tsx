@@ -45,12 +45,14 @@ export function HpSpendBreakdown({
         <>
           <div className="row sub">
             <span>
+              <i className="dot earn" aria-hidden="true" />
               <span className="c-earn">수익 HP</span>에서
             </span>
             <span className="num">{formatNumber(spend.fromEarn)}</span>
           </div>
           <div className="row sub">
             <span>
+              <i className="dot charge" aria-hidden="true" />
               <span className="c-charge">충전 HP</span>에서
             </span>
             <span className="num">{formatNumber(spend.fromCharge)}</span>

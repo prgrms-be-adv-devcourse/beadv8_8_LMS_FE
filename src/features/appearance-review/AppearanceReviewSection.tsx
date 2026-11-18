@@ -82,7 +82,7 @@ export function AppearanceReviewSection({
             onCancel={() => setWriting(false)}
           />
         ) : (
-          <div className="toolbar">
+          <div className={styles.invite}>
             <p className="fine">
               함께한 상대에게 별점과 짧은 리뷰를 남겨 주세요. 두 사람이 모두
               쓰면 함께 공개되고, 쓴 뒤에는 고칠 수 없어요.
@@ -193,9 +193,7 @@ function ReviewWriteForm({
               ★
             </label>
           ))}
-          <span className="fine" style={{ marginLeft: 8 }}>
-            {LABEL[rating]}
-          </span>
+          <span className={styles.ratingLabel}>{LABEL[rating]}</span>
         </div>
       </div>
       <div className={tooLong ? 'field invalid' : 'field'}>

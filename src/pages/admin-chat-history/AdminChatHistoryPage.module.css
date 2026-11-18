@@ -6,9 +6,22 @@
 .lookup .input {
   width: 160px;
 }
+/* 읽기 전용 대화 기록: 위쪽 띠에 계기판 표식을 둔다 */
 .timeline {
-  padding: 4px 20px;
+  padding: 4px 20px 12px;
   gap: 0;
+  box-shadow: var(--shadow-1);
+  list-style: none;
+  margin: 0;
+}
+.timeline::before {
+  content: 'READ ONLY · 관리자 열람';
+  display: block;
+  padding: 10px 0 8px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--line);
 }
 .item {
   padding: 12px 0;
@@ -20,6 +33,36 @@
 .item:first-child {
   border-top: 0;
 }
+/* 메시지: 왼쪽 머리글자 원 + 오른쪽 본문 */
+.message {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border-top: 0;
+  padding: 10px 0;
+}
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.avatar::before {
+  content: attr(data-initial);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 .head {
   display: flex;
   align-items: center;
@@ -29,18 +72,36 @@
 }
 .text {
   font-size: 14px;
-  color: var(--ink-2);
+  color: var(--ink);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px var(--r) var(--r) var(--r);
 }
 .deleted .text {
   color: var(--ink-3);
   text-decoration: line-through;
 }
+/* 입장·나감 같은 방 기록: 가운데 가는 선 사이에 둔다 */
 .event {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-align: center;
   font-size: 12px;
   color: var(--ink-3);
+  border-top: 0;
+}
+.event::before,
+.event::after {
+  content: '';
+  flex: 1;
+  min-width: 16px;
+  border-top: 1px dashed var(--line-2);
 }
 
 .more {

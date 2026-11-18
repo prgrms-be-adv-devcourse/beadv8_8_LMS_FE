@@ -8,6 +8,7 @@ import type { Recruit } from '@/entities/appearance/types'
 import type { Viewer } from '@/shared/auth/role'
 import { formatDate } from '@/shared/lib/date'
 import { InlineLoadError } from '@/shared/ui/QueryState'
+import styles from './RecruitGroupPanel.module.css'
 import { useCreateGroup } from './useGroupActions'
 
 /** 단체방에 참여할 수 있는 역할(채팅 권한) */
@@ -57,17 +58,22 @@ export function RecruitGroupPanel({
         />
       )}
       {current ? (
-        <div className="toolbar">
-          <span>
-            {current.group?.title ?? recruit.title}{' '}
-            <span className="fine">
-              참여자 {current.group?.memberCount ?? 0}명
-            </span>{' '}
-            {current.status !== 'ACTIVE' && (
-              <span className="pill mute">
-                {groupStatusLabel(current.status)}
+        <div className={styles.current}>
+          <GroupMark live={current.status === 'ACTIVE'} />
+          <span className={styles.info}>
+            <b className={styles.title}>
+              {current.group?.title ?? recruit.title}
+            </b>
+            <span className={styles.meta}>
+              <span className={styles.count}>
+                참여자 {current.group?.memberCount ?? 0}명
               </span>
-            )}
+              {current.status !== 'ACTIVE' && (
+                <span className="pill mute">
+                  {groupStatusLabel(current.status)}
+                </span>
+              )}
+            </span>
           </span>
           <Link className="btn primary sm" to={`/chat/${current.chatRoomId}`}>
             단체방 열기
@@ -75,7 +81,8 @@ export function RecruitGroupPanel({
         </div>
       ) : host && data ? (
         open ? (
-          <div className="toolbar">
+          <div className={styles.create}>
+            <GroupMark live={false} />
             <p className="fine">
               지원자를 초대해 한 방에서 일정과 진행을 맞출 수 있어요. 초대한
               회원은 바로 참여해요.
@@ -97,6 +104,31 @@ export function RecruitGroupPanel({
         <PreviousRooms rooms={data.previousRooms} />
       )}
     </section>
+  )
+}
+
+/** 단체방 표시(꾸밈). 사용 중인 방은 탤리 램프 점이 켜진다 */
+function GroupMark({ live }: { live: boolean }) {
+  return (
+    <span
+      className={live ? `${styles.mark} ${styles.live}` : styles.mark}
+      aria-hidden="true"
+    >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        focusable="false"
+      >
+        <circle cx="9" cy="8" r="3.5" />
+        <path d="M2.5 20c.6-3.4 3.2-5.5 6.5-5.5s5.9 2.1 6.5 5.5M16 4.6a3.5 3.5 0 010 6.8M18 14.8c2 .7 3.2 2.6 3.5 5.2" />
+      </svg>
+    </span>
   )
 }
 

@@ -29,7 +29,9 @@ export function LectureThumb({
 }: LectureThumbProps) {
   const className = `${styles.thumb} ${styles[size]}`
   if (thumbnailUrl === undefined) {
-    return <div className={className} aria-hidden="true" />
+    return (
+      <div className={`${className} ${styles.pending}`} aria-hidden="true" />
+    )
   }
   if (thumbnailUrl) {
     return (
@@ -45,6 +47,7 @@ export function LectureThumb({
       style={{ background: bg, color: fg }}
       aria-hidden="true"
     >
+      <span className={styles.mark} />
       <span className={styles.title}>{title}</span>
     </div>
   )

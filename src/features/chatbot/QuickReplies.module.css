@@ -4,31 +4,49 @@
   gap: 6px;
 }
 .reply {
-  border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--line));
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  border: 1px solid color-mix(in srgb, var(--signal) 40%, var(--line));
   background: var(--surface);
   color: var(--ink);
-  border-radius: 999px;
-  padding: 6px 13px;
+  border-radius: var(--r-pill);
+  padding: 6px 14px;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
   /* 하나씩 차례로 나타난다(--i: 순서) */
-  animation: chip-in 0.22s ease-out both;
-  animation-delay: calc(var(--i, 0) * 45ms + 80ms);
+  animation: chip-in var(--t) var(--ease-out) both;
+  animation-delay: calc(min(var(--i, 0), 5) * 40ms + 80ms);
   transition:
-    background 0.12s,
-    transform 0.08s;
+    background var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    transform var(--t-fast) var(--ease-out);
 }
 .reply:hover:not(:disabled) {
   background: var(--signal-soft);
+  border-color: var(--signal);
+  color: var(--signal-text);
 }
 /* 누를 때 살짝 눌린다 */
 .reply:active:not(:disabled) {
   transform: scale(0.95);
 }
-/* 지난 말풍선의 버튼 */
+.reply:focus-visible {
+  outline: none;
+  border-color: var(--signal);
+  box-shadow: var(--ring);
+}
+/* 지난 말풍선의 버튼: 고를 수 없음을 흐린 무채색으로 보인다 */
 .reply:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
+  border-color: var(--line);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-2);
   cursor: default;
   animation: none;
 }

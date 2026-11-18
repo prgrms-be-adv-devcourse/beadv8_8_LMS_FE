@@ -18,6 +18,7 @@ import type {
 } from '@/entities/appearance/types'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
 import { CancelRequestStatusPill } from '@/entities/appearance/ui/CancelRequestStatusPill'
+import { HpLocation } from '@/entities/appearance/ui/HpLocation'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import {
   AcceptCancelModal,
@@ -36,6 +37,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { lookup } from '@/shared/lib/statusLabel'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AppearanceDetailPage.module.css'
+import { AppearanceTimeline } from './AppearanceTimeline'
 
 type ModalType =
   'request' | 'accept' | 'reject' | 'hostCancel' | 'confirm' | 'absent' | null
@@ -75,6 +77,12 @@ function Detail({
   const pending = pendingCancelRequest(appearance)
   const aired = isPast(appearance.scheduledAt)
   const awaiting = confirmStage(appearance) === 'open'
+  const hostCancelable = host && canHostCancel(appearance)
+  // 지금 누를 수 있는 일반 행동(취소 요청·응답·출연 확인)이 있는지
+  const primaryActions =
+    (!host && canRequestCancel(appearance)) ||
+    (host && pending !== null && !aired) ||
+    (host && awaiting)
   const sourceLink =
     appearance.sourceType === 'RECRUIT' && appearance.recruitId
       ? { to: `/recruits/${appearance.recruitId}`, label: '모집글 보기' }
@@ -88,14 +96,24 @@ function Detail({
   return (
     <>
       <div className={styles.head}>
+        <div className={styles.headLine}>
+          <span
+            className={host ? `${styles.role} ${styles.host}` : styles.role}
+          >
+            {host ? '내가 호스트' : '내가 게스트'}
+          </span>
+          <AppearanceStatusPill
+            status={appearance.status}
+            awaiting={awaiting ? (host ? 'host' : 'guest') : undefined}
+          />
+        </div>
         <h1>{appearance.title}</h1>
-        <AppearanceStatusPill
-          status={appearance.status}
-          awaiting={awaiting ? (host ? 'host' : 'guest') : undefined}
-        />
       </div>
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
+          <AppearanceTimeline appearance={appearance} />
+          {/* 확인이 끝난 출연은 리뷰가 다음 할 일이라 진행 단계 바로 아래에 둔다 */}
+          <AppearanceReviewSection appearance={appearance} />
           <section className="panel">
             <div className="panel-head">
               <MemberChip memberId={partnerId} />
@@ -152,19 +170,78 @@ function Detail({
               </Link>
             )}
           </section>
-          <AppearanceReviewSection appearance={appearance} />
           <CancelHistory requests={appearance.cancelRequests} />
         </div>
-        <aside className="panel sticky">
+        <aside className={`panel sticky ${styles.aside}`}>
+          <div className={styles.money}>
+            <span className={styles.eyebrow}>출연료</span>
+            <span className={styles.amount}>
+              <b className="num">{formatNumber(appearance.fee)}</b>
+              <span className={styles.unit}>HP</span>
+            </span>
+            <HpLocation appearance={appearance.status} />
+          </div>
           <StatusNote appearance={appearance} host={host} />
-          {!host && canRequestCancel(appearance) && (
-            <button
-              type="button"
-              className="btn block"
-              onClick={() => setModal('request')}
-            >
-              출연 취소 요청
-            </button>
+          {(primaryActions || hostCancelable) && (
+            <div className={styles.actions}>
+              {!host && canRequestCancel(appearance) && (
+                <button
+                  type="button"
+                  className="btn block"
+                  onClick={() => setModal('request')}
+                >
+                  출연 취소 요청
+                </button>
+              )}
+              {host && pending && !aired && (
+                <>
+                  <button
+                    type="button"
+                    className="btn primary block"
+                    onClick={() => setModal('accept')}
+                  >
+                    취소 요청 수락
+                  </button>
+                  <button
+                    type="button"
+                    className="btn block"
+                    onClick={() => setModal('reject')}
+                  >
+                    취소 요청 거절
+                  </button>
+                </>
+              )}
+              {host && awaiting && (
+                <>
+                  <button
+                    type="button"
+                    className="btn primary block"
+                    onClick={() => setModal('confirm')}
+                  >
+                    출연 확인
+                  </button>
+                  <button
+                    type="button"
+                    className="btn block"
+                    onClick={() => setModal('absent')}
+                  >
+                    불참
+                  </button>
+                </>
+              )}
+              {hostCancelable && (
+                // 되돌릴 수 없는 일방 취소는 다른 행동과 떨어뜨려 둔다
+                <div className={primaryActions ? styles.danger : undefined}>
+                  <button
+                    type="button"
+                    className="btn danger block"
+                    onClick={() => setModal('hostCancel')}
+                  >
+                    출연 취소 (위약금 {PENALTY_RATE_PERCENT}%)
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           {!host &&
             appearance.status === 'ESTABLISHED' &&
@@ -174,51 +251,6 @@ function Detail({
                 출연 취소 요청은 {CANCEL_REQUEST_LIMIT}번까지 보낼 수 있어요.
               </p>
             )}
-          {host && pending && !aired && (
-            <>
-              <button
-                type="button"
-                className="btn primary block"
-                onClick={() => setModal('accept')}
-              >
-                취소 요청 수락
-              </button>
-              <button
-                type="button"
-                className="btn block"
-                onClick={() => setModal('reject')}
-              >
-                취소 요청 거절
-              </button>
-            </>
-          )}
-          {host && awaiting && (
-            <>
-              <button
-                type="button"
-                className="btn primary block"
-                onClick={() => setModal('confirm')}
-              >
-                출연 확인
-              </button>
-              <button
-                type="button"
-                className="btn block"
-                onClick={() => setModal('absent')}
-              >
-                불참
-              </button>
-            </>
-          )}
-          {host && canHostCancel(appearance) && (
-            <button
-              type="button"
-              className="btn danger block"
-              onClick={() => setModal('hostCancel')}
-            >
-              출연 취소 (위약금 {PENALTY_RATE_PERCENT}%)
-            </button>
-          )}
         </aside>
       </div>
       {modal === 'request' && (

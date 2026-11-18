@@ -16,4 +16,5 @@
 }
 .code {
   overflow-wrap: anywhere;
+  font-family: var(--f-mono);
 }

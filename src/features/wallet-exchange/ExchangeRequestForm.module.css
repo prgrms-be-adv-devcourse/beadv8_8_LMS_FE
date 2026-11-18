@@ -1,0 +1,113 @@
+.panel:global(.panel) {
+  box-shadow: var(--shadow-1);
+  gap: 16px;
+}
+
+/* 환전 가능 금액: 수익 HP 색으로 먼저 보인다 */
+.available {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--earn) 30%, var(--line));
+  background: color-mix(in srgb, var(--earn-soft) 60%, var(--surface));
+}
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+}
+.availableAmt {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--earn);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.availableAmt small {
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 4px;
+  color: var(--ink-3);
+}
+
+.amountInput:global(.input) {
+  font-size: 22px;
+  font-weight: 600;
+  min-height: 50px;
+}
+
+/* 받을 계좌: 은행 코드와 계좌번호를 한 줄에 */
+.account {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.account legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.accountRow {
+  display: grid;
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr);
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .accountRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+.submit:global(.btn) {
+  align-self: flex-start;
+  min-height: 44px;
+  min-width: 160px;
+}
+@media (max-width: 560px) {
+  .submit:global(.btn) {
+    align-self: stretch;
+  }
+}
+
+/* 신청 결과 */
+.result:global(.panel) {
+  box-shadow: var(--shadow-1);
+  border-radius: var(--r-lg);
+}
+.ico:global(.result-ico) {
+  animation: pop var(--t-slow) var(--ease-spring) both;
+}
+.resultTitle {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.25;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ico:global(.result-ico) {
+    animation: none;
+  }
+}

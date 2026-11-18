@@ -1,0 +1,282 @@
+/*
+ * 관리자 화면 공용 모양. 관리자는 많이·빨리·틀리지 않게 처리하므로 꾸밈보다 스캔 속도와 상태 구분을 올린다.
+ * 공용 클래스(.btn .pill .q-item .tbl .kv)는 그대로 쓰고, 관리자 화면에서만 필요한 다듬기를 이 모듈 범위 안에서 더한다.
+ */
+
+/* ── 툴바: 상태 필터 + 유형·검색·기간을 한 줄(좁으면 여러 줄)로 묶는다 ── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  flex-wrap: wrap;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.toolbar :global(.select),
+.toolbar :global(.input) {
+  min-height: 34px;
+}
+
+/* ── 상태 필터: aria-pressed 버튼을 한 판 위의 분절 스위치로 보인다(탭이 아니다) ── */
+.seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--sunken);
+  border-radius: var(--r-sm);
+  min-width: 0;
+}
+.seg > :global(.btn) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: var(--r-xs);
+  min-height: 32px;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out);
+}
+.seg > :global(.btn):hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.seg > :global(.btn):focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+/* 선택된 칸: 흰 면으로 떠오르고 왼쪽에 탤리 램프를 켠다 */
+.seg > :global(.btn[aria-pressed='true']) {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+.seg > :global(.btn[aria-pressed='true'])::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--signal);
+  flex: none;
+}
+
+/* ── 목록(q-item 큐): 행 호버와 정돈된 간격 ── */
+.queue {
+  padding: 4px 8px;
+  gap: 0;
+  box-shadow: var(--shadow-1);
+}
+.queue :global(.q-item) {
+  padding: 14px 12px;
+  border-radius: var(--r-sm);
+  border-top-color: var(--line);
+  align-items: center;
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.queue :global(.q-item):hover {
+  background: var(--surface-2);
+}
+/* 멈춤·실패 상태 행은 왼쪽 위험색 띠로 훑어볼 때 먼저 보이게 한다 */
+.queue :global(.q-item):has(:global(.row-main) :global(.pill.bad)) {
+  box-shadow: inset 3px 0 0 var(--bad);
+}
+.queue :global(.row-actions) {
+  margin-left: auto;
+}
+.queue :global(.pager),
+.queue > nav {
+  padding: 12px 4px 8px;
+}
+
+/* ── 표: 머리 띠·행 호버·숫자 오른쪽 모노 ── */
+.tablePanel {
+  padding: 4px 4px 12px;
+  gap: 8px;
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
+.tablePanel > :global(nav) {
+  padding: 0 12px;
+}
+.tableWrap {
+  overflow-x: auto;
+  margin: 0;
+  /* 좁은 화면에서 표가 더 있다는 것을 오른쪽 그림자로 알린다 */
+  background:
+    linear-gradient(to right, var(--surface) 30%, transparent) left / 24px 100%
+      no-repeat local,
+    linear-gradient(to left, var(--surface) 30%, transparent) right / 24px 100%
+      no-repeat local,
+    linear-gradient(
+        to right,
+        color-mix(in srgb, var(--ink) 10%, transparent),
+        transparent
+      )
+      left / 10px 100% no-repeat scroll,
+    linear-gradient(
+        to left,
+        color-mix(in srgb, var(--ink) 10%, transparent),
+        transparent
+      )
+      right / 10px 100% no-repeat scroll;
+}
+.tableWrap :global(.tbl) th {
+  background: var(--surface-2);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding-block: 9px;
+}
+.tableWrap :global(.tbl) th:first-child {
+  border-top-left-radius: var(--r-sm);
+}
+.tableWrap :global(.tbl) th:last-child {
+  border-top-right-radius: var(--r-sm);
+}
+.tableWrap :global(.tbl) tbody tr {
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.tableWrap :global(.tbl) tbody tr:hover {
+  background: var(--surface-2);
+}
+.tableWrap :global(.tbl) td:global(.num) {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* 상태 필 열: 폭을 고정해 필이 줄마다 흔들리지 않게 한다 */
+.statusCol {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* 긴 ID·주문 번호: 모노 + 말줄임(전체는 title) */
+.id {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--ink-2);
+  display: inline-block;
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.mono {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── key-value: 이름 열을 맞추고 값은 읽기 쉽게 ── */
+.kv {
+  grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
+  gap: 0;
+  font-size: 13px;
+}
+.kv > dt,
+.kv > dd {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.kv > dt {
+  padding-right: 16px;
+  font-size: 12px;
+}
+.kv > dt:first-of-type,
+.kv > dt:first-of-type + dd {
+  border-top: 0;
+}
+.kv > dd {
+  overflow-wrap: anywhere;
+}
+/* 금액·계좌처럼 대조할 값은 굵은 모노 */
+.kv > dd:global(.num) {
+  font-weight: 600;
+}
+
+/* ── 상세 2단(.split) 오른쪽 판단 패널: 위에 잉크 띠를 둘러 "여기서 결정한다"를 보인다 ── */
+.decide {
+  box-shadow: var(--shadow-1);
+  border-top: 3px solid var(--ink);
+}
+.decide > h2 {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* 되돌릴 수 없는 행동만 모은 패널(보류 무효화 등): 위험색 띠로 다른 판단 패널과 구분한다 */
+.dangerZone {
+  box-shadow: var(--shadow-1);
+  border-top: 3px solid var(--bad);
+}
+.dangerZone > h2 {
+  color: var(--bad);
+}
+
+/* 주요 행동은 오른쪽, 위험한 행동(거절·반려·무효화)은 왼쪽 끝으로 떨어뜨려 오조작을 막는다 */
+.actionRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.actionRow > :global(.btn.danger) {
+  margin-right: auto;
+}
+.actionRow > :global(.btn) {
+  min-height: 40px;
+}
+
+/* ── 계산서: 신청 HP → 수수료 → 지급액(.breakdown을 영수증처럼) ── */
+.receipt :global(.breakdown) {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  gap: 0;
+  padding: 4px 16px;
+}
+.receipt :global(.breakdown) > :global(.row) {
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px dashed var(--line-2);
+}
+.receipt :global(.breakdown) > :global(.row):first-child {
+  border-top: 0;
+}
+.receipt :global(.breakdown) > :global(.row.total) {
+  border-top: 1px solid var(--ink);
+  font-weight: 700;
+}
+.receipt :global(.breakdown) :global(.num) {
+  font-variant-numeric: tabular-nums;
+}
+.receipt :global(.breakdown) > :global(.row.total) :global(.num) {
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+/* 작은 머리표(계기판 눈금) */
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seg > :global(.btn),
+  .queue :global(.q-item),
+  .tableWrap :global(.tbl) tbody tr {
+    transition: none;
+  }
+}

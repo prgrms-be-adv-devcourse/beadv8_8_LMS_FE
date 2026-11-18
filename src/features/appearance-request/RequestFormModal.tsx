@@ -26,6 +26,7 @@ import { Avatar } from '@/shared/ui/Avatar'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './RequestFormModal.module.css'
 
 /** 보낸 요청 목록 (내 출연 · 호스트) */
 const SENT_PATH = '/appearances?tab=host'
@@ -37,11 +38,11 @@ type RequestFormModalProps = {
 
 /** 화면 순서대로 둔 입력칸과 그 id */
 const FIELD_ORDER = [
-  'title',
-  'fee',
   'scheduledAt',
   'expectedMinutes',
   'acceptDeadline',
+  'fee',
+  'title',
   'hostChannelUrl',
   'content',
 ] as const satisfies readonly (keyof RequestFormValues)[]
@@ -183,125 +184,162 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
         </>
       }
     >
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div className={styles.to}>
+        <StepNumber n={1} />
         <Avatar name={guest.nickname} imageUrl={guest.profileImageUrl} />
-        <b>{guest.nickname}</b>
-        <span className="fine">님에게 요청해요</span>
+        <span className={styles.toText}>
+          <b>{guest.nickname}</b>
+          <span className="fine">님에게 요청해요</span>
+        </span>
       </div>
       <form
         {...fields.formProps}
         id="appearance-request-form"
-        className="form"
+        className={`form ${styles.form}`}
         noValidate
         onSubmit={submit}
       >
-        <Field id="rq-title" label="제목" error={fields.error('title')}>
-          <input
-            {...fields.inputProps('title')}
-            className="input"
-            maxLength={TITLE_MAX}
-            value={formValues.title}
-            onChange={set('title')}
-            placeholder="예: 주말 게임 합방 출연 요청"
-          />
-        </Field>
-        <Field
-          id="rq-fee"
-          label="출연료 (HP)"
-          error={fields.error('fee')}
-          hint={`최저 ${MINIMUM_FEE.toLocaleString()} HP`}
-        >
-          <input
-            {...fields.inputProps('fee')}
-            className="input num"
-            inputMode="numeric"
-            value={formValues.fee}
-            onChange={set('fee')}
-          />
-        </Field>
-        <div className="form-row">
+        <fieldset className={styles.step}>
+          <legend className={styles.legend}>
+            <StepNumber n={2} />
+            언제 방송하나요
+          </legend>
+          <div className="form-row">
+            <Field
+              id="rq-air"
+              label="방송 예정 일시"
+              error={fields.error('scheduledAt')}
+            >
+              <input
+                {...fields.inputProps('scheduledAt')}
+                type="datetime-local"
+                className="input"
+                value={formValues.scheduledAt}
+                onChange={set('scheduledAt')}
+              />
+            </Field>
+            <Field
+              id="rq-minutes"
+              label="예상 출연 시간 (분)"
+              error={fields.error('expectedMinutes')}
+            >
+              <input
+                {...fields.inputProps('expectedMinutes')}
+                className="input num"
+                inputMode="numeric"
+                max={EXPECTED_MINUTES_MAX}
+                value={formValues.expectedMinutes}
+                onChange={set('expectedMinutes')}
+              />
+            </Field>
+          </div>
           <Field
-            id="rq-air"
-            label="방송 예정 일시"
-            error={fields.error('scheduledAt')}
+            id="rq-deadline"
+            label="수락 기한"
+            error={fields.error('acceptDeadline')}
+            hint="기한까지 수락하지 않으면 보류한 HP를 돌려받아요."
           >
             <input
-              {...fields.inputProps('scheduledAt')}
+              {...fields.inputProps('acceptDeadline')}
               type="datetime-local"
               className="input"
-              value={formValues.scheduledAt}
-              onChange={set('scheduledAt')}
+              value={formValues.acceptDeadline}
+              onChange={set('acceptDeadline')}
+            />
+          </Field>
+        </fieldset>
+        <fieldset className={styles.step}>
+          <legend className={styles.legend}>
+            <StepNumber n={3} />
+            출연료
+          </legend>
+          <Field
+            id="rq-fee"
+            label="출연료 (HP)"
+            error={fields.error('fee')}
+            hint={`최저 ${MINIMUM_FEE.toLocaleString()} HP`}
+          >
+            <div className={styles.feeInput}>
+              <input
+                {...fields.inputProps('fee')}
+                className={`input num ${styles.fee}`}
+                inputMode="numeric"
+                value={formValues.fee}
+                onChange={set('fee')}
+              />
+              <span className={styles.feeUnit} aria-hidden="true">
+                HP
+              </span>
+            </div>
+          </Field>
+          {shortHp && (
+            <div className="notice bad" role="alert">
+              HP가 부족해 요청을 보내지 못했어요. 충전한 뒤 다시 보내 주세요.
+            </div>
+          )}
+          <div className={styles.hold}>
+            <HpSpendBreakdown
+              spend={spend}
+              label="보류할 출연료"
+              note={`게스트가 수락하면 출연이 성립해요. 거절·만료·취소되면 보류한 HP를 쓴 종류 그대로 돌려받아요. 성립 후 호스트가 취소하면 출연료의 ${PENALTY_RATE_PERCENT}%가 위약금으로 게스트에게 지급돼요.`}
+            />
+          </div>
+        </fieldset>
+        <fieldset className={styles.step}>
+          <legend className={styles.legend}>
+            <StepNumber n={4} />
+            요청서
+          </legend>
+          <Field id="rq-title" label="제목" error={fields.error('title')}>
+            <input
+              {...fields.inputProps('title')}
+              className="input"
+              maxLength={TITLE_MAX}
+              value={formValues.title}
+              onChange={set('title')}
+              placeholder="예: 주말 게임 합방 출연 요청"
             />
           </Field>
           <Field
-            id="rq-minutes"
-            label="예상 출연 시간 (분)"
-            error={fields.error('expectedMinutes')}
+            id="rq-channel"
+            label="내 채널 주소"
+            error={fields.error('hostChannelUrl')}
+            hint={myChannel ? '승인된 내 채널로 채웠어요.' : undefined}
           >
             <input
-              {...fields.inputProps('expectedMinutes')}
-              className="input num"
-              inputMode="numeric"
-              max={EXPECTED_MINUTES_MAX}
-              value={formValues.expectedMinutes}
-              onChange={set('expectedMinutes')}
+              {...fields.inputProps('hostChannelUrl')}
+              className="input"
+              inputMode="url"
+              value={formValues.hostChannelUrl}
+              onChange={set('hostChannelUrl')}
+              placeholder="https://chzzk.naver.com/..."
             />
           </Field>
-        </div>
-        <Field
-          id="rq-deadline"
-          label="수락 기한"
-          error={fields.error('acceptDeadline')}
-          hint="기한까지 수락하지 않으면 보류한 HP를 돌려받아요."
-        >
-          <input
-            {...fields.inputProps('acceptDeadline')}
-            type="datetime-local"
-            className="input"
-            value={formValues.acceptDeadline}
-            onChange={set('acceptDeadline')}
-          />
-        </Field>
-        <Field
-          id="rq-channel"
-          label="내 채널 주소"
-          error={fields.error('hostChannelUrl')}
-          hint={myChannel ? '승인된 내 채널로 채웠어요.' : undefined}
-        >
-          <input
-            {...fields.inputProps('hostChannelUrl')}
-            className="input"
-            inputMode="url"
-            value={formValues.hostChannelUrl}
-            onChange={set('hostChannelUrl')}
-            placeholder="https://chzzk.naver.com/..."
-          />
-        </Field>
-        <Field
-          id="rq-content"
-          label="요청 내용"
-          error={fields.error('content')}
-        >
-          <textarea
-            {...fields.inputProps('content')}
-            className="textarea"
-            maxLength={CONTENT_MAX}
-            value={formValues.content}
-            onChange={set('content')}
-            placeholder="방송 주제, 진행 방식, 준비물"
-          />
-        </Field>
+          <Field
+            id="rq-content"
+            label="요청 내용"
+            error={fields.error('content')}
+          >
+            <textarea
+              {...fields.inputProps('content')}
+              className="textarea"
+              maxLength={CONTENT_MAX}
+              value={formValues.content}
+              onChange={set('content')}
+              placeholder="방송 주제, 진행 방식, 준비물"
+            />
+          </Field>
+        </fieldset>
       </form>
-      {shortHp && (
-        <div className="notice bad" role="alert">
-          HP가 부족해 요청을 보내지 못했어요. 충전한 뒤 다시 보내 주세요.
-        </div>
-      )}
-      <HpSpendBreakdown
-        spend={spend}
-        label="보류할 출연료"
-        note={`게스트가 수락하면 출연이 성립해요. 거절·만료·취소되면 보류한 HP를 쓴 종류 그대로 돌려받아요. 성립 후 호스트가 취소하면 출연료의 ${PENALTY_RATE_PERCENT}%가 위약금으로 게스트에게 지급돼요.`}
-      />
     </Modal>
+  )
+}
+
+/** 단계 번호(장식). 단계 이름은 legend 글자로 읽힌다 */
+function StepNumber({ n }: { n: number }) {
+  return (
+    <span className={styles.stepNo} aria-hidden="true">
+      {String(n).padStart(2, '0')}
+    </span>
   )
 }

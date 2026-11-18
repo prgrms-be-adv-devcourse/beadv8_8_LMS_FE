@@ -1,0 +1,81 @@
+/* 신청 → 관리자 승인 → 송금. 지금 단계는 신호색 램프, 끝난 단계는 수익 초록 */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+.step {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  min-width: 0;
+}
+.mark {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 600 11px var(--f-mono);
+  background: var(--sunken);
+  color: var(--ink-3);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.body b {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.text {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.todo b {
+  color: var(--ink-3);
+}
+.done .mark {
+  background: var(--earn-soft);
+  color: var(--earn);
+}
+.now {
+  border-color: color-mix(in srgb, var(--signal) 45%, var(--line));
+  background: color-mix(in srgb, var(--signal-soft) 45%, var(--surface));
+}
+.now .mark {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
+
+@media (max-width: 560px) {
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .step {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 6px 0;
+  }
+  .now {
+    background: none;
+  }
+  .now b {
+    color: var(--signal-text);
+  }
+}

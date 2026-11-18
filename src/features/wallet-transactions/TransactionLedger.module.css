@@ -1,0 +1,110 @@
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.count {
+  font: 500 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+
+.table tbody tr {
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+/* 날짜: 하루의 첫 거래만 진하게, 같은 날 이어지는 거래는 흐리게 */
+.when {
+  white-space: nowrap;
+  font-size: 12px;
+}
+.day {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.sameDay .day {
+  color: var(--ink-3);
+  font-weight: 400;
+  opacity: 0.6;
+}
+.time {
+  color: var(--ink-3);
+}
+/* 표는 테두리를 합치므로 2px로 둬야 날짜가 바뀌는 선이 이긴다 */
+.newDay:not(:first-child) td {
+  border-top: 2px solid var(--line);
+}
+
+.what {
+  font-weight: 500;
+}
+.link:global(.link) {
+  white-space: nowrap;
+}
+
+/* HP 종류: 종류 색으로 칠한 작은 꼬리표 */
+.kinds {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.kind {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--r-pill);
+  padding: 1px 8px 1px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.kind :global(.dot) {
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+}
+.charge {
+  background: var(--charge-soft);
+  color: var(--charge);
+}
+.earn {
+  background: var(--earn-soft);
+  color: var(--earn);
+}
+
+/* 증감: 자리 맞춘 큰 숫자, 보류 변화는 아래 작은 줄 */
+.delta {
+  font-size: 15px;
+  white-space: nowrap;
+}
+.delta > div + div {
+  margin-top: 2px;
+}
+.held:global(.fine) {
+  color: var(--hold);
+}
+
+.note {
+  margin-top: 4px;
+}
+
+@media (max-width: 560px) {
+  .newDay:not(:first-child) td {
+    border-top: 0;
+  }
+  .newDay:not(:first-child) {
+    border-top: 1px solid var(--line);
+  }
+  .table tbody tr:hover {
+    background: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table tbody tr {
+    transition: none;
+  }
+}

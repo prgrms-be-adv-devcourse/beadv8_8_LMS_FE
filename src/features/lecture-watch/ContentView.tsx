@@ -43,10 +43,15 @@ export function ContentView({
     )
   return (
     <div className={styles.player}>
-      <p>{content.title}</p>
+      <span className={styles.doc} aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor">
+          <path d="M6 7h8M6 10.5h8M6 14h5" strokeWidth="1.6" />
+        </svg>
+      </span>
+      <p className={styles.docTitle}>{content.title}</p>
       <button
         type="button"
-        className="btn signal"
+        className={`btn signal ${styles.download}`}
         disabled={isFetching}
         onClick={async () => {
           // 오래 열린 탭에서도 만료된 서명으로 다운로드하지 않는다.
@@ -61,6 +66,21 @@ export function ContentView({
           link.click()
         }}
       >
+        {isFetching ? (
+          <span className="spinner sm" aria-hidden="true" />
+        ) : (
+          <svg
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10" />
+          </svg>
+        )}
         {isFetching ? '자료 준비 중…' : '자료 내려받기'}
       </button>
     </div>

@@ -1,0 +1,165 @@
+/* 비회원·회원 셸의 계정 메뉴·구역 탭·하단 탭바. 공용 모양(메뉴 줄·머리표)은 AppShell.module.css에 있다 */
+
+/* ── 계정 메뉴(아바타 드롭다운·'마이' 시트 공용) ── */
+.accountNav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.accountGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.accountGroup > span {
+  padding: 8px 10px 4px;
+}
+/* 지갑·계정 설정: 메뉴 그룹 아래 얇은 선으로 나눈다 */
+.accountFixed {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+}
+/* 지금 보고 있는 화면: 굵은 글자 + 신호색 아이콘 + 오른쪽 탤리 점 */
+.current {
+  color: var(--ink);
+  font-weight: 700;
+  background: var(--sunken);
+}
+.current svg {
+  color: var(--signal-text);
+}
+.current::after {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+/* 시트(공용 Modal) 안: 모달 본문 여백을 쓰고 위아래만 조금 줄인다 */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: -4px -8px 0;
+}
+
+/* ── 구역 탭: 페이지 폭(1120px)에 맞춰 본문 맨 위에 둔다 ── */
+.sectionTabs {
+  max-width: 1120px;
+  margin: 0 auto 20px;
+}
+.sectionTab {
+  text-decoration: none;
+}
+.sectionTab:active {
+  background: var(--press);
+}
+
+/* ── 좁은 화면 하단 탭바(useNarrow가 그릴지 정한다) ── */
+.tabBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 헤더와 같은 층: 챗봇(25)·모달(50)·토스트(60)가 위에 온다 */
+  z-index: 20;
+  height: var(--app-bottom);
+  display: flex;
+  align-items: stretch;
+  padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom)
+    max(4px, env(safe-area-inset-left));
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(1.8) blur(14px);
+  backdrop-filter: saturate(1.8) blur(14px);
+  border-top: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  box-shadow: 0 -6px 18px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .tabBar {
+    background: var(--surface);
+  }
+}
+.tabItem {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--t-fast) var(--ease-out);
+}
+.tabItem svg {
+  width: 22px;
+  height: 22px;
+  transition: transform var(--t-fast) var(--ease-out);
+}
+.tabItem:active svg {
+  transform: scale(0.9);
+}
+.tabItem:focus-visible {
+  outline-offset: -4px;
+}
+.tabLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 선택: 잉크 글자 + 신호색 아이콘 + 위쪽 탤리 막대 */
+.on {
+  color: var(--ink);
+}
+.on svg {
+  color: var(--signal-text);
+}
+.on::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 24px;
+  height: 3px;
+  margin-left: -12px;
+  border-radius: 0 0 3px 3px;
+  background: var(--signal);
+  animation: tallyIn var(--t) var(--ease-out);
+}
+@keyframes tallyIn {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabItem,
+  .tabItem svg {
+    transition: none;
+  }
+  .tabItem:active svg {
+    transform: none;
+  }
+  .on::before {
+    animation: none;
+  }
+}

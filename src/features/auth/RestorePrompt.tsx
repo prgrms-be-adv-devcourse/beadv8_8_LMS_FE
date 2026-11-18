@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { formatRestorableUntil } from '@/entities/member/withdrawal'
 import { isApiError } from '@/shared/api/ApiError'
 import { cancelRestore, restoreMember } from '@/shared/auth/me'
+import styles from './LoginModal.module.css'
 
 /** 다시 눌러도 복구할 수 없는 실패(BE가 복구 티켓 쿠키를 지운다). 로그인부터 다시 한다 */
 const FINAL_FAILURE: Record<string, string | null> = {
@@ -62,24 +63,34 @@ export function RestorePrompt({
 
   return (
     <div className="form" role="group" aria-label="계정 복구">
-      <p>
-        <b>
-          탈퇴한 계정이에요.{' '}
-          {until
-            ? `${until}까지 복구할 수 있어요.`
-            : '탈퇴하고 30일 안에는 복구할 수 있어요.'}
-        </b>
-      </p>
-      <p className="fine">복구하면 탈퇴 전처럼 이용할 수 있어요. 복구할까요?</p>
+      <div className={styles.restoreHead}>
+        <span className={styles.restoreIcon} aria-hidden="true">
+          <RestoreIcon />
+        </span>
+        <div className={styles.restoreText}>
+          <p>
+            <b>
+              탈퇴한 계정이에요.{' '}
+              {until
+                ? `${until}까지 복구할 수 있어요.`
+                : '탈퇴하고 30일 안에는 복구할 수 있어요.'}
+            </b>
+          </p>
+          <p className="fine">
+            복구하면 탈퇴 전처럼 이용할 수 있어요. 복구할까요?
+          </p>
+        </div>
+      </div>
       {restore.error && (
-        <p className="notice bad" role="alert">
+        <p className={`notice bad ${styles.appear}`} role="alert">
           {restore.error.message}
         </p>
       )}
       <button
         type="button"
-        className="btn primary block"
+        className={`btn primary block ${styles.submit}`}
         disabled={pending}
+        aria-busy={restore.isPending || busy || undefined}
         onClick={() => restore.mutate()}
       >
         복구하기
@@ -93,5 +104,24 @@ export function RestorePrompt({
         복구하지 않기
       </button>
     </div>
+  )
+}
+
+/** 되돌리기 화살표(복구) */
+function RestoreIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+    </svg>
   )
 }

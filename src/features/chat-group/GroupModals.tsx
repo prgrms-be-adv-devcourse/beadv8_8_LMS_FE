@@ -133,38 +133,46 @@ function MemberRow({
   onKick: () => void
 }) {
   return (
-    <li className={styles.row}>
-      <Avatar name={member.nickname} size={32} />
+    <li className={confirming ? `${styles.row} ${styles.asking}` : styles.row}>
+      <Avatar name={member.nickname} size={36} />
       <span className={styles.name}>
         <b>
-          {member.nickname}
+          <span className={styles.nick}>{member.nickname}</span>
           {host && <HostCrown />}
           {me && <span className="tag">나</span>}
         </b>
+        {/* 왕관(접근성 이름 '호스트')과 같은 뜻이라 보조 기술에는 한 번만 읽힌다 */}
+        {host && (
+          <span className={styles.role} aria-hidden="true">
+            호스트
+          </span>
+        )}
       </span>
       {kickable &&
         (confirming ? (
           <span className={styles.confirm}>
-            <span className="fine">
+            <span className={styles.confirmMsg}>
               내보내면 다시 초대해야만 들어올 수 있어요.
             </span>
-            <button type="button" className="btn ghost sm" onClick={onCancel}>
-              취소
-            </button>
-            <button
-              type="button"
-              className="btn danger sm"
-              disabled={pending}
-              onClick={onKick}
-              aria-label={`${member.nickname} 님 내보내기 확인`}
-            >
-              내보내기
-            </button>
+            <span className={styles.confirmBtns}>
+              <button type="button" className="btn ghost sm" onClick={onCancel}>
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn danger sm"
+                disabled={pending}
+                onClick={onKick}
+                aria-label={`${member.nickname} 님 내보내기 확인`}
+              >
+                내보내기
+              </button>
+            </span>
           </span>
         ) : (
           <button
             type="button"
-            className="btn ghost sm"
+            className={`btn ghost sm ${styles.kick}`}
             onClick={onAsk}
             aria-label={`${member.nickname} 님 내보내기`}
           >
@@ -333,10 +341,13 @@ export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
                 : '초대할 수 있는 지원자가 없어요.'}
             </p>
           ) : (
-            <ul className={styles.list} aria-label="초대 후보">
+            <ul
+              className={`${styles.list} ${styles.candidates}`}
+              aria-label="초대 후보"
+            >
               {candidates.map((c) => (
                 <li key={c.userId}>
-                  <label className="chk-row">
+                  <label className={`chk-row ${styles.candidate}`}>
                     <input
                       type="checkbox"
                       checked={selected.has(c.userId)}
@@ -345,6 +356,7 @@ export function InviteModal({ chatRoomId, onClose }: GroupModalProps) {
                       }
                       onChange={() => toggle(c.userId, c.nickname)}
                     />
+                    <Avatar name={c.nickname} size={32} />
                     <span className={styles.name}>
                       <b>{c.nickname}</b>
                       {!c.invitable && (
@@ -451,10 +463,27 @@ export function CloseGroupModal({
         </>
       }
     >
-      <p>
-        폐쇄하면 방이 읽기 전용이 돼요. 누구도 새 메시지를 보내거나 초대할 수
-        없고, 다시 열 수 없어요.
-      </p>
+      <div className={styles.danger}>
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <rect x="5" y="11" width="14" height="9" rx="2" />
+          <path d="M8 11V8a4 4 0 018 0v3" />
+        </svg>
+        <p>
+          폐쇄하면 방이 읽기 전용이 돼요. 누구도 새 메시지를 보내거나 초대할 수
+          없고, 다시 열 수 없어요.
+        </p>
+      </div>
       <p className="fine">
         참여자는 나가지 않는 한 30일 동안 대화를 볼 수 있어요. 모집 중이면 이
         모집글에 새 단체방을 만들 수 있어요.

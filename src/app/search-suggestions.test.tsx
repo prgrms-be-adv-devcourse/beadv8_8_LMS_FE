@@ -280,7 +280,8 @@ describe('초성 검색 결과', () => {
     const card = await screen.findByRole('button', {
       name: /프리미어 컷편집 입문/,
     })
-    expect(search.searches[0].get('keyword')).toBe('ㅍㄹㅁㅇ')
+    // CI에서 앞 테스트(초성 'ㅂㅅ' 입력)의 늦은 검색 요청이 이 흉내에 먼저 잡힌 적이 있어, 첫 요청이 아니라 이 화면의 요청을 찾는다
+    expect(search.searches.map((p) => p.get('keyword'))).toContain('ㅍㄹㅁㅇ')
     expect(card).toHaveTextContent('프리미어 컷편집 입문')
     expect(card).toHaveTextContent('배그고수')
     expect(card.querySelector('em')).toBeNull()

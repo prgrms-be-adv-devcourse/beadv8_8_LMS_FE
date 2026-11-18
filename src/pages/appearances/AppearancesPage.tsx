@@ -11,21 +11,29 @@ import type {
   RequestSide,
 } from '@/entities/appearance/types'
 import { confirmStage } from '@/entities/appearance/rules'
+import { AirDate } from '@/entities/appearance/ui/AirDate'
 import { AppearanceListViewSelect } from '@/entities/appearance/ui/AppearanceListViewSelect'
 import { AppearanceStatusPill } from '@/entities/appearance/ui/AppearanceStatusPill'
+import { CardSkeleton } from '@/entities/appearance/ui/CardSkeleton'
 import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
+import { HpLocation } from '@/entities/appearance/ui/HpLocation'
 import { useAppearanceListView } from '@/entities/appearance/useAppearanceListView'
 import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
-import { formatDate, formatDateTime, formatDday } from '@/shared/lib/date'
+import {
+  formatDate,
+  formatDateTime,
+  formatDday,
+  isPast,
+} from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
 import styles from './AppearancesPage.module.css'
 
@@ -97,7 +105,7 @@ export function AppearancesPage() {
           </div>
         )}
         {isPending || moving ? (
-          <Loading />
+          <CardSkeleton count={2} />
         ) : error ? (
           <LoadError error={error} retry={refetch} />
         ) : data.content.length === 0 ? (
@@ -123,7 +131,7 @@ export function AppearancesPage() {
           )
         ) : (
           <>
-            <div className="page" style={{ gap: 12 }}>
+            <div className={styles.list}>
               {data.content.map((request) => (
                 <RequestCard key={request.id} request={request} side={side} />
               ))}
@@ -149,6 +157,11 @@ function RequestCard({
 }) {
   const partnerId = side === 'host' ? request.guestId : request.hostId
   const waiting = request.status === 'REQUESTED'
+  // 받은 요청은 게스트가 응답해야 한다(기한이 지났으면 곧 만료라 행동을 내밀지 않는다).
+  const next =
+    waiting && side === 'guest' && !isPast(request.acceptDeadline)
+      ? '수락·거절하기'
+      : null
   return (
     <Link
       to={`/appearances/requests/${request.id}`}
@@ -158,33 +171,49 @@ function RequestCard({
           : styles.card
       }
     >
-      <div className={styles.head}>
-        <MemberChip memberId={partnerId} />
-        <span className="fine">{side === 'host' ? '게스트' : '호스트'}</span>
-        <span className={styles.spacer} />
-        <RequestStatusPill status={request.status} side={side} />
+      <AirDate value={request.scheduledAt} />
+      <div className={styles.body}>
+        <div className={styles.head}>
+          <RoleTag side={side} />
+          <MemberChip memberId={partnerId} />
+        </div>
+        <span className={styles.title}>{request.title}</span>
+        <div className={styles.meta}>
+          <span>방송 {formatDateTime(request.scheduledAt)}</span>
+          {waiting && (
+            <span className={styles.deadline}>
+              수락 기한 {formatDate(request.acceptDeadline)} ·{' '}
+              <b className="num">{formatDday(request.acceptDeadline)}</b>
+            </span>
+          )}
+        </div>
       </div>
-      <span className={styles.title}>{request.title}</span>
-      <div className={styles.grid}>
-        <div>
-          <span>출연료</span>
-          <b className="num">{formatNumber(request.fee)} HP</b>
-        </div>
-        <div>
-          <span>방송 예정</span>
-          <b>{formatDateTime(request.scheduledAt)}</b>
-        </div>
-        {waiting && (
-          <div>
-            <span>수락 기한</span>
-            <b>
-              {formatDate(request.acceptDeadline)} ·{' '}
-              {formatDday(request.acceptDeadline)}
-            </b>
-          </div>
-        )}
+      <div className={styles.side}>
+        <RequestStatusPill status={request.status} side={side} />
+        <b className={`num ${styles.fee}`}>{formatNumber(request.fee)} HP</b>
+        <HpLocation request={request.status} />
+        {next && <NextAction label={next} />}
       </div>
     </Link>
+  )
+}
+
+/** 이 목록이 어느 역할의 것인지. 내가 호스트인지 게스트인지 한눈에 */
+function RoleTag({ side }: { side: RequestSide }) {
+  return (
+    <span className={`${styles.role} ${side === 'host' ? styles.host : ''}`}>
+      {side === 'host' ? '내가 호스트' : '내가 게스트'}
+    </span>
+  )
+}
+
+/** 카드 오른쪽 아래의 다음 행동. 카드 전체가 링크라 버튼이 아니라 글자로 안내한다 */
+function NextAction({ label }: { label: string }) {
+  return (
+    <span className={styles.next}>
+      {label}
+      <span aria-hidden="true"> →</span>
+    </span>
   )
 }
 
@@ -213,14 +242,14 @@ function AppearanceList({ side }: { side: RequestSide }) {
         <AppearanceListViewSelect value={view} onChange={selectView} />
       </div>
       {isPending || moving ? (
-        <Loading />
+        <CardSkeleton count={2} />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
         view === 'ended' ? (
           <p className="fine">끝난 출연이 없어요.</p>
         ) : ended.isPending ? (
-          <Loading />
+          <CardSkeleton count={2} />
         ) : (
           <AppearanceEmpty
             side={side}
@@ -234,7 +263,7 @@ function AppearanceList({ side }: { side: RequestSide }) {
         )
       ) : (
         <>
-          <div className="page" style={{ gap: 12 }}>
+          <div className={styles.list}>
             {data.content.map((appearance) => (
               <AppearanceCard
                 key={appearance.id}
@@ -299,36 +328,44 @@ function AppearanceCard({
   const partnerId = side === 'host' ? appearance.guestId : appearance.hostId
   // 방송이 끝나 호스트의 출연 확인을 기다린다
   const awaiting = confirmStage(appearance) === 'open'
+  const cancelAsked = appearance.status === 'CANCEL_REQUESTED'
   // 호스트가 답해야 하는 취소 요청·출연 확인은 눈에 띄게 한다.
-  const attn =
-    side === 'host' && (appearance.status === 'CANCEL_REQUESTED' || awaiting)
+  const attn = side === 'host' && (cancelAsked || awaiting)
+  const next =
+    side !== 'host'
+      ? null
+      : awaiting
+        ? '출연 확인하기'
+        : cancelAsked && !isPast(appearance.scheduledAt)
+          ? '취소 요청에 답하기'
+          : null
   return (
     <Link
       to={`/appearances/${appearance.id}`}
       className={attn ? `${styles.card} ${styles.attn}` : styles.card}
     >
-      <div className={styles.head}>
-        <MemberChip memberId={partnerId} />
-        <span className="fine">
-          {side === 'host' ? '게스트' : '호스트'} ·{' '}
-          {appearance.sourceType === 'RECRUIT' ? '출연 모집' : '출연 요청'}
-        </span>
-        <span className={styles.spacer} />
+      <AirDate value={appearance.scheduledAt} />
+      <div className={styles.body}>
+        <div className={styles.head}>
+          <RoleTag side={side} />
+          <MemberChip memberId={partnerId} />
+          <span className="fine">
+            {appearance.sourceType === 'RECRUIT' ? '출연 모집' : '출연 요청'}
+          </span>
+        </div>
+        <span className={styles.title}>{appearance.title}</span>
+        <div className={styles.meta}>
+          <span>방송 {formatDateTime(appearance.scheduledAt)}</span>
+        </div>
+      </div>
+      <div className={styles.side}>
         <AppearanceStatusPill
           status={appearance.status}
           awaiting={awaiting ? side : undefined}
         />
-      </div>
-      <span className={styles.title}>{appearance.title}</span>
-      <div className={styles.grid}>
-        <div>
-          <span>출연료</span>
-          <b className="num">{formatNumber(appearance.fee)} HP</b>
-        </div>
-        <div>
-          <span>방송 예정</span>
-          <b>{formatDateTime(appearance.scheduledAt)}</b>
-        </div>
+        <b className={`num ${styles.fee}`}>{formatNumber(appearance.fee)} HP</b>
+        <HpLocation appearance={appearance.status} />
+        {next && <NextAction label={next} />}
       </div>
     </Link>
   )

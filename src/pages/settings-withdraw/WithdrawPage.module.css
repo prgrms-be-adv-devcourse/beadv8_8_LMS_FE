@@ -1,0 +1,102 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+:global(.panel).card {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.card h2 {
+  margin: 0;
+}
+.grace {
+  margin: 0;
+}
+
+/* 사라지는 것 / 남는 것: 두 칸을 색 띠로 갈라 한눈에 */
+.claims {
+  gap: 12px;
+}
+.gone,
+.kept {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.gone {
+  background: color-mix(in srgb, var(--bad-soft) 55%, var(--surface));
+  border-color: color-mix(in srgb, var(--bad) 25%, var(--line));
+}
+.gone b {
+  color: var(--bad);
+}
+.kept {
+  background: var(--surface-2);
+}
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.items li {
+  position: relative;
+  padding-left: 22px;
+  overflow-wrap: anywhere;
+}
+/* 파기: ✕, 보존: 자물쇠 대신 짧은 막대(기록) — 글자 없이 모양으로만 */
+.items li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.55em;
+  width: 10px;
+  height: 10px;
+}
+.gone .items li::before {
+  background:
+    linear-gradient(
+      45deg,
+      transparent 42%,
+      var(--bad) 42%,
+      var(--bad) 58%,
+      transparent 58%
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 42%,
+      var(--bad) 42%,
+      var(--bad) 58%,
+      transparent 58%
+    );
+}
+.kept .items li::before {
+  top: calc(0.55em + 3px);
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--ink-3);
+}
+
+/* 탈퇴를 막는 조건 점검 목록 */
+.checks :global(.wd-row) {
+  align-items: center;
+}
+.checks :global(.row-main) {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.step {
+  background: var(--sunken);
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+  font-size: 12px;
+}

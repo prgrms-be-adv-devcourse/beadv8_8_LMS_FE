@@ -28,6 +28,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminChannelsPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const TABS: { status: ChannelReviewStatus; label: string; empty: string }[] = [
   { status: 'PENDING', label: '심사 대기', empty: '심사 대기 채널이 없어요' },
@@ -88,13 +89,17 @@ export function AdminChannelsPage() {
           ))
         }
       />
-      <div className="toolbar">
-        <div role="group" aria-label="심사 상태" className={styles.tabs}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="심사 상태"
+          className={`${styles.tabs} ${admin.seg}`}
+        >
           {TABS.map((t) => (
             <button
               key={t.status}
               type="button"
-              className={status === t.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === t.status}
               onClick={() => setStatus(t.status)}
             >
@@ -110,7 +115,7 @@ export function AdminChannelsPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={tab.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <ul className={styles.list} aria-label="채널 심사 목록">
             {data.content.map((review) => (
               <ReviewItem
@@ -166,7 +171,7 @@ function ReviewItem({
       <div className="row-main">
         <div className={styles.head}>
           <b>{review.nickname}</b>
-          <span className="fine">회원 #{review.memberId}</span>
+          <span className={`fine ${admin.mono}`}>회원 #{review.memberId}</span>
           <UpgradeStatusPill status={review.status} />
         </div>
         <a
@@ -196,7 +201,7 @@ function ReviewItem({
         <div className="row-actions">
           <button
             type="button"
-            className="btn sm"
+            className="btn sm danger"
             disabled={busy}
             onClick={onReject}
           >
@@ -256,7 +261,7 @@ function ApproveDialog({
         </>
       }
     >
-      <dl className="kv">
+      <dl className={`kv ${admin.kv}`}>
         <dt>회원</dt>
         <dd>
           {review.nickname} (회원 #{review.memberId})

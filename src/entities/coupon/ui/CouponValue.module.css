@@ -1,0 +1,26 @@
+.value {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+  color: var(--signal-text);
+}
+.value b {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.unit {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 700;
+}
+/* 정액은 자릿수가 많아 한 단계 작게 */
+.value b.amount {
+  font-size: 20px;
+}
+.value b.word {
+  font-size: 15px;
+}

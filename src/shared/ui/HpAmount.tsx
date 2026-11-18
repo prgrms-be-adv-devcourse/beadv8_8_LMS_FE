@@ -7,7 +7,7 @@ type HpAmountProps = { value: number; kind?: HpKind }
 
 export function HpAmount({ value, kind }: HpAmountProps) {
   return (
-    <span className={kind ? `num c-${kind}` : 'num'}>
+    <span className={kind ? `num hp-amt c-${kind}` : 'num hp-amt'}>
       {formatNumber(value)} HP
     </span>
   )

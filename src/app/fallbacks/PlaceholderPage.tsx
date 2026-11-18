@@ -1,7 +1,7 @@
 import { useMatches } from 'react-router'
 import type { RouteHandle } from '@/app/routeHandle'
-import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
+import { SignalScreen } from './SignalScreen'
 
 /** 아직 만들지 않은 화면의 자리. 라우트 handle.title을 제목으로 쓴다. */
 export function PlaceholderPage() {
@@ -11,9 +11,15 @@ export function PlaceholderPage() {
   return (
     <div className="page">
       <PageHead title={title} />
-      <EmptyState title="준비 중인 화면이에요">
+      <SignalScreen
+        code="Stand by"
+        screenLabel="STAND BY"
+        tone="standby"
+        headingLevel={2}
+        title="준비 중인 화면이에요"
+      >
         곧 이 자리에 화면이 들어와요.
-      </EmptyState>
+      </SignalScreen>
     </div>
   )
 }

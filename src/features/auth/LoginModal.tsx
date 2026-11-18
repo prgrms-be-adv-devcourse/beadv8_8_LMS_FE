@@ -136,25 +136,34 @@ function LoginOptions({
     )
   return (
     <>
+      <div className={styles.brand}>
+        {/* 모달 제목(합방 시작하기)이 이름이라 로고는 장식으로 둔다. */}
+        <span className={styles.wordmark} aria-hidden="true">
+          합방<span className={styles.onair}>ON AIR</span>
+        </span>
+        <p className={styles.tagline}>
+          인플루언서 강의부터 합방 출연까지, 한 곳에서.
+        </p>
+      </div>
       {done?.message ? (
         <p
-          className={done.bad ? 'notice bad' : 'notice'}
+          className={`${done.bad ? 'notice bad' : 'notice'} ${styles.appear}`}
           role={done.bad ? 'alert' : 'status'}
         >
           {done.message}
         </p>
       ) : (
-        !done && reason && <p>{reason}</p>
+        !done && reason && <p className={styles.reason}>{reason}</p>
       )}
       <button
         type="button"
-        className="btn block google-btn"
+        className={`btn block google-btn ${styles.google}`}
         onClick={() => startGoogleLogin()}
       >
         <GoogleIcon />
         Google로 계속하기
       </button>
-      <p className="fine">
+      <p className={`fine ${styles.googleNote}`}>
         처음 로그인하면 유저로 가입돼요. 치지직 채널을 인증하면 인플루언서가
         돼요.
       </p>

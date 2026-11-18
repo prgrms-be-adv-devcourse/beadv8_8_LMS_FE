@@ -1,0 +1,204 @@
+/* 강의 판매(판매자 작업대) */
+
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.count {
+  font: 600 12px var(--f-mono);
+  color: var(--ink-3);
+}
+
+.panel {
+  box-shadow: var(--shadow-1);
+}
+
+/* 강의 한 줄: 썸네일 | 제목·상태·지표 | 행동 */
+.lecture {
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 12px;
+  margin: 0 -12px;
+  border-radius: var(--r);
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.lecture:hover {
+  background: var(--hover);
+}
+.thumb {
+  width: 136px;
+  flex: none;
+}
+.titleLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.title {
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 4px 14px;
+  flex-wrap: wrap;
+}
+.price {
+  font: 600 15px var(--f-mono);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.stamp {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
+
+/* 반려 사유: 놓치지 않게 왼쪽 띠 + 연한 빨강 면 */
+.reject {
+  position: relative;
+  margin-top: 6px;
+  padding: 10px 12px 10px 34px;
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--bad);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.reject::before {
+  content: '!';
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--bad);
+  color: var(--surface);
+  font: 700 11px/16px var(--f-mono);
+  text-align: center;
+}
+
+.actions {
+  align-self: center;
+}
+
+.foot {
+  margin-top: 4px;
+}
+
+/* 판매 내역: 지급액은 수익 색 */
+.payout {
+  color: var(--earn);
+  font-weight: 600;
+}
+
+/* 불러오는 중 뼈대 */
+.skeleton {
+  display: flex;
+  flex-direction: column;
+}
+.skRow {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.skRow:first-child {
+  border-top: 0;
+}
+.skThumb,
+.skLine {
+  background: var(--sunken);
+  border-radius: var(--r-xs);
+  position: relative;
+  overflow: hidden;
+}
+.skThumb {
+  width: 136px;
+  aspect-ratio: 16 / 9;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.skText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.skLine {
+  height: 12px;
+  width: 60%;
+}
+.skLine.short {
+  width: 30%;
+}
+.skThumb::after,
+.skLine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--surface), transparent);
+  opacity: 0.6;
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (max-width: 560px) {
+  .thumb,
+  .skThumb {
+    width: 96px;
+  }
+  .lecture {
+    gap: 12px;
+  }
+  .actions {
+    align-self: auto;
+    width: 100%;
+  }
+  .actions > * {
+    flex: 1;
+    min-height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lecture {
+    transition: none;
+  }
+  .skThumb::after,
+  .skLine::after {
+    animation: none;
+  }
+}

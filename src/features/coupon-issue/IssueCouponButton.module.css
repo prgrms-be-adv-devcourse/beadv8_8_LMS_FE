@@ -1,13 +1,16 @@
-.issue {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  max-width: 260px;
+.button {
+  min-width: 92px;
+  min-height: 36px;
 }
-.message {
-  font-size: 12px;
+/* 받은 쿠폰: 막힌 버튼이지만 못 쓰는 게 아니라 끝난 일이라 흐리지 않고 체크로 보인다 */
+:global(.btn).done:disabled {
+  opacity: 1;
+  background: var(--surface-2);
+  border-color: var(--line);
   color: var(--ink-2);
-  line-height: 1.55;
-  text-align: right;
+}
+.check {
+  width: 14px;
+  height: 14px;
+  color: var(--ink);
 }

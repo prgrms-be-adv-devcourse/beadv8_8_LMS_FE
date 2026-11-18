@@ -7,6 +7,7 @@ import {
   resetCouponRetries,
   useCouponRetryStore,
 } from '@/features/coupon-admin/retryStore'
+import { openAccountMenu } from '@/test/accountMenu'
 import {
   coupon,
   couponProblem,
@@ -531,8 +532,9 @@ describe('관리자 쿠폰 운영', () => {
     '%s에게는 쿠폰 운영 메뉴가 없다',
     async (role) => {
       renderApp('/lectures', role)
-      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
-      expect(within(nav).queryByRole('link', { name: '쿠폰 운영' })).toBeNull()
+      await openAccountMenu()
+      expect(screen.queryByRole('navigation', { name: '주 메뉴' })).toBeNull()
+      expect(screen.queryByRole('link', { name: '쿠폰 운영' })).toBeNull()
     },
   )
 })

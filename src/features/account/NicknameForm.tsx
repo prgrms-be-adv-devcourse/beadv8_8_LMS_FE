@@ -10,6 +10,7 @@ import { useNicknameAvailability } from '@/entities/member/useNicknameAvailabili
 import { isApiError } from '@/shared/api/ApiError'
 import { Field } from '@/shared/ui/Field'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './account.module.css'
 import { useApplyMe } from './useUpdateMe'
 
 const INPUT_ID = 'settings-nickname'
@@ -63,11 +64,12 @@ export function NicknameForm({ current }: { current: string }) {
           </span>
         }
       >
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className={styles.inline}>
           <input
             ref={inputRef}
             id={INPUT_ID}
             className="input"
+            autoComplete="nickname"
             value={nickname}
             maxLength={20}
             aria-invalid={shown ? true : undefined}
@@ -80,8 +82,9 @@ export function NicknameForm({ current }: { current: string }) {
           />
           <button
             type="submit"
-            className="btn"
+            className={`btn ${changed && !error ? 'primary' : ''} ${styles.busy}`}
             disabled={!changed || error !== null || save.isPending}
+            aria-busy={save.isPending || undefined}
           >
             저장
           </button>

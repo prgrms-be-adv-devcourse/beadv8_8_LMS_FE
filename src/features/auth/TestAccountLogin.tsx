@@ -21,15 +21,21 @@ export function TestAccountLogin() {
   const { mutate, isPending } = useTestAccountLogin()
   return (
     <div className={styles.testAccounts} role="group" aria-labelledby={labelId}>
-      <p id={labelId} className="fine">
-        개발용 테스트 계정
-      </p>
+      <div className={styles.devHead}>
+        <span className={styles.devTag} aria-hidden="true">
+          DEV
+        </span>
+        <p id={labelId} className="fine">
+          개발용 테스트 계정
+        </p>
+      </div>
       <div className={styles.accounts}>
         {TEST_ACCOUNTS.map((account) => (
           <button
             key={account.role}
             type="button"
-            className="btn sm"
+            className={`btn sm ${styles.chip}`}
+            data-role={account.role}
             disabled={isPending}
             onClick={() =>
               mutate({ ...account, password: TEST_ACCOUNT_PASSWORD })

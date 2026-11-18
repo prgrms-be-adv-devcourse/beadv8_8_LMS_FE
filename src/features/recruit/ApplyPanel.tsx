@@ -8,6 +8,7 @@ import { INFLUENCER, type Viewer } from '@/shared/auth/role'
 import { formatDateTime } from '@/shared/lib/date'
 import { Field } from '@/shared/ui/Field'
 import { WithdrawApplicationModal } from './RecruitModals'
+import styles from './ApplyPanel.module.css'
 import { useApplyRecruit } from './useRecruitActions'
 
 /** 남의 모집글: 호스트 정보와 내 지원 상태·지원하기 */
@@ -19,19 +20,15 @@ export function ApplyPanel({
   viewer: Viewer
 }) {
   return (
-    <section className="panel">
-      <div className="seller-row">
+    <section className={`panel ${styles.panel}`}>
+      <div className={`seller-row ${styles.host}`}>
         <MemberChip memberId={recruit.hostId} />
-        <span className="fine">호스트</span>
+        <span className={styles.role}>호스트</span>
       </div>
       {viewer === 'USER' ? (
         <>
           <div className="notice">출연 지원은 인플루언서만 할 수 있어요.</div>
-          <Link
-            className="btn sm"
-            style={{ alignSelf: 'flex-start' }}
-            to="/verify"
-          >
+          <Link className={`btn sm ${styles.start}`} to="/verify">
             채널 인증하기
           </Link>
         </>
@@ -72,8 +69,7 @@ function ApplyForm({ recruit }: { recruit: Recruit }) {
       </Field>
       <button
         type="button"
-        className="btn primary"
-        style={{ alignSelf: 'flex-start' }}
+        className={`btn primary ${styles.apply}`}
         disabled={apply.isPending}
         onClick={() => apply.mutate(message.trim())}
       >
@@ -105,8 +101,7 @@ function ApplicationStatus({ application }: { application: Application }) {
           )}
           <button
             type="button"
-            className="btn sm"
-            style={{ alignSelf: 'flex-start' }}
+            className={`btn sm ${styles.start}`}
             onClick={() => setWithdrawing(true)}
           >
             지원 취소

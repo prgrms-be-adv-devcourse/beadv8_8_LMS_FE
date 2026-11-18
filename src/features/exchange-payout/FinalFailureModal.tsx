@@ -59,7 +59,7 @@ export function FinalFailureModal({
         <dt>돌려줄 수익 HP</dt>
         <dd className="num">{formatNumber(exchange.requestedAmount)} HP</dd>
       </dl>
-      <p>
+      <p className="notice bad">
         환전을 끝내고 보류한 수익 HP를 신청자에게 모두 돌려줘요. 이후에는 다시
         송금할 수 없어요.
       </p>

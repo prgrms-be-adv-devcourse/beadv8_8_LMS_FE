@@ -52,7 +52,7 @@ export function ExchangePayoutPanel({ exchange }: { exchange: AdminExchange }) {
 
 function AttemptTable({ attempts }: { attempts: AdminExchangePayout[] }) {
   return (
-    <div className="tbl-wrap">
+    <div className={`tbl-wrap ${styles.tableWrap}`}>
       <table className="tbl" aria-label="송금 시도 이력">
         <thead>
           <tr>
@@ -160,7 +160,12 @@ function Actions({
   if (!checkable && !decidable) return null
 
   return (
-    <div className={styles.decide}>
+    <div
+      className={styles.decide}
+      data-tone={decidable ? 'bad' : 'warn'}
+      role="group"
+      aria-label="송금 처리"
+    >
       {checkable && (
         <p className="fine">
           마지막 송금의 결과가 확정되지 않았어요. 결과 재확인은 같은 지급 요청
@@ -189,7 +194,7 @@ function Actions({
           <>
             <button
               type="button"
-              className="btn"
+              className="btn danger"
               disabled={busy}
               onClick={() => setOpen('final')}
             >

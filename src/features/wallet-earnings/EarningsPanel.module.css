@@ -1,0 +1,92 @@
+/* 수익 요약: 합계를 큰 칸으로, 상태별 금액은 작은 숫자 카드로 */
+.stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+}
+.value {
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.value b {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.total {
+  grid-column: 1 / -1;
+  position: relative;
+  overflow: hidden;
+  padding: 16px 18px;
+  border-color: color-mix(in srgb, var(--earn) 30%, var(--line));
+  background: color-mix(in srgb, var(--earn-soft) 55%, var(--surface));
+}
+.total::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--earn);
+}
+.total .label {
+  color: var(--ink-2);
+}
+.total .value b {
+  font-size: 28px;
+  color: var(--earn);
+}
+
+.asOf {
+  font-family: var(--f-mono);
+  letter-spacing: 0.02em;
+}
+
+.toolbar:global(.toolbar) {
+  margin-top: 4px;
+}
+.filters :global(.chip) {
+  min-height: 36px;
+  padding-inline: 16px;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+.filters :global(.chip):hover {
+  border-color: var(--ink-3);
+}
+.filters :global(.chip):active {
+  transform: scale(0.97);
+}
+
+.amount {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filters :global(.chip) {
+    transition: none;
+  }
+}

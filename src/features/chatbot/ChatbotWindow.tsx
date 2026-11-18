@@ -1,8 +1,10 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { CHATBOT_WINDOW_ID } from './ChatbotLauncher'
+import { ChatbotIcon } from './ChatbotIcon'
 import styles from './ChatbotWindow.module.css'
 import { Composer } from './Composer'
+import { isBusy } from './conversation'
 import { Greeting } from './Greeting'
 import { MessageList } from './MessageList'
 import {
@@ -23,6 +25,7 @@ const TITLE_ID = 'chatbot-title'
  */
 export function ChatbotWindow() {
   const items = useChatbotStore((s) => s.items)
+  const busy = isBusy(items)
   const headerBottom = useHeaderBottom()
   const root = useRef<HTMLElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
@@ -54,7 +57,19 @@ export function ChatbotWindow() {
       }}
     >
       <header className={styles.head}>
-        <h2 id={TITLE_ID}>합방 챗봇</h2>
+        <span className={styles.mark} aria-hidden="true">
+          <ChatbotIcon size={20} />
+        </span>
+        <div className={styles.titles}>
+          <h2 id={TITLE_ID}>합방 챗봇</h2>
+          {/* 답을 기다리는 동안은 탤리 램프가 켜진다. 낭독은 말풍선의 상태 안내가 맡아 여기서는 숨긴다 */}
+          <span
+            className={busy ? `${styles.status} ${styles.live}` : styles.status}
+            aria-hidden="true"
+          >
+            {busy ? '답하는 중' : '대기 중'}
+          </span>
+        </div>
         <Link
           to="/support/faq"
           className="btn ghost sm"
@@ -65,7 +80,7 @@ export function ChatbotWindow() {
         </Link>
         <button
           type="button"
-          className="btn ghost sm"
+          className={`btn ghost sm ${styles.reset}`}
           disabled={items.length === 0}
           onClick={clearConversation}
         >
@@ -77,7 +92,18 @@ export function ChatbotWindow() {
           aria-label="챗봇 창 닫기"
           onClick={closeChatbot}
         >
-          <span aria-hidden="true">✕</span>
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
         </button>
       </header>
       <div ref={scroller} className={styles.body}>

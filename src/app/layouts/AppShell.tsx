@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Link,
@@ -7,7 +7,7 @@ import {
   useMatches,
   useNavigation,
 } from 'react-router'
-import { MY_ACTIVITY, navFor, shadowedByChild } from '@/app/nav'
+import { browseItems, hidesTabBar, navFor, shadowedByChild } from '@/app/nav'
 import { RoleGate } from '@/app/guards/RoleGate'
 import type { RouteHandle } from '@/app/routeHandle'
 import { unreadCountQuery } from '@/entities/notification/api'
@@ -19,15 +19,20 @@ import { useChatUnreadTotal } from '@/features/chat/useChatUnread'
 import { NotificationConnection } from '@/features/notification/NotificationConnection'
 import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
-import { MEMBER, viewerLabel, type Viewer } from '@/shared/auth/role'
-import { useLogout, useLogoutSync, useViewer } from '@/shared/auth/session'
-import { Avatar } from '@/shared/ui/Avatar'
+import { MEMBER, type Viewer } from '@/shared/auth/role'
+import { useLogoutSync, useViewer } from '@/shared/auth/session'
 import { HpAmount } from '@/shared/ui/HpAmount'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { Toast } from '@/shared/ui/Toast'
+import { AccountMenu } from './AccountMenu'
 import styles from './AppShell.module.css'
+import { Icon, NavIcon } from './icons'
+import { BottomTabBar, SectionTabs } from './SiteNav'
+import { ThemeCycleButton } from './ThemeSwitch'
+import { useNarrow } from './useNarrow'
 
 const NAV_ID = 'main-nav'
+const MAIN_ID = 'main'
 
 /** 채팅을 쓸 수 있는 역할 (BE ChatRoles: 인플루언서 이상 또는 관리자) */
 const CHAT_VIEWERS: Viewer[] = ['INFLUENCER', 'VERIFIED_INFLUENCER', 'ADMIN']
@@ -72,37 +77,63 @@ function useDocumentTitle() {
   }, [title])
 }
 
+/** 페이지를 조금이라도 내렸는지. 상단 바 아래 그림자를 이때만 보여 본문과 떨어져 보이게 한다. */
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  return scrolled
+}
+
+/** 키보드 사용자가 헤더·메뉴를 건너뛰고 본문으로 간다. 주소에 #main을 남기지 않게 직접 포커스를 옮긴다. */
+function SkipLink() {
+  return (
+    <a
+      href={`#${MAIN_ID}`}
+      className={styles.skip}
+      onClick={(e) => {
+        e.preventDefault()
+        document.getElementById(MAIN_ID)?.focus()
+      }}
+    >
+      본문으로 건너뛰기
+    </a>
+  )
+}
+
 /**
- * 앱 셸: 상단 바 / 왼쪽 내비 레일 / 작업 영역
- * 좁은 화면(≤860px)에서는 내비 레일이 상단 바의 메뉴 버튼으로 여는 드로어가 된다. 지갑(HP 칸)·채팅은 레일에 두지 않고
- * 상단 바에만 있어 드로어를 열지 않아도 보인다.
- * 홈처럼 layout이 'top'인 화면은 가로 메뉴가 있는 헤더를 쓰고, 내비 레일은 늘 드로어다.
+ * 앱 셸. 역할에 따라 두 가지다.
+ * - 비회원·회원: 상단 헤더 하나(로고 · 주요 메뉴 '둘러보기' · HP·장바구니·채팅·알림·계정 메뉴) + 본문. 둘러보기 밖의 메뉴는
+ *   아바타의 계정 메뉴에 있고, 내 강의·스튜디오 목록 화면은 본문 맨 위 구역 탭으로 오간다. 좁은 화면(≤860px)은 주요 메뉴를
+ *   하단 탭바로 옮기고 '마이'가 계정 메뉴를 시트로 연다.
+ * - 관리자: 상단 바 / 왼쪽 내비 레일 / 작업 영역. 좁은 화면(≤860px)과 홈에서는 레일이 상단 바의 메뉴 버튼으로 여는 드로어가 된다.
+ * 홈처럼 layout이 'top'인 화면은 본문 바깥 여백이 없다(관리자는 가로 메뉴가 있는 홈 헤더를 쓴다).
  */
 export function AppShell() {
   const viewer = useViewer() ?? 'GUEST'
   useLogoutSync()
   const navigation = useNavigation()
   const { pathname } = useLocation()
-  // 드로어를 연 화면의 경로. 다른 화면으로 이동하면 경로가 달라져 저절로 닫힌다.
-  const [openedAt, setOpenedAt] = useState<string | null>(null)
-  const navOpen = openedAt === pathname
-  const closeNav = () => setOpenedAt(null)
-
-  useEffect(() => {
-    if (!navOpen) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpenedAt(null)
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [navOpen])
-
   const { data: me } = useQuery(meQuery)
   const topLayout = useInnermostHandle('layout') === 'top'
+  const narrow = useNarrow()
   useDocumentTitle()
-  const toggleNav = () => setOpenedAt(navOpen ? null : pathname)
+  const admin = viewer === 'ADMIN'
+  const tabBar = !admin && narrow && !hidesTabBar(pathname)
 
+  const classes = [
+    styles.root,
+    topLayout && styles.topLayout,
+    !admin && styles.siteLayout,
+  ]
   return (
     <div
-      className={topLayout ? `${styles.root} ${styles.topLayout}` : styles.root}
+      className={classes.filter(Boolean).join(' ')}
+      data-tab-bar={tabBar || undefined}
     >
       {me && CHAT_VIEWERS.includes(me.role) && (
         <ChatConnection userId={me.id} />
@@ -111,10 +142,54 @@ export function AppShell() {
       {me && MEMBER.includes(me.role) && (
         <NotificationConnection userId={me.id} />
       )}
-      {topLayout ? (
-        <HomeHeader viewer={viewer} navOpen={navOpen} onToggleNav={toggleNav} />
+      <SkipLink />
+      {admin ? (
+        <AdminChrome topLayout={topLayout} />
       ) : (
-        <TopBar viewer={viewer} navOpen={navOpen} onToggleNav={toggleNav} />
+        <>
+          <SiteHeader viewer={viewer} />
+          <main
+            id={MAIN_ID}
+            tabIndex={-1}
+            className={styles.main}
+            aria-busy={navigation.state === 'loading'}
+          >
+            <SectionTabs viewer={viewer} />
+            <RoleGate />
+          </main>
+          {tabBar && <BottomTabBar viewer={viewer} />}
+        </>
+      )}
+      <ChatbotRoot />
+      <LoginModal />
+      <Toast />
+    </div>
+  )
+}
+
+/** 관리자 셸: 상단 바(홈은 가로 메뉴가 있는 홈 헤더) + 왼쪽 내비 레일(좁은 화면·홈은 드로어) + 작업 영역 */
+function AdminChrome({ topLayout }: { topLayout: boolean }) {
+  const navigation = useNavigation()
+  const { pathname } = useLocation()
+  // 드로어를 연 화면의 경로. 다른 화면으로 이동하면 경로가 달라져 저절로 닫힌다.
+  const [openedAt, setOpenedAt] = useState<string | null>(null)
+  const navOpen = openedAt === pathname
+  const closeNav = () => setOpenedAt(null)
+  const toggleNav = () => setOpenedAt(navOpen ? null : pathname)
+
+  useEffect(() => {
+    if (!navOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpenedAt(null)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navOpen])
+
+  return (
+    <>
+      {topLayout ? (
+        <HomeHeader navOpen={navOpen} onToggleNav={toggleNav} />
+      ) : (
+        <TopBar navOpen={navOpen} onToggleNav={toggleNav} />
       )}
       <div className={styles.shell}>
         {navOpen && (
@@ -128,30 +203,28 @@ export function AppShell() {
             애니메이션이 레이아웃 전환에도 돌아, 메뉴가 잠깐 미끄러져 들어오거나 나가는 것이 보인다. */}
         <NavRail
           key={topLayout ? 'drawer' : 'rail'}
-          viewer={viewer}
+          viewer="ADMIN"
           open={navOpen}
         />
         <main
+          id={MAIN_ID}
+          tabIndex={-1}
           className={styles.main}
           aria-busy={navigation.state === 'loading'}
         >
           <RoleGate />
         </main>
       </div>
-      <ChatbotRoot />
-      <LoginModal />
-      <Toast />
-    </div>
+    </>
   )
 }
 
 type TopBarProps = {
-  viewer: Viewer
   navOpen: boolean
   onToggleNav: () => void
 }
 
-function MenuButton({ navOpen, onToggleNav }: Omit<TopBarProps, 'viewer'>) {
+function MenuButton({ navOpen, onToggleNav }: TopBarProps) {
   return (
     <button
       type="button"
@@ -161,18 +234,54 @@ function MenuButton({ navOpen, onToggleNav }: Omit<TopBarProps, 'viewer'>) {
       aria-controls={NAV_ID}
       onClick={onToggleNav}
     >
-      <span aria-hidden="true">{navOpen ? '✕' : '☰'}</span>
+      {/* 세 줄이 X로 접힌다(CSS) */}
+      <span className={styles.burger} aria-hidden="true">
+        <i />
+        <i />
+        <i />
+      </span>
     </button>
   )
 }
 
-function TopBar({ viewer, navOpen, onToggleNav }: TopBarProps) {
+/** 로고. ON AIR 램프는 장식이라 읽는 이름은 "합방 홈"뿐이다. */
+function Logo() {
   return (
-    <header className={styles.top}>
-      <MenuButton navOpen={navOpen} onToggleNav={onToggleNav} />
-      <Link to="/" className={styles.logo} aria-label="합방 홈">
-        합방<span className={styles.onair}>ON AIR</span>
-      </Link>
+    <Link to="/" className={styles.logo} aria-label="합방 홈">
+      <span className={styles.wordmark}>합방</span>
+      <span className={styles.onair} aria-hidden="true">
+        <span className={styles.lamp} />
+        ON AIR
+      </span>
+    </Link>
+  )
+}
+
+/**
+ * 비회원·회원 상단 헤더(홈 포함 모든 화면): 로고 · 주요 메뉴 · 로그인 또는 HP·장바구니·채팅·알림·계정 메뉴.
+ * 주요 메뉴는 좁은 화면(≤860px)에서 숨기고 하단 탭바가 대신한다. 통합 검색은 BE API가 없어 두지 않는다.
+ */
+function SiteHeader({ viewer }: { viewer: Viewer }) {
+  const scrolled = useScrolled()
+  return (
+    <header
+      className={`${styles.bar} ${styles.siteTop}`}
+      data-scrolled={scrolled}
+    >
+      <Logo />
+      <nav className={styles.topnav} aria-label="둘러보기">
+        {browseItems(viewer).map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              isActive ? `${styles.topnavItem} ${styles.on}` : styles.topnavItem
+            }
+          >
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
       <div className={styles.right}>
         <HeaderActions viewer={viewer} loginClassName="btn primary sm" />
       </div>
@@ -180,33 +289,41 @@ function TopBar({ viewer, navOpen, onToggleNav }: TopBarProps) {
   )
 }
 
-/** 홈 헤더의 가로 메뉴 (디자인: 홈·인플루언서·출연 모집·강의 + 역할별) */
-function topNavFor(viewer: Viewer) {
-  return [
-    { path: '/', label: '홈' },
-    { path: '/influencers', label: '인플루언서' },
-    { path: '/recruits', label: '출연 모집' },
-    { path: '/lectures', label: '강의' },
-    ...(viewer === 'VERIFIED_INFLUENCER'
-      ? [{ path: '/studio', label: '강의 판매' }]
-      : []),
-    ...(viewer === 'ADMIN' ? [{ path: '/admin', label: '운영' }] : []),
-  ]
+/** 관리자 상단 바(홈 밖): 메뉴 버튼(좁은 화면) · 로고 · 채팅·계정 메뉴 */
+function TopBar({ navOpen, onToggleNav }: TopBarProps) {
+  const scrolled = useScrolled()
+  return (
+    <header className={`${styles.bar} ${styles.top}`} data-scrolled={scrolled}>
+      <MenuButton navOpen={navOpen} onToggleNav={onToggleNav} />
+      <Logo />
+      <div className={styles.right}>
+        <HeaderActions viewer="ADMIN" loginClassName="btn primary sm" />
+      </div>
+    </header>
+  )
 }
 
-/**
- * 홈 헤더: 햄버거(전체 메뉴) · 로고 · 가로 메뉴 · 로그인 또는 HP·장바구니·프로필.
- * 통합 검색은 BE API가 없어 두지 않는다(#101).
- */
-function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
+/** 관리자 홈 헤더의 가로 메뉴 */
+const ADMIN_HOME_NAV = [
+  { path: '/', label: '홈' },
+  { path: '/influencers', label: '인플루언서' },
+  { path: '/recruits', label: '출연 모집' },
+  { path: '/lectures', label: '강의' },
+  { path: '/admin', label: '운영' },
+]
+
+/** 관리자 홈 헤더: 햄버거(전체 메뉴) · 로고 · 가로 메뉴 · 채팅·계정 메뉴 */
+function HomeHeader({ navOpen, onToggleNav }: TopBarProps) {
+  const scrolled = useScrolled()
   return (
-    <header className={styles.homeTop}>
+    <header
+      className={`${styles.bar} ${styles.homeTop}`}
+      data-scrolled={scrolled}
+    >
       <MenuButton navOpen={navOpen} onToggleNav={onToggleNav} />
-      <Link to="/" className={styles.logo} aria-label="합방 홈">
-        합방<span className={styles.onair}>ON AIR</span>
-      </Link>
+      <Logo />
       <nav className={styles.topnav} aria-label="둘러보기">
-        {topNavFor(viewer).map((item) => (
+        {ADMIN_HOME_NAV.map((item) => (
           <NavLink
             key={item.path}
             to={item.path}
@@ -220,16 +337,15 @@ function HomeHeader({ viewer, navOpen, onToggleNav }: TopBarProps) {
         ))}
       </nav>
       <div className={styles.right}>
-        <HeaderActions viewer={viewer} loginClassName="btn primary" />
+        <HeaderActions viewer="ADMIN" loginClassName="btn primary" />
       </div>
     </header>
   )
 }
 
 /**
- * 상단 바·홈 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 채팅 · 알림 · 프로필 메뉴.
+ * 헤더 오른쪽: 로그인 또는 HP · 장바구니 · 채팅 · 알림 · 계정 메뉴. 모든 폭에서 헤더에 둔다.
  * HP 칸이 지갑 진입점이다(관리자는 지갑이 없어 숨긴다). 채팅은 채팅을 쓰는 역할에만, 알림은 회원에게만 보인다(관리자는 알림을 받지 않는다).
- * 장바구니는 좁은 화면(≤860px)에서 숨기고 내비 드로어(NarrowShortcuts)에서 보여 준다. 채팅·알림은 모든 폭에서 헤더에 둔다.
  */
 function HeaderActions({
   viewer,
@@ -239,14 +355,18 @@ function HeaderActions({
   loginClassName: string
 }) {
   if (viewer === 'GUEST') {
+    // 비회원은 계정 메뉴가 없어 화면 테마를 헤더에서 바꾼다.
     return (
-      <button
-        type="button"
-        className={loginClassName}
-        onClick={() => openLoginModal()}
-      >
-        로그인
-      </button>
+      <>
+        <ThemeCycleButton />
+        <button
+          type="button"
+          className={loginClassName}
+          onClick={() => openLoginModal()}
+        >
+          로그인
+        </button>
+      </>
     )
   }
   const member = MEMBER.includes(viewer)
@@ -256,7 +376,7 @@ function HeaderActions({
       {member && <CartLink />}
       {CHAT_VIEWERS.includes(viewer) && <ChatLink />}
       {member && <AlertsLink />}
-      <ProfileMenu viewer={viewer} />
+      <AccountMenu viewer={viewer} />
     </>
   )
 }
@@ -266,7 +386,7 @@ function CartLink() {
   return (
     <NavLink
       to="/cart"
-      className={`${styles.iconBtn} ${styles.headerIcon}`}
+      className={styles.iconBtn}
       aria-label={cartLabel(count)}
     >
       <CartIcon />
@@ -282,19 +402,10 @@ function CartLink() {
 /** docs/mockup-ui.html ICONS.cart */
 function CartIcon() {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 4h2.2l2.3 11h10.3L20 8H6.3M9.5 20h.01M16.5 20h.01" />
-    </svg>
+    <Icon
+      d="M3 4h2.2l2.3 11h10.3L20 8H6.3M9.5 20h.01M16.5 20h.01"
+      strokeWidth={1.8}
+    />
   )
 }
 
@@ -320,19 +431,10 @@ function ChatLink() {
 /** 말풍선. 목업 ICONS에 없어 같은 규격(24 viewBox, stroke 2)으로 그렸다. */
 function ChatIcon() {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
+    <Icon
+      d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+      strokeWidth={1.8}
+    />
   )
 }
 
@@ -361,71 +463,10 @@ function AlertsLink() {
 /** docs/mockup-ui.html ICONS.bell */
 function BellIcon() {
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10 21h4" />
-    </svg>
-  )
-}
-
-/** 프로필 사진을 누르면 닉네임·등급, 계정 설정, 로그아웃 */
-function ProfileMenu({ viewer }: { viewer: Viewer }) {
-  const { data: me } = useQuery(meQuery)
-  const logout = useLogout()
-  const [open, setOpen] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-
-  // 열려 있는 동안 Esc나 메뉴 바깥을 누르면 닫는다.
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    const onPointer = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('pointerdown', onPointer)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.removeEventListener('pointerdown', onPointer)
-    }
-  }, [open])
-
-  if (!me) return null
-  return (
-    <div className={styles.profile} ref={box}>
-      <button
-        type="button"
-        className={styles.avatarBtn}
-        aria-label={`${me.nickname} 메뉴`}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <Avatar name={me.nickname} imageUrl={me.profileImageUrl} size={36} />
-      </button>
-      {open && (
-        <div className={styles.profileMenu}>
-          <span className={styles.meText}>
-            {me.nickname}
-            <small>{viewerLabel(viewer)}</small>
-          </span>
-          <Link className="btn ghost sm" to="/settings">
-            계정 설정
-          </Link>
-          <button type="button" className="btn ghost sm" onClick={logout}>
-            로그아웃
-          </button>
-        </div>
-      )}
-    </div>
+    <Icon
+      d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10 21h4"
+      strokeWidth={1.8}
+    />
   )
 }
 
@@ -434,7 +475,9 @@ function HpPill() {
   const { data } = useQuery(walletQuery)
   return (
     <Link to="/wallet" className={styles.hpPill} aria-label="지갑">
-      <span className={styles.coin}>HP</span>
+      <span className={styles.coin} aria-hidden="true">
+        HP
+      </span>
       {data ? (
         <HpAmount value={data.availableTotalHp} />
       ) : (
@@ -444,6 +487,7 @@ function HpPill() {
   )
 }
 
+/** 관리자의 왼쪽 내비 레일(좁은 화면·홈은 드로어) */
 function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
   const { pathname } = useLocation()
   const groups = navFor(viewer)
@@ -461,10 +505,9 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
           role="group"
           aria-labelledby={`${NAV_ID}-${i}`}
         >
-          <h4 id={`${NAV_ID}-${i}`}>{group.title}</h4>
-          {group.title === MY_ACTIVITY && MEMBER.includes(viewer) && (
-            <NarrowShortcuts />
-          )}
+          <h4 id={`${NAV_ID}-${i}`} className={styles.eyebrow}>
+            {group.title}
+          </h4>
           {group.items.map((item) => (
             <NavLink
               key={item.path}
@@ -478,30 +521,12 @@ function NavRail({ viewer, open }: { viewer: Viewer; open: boolean }) {
                 isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
               }
             >
-              {item.label}
+              <NavIcon path={item.path} />
+              <span className={styles.navLabel}>{item.label}</span>
             </NavLink>
           ))}
         </div>
       ))}
     </nav>
-  )
-}
-
-/** 좁은 화면(≤860px) 드로어에서만 보이는 장바구니. 넓은 화면에서는 상단 헤더에 있다. */
-function NarrowShortcuts() {
-  const count = useCartCount(true)
-  const className = ({ isActive }: { isActive: boolean }) =>
-    isActive ? `${styles.navItem} ${styles.on}` : styles.navItem
-  return (
-    <div data-narrow-only className={styles.narrowOnly}>
-      <NavLink to="/cart" className={className} aria-label={cartLabel(count)}>
-        장바구니
-        {!!count && (
-          <span className={styles.cnt} aria-hidden="true">
-            {badgeText(count)}
-          </span>
-        )}
-      </NavLink>
-    </div>
   )
 }

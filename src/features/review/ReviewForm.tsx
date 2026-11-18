@@ -32,6 +32,9 @@ export function ReviewForm({
   const queryClient = useQueryClient()
   const [rating, setRating] = useState(review?.rating ?? 5)
   const [content, setContent] = useState(review?.content ?? '')
+  // 별 위에 포인터를 올리면 고르기 전에 몇 점인지 미리 보인다(누르기 전까지 값은 그대로)
+  const [preview, setPreview] = useState<number | null>(null)
+  const shown = preview ?? rating
   const length = content.trim().length
 
   const invalidate = () =>
@@ -69,7 +72,7 @@ export function ReviewForm({
 
   return (
     <form
-      className="panel form"
+      className={`panel form ${styles.form}`}
       onSubmit={(e) => {
         e.preventDefault()
         save.mutate({ rating, content: content.trim() })
@@ -83,6 +86,7 @@ export function ReviewForm({
           className={styles.stars}
           role="radiogroup"
           aria-labelledby="review-rating"
+          onPointerLeave={() => setPreview(null)}
         >
           {[1, 2, 3, 4, 5].map((n) => (
             <button
@@ -92,29 +96,36 @@ export function ReviewForm({
               aria-checked={n === rating}
               aria-label={`${n}점`}
               className={
-                n <= rating ? `${styles.star} ${styles.on}` : styles.star
+                n <= shown ? `${styles.star} ${styles.on}` : styles.star
               }
+              onPointerEnter={() => setPreview(n)}
               onClick={() => setRating(n)}
             >
-              ★
+              <span aria-hidden="true">★</span>
             </button>
           ))}
-          <span className="fine" style={{ marginLeft: 8 }}>
-            {LABEL[rating]}
+          <span className={styles.score} aria-hidden="true">
+            <b className="num">{shown}</b>
+            <span className="num">/5</span>
           </span>
+          <span className={styles.verdict}>{LABEL[shown]}</span>
         </div>
       </div>
       <div className="field">
         <label htmlFor="review-content">리뷰</label>
         <textarea
           id="review-content"
-          className="textarea"
-          style={{ minHeight: 160 }}
+          className={`textarea ${styles.textarea}`}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="어떤 점이 도움이 됐는지, 어떤 분께 추천하는지 알려 주세요"
         />
-        <span className="fine">{length}자 · 내용은 선택 사항이에요.</span>
+        <span className="fine">
+          <span className={length > 0 ? `num ${styles.countOn}` : 'num'}>
+            {length}자
+          </span>{' '}
+          · 내용은 선택 사항이에요.
+        </span>
       </div>
       <div className={styles.actions}>
         {review && (
@@ -133,9 +144,11 @@ export function ReviewForm({
         </button>
         <button
           type="submit"
-          className="btn primary"
+          className={`btn primary ${styles.submit}`}
           disabled={save.isPending || remove.isPending}
+          aria-busy={save.isPending}
         >
+          {save.isPending && <span className="spinner sm" aria-hidden="true" />}
           {review ? '리뷰 고치기' : '리뷰 등록'}
         </button>
       </div>

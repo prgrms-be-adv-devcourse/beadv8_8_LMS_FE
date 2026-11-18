@@ -35,6 +35,7 @@ import { Modal } from '@/shared/ui/Modal'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminHpTaskPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const back = (
   <Link className="back" to="/admin/hp-tasks">
@@ -83,7 +84,7 @@ function Detail({
         <div className="page" style={{ gap: 16 }}>
           <section className="panel" aria-labelledby="hp-task-summary">
             <h2 id="hp-task-summary">작업</h2>
-            <dl className="kv">
+            <dl className={`kv ${admin.kv}`}>
               <dt>유형</dt>
               <dd>
                 {lookup(HP_TASK_TYPE_LABEL, task.taskType) ?? UNKNOWN_NAME} ·{' '}
@@ -155,7 +156,7 @@ function ProcessingState({ task }: { task: LectureHpTask }) {
   return (
     <section className="panel" aria-labelledby="hp-task-state">
       <h2 id="hp-task-state">처리 상태</h2>
-      <dl className="kv">
+      <dl className={`kv ${admin.kv}`}>
         <dt>시도</dt>
         <dd>
           누적 {task.totalAttemptCount}회 · 이번 자동 재시도 {task.attemptCount}
@@ -212,7 +213,7 @@ function Attempts({
       {attempts.length === 0 ? (
         <p className="fine">아직 시도한 기록이 없어요.</p>
       ) : (
-        <div className="tbl-wrap">
+        <div className={`tbl-wrap ${admin.tableWrap}`}>
           <table className="tbl" aria-label="시도 이력">
             <thead>
               <tr>
@@ -276,13 +277,16 @@ function Retry({ task }: { task: LectureHpTask }) {
   const busy = useHpTaskActionBusy(task.id)
 
   return (
-    <section className="panel" aria-labelledby="hp-task-retry">
+    <section
+      className={`panel ${admin.decide}`}
+      aria-labelledby="hp-task-retry"
+    >
       <h2 id="hp-task-retry">재시도</h2>
       <div className="notice bad">
         자동 처리가 멈췄어요. 마지막 실패와 시도 이력으로 원인을 확인하고 고친
         뒤 재시도하세요.
       </div>
-      <div className={styles.actions}>
+      <div className={admin.actionRow}>
         <button
           type="button"
           className="btn primary"
@@ -366,14 +370,17 @@ function VoidHold({ task }: { task: LectureHpTask }) {
   )
 
   return (
-    <section className="panel" aria-labelledby="hp-task-void">
+    <section
+      className={`panel ${admin.dangerZone}`}
+      aria-labelledby="hp-task-void"
+    >
       <h2 id="hp-task-void">보류 무효화</h2>
       <div className="notice warn">
         재시도해도 결과가 바뀌지 않는 보류만 무효화하세요. 되돌릴 수 없고 주문
         전체가 결제 실패가 돼요. 지갑 응답 지연 같은 일시 장애면 재시도하세요.
       </div>
       {ownerWarning}
-      <div className={styles.actions}>
+      <div className={admin.actionRow}>
         <button
           type="button"
           className="btn danger"

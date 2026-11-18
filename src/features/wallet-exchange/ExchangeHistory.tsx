@@ -7,12 +7,13 @@ import {
 } from '@/entities/wallet/exchange'
 import type { Exchange } from '@/entities/wallet/types'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
+import { RowsSkeleton } from '@/entities/wallet/ui/RowsSkeleton'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import { ExchangeDetailModal } from './ExchangeDetailModal'
 
 /** 지갑의 환전 내역(최신 신청부터). 페이지는 ?exchangePage=N(1부터)에 둔다. */
@@ -27,11 +28,14 @@ export function ExchangeHistory() {
     <section className="panel" aria-labelledby="exchange-history">
       <h2 id="exchange-history">환전 내역</h2>
       {isPending || moving ? (
-        <Loading />
+        <RowsSkeleton rows={3} />
       ) : error ? (
         <LoadError error={error} retry={() => void refetch()} />
       ) : data.content.length === 0 ? (
-        <EmptyState title="아직 환전 신청 내역이 없어요" />
+        <EmptyState title="아직 환전 신청 내역이 없어요">
+          출연료·강의 판매로 받은 수익 HP는 잔액 카드의 환전 신청에서 계좌로
+          보낼 수 있어요.
+        </EmptyState>
       ) : (
         <>
           <div className="tbl-wrap">

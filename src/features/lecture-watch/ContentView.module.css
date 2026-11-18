@@ -1,9 +1,10 @@
+/* 시청 화면의 어두운 극장 프레임 안에 놓인다 */
 .player {
   aspect-ratio: 16 / 9;
   max-width: 100%;
-  background: #0b0c0f;
+  background: #14161b;
   color: #f2f3f6;
-  border-radius: 10px;
+  border-radius: var(--r);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -14,8 +15,37 @@
   text-align: center;
 }
 .video {
+  display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
-  background: #0b0c0f;
-  border-radius: 10px;
+  background: #000;
+  border-radius: var(--r);
+}
+/* 자료 카드: 문서 모양 표식 + 제목 + 내려받기 */
+.doc {
+  width: 44px;
+  height: 54px;
+  border-radius: 6px 14px 6px 6px;
+  border: 1.5px solid #3a404c;
+  display: grid;
+  place-items: center;
+  color: #8a909e;
+}
+.doc svg {
+  width: 20px;
+  height: 20px;
+}
+.docTitle {
+  max-width: 40ch;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.download {
+  gap: 8px;
+  min-height: 44px;
+  padding-inline: 20px;
+}
+.download svg {
+  width: 16px;
+  height: 16px;
 }

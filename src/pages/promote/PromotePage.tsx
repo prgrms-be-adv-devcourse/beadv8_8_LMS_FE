@@ -7,6 +7,8 @@ import {
 } from '@/entities/member/api'
 import type { UpgradeRequest } from '@/entities/member/types'
 import { UpgradeStatusPill } from '@/entities/member/ui/UpgradeStatusPill'
+import { RoleJourney } from '@/features/upgrade/RoleJourney'
+import { StatusCard } from '@/features/upgrade/StatusCard'
 import { useRequestUpgrade } from '@/features/upgrade/useRequestUpgrade'
 import { refreshRole, useLogout, useViewer } from '@/shared/auth/session'
 import { formatDate } from '@/shared/lib/date'
@@ -38,18 +40,25 @@ export function PromotePage() {
         title="승급 신청"
         lede="인증된 인플루언서가 되면 강의를 등록하고 판매할 수 있어요. 심사 기준은 관리자 재량이에요."
       />
+      <RoleJourney
+        current={viewer === 'VERIFIED_INFLUENCER' ? 2 : 1}
+        target={2}
+      />
       {isPending ? (
         <Loading />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : viewer === 'VERIFIED_INFLUENCER' ? (
-        <div className="notice" role="status">
-          <span className="pill ok">승급 완료</span>
-          인증된 인플루언서예요. 이제 강의를 등록하고 판매할 수 있어요.
-          <Link className="link" to="/studio">
+        <StatusCard
+          tone="ok"
+          role="status"
+          title={<span className="pill ok">승급 완료</span>}
+        >
+          <p>인증된 인플루언서예요. 이제 강의를 등록하고 판매할 수 있어요.</p>
+          <Link className="btn primary sm" to="/studio">
             강의 판매로
           </Link>
-        </div>
+        </StatusCard>
       ) : (
         <>
           {approvedButStale ? (
@@ -74,23 +83,31 @@ function CurrentStatus({ latest }: { latest: UpgradeRequest | undefined }) {
   if (!latest) return null
   if (latest.status === 'PENDING')
     return (
-      <div className="notice warn" role="status">
-        <span className="pill warn">심사 중</span>
-        {formatDate(latest.requestedAt)}에 신청했어요. 결과가 나오면 이 화면에서
-        확인할 수 있어요.
-      </div>
+      <StatusCard
+        tone="warn"
+        role="status"
+        title={<span className="pill warn">심사 중</span>}
+      >
+        <p>
+          {formatDate(latest.requestedAt)}에 신청했어요. 결과가 나오면 이
+          화면에서 확인할 수 있어요.
+        </p>
+      </StatusCard>
     )
   if (latest.status === 'REJECTED')
     return (
-      <div className="notice bad" role="status">
-        <span className="pill bad">반려</span>
+      <StatusCard
+        tone="bad"
+        role="status"
+        title={<span className="pill bad">반려</span>}
+      >
         <span>
           {latest.reviewedAt && `${formatDate(latest.reviewedAt)}에 `}
           반려됐어요.
           {latest.rejectionReason && ` 사유: ${latest.rejectionReason}`} 내용을
           보완해 다시 신청할 수 있어요.
         </span>
-      </div>
+      </StatusCard>
     )
   return null
 }
@@ -117,32 +134,40 @@ function ApprovedButStale() {
 
   if (checking)
     return (
-      <div className="notice" role="status">
-        <span className="pill ok">승인</span>
-        승급이 승인됐어요. 계정 정보를 다시 불러오는 중이에요.
-      </div>
+      <StatusCard
+        tone="ok"
+        role="status"
+        title={<span className="pill ok">승인</span>}
+      >
+        <p>승급이 승인됐어요. 계정 정보를 다시 불러오는 중이에요.</p>
+      </StatusCard>
     )
   return (
-    <div className="notice warn" role="status">
-      <span className="pill ok">승인</span>
+    <StatusCard
+      tone="warn"
+      role="status"
+      title={<span className="pill ok">승인</span>}
+    >
       <span>
         승급이 승인됐는데 아직 계정에 반영되지 않았어요. 다시 불러와 보고, 계속
         그대로면 로그아웃한 뒤 다시 로그인해 주세요.
       </span>
-      <button
-        type="button"
-        className="btn sm"
-        onClick={() => {
-          setChecking(true)
-          void refetchMe().finally(() => setChecking(false))
-        }}
-      >
-        다시 불러오기
-      </button>
-      <button type="button" className="btn ghost sm" onClick={logout}>
-        로그아웃
-      </button>
-    </div>
+      <div className="row-actions">
+        <button
+          type="button"
+          className="btn sm"
+          onClick={() => {
+            setChecking(true)
+            void refetchMe().finally(() => setChecking(false))
+          }}
+        >
+          다시 불러오기
+        </button>
+        <button type="button" className="btn ghost sm" onClick={logout}>
+          로그아웃
+        </button>
+      </div>
+    </StatusCard>
   )
 }
 

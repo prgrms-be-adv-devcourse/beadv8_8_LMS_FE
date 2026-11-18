@@ -23,6 +23,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminExchangesPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 /** 상태는 URL ?status=에 둔다. 없거나 모르는 값이면 승인 대기다. 바꾸면 첫 페이지로 간다. */
 function useStatusParam() {
@@ -67,13 +68,17 @@ export function AdminExchangesPage() {
           ))
         }
       />
-      <div className="toolbar">
-        <div role="group" aria-label="환전 상태" className={styles.tabs}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="환전 상태"
+          className={`${styles.tabs} ${admin.seg}`}
+        >
           {ADMIN_EXCHANGE_FILTERS.map((f) => (
             <button
               key={f.status}
               type="button"
-              className={status === f.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === f.status}
               onClick={() => setStatus(f.status)}
             >
@@ -89,8 +94,8 @@ export function AdminExchangesPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={filter.empty} />
       ) : (
-        <section className="panel">
-          <div className="tbl-wrap">
+        <section className={`panel ${admin.tablePanel}`}>
+          <div className={`tbl-wrap ${admin.tableWrap}`}>
             <table className="tbl" aria-label="환전 신청 목록">
               <thead>
                 <tr>

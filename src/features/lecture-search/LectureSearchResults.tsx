@@ -6,13 +6,17 @@ import type {
   LectureBrowseSort,
   LectureSearchItem,
 } from '@/entities/lecture/types'
+import {
+  LectureGrid,
+  LectureGridSkeleton,
+} from '@/entities/lecture/ui/LectureGrid'
 import { LectureSearchCard } from '@/entities/lecture/ui/LectureSearchCard'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { useClampPage, type usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import { useLectureThumbnails } from './useLectureThumbnails'
 import styles from './LectureSearchResults.module.css'
 
@@ -26,6 +30,8 @@ type LectureSearchResultsProps = {
   sort: LectureBrowseSort
   page: number
   setPage: ReturnType<typeof usePageParam>[1]
+  /** 페이지 버튼으로 넘길 때. 없으면 setPage만 부른다 */
+  onPageTurn?: (page: number) => void
   /** 검색어를 지우고 기본 목록(강의 목록 API)으로 돌아간다 */
   onShowAll: () => void
   guest: boolean
@@ -42,6 +48,7 @@ export function LectureSearchResults({
   sort,
   page,
   setPage,
+  onPageTurn = setPage,
   onShowAll,
   guest,
   flagsOf,
@@ -54,13 +61,18 @@ export function LectureSearchResults({
   )
   const retryAfter = useRetryAfter(error, () => void refetch())
 
-  const showAll = (
-    <button type="button" className="btn" onClick={onShowAll}>
+  // 결과가 없을 때는 다음 행동이 이것뿐이라 강조한다
+  const showAll = (primary: boolean) => (
+    <button
+      type="button"
+      className={primary ? 'btn primary' : 'btn'}
+      onClick={onShowAll}
+    >
       전체 강의 보기
     </button>
   )
 
-  if (isPending || moving) return <Loading label="검색하는 중…" />
+  if (isPending || moving) return <LectureGridSkeleton label="검색하는 중…" />
   if (error) {
     if (isApiError(error, 'PAGE_TOO_DEEP')) {
       return (
@@ -89,7 +101,7 @@ export function LectureSearchResults({
           title="지금은 검색할 수 없어요. 잠시 후 다시 시도해 주세요."
           action={
             <div className={styles.actions}>
-              {showAll}
+              {showAll(false)}
               <button type="button" className="btn" onClick={() => refetch()}>
                 다시 시도
               </button>
@@ -104,7 +116,7 @@ export function LectureSearchResults({
   }
   if (data.content.length === 0) {
     return (
-      <EmptyState title="검색 결과가 없어요." action={showAll}>
+      <EmptyState title="검색 결과가 없어요." action={showAll(true)}>
         다른 검색어로 찾아보세요.
       </EmptyState>
     )
@@ -115,16 +127,13 @@ export function LectureSearchResults({
     <>
       <h2 className={styles.head}>
         ‘{keyword}’ 검색 결과{' '}
-        <span className="num muted">
+        <span className={styles.count}>
           {total >= LECTURE_SEARCH_WINDOW
             ? `${formatNumber(LECTURE_SEARCH_WINDOW)}개 이상`
             : `${formatNumber(total)}개`}
         </span>
       </h2>
-      <div
-        className={`${styles.grid} ${isPlaceholderData ? styles.stale : ''}`}
-        aria-busy={isPlaceholderData}
-      >
+      <LectureGrid stale={isPlaceholderData}>
         {data.content.map((item) => (
           <LectureSearchCard
             key={item.lectureId}
@@ -135,11 +144,11 @@ export function LectureSearchResults({
             flags={flagsOf?.(item)}
           />
         ))}
-      </div>
+      </LectureGrid>
       <Pager
         page={data.page.number}
         totalPages={data.page.totalPages}
-        onChange={setPage}
+        onChange={onPageTurn}
       />
     </>
   )

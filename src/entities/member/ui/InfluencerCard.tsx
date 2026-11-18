@@ -9,6 +9,7 @@ import {
 import { Avatar } from '@/shared/ui/Avatar'
 import type { ContentCategory, RatingSummary } from '../types'
 import { ContentCategoryChips } from './ContentCategoryChips'
+import { VerifiedMark } from './VerifiedMark'
 import styles from './InfluencerCard.module.css'
 
 /** 카드에 그리는 인플루언서. 인플루언서 목록 한 줄과 검색 결과 한 줄(사진은 일괄 조회로 채운다)이 모두 맞는다 */
@@ -41,7 +42,7 @@ const ROLE_LABEL: Readonly<Record<string, StatusLabel>> = {
 
 /**
  * 인플루언서 카드: 사진·닉네임·등급·출연 평점·콘텐츠 분야와 동작.
- * 카드 전체를 링크로 감싸지 않는다(링크 안에 버튼을 둘 수 없다). 닉네임과 '프로필'이 프로필 링크다.
+ * 카드 전체를 링크로 감싸지 않는다(링크 안에 버튼을 둘 수 없다). 닉네임 링크가 카드 전체를 덮어 누르면 프로필로 간다.
  */
 export function InfluencerCard({
   member,
@@ -51,36 +52,43 @@ export function InfluencerCard({
 }: InfluencerCardProps) {
   const nameId = useId()
   const profileHref = `/influencers/${member.id}`
+  const verified = member.role === 'VERIFIED_INFLUENCER'
   const [roleTone, roleLabel] = lookup(ROLE_LABEL, member.role) ?? [
     'mute',
     UNKNOWN_NAME,
   ]
   return (
-    <article className={styles.card} aria-labelledby={nameId}>
+    <article
+      className={verified ? `${styles.card} ${styles.verified}` : styles.card}
+      aria-labelledby={nameId}
+    >
       <div className={styles.top}>
-        <Avatar
-          name={member.nickname}
-          imageUrl={member.profileImageUrl}
-          size={48}
-          onImageError={onImageError}
-        />
+        <span className={styles.avatar}>
+          <Avatar
+            name={member.nickname}
+            imageUrl={member.profileImageUrl}
+            size={56}
+            onImageError={onImageError}
+          />
+          {verified && <VerifiedMark className={styles.check} />}
+        </span>
         <div className={styles.meta}>
           <Link id={nameId} className={styles.name} to={profileHref}>
             {member.nickname}
           </Link>
-          <span>
+          <span className={styles.badges}>
             <span className={`pill ${roleTone}`}>{roleLabel}</span>
-          </span>
-          <span className={styles.rating}>
             <Rating {...member.appearanceRating} />
           </span>
         </div>
       </div>
-      <ContentCategoryChips
-        categories={member.contentCategories}
-        max={CARD_CATEGORY_MAX}
-      />
-      {children}
+      <div className={styles.body}>
+        <ContentCategoryChips
+          categories={member.contentCategories}
+          max={CARD_CATEGORY_MAX}
+        />
+        {children}
+      </div>
       <div className={styles.actions}>
         <Link
           className="btn sm"
@@ -92,5 +100,30 @@ export function InfluencerCard({
         {actions}
       </div>
     </article>
+  )
+}
+
+/** 불러오는 동안 카드 자리를 같은 틀로 채운다(장식) */
+export function InfluencerCardSkeleton() {
+  const bone = (size: string) =>
+    `${styles.bone} ${styles.boneLine} ${styles[size]}`
+  return (
+    <div className={`${styles.card} ${styles.skeleton}`} aria-hidden="true">
+      <div className={styles.top}>
+        <span className={`${styles.bone} ${styles.boneAvatar}`} />
+        <div className={`${styles.meta} ${styles.fill}`}>
+          <span className={bone('lineTitle')} />
+          <span className={bone('lineShort')} />
+        </div>
+      </div>
+      <div className={styles.body}>
+        <span className={bone('lineLong')} />
+        <span className={bone('lineMid')} />
+      </div>
+      <div className={styles.actions}>
+        <span className={`${styles.bone} ${styles.boneButton}`} />
+        <span className={`${styles.bone} ${styles.boneButton}`} />
+      </div>
+    </div>
   )
 }

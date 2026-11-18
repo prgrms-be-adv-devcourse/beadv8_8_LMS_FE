@@ -3,16 +3,58 @@
   flex-direction: column;
   gap: 2px;
 }
+/* 요청 ID·거래 번호·사유 코드: 대조하기 쉽게 모노 */
 .code {
   overflow-wrap: anywhere;
+  font-family: var(--f-mono);
 }
+/* 돈이 걸린 처리 영역: 왼쪽 띠로 지금 결정이 필요하다는 것을 보인다(확정 실패=위험, 결과 미확정=주의) */
 .decide {
-  margin-top: 12px;
+  margin-top: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--hold);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
+.decide[data-tone='bad'] {
+  border-left-color: var(--bad);
+}
+/* 주요 행동은 오른쪽, 되돌릴 수 없는 최종 실패 확정은 왼쪽 끝으로 떨어뜨린다 */
 .actions {
   display: flex;
   gap: 8px;
-  justify-content: flex-end;
   flex-wrap: wrap;
-  margin-top: 12px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.actions > :global(.btn) {
+  min-height: 40px;
+}
+.actions > :global(.btn.danger) {
+  margin-right: auto;
+}
+
+/* 시도 이력 표: 머리 띠와 행 호버(관리자 목록 표와 같은 모양) */
+.tableWrap {
+  margin: 0;
+}
+.tableWrap :global(.tbl) th {
+  background: var(--surface-2);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.tableWrap :global(.tbl) tbody tr {
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.tableWrap :global(.tbl) tbody tr:hover {
+  background: var(--surface-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tableWrap :global(.tbl) tbody tr {
+    transition: none;
+  }
 }

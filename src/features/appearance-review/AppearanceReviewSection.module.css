@@ -13,19 +13,36 @@
   position: relative;
   border: 0;
   background: none;
-  font-size: 30px;
+  font-size: 32px;
   line-height: 1;
-  padding: 0 2px;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-grid;
+  place-items: center;
   color: var(--line-2);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.star:hover {
+  transform: scale(1.12);
+}
+.star:active {
+  transform: scale(0.94);
 }
 .star.on {
   color: var(--hold);
 }
 .star:focus-within {
   outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline-offset: 0;
+}
+.ratingLabel {
+  margin-left: 8px;
+  font: 600 13px var(--f-mono);
+  color: var(--hold);
 }
 /* 라디오는 보이지 않게 두고(키보드·스크린리더용) 별 라벨로 그린다 */
 .radio {
@@ -47,12 +64,25 @@
 .item {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 0;
-  border-top: 1px solid var(--line);
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
 }
-.item:first-of-type {
-  border-top: 0;
+.invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  border: 1px dashed var(--line-2);
+}
+.invite p {
+  flex: 1;
+  min-width: 200px;
 }
 .itemHead {
   display: flex;
@@ -64,4 +94,13 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  .star {
+    transition: none;
+  }
+  .star:hover,
+  .star:active {
+    transform: none;
+  }
 }

@@ -52,7 +52,22 @@ export function AnswerBubble({
       )}
       {item.sources.length > 0 && (
         <div className={styles.sources}>
-          <span className={styles.sourcesTitle}>참고한 FAQ</span>
+          <span className={styles.sourcesTitle}>
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2zM8 7h8" />
+            </svg>
+            참고한 FAQ
+          </span>
           <ul>
             {item.sources.map((source) => (
               <li key={source.code}>{source.question}</li>

@@ -8,10 +8,12 @@
   gap: 8px;
 }
 .cards > li {
-  animation: card-in 0.24s ease-out both;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  animation: card-in var(--t) var(--ease-out) both;
+  /* 처음 6개까지만 차례로, 그 뒤는 함께 나타난다 */
+  animation-delay: calc(min(var(--i, 0), 5) * 40ms);
 }
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -19,38 +21,83 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface);
+  box-shadow: var(--shadow-1);
   color: var(--ink);
   text-decoration: none;
   min-width: 0;
   transition:
-    border-color 0.12s,
-    transform 0.12s;
+    border-color var(--t-fast) var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    transform var(--t) var(--ease-out);
 }
 .card:hover {
+  border-color: var(--line-2);
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+}
+.card:active {
+  transform: scale(0.98);
+  transition-duration: var(--t-fast);
+}
+.card:focus-visible {
+  outline: none;
   border-color: var(--signal);
-  transform: translateY(-1px);
+  box-shadow: var(--ring);
 }
 .influencer {
   flex-direction: row;
   align-items: flex-start;
   gap: 12px;
 }
+/* 강의 카드: 왼쪽 재생 표식 + 제목·이유, 오른쪽 화살표 */
+.lecture {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-sm);
+  background: var(--ink);
+  color: var(--surface);
+  display: grid;
+  place-items: center;
+}
+.go {
+  flex: none;
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+  transition:
+    transform var(--t) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.card:hover .go {
+  color: var(--signal-text);
+  transform: translateX(3px);
+}
 .body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   min-width: 0;
 }
 .title {
   font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .meta {
-  font-size: 12px;
+  font: 12px var(--f-mono);
   color: var(--ink-3);
 }
 .reason {
   font-size: 13px;
+  line-height: 1.5;
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
@@ -65,6 +112,7 @@
 }
 .interest {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .interest input {
@@ -72,6 +120,7 @@
   min-width: 0;
 }
 .fieldError {
+  flex-basis: 100%;
   font-size: 12px;
   color: var(--bad);
 }
@@ -89,7 +138,13 @@
   .cards > li {
     animation: none;
   }
-  .card {
+  .card,
+  .go {
     transition: none;
+  }
+  .card:hover,
+  .card:active,
+  .card:hover .go {
+    transform: none;
   }
 }

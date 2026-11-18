@@ -136,7 +136,19 @@ export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
             aria-label="닫기"
             onClick={onClose}
           >
-            ✕
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="m4 4 8 8M12 4l-8 8" />
+            </svg>
           </button>
         </header>
         <div className="modal-body">{children}</div>

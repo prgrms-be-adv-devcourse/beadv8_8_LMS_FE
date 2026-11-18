@@ -11,6 +11,7 @@ import {
   quietLectureRequests,
 } from '@/test/couponMock'
 import { mockOrders } from '@/test/lectureOrders'
+import { openAccountMenu } from '@/test/accountMenu'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -53,7 +54,7 @@ beforeEach(quietLectureRequests)
 afterEach(() => queryClient.clear())
 
 describe('쿠폰함', () => {
-  it('사용 가능 쿠폰을 기본으로 불러와 이름·대상 강의·할인·만료일·상태를 보여 준다', async () => {
+  it('모두 한 번에 불러와 사용 가능 쿠폰을 기본으로 보이고, 쿠폰마다 쓸 수 있는 강의로 가는 길을 둔다', async () => {
     mockCoupons({
       mine: [
         memberCoupon({
@@ -64,7 +65,7 @@ describe('쿠폰함', () => {
           discountType: 'RATE',
           discountValue: 10,
           maxDiscountAmount: null,
-          expiresAt: '2026-11-30T14:00:00Z',
+          expiresAt: '2999-11-30T14:00:00Z',
         }),
         memberCoupon({
           memberCouponId: 2,
@@ -76,7 +77,7 @@ describe('쿠폰함', () => {
           discountValue: 15,
           maxDiscountAmount: 5000,
           stackable: true,
-          expiresAt: '2026-12-08T01:00:00Z',
+          expiresAt: '2999-12-08T01:00:00Z',
         }),
         memberCoupon({
           memberCouponId: 3,
@@ -86,6 +87,13 @@ describe('쿠폰함', () => {
           lectureId: 8,
           discountType: 'AMOUNT',
           discountValue: 3000,
+          expiresAt: '2999-12-31T01:00:00Z',
+        }),
+        memberCoupon({
+          memberCouponId: 4,
+          couponId: 4,
+          couponName: '다 쓴 쿠폰',
+          status: 'USED',
         }),
       ],
     })
@@ -105,17 +113,20 @@ describe('쿠폰함', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '쿠폰함' }),
     ).toBeInTheDocument()
+    const lectureCoupon = await item('가을맞이 10% 할인')
     expect(screen.getByRole('button', { name: '사용 가능' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
+    expect(screen.queryByRole('listitem', { name: '다 쓴 쿠폰' })).toBeNull()
 
-    const lectureCoupon = await item('가을맞이 10% 할인')
+    // 특정 강의 쿠폰: 강의 제목과 그 강의 상세로 가는 길
+    expect(await within(lectureCoupon).findByText('첫 방송 세팅')).toBeVisible()
     expect(
-      await within(lectureCoupon).findByRole('link', { name: '첫 방송 세팅' }),
+      within(lectureCoupon).getByRole('link', { name: '강의 보기' }),
     ).toHaveAttribute('href', '/lectures/7')
     expect(lectureCoupon).toHaveTextContent('10% 할인')
-    expect(lectureCoupon).toHaveTextContent('11/30(월)까지')
+    expect(lectureCoupon).toHaveTextContent(/11\/30\(.\)까지/)
     expect(within(lectureCoupon).getByText('사용 가능')).toHaveClass(
       'pill',
       'ok',
@@ -124,50 +135,80 @@ describe('쿠폰함', () => {
       within(lectureCoupon).queryByText('다른 쿠폰과 함께 사용 가능'),
     ).toBeNull()
 
+    // 모든 강의 쿠폰: 강의 목록으로 가는 길
     const anyCoupon = await item('전 강의 15% 할인')
     expect(anyCoupon).toHaveTextContent('모든 강의')
     expect(anyCoupon).toHaveTextContent('15% 할인 · 최대 5,000 HP')
-    expect(anyCoupon).toHaveTextContent('12/8(화)까지')
     expect(
       within(anyCoupon).getByText('다른 쿠폰과 함께 사용 가능'),
     ).toBeInTheDocument()
+    expect(
+      within(anyCoupon).getByRole('link', { name: '강의 둘러보기' }),
+    ).toHaveAttribute('href', '/lectures')
 
     const amountCoupon = await item('3천 HP 할인')
     expect(amountCoupon).toHaveTextContent('3,000 HP 할인')
+    expect(amountCoupon).toHaveTextContent('특정 강의')
     expect(
-      await within(amountCoupon).findByRole('link', { name: '특정 강의' }),
+      within(amountCoupon).getByRole('link', { name: '강의 보기' }),
     ).toHaveAttribute('href', '/lectures/8')
 
-    expect(seen).toEqual(['?status=AVAILABLE'])
+    expect(seen).toEqual([''])
   })
 
-  it('플랫폼 쿠폰도 서버 상태대로 사용 가능과 중첩 안내를 보인다', async () => {
+  it('위에 사용 가능·곧 만료 수를 보이고, 쓸 수 있는 쿠폰은 만료가 가까운 순으로 놓는다', async () => {
+    const inDays = (days: number) =>
+      new Date(Date.now() + days * 86_400_000).toISOString()
     mockCoupons({
       mine: [
         memberCoupon({
-          couponName: '플랫폼 전 강의 2천',
-          couponType: 'PLATFORM',
-          targetType: 'ANY_LECTURE',
-          lectureId: null,
-          discountType: 'AMOUNT',
-          discountValue: 2000,
-          stackable: true,
+          memberCouponId: 1,
+          couponName: '넉넉한 쿠폰',
+          expiresAt: inDays(20),
+        }),
+        memberCoupon({
+          memberCouponId: 2,
+          couponName: '곧 끝나는 쿠폰',
+          expiresAt: inDays(2),
+        }),
+        memberCoupon({
+          memberCouponId: 3,
+          couponName: '주문에 쓰는 쿠폰',
+          status: 'RESERVED',
+          expiresAt: inDays(1),
+        }),
+        memberCoupon({
+          memberCouponId: 4,
+          couponName: '만료된 쿠폰',
+          status: 'EXPIRED',
+          expiresAt: inDays(-3),
         }),
       ],
     })
+    server.use(http.get('*/api/v1/lectures/7', () => rs(lecture)))
     renderApp('/library/coupons', 'USER')
 
-    const coupon = await item('플랫폼 전 강의 2천')
-    expect(within(coupon).getByText('사용 가능')).toHaveClass('pill', 'ok')
-    expect(coupon).toHaveTextContent('모든 강의')
-    expect(coupon).toHaveTextContent('2,000 HP 할인')
-    expect(
-      within(coupon).getByText('다른 쿠폰과 함께 사용 가능'),
-    ).toBeInTheDocument()
-    expect(within(coupon).queryByText(/사용할 수 없어요/)).toBeNull()
+    const summary = await screen.findByLabelText('쿠폰 요약')
+    expect(summary).toHaveTextContent('사용 가능2장')
+    expect(summary).toHaveTextContent('곧 만료1장')
+
+    const list = await screen.findByRole('list', { name: '쿠폰 목록' })
+    const names = within(list)
+      .getAllByRole('listitem')
+      .map((li) => li.getAttribute('aria-label'))
+    // 주문에 묶인 쿠폰은 사용 가능 보기에 두되 쓸 수 있는 쿠폰 뒤에 둔다.
+    expect(names).toEqual(['곧 끝나는 쿠폰', '넉넉한 쿠폰', '주문에 쓰는 쿠폰'])
+    const soon = within(list).getByRole('listitem', { name: '곧 끝나는 쿠폰' })
+    expect(soon).toHaveTextContent('D-2 곧 만료돼요')
+    const reserved = within(list).getByRole('listitem', {
+      name: '주문에 쓰는 쿠폰',
+    })
+    expect(within(reserved).getByText('사용 중')).toHaveClass('pill', 'warn')
+    // 주문에 쓰는 중인 쿠폰은 쓰러 가는 길을 두지 않는다.
+    expect(within(reserved).queryByRole('link')).toBeNull()
   })
 
-  it('상태 필터를 바꾸면 URL과 요청이 바뀌고, 모르는 값은 사용 가능으로 본다', async () => {
+  it('지난 쿠폰(사용·만료)으로 나눠 보고 URL에 남기며, 모르는 값은 사용 가능으로 본다', async () => {
     mockCoupons({
       mine: [
         memberCoupon({ memberCouponId: 1, couponName: '쓸 수 있는 쿠폰' }),
@@ -186,7 +227,7 @@ describe('쿠폰함', () => {
     const seen = recordMyCouponRequests()
     server.use(http.get('*/api/v1/lectures/7', () => rs(lecture)))
     const user = userEvent.setup()
-    const router = renderApp('/library/coupons?status=WRONG', 'USER')
+    const router = renderApp('/library/coupons?view=WRONG', 'USER')
 
     expect(await item('쓸 수 있는 쿠폰')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '사용 가능' })).toHaveAttribute(
@@ -194,59 +235,52 @@ describe('쿠폰함', () => {
       'true',
     )
 
-    await user.click(screen.getByRole('button', { name: '사용 완료' }))
+    await user.click(screen.getByRole('button', { name: '지난 쿠폰' }))
     const used = await item('다 쓴 쿠폰')
     expect(within(used).getByText('사용 완료')).toHaveClass('pill', 'mute')
+    expect(within(used).queryByRole('link')).toBeNull()
+    const expired = await item('지난 쿠폰')
+    expect(within(expired).getByText('만료')).toHaveClass('pill', 'mute')
     expect(
       screen.queryByRole('listitem', { name: '쓸 수 있는 쿠폰' }),
     ).toBeNull()
-    expect(router.state.location.search).toBe('?status=USED')
-    expect(screen.getByRole('button', { name: '사용 완료' })).toHaveAttribute(
+    expect(router.state.location.search).toBe('?view=past')
+    expect(screen.getByRole('button', { name: '지난 쿠폰' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
 
-    await user.click(screen.getByRole('button', { name: '만료' }))
-    expect(await item('지난 쿠폰')).toBeInTheDocument()
-    expect(router.state.location.search).toBe('?status=EXPIRED')
-
-    // 기본값으로 돌아가면 URL에서 빼고, 오래된 목록이라 다시 불러온다.
-    // 캐시의 목록이 먼저 보이고 다시 부르는 요청은 그 뒤에 나가므로, 화면이 아니라 요청 기록을 기다린다.
+    // 기본값으로 돌아가면 URL에서 뺀다. 보기만 바꾸므로 다시 부르지 않는다.
     await user.click(screen.getByRole('button', { name: '사용 가능' }))
     expect(await item('쓸 수 있는 쿠폰')).toBeInTheDocument()
     expect(router.state.location.search).toBe('')
-
-    await waitFor(() =>
-      expect(seen).toEqual([
-        '?status=AVAILABLE',
-        '?status=USED',
-        '?status=EXPIRED',
-        '?status=AVAILABLE',
-      ]),
-    )
+    await settled()
+    expect(seen.every((search) => search === '')).toBe(true)
   })
 
-  it('받은 쿠폰이 없으면 빈 안내와 강의 둘러보기를 보여 준다', async () => {
+  it('받은 쿠폰이 없으면 쿠폰 받는 곳을 안내하고 강의로 보낸다', async () => {
     mockCoupons()
     renderApp('/library/coupons', 'INFLUENCER')
 
     expect(
-      await screen.findByText('지금 쓸 수 있는 쿠폰이 없어요'),
+      await screen.findByText('쓸 수 있는 쿠폰이 없어요'),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '강의 둘러보기' })).toHaveAttribute(
-      'href',
-      '/lectures',
-    )
+    expect(
+      screen.getByText("강의 상세의 '쿠폰 받기'에서 받을 수 있어요"),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: '강의 보러 가기' }),
+    ).toHaveAttribute('href', '/lectures')
+    expect(screen.getByLabelText('쿠폰 요약')).toHaveTextContent('사용 가능0장')
   })
 
-  it('사용 중 쿠폰이 없으면 그 상태의 빈 안내를 보여 준다', async () => {
+  it('지난 쿠폰이 없으면 그 보기의 빈 안내만 보인다', async () => {
     mockCoupons({ mine: [memberCoupon()] })
-    renderApp('/library/coupons?status=RESERVED', 'USER')
+    server.use(http.get('*/api/v1/lectures/7', () => rs(lecture)))
+    renderApp('/library/coupons?view=past', 'USER')
 
-    expect(
-      await screen.findByText('주문에 쓰고 있는 쿠폰이 없어요'),
-    ).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '강의 둘러보기' })).toBeNull()
+    expect(await screen.findByText('지난 쿠폰이 없어요')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: '강의 보러 가기' })).toBeNull()
   })
 
   it('쿠폰함을 불러오지 못하면 다시 시도할 수 있다', async () => {
@@ -265,7 +299,7 @@ describe('쿠폰함', () => {
   it('쿠폰함 메뉴는 회원에게만 보인다', async () => {
     mockCoupons()
     renderApp('/library/coupons', 'USER')
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(within(nav).getByRole('link', { name: '쿠폰함' })).toHaveAttribute(
       'href',
       '/library/coupons',
@@ -280,7 +314,7 @@ describe('쿠폰함', () => {
     async (path, viewer, child, parent) => {
       mockCoupons()
       renderApp(path, viewer)
-      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+      const nav = await openAccountMenu()
       expect(within(nav).getByRole('link', { name: child })).toHaveAttribute(
         'aria-current',
         'page',
@@ -295,7 +329,7 @@ describe('쿠폰함', () => {
   it('상위 메뉴의 다른 하위 경로에서는 상위 메뉴가 켜진다', async () => {
     mockOrders()
     renderApp('/library/orders', 'USER')
-    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    const nav = await openAccountMenu()
     expect(within(nav).getByRole('link', { name: '내 강의' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -306,12 +340,15 @@ describe('쿠폰함', () => {
     await settled()
   })
 
-  it.each(['GUEST', 'ADMIN'] as const)(
-    '%s에게는 쿠폰함 메뉴가 없다',
-    async (viewer) => {
-      renderApp('/', viewer)
-      const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
-      expect(within(nav).queryByRole('link', { name: '쿠폰함' })).toBeNull()
-    },
-  )
+  it('비회원에게는 쿠폰함 메뉴가 없다', async () => {
+    renderApp('/', 'GUEST')
+    await screen.findByRole('navigation', { name: '둘러보기' })
+    expect(screen.queryByRole('link', { name: '쿠폰함' })).toBeNull()
+  })
+
+  it('관리자 레일에는 쿠폰함 메뉴가 없다', async () => {
+    renderApp('/', 'ADMIN')
+    const nav = await screen.findByRole('navigation', { name: '주 메뉴' })
+    expect(within(nav).queryByRole('link', { name: '쿠폰함' })).toBeNull()
+  })
 })

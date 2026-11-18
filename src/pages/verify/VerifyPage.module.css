@@ -1,25 +1,54 @@
+/* 진행 순서: 번호 원을 세로 선으로 잇고 지난 단계·지금 단계를 구분한다 */
 .steps {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   font-size: 14px;
 }
 .steps li {
+  position: relative;
   display: flex;
   gap: 12px;
   align-items: flex-start;
 }
+.steps li + li::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: -16px;
+  width: 2px;
+  height: 16px;
+  background: var(--line-2);
+}
+.steps li.done + li::before {
+  background: var(--ink);
+}
 .n {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1.5px solid var(--line-2);
+  background: var(--surface);
   display: grid;
   place-items: center;
   font: 600 12px var(--f-mono);
   flex: none;
   color: var(--ink-3);
+}
+.done .n {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+/* 지금 단계: 탤리 램프처럼 신호색 */
+.now .n {
+  border-color: var(--signal);
+  color: var(--signal-text);
+  box-shadow: var(--ring);
+}
+.next b {
+  color: var(--ink-2);
 }

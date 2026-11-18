@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
-import { formatNumber } from '@/shared/lib/money'
 import type { LectureSearchItem } from '../types'
-import { LectureCardFrame } from './LectureCard'
+import { LectureCardFrame, Price } from './LectureCard'
 import { Highlight } from './Highlight'
 import { LectureThumb } from './LectureThumb'
 import { Rating } from './Rating'
@@ -52,9 +51,7 @@ export function LectureSearchCard({
         )}
         <div className={cardStyles.foot}>
           <Rating average={item.averageRating} count={item.reviewCount} />
-          {item.priceHp !== null && (
-            <span className="num">{formatNumber(item.priceHp)} HP</span>
-          )}
+          {item.priceHp !== null && <Price hp={item.priceHp} />}
         </div>
         {hl?.description && (
           <p className={styles.snippet}>

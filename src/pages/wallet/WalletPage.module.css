@@ -1,0 +1,168 @@
+/* 지갑 잔액 카드: 종류 색이 카드의 정체성이다(충전=파랑, 수익=초록, 보류=호박색) */
+.card:global(.bal) {
+  box-shadow: var(--shadow-1);
+  padding: 22px 22px 20px;
+  gap: 12px;
+}
+
+/* 카드 위쪽 3px 색 막대. 보유 카드는 충전·수익 몫만큼 나눠 칠해 구성을 한눈에 보인다 */
+.band {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  display: flex;
+  background: var(--line);
+}
+.band i {
+  display: block;
+  min-width: 0;
+}
+.band .charge {
+  background: var(--charge);
+}
+.band .earn {
+  background: var(--earn);
+}
+.band .hold {
+  flex: 1;
+  background: var(--hold);
+}
+
+/* 보류 카드: 은은한 호박색 번짐으로 "묶여 있는 돈"을 구분한다 */
+.held:global(.bal) {
+  background:
+    radial-gradient(
+      120% 90% at 100% 0%,
+      color-mix(in srgb, var(--hold-soft) 85%, transparent) 0%,
+      transparent 60%
+    ),
+    var(--surface);
+}
+
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+}
+
+.amt:global(.amt) {
+  font-size: 36px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+.amt:global(.amt) small {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  margin-left: 6px;
+}
+
+/* 종류별 금액 줄: 왼쪽 이름, 오른쪽 숫자를 자리 맞춰 정렬 */
+.lines:global(.hold-lines) {
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+.lines:global(.hold-lines) > div {
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.lines:global(.hold-lines) > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.lines :global(.num) {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.why {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+}
+
+.acts:global(.acts) {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
+}
+.acts :global(.btn) {
+  min-height: 40px;
+  padding-inline: 16px;
+}
+.acts :global(.btn.primary) {
+  min-width: 96px;
+}
+
+@media (max-width: 480px) {
+  .card:global(.bal) {
+    padding: 20px 16px 16px;
+  }
+  .amt:global(.amt) {
+    font-size: 30px;
+  }
+  .acts :global(.btn) {
+    flex: 1 1 0;
+  }
+}
+
+/* 불러오는 중: 금액 자리 뼈대 */
+.skel {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+}
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 55%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.skLbl {
+  width: 72px;
+  height: 12px;
+}
+.skAmt {
+  width: min(220px, 70%);
+  height: 36px;
+}
+.skLine {
+  width: 100%;
+  height: 14px;
+}
+.skShort {
+  width: 60%;
+  height: 14px;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel::after {
+    animation: none;
+  }
+}

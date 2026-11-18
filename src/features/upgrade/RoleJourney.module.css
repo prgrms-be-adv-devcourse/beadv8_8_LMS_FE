@@ -1,0 +1,109 @@
+/* 세 단계를 한 줄로 잇고, 좁은 화면에서는 세로로 쌓는다 */
+.journey {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  counter-reset: none;
+}
+.stage {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+/* 단계 사이 잇는 선 */
+.stage + .stage::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -13px;
+  width: 14px;
+  height: 2px;
+  background: var(--line-2);
+}
+.done + .stage::before {
+  background: var(--ink);
+}
+.marker {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 600 13px var(--f-mono);
+  border: 1.5px solid var(--line-2);
+  color: var(--ink-3);
+  background: var(--surface);
+}
+.marker svg {
+  width: 15px;
+  height: 15px;
+}
+.done .marker {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+.current {
+  border-color: var(--ink);
+}
+.current .marker {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+/* 이 화면에서 오를 단계: 탤리 램프처럼 신호색 테두리 */
+.target {
+  border-color: var(--signal);
+  box-shadow: var(--ring);
+}
+.target .marker {
+  border-color: var(--signal);
+  color: var(--signal-text);
+}
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.step {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.target .step {
+  color: var(--signal-text);
+}
+.name {
+  font-size: 15px;
+}
+.next:not(.target) .name {
+  color: var(--ink-2);
+}
+.gain {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .journey {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .stage + .stage::before {
+    top: -11px;
+    left: 28px;
+    width: 2px;
+    height: 10px;
+  }
+}

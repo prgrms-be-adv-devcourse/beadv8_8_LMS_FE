@@ -1,28 +1,21 @@
 .head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 4px;
   font-size: 18px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
-.head .num {
-  font-size: 15px;
-  font-weight: 400;
-}
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 20px;
-  transition: opacity 0.15s;
-}
-/* 새 결과를 받는 동안 이전 결과를 흐리게 둔다 */
-.stale {
-  opacity: 0.5;
+.count {
+  font: 500 13px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
 }
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-}
-@media (prefers-reduced-motion: reduce) {
-  .grid {
-    transition: none;
-  }
 }

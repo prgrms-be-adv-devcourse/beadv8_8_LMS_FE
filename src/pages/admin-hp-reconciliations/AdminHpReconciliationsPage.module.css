@@ -6,6 +6,8 @@
   display: block;
   margin-top: 4px;
   overflow-wrap: anywhere;
+  font-family: var(--f-mono);
+  font-size: 11px;
 }
 .nowrap {
   white-space: nowrap;
@@ -18,4 +20,31 @@
   min-width: 200px;
   white-space: pre-line;
   overflow-wrap: anywhere;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+/* 강의(출연) 쪽과 지갑 쪽 상태를 나란히 대조한다: 지갑 쪽 칸 앞에 가는 세로선 */
+.compare td:last-child {
+  border-left: 1px dashed var(--line-2);
+}
+.compare td {
+  vertical-align: top;
+}
+
+/* 건수 카드: 어긋난 건·멈춘 작업이 있으면 왼쪽 띠와 큰 숫자로 바로 보이게 한다 */
+.count {
+  box-shadow: var(--shadow-1);
+}
+.count b {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.count[data-tone='bad'] {
+  border-left: 3px solid var(--bad);
+  background: color-mix(in srgb, var(--bad-soft) 45%, var(--surface));
+}
+.count[data-tone='hold'] {
+  border-left: 3px solid var(--hold);
+  background: color-mix(in srgb, var(--hold-soft) 45%, var(--surface));
 }

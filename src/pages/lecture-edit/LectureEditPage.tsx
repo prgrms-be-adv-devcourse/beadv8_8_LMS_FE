@@ -11,6 +11,7 @@ import { meQuery } from '@/shared/auth/me'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './LectureEditPage.module.css'
 
 /**
  * 강의 수정. 기본 정보는 상태와 관계없이 바로 반영되고, 영상·자료는 반려된 강의만 고쳐 재검수를 신청한다.
@@ -63,8 +64,9 @@ function Editor({ lecture }: { lecture: LectureDetail }) {
     <>
       <PageHead title="강의 수정" lede={lecture.title} />
       {lecture.status === 'REJECTED' && lecture.rejectionReason && (
-        <div className="notice warn">
-          <b>반려 사유</b> {lecture.rejectionReason}
+        <div className={`notice warn ${styles.reject}`}>
+          <b>반려 사유</b>
+          <p>{lecture.rejectionReason}</p>
         </div>
       )}
       <LectureEditorForm

@@ -20,6 +20,7 @@ import { formatDateTime } from '@/shared/lib/date'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminExchangePage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const back = (
   <Link className="back" to="/admin/exchanges">
@@ -66,13 +67,16 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
       />
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
-          <section className="panel" aria-labelledby="exchange-summary">
+          <section
+            className={`panel ${admin.receipt}`}
+            aria-labelledby="exchange-summary"
+          >
             <h2 id="exchange-summary">신청 내용</h2>
             <ExchangeSummary exchange={exchange} />
           </section>
           <section className="panel" aria-labelledby="exchange-applicant">
             <h2 id="exchange-applicant">신청자</h2>
-            <dl className="kv">
+            <dl className={`kv ${admin.kv}`}>
               <dt>회원</dt>
               <dd>
                 {applicant ? `${applicant.nickname} · ` : ''}회원 #
@@ -97,7 +101,7 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
           {reviewed && (
             <section className="panel" aria-labelledby="exchange-history">
               <h2 id="exchange-history">처리 기록</h2>
-              <dl className="kv">
+              <dl className={`kv ${admin.kv}`}>
                 {exchange.approvedAt && (
                   <>
                     <dt>승인</dt>
@@ -158,7 +162,10 @@ function Decide({ exchange }: { exchange: AdminExchange }) {
   const blocked = approveBlockReason(exchange)
 
   return (
-    <section className="panel sticky" aria-labelledby="exchange-decide">
+    <section
+      className={`panel sticky ${admin.decide}`}
+      aria-labelledby="exchange-decide"
+    >
       <h2 id="exchange-decide">처리</h2>
       {blocked ? (
         <div className="notice bad">{blocked}</div>
@@ -168,10 +175,10 @@ function Decide({ exchange }: { exchange: AdminExchange }) {
           돌려줘요.
         </p>
       )}
-      <div className={styles.actions}>
+      <div className={admin.actionRow}>
         <button
           type="button"
-          className="btn"
+          className="btn danger"
           disabled={busy}
           onClick={() => setOpen('reject')}
         >

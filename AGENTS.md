@@ -19,6 +19,7 @@ pnpm format         # Prettier 적용 / format:check는 검사만
 
 CI(`.github/workflows/ci.yml`)는 `format:check → lint → test → build` 순서로 돌고 `k8s/` manifest를 schema로 검사한다. 모두 통과한 dev 커밋만 이미지가 발행되고 운영에 배포된다. 앱 흐름 테스트는 `src/app/*.test.tsx`, 테스트 공통 설정은 `src/test/`에 둔다.
 화면은 라우트별로 나눠 불러온다(`src/app/router.tsx` `PAGE_LOADERS`, route `lazy`). 새 화면은 `PAGE_LOADERS`에 더하고 라우터 파일에서 화면을 직접 import하지 않는다(홈만 첫 파일에 둔다). 테스트는 모든 화면을 미리 불러 둔 `testRoutes`(`src/test/renderApp.tsx`)를 쓰고, 나눠 불러오기와 배포 직후 옛 탭 처리(`app/fallbacks/chunkLoad.ts`)는 `src/app/code-splitting.test.tsx`가 본다.
+앱 셸(`src/app/layouts/AppShell.tsx`, 메뉴 데이터는 `src/app/nav.ts`)은 역할에 따라 둘이다. 비회원·회원은 상단 헤더 하나(로고 · 주요 메뉴 '둘러보기' · HP·장바구니·채팅·알림 · 아바타 계정 메뉴), 내 강의·스튜디오 목록 화면 맨 위의 구역 탭(`SECTIONS`, 화면 파일이 아니라 셸이 그린다), 좁은 화면(≤860px) 하단 탭바(홈·둘러보기·마이, `NO_TAB_BAR` 화면에서는 숨김, 높이는 셸의 `--app-bottom`)를 쓰고, 관리자만 왼쪽 메뉴 레일(좁은 화면은 햄버거 드로어)을 쓴다. 테스트에서 계정 메뉴는 `openAccountMenu`, 좁은 화면은 `stubNarrowScreen`(`src/test/accountMenu.ts`)이다.
 dev로 가는 PR에는 커밋마다 Claude Review(`.github/workflows/claude-review.yml`)가 리뷰 코멘트를 단다. 기준은 PR이 아니라 dev의 이 파일과 `docs/`다(PR이 고친 기준은 리뷰 대상). 재리뷰는 새 지적이 없으면 코멘트를 달지 않고, 실행 수치(turn·비용·도구 호출)는 run Summary와 로그에 남는다. 필수 체크가 아니다.
 Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이 아니라 `userEvent`를 쓴다. 이미 선택된 탭을 다시 눌러도 `onChange`가 불리지 않는다. 패널은 목록보다 먼저 그려지므로 `within(panel).findBy…`로 기다린다.
 
@@ -33,6 +34,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 - 목업의 `ctx` 전역 상태(지갑, 장부, 장바구니, 출연 등)와 `hold`/`unhold` 같은 잔액 계산은 프로토타입용이다. 실제로는 서버 데이터이므로 TanStack Query로 다루고 계산은 BE가 한다. 라우트·검색어·필터는 URL에 둔다.
 
 라이브러리는 직접 구현보다 성숙한 것을 선호한다(팀 방침). 스타일은 목업 CSS(토큰 + CSS Modules), 서버 상태는 TanStack Query로 정했다.
+목업의 토큰·클래스 이름은 그대로 두고 그 위에 다듬는다(UI/UX 리프레시). 화면 CSS는 숫자·색을 직접 쓰지 않고 `src/shared/styles/tokens.css`의 확장 토큰을 쓴다: 표면 `--surface-2`·`--hover`·`--press`·`--scrim`, 신호색 짝 `--signal-strong`·`--signal-text`(흰 면 위 작은 주황 글자), 모서리 `--r-xs`~`--r-xl`·`--r-pill`, 깊이 `--shadow-1`(놓인 카드)·`-2`(뜬 카드)·`-3`(메뉴·모달), 포커스 `--ring`, 움직임 `--ease-out`·`--t-fast`·`--t`. 움직임은 transform·opacity만 쓰고 `prefers-reduced-motion`에서 끈다. 불러오는 중은 `.skeleton`(+`.text`·`.title`·`.thumb`·`.circle`, 묶음에 `role="status"`와 문구)이나 `<Loading rows={n} />`, 빈 상태는 `<EmptyState art="empty|error|search|none">`를 쓴다. 화면 테마(라이트·다크·시스템)는 `shared/lib/theme.ts`가 `<html data-theme>`과 localStorage `hapbang.theme`에 둔다(첫 그리기 전 적용은 `index.html`). 헤더 아래에 붙는 sticky 요소는 셸의 `--app-top`, 화면 아래에 붙는 요소는 `--app-bottom`(모바일 하단 탭바 높이) 기준으로 둔다.
 탭은 `@/shared/ui/Tabs`(Radix Tabs, 수동 활성화: 화살표는 포커스만, Enter·Space·클릭으로 선택)를 쓴다. 관리자 상태 필터는 탭이 아니라 `aria-pressed` 버튼이다.
 
 ## BE 연동
@@ -78,7 +80,7 @@ Radix 탭은 `mousedown`에서 선택되므로 테스트는 `fireEvent.click`이
 
 ## 챗봇
 
-- BE auxiliary-app `chatbot` 모듈(계약은 BE `docs/api/chatbot.md`)이다. 비회원은 401이라 쓰지 않고, 관리자를 포함한 로그인 회원 전체가 쓴다. 화면은 오른쪽 아래 버튼으로 여닫는 떠 있는 창(`features/chatbot`, `AppShell`의 `ChatbotRoot`), 강의·인플루언서 목록 위 추천 띠(`features/recommend-widget`), 자주 묻는 질문 페이지(`/support/faq`, 내비 "지원" 그룹의 고객센터 위)다.
+- BE auxiliary-app `chatbot` 모듈(계약은 BE `docs/api/chatbot.md`)이다. 비회원은 401이라 쓰지 않고, 관리자를 포함한 로그인 회원 전체가 쓴다. 화면은 오른쪽 아래 버튼으로 여닫는 떠 있는 창(`features/chatbot`, `AppShell`의 `ChatbotRoot`), 강의·인플루언서 목록 위 추천 띠(`features/recommend-widget`), 자주 묻는 질문 페이지(`/support/faq`, 계정 메뉴(관리자는 레일) "지원" 그룹의 고객센터 위)다.
 - 대화는 서버가 저장하지 않아 FE가 갖는다. `features/chatbot/store.ts`(zustand)와 탭의 sessionStorage(키 `hapbang.chatbot`, 회원 ID와 형식 버전 `VERSION`을 함께 둔다, `persistence.ts`)에 두어 창을 닫거나 화면을 옮기거나 새로고침해도 남는다. `ChatbotRoot`가 내 정보의 회원 ID를 보고 로그아웃·로그인 만료·계정 전환 때 지운다(`startSession`·`endSession`). 인증 정보가 아니라 화면에 보이던 대화 기록이라, storage에 두지 않는 access token과는 다른 데이터다.
   - 답을 받는 동안(조각마다 바뀜)에는 저장하지 않고 요청을 시작할 때와 끝났을 때만 저장한다. 그래서 받는 중에 새로고침하면 질문은 남고 답은 끊겼다는 안내와 메뉴로 되살아난다(받던 글은 남지 않는다). 결과를 기다리던 추천도 안내와 메뉴로 바꾼다.
 - 자유 질문(`POST /chatbot/messages/stream`)과 FAQ 질문하기(`POST /chatbot/chat/faq/stream`, `{message}`만, history 없음)는 SSE를 POST로 받으므로 `shared/api/stream.ts`의 `openStream`으로 연다. `openStream`은 `api()`와 같은 토큰·재발급 규칙(401·403이면 한 번만 다시, 그사이 로그인이 바뀌었으면 다시 보내지 않음, `sessionEnded`)을 따로 갖는다. 인증 규칙을 바꾸면 `client.ts`·`upload.ts`·`stream.ts`를 함께 고친다.

@@ -23,6 +23,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminCouponsPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 /** 상태 필터. 처음은 판매자가 심사를 요청한 쿠폰(REVIEW)이다 */
 const FILTERS: { status: CouponStatus; label: string; empty: string }[] = [
@@ -86,13 +87,17 @@ function CouponList() {
           </button>
         }
       />
-      <div className="toolbar">
-        <div role="group" aria-label="쿠폰 상태" className={styles.filters}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="쿠폰 상태"
+          className={`${styles.filters} ${admin.seg}`}
+        >
           {FILTERS.map((f) => (
             <button
               key={f.status}
               type="button"
-              className={status === f.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === f.status}
               onClick={() => setStatus(f.status)}
             >
@@ -109,7 +114,7 @@ function CouponList() {
       ) : data.length === 0 ? (
         <EmptyState title={filter.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <ul className={styles.list} aria-label="쿠폰 목록">
             {data.map((coupon) => (
               <CouponItem key={coupon.couponId} coupon={coupon} />
@@ -196,7 +201,7 @@ function CouponDetail({ couponId }: { couponId: number }) {
         }
       />
       <section className="panel" aria-label="쿠폰 정보">
-        <dl className="kv">
+        <dl className={`kv ${admin.kv}`}>
           <dt>종류</dt>
           <dd>
             {typeLabel(data)}

@@ -1,0 +1,84 @@
+.filled {
+  font: 500 12px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  background: var(--sunken);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+}
+.empty {
+  font-size: 13px;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 20px 0;
+}
+/* 지원자 한 줄. 선택된 사람은 수익색 막대, 응답할 지원은 신호색 막대로 구분한다 */
+.row:global(.appl) {
+  position: relative;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 14px 12px;
+  margin: 0 -12px;
+  border-radius: var(--r-sm);
+  transition: background-color var(--t-fast) var(--ease-out);
+}
+.row:global(.appl):hover {
+  background: var(--hover);
+}
+.selected::before,
+.pending::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: var(--r-pill);
+}
+.selected::before {
+  background: var(--earn);
+}
+.pending::before {
+  background: var(--signal);
+}
+.main {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.who {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.message {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+}
+.actions {
+  align-items: center;
+}
+@media (max-width: 560px) {
+  .actions {
+    width: 100%;
+  }
+  .actions :global(.btn) {
+    flex: 1;
+    min-height: 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row:global(.appl) {
+    transition: none;
+  }
+}

@@ -29,7 +29,7 @@ export function LectureCard({ lecture, guest, flags }: LectureCardProps) {
         <span className={styles.seller}>{lecture.sellerNickname}</span>
         <div className={styles.foot}>
           <Rating average={lecture.averageRating} count={lecture.reviewCount} />
-          <span className="num">{formatNumber(lecture.priceHp)} HP</span>
+          <Price hp={lecture.priceHp} />
         </div>
         {flags && <div className={styles.flags}>{flags}</div>}
       </div>
@@ -40,6 +40,15 @@ export function LectureCard({ lecture, guest, flags }: LectureCardProps) {
     <LectureCardFrame lectureId={lecture.lectureId} guest={guest}>
       {body}
     </LectureCardFrame>
+  )
+}
+
+/** 카드의 가격. 숫자는 계기판처럼 모노로 크게, 단위는 작게 둔다 */
+export function Price({ hp }: { hp: number }) {
+  return (
+    <span className={styles.price}>
+      {formatNumber(hp)} <span className={styles.unit}>HP</span>
+    </span>
   )
 }
 

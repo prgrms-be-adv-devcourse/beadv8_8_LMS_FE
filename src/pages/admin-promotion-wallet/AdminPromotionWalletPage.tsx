@@ -11,6 +11,7 @@ import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './AdminPromotionWalletPage.module.css'
 
 const SOURCE_REF_MAX = 200
 const MEMO_MAX = 500
@@ -37,18 +38,24 @@ function Balance() {
   if (isPending) return <Loading />
   if (error) return <LoadError error={error} retry={refetch} />
   return (
-    <section className="bal" aria-label="프로모션 지갑 잔액">
-      <div className="lbl">
-        <span>가용 잔액</span>
+    <section className={styles.slots} aria-label="프로모션 지갑 잔액">
+      <div className={`${styles.slot} ${styles.main}`}>
+        <span className={styles.slotLabel}>가용 잔액</span>
+        <div className={styles.amt}>
+          {formatNumber(data.availableHp)}
+          <small>HP</small>
+        </div>
+        <p className="fine">새 쿠폰 예산으로 예약할 수 있는 HP예요.</p>
       </div>
-      <div className="amt">
-        {formatNumber(data.availableHp)}
-        <small>HP</small>
+      {/* 칸 이름과 금액 사이 공백은 화면 낭독·검색에서 한 문장으로 읽히게 둔다 */}
+      <div className={styles.slot}>
+        <span className={styles.slotLabel}>쿠폰 예산으로 예약</span>{' '}
+        <b className={styles.slotAmt}>{formatNumber(data.reservedHp)} HP</b>
       </div>
-      <p className="desc">
-        쿠폰 예산으로 예약 {formatNumber(data.reservedHp)} HP · 주문에 보류{' '}
-        {formatNumber(data.heldHp)} HP
-      </p>
+      <div className={`${styles.slot} ${styles.held}`}>
+        <span className={styles.slotLabel}>주문에 보류</span>{' '}
+        <b className={styles.slotAmt}>{formatNumber(data.heldHp)} HP</b>
+      </div>
     </section>
   )
 }
@@ -119,8 +126,9 @@ function FundingForm() {
   }
 
   return (
-    <section className="panel" aria-label="프로모션 지갑 충전">
-      <form onSubmit={submit} noValidate>
+    <section className={`panel ${styles.fund}`} aria-label="프로모션 지갑 충전">
+      <h2>충전</h2>
+      <form className={styles.form} onSubmit={submit} noValidate>
         <div className="form-row">
           <Field
             id="pw-amount"
@@ -173,9 +181,26 @@ function FundingForm() {
             {formError}
           </p>
         )}
-        <button type="submit" className="btn primary" disabled={fund.isPending}>
-          충전하기
-        </button>
+        <div className={styles.submitRow}>
+          {/* 돈이 들어가는 일이라 보낼 금액·근거를 버튼 옆에 다시 보여 주고 확인하게 한다 */}
+          {!amountError && !sourceRefError && (
+            <p className={styles.preview} aria-live="polite">
+              <span className={styles.slotLabel}>충전할 금액</span>{' '}
+              <b className="num">{formatNumber(amountHp)} HP</b>
+              <span className="fine"> · 근거 {sourceRef.trim()}</span>
+            </p>
+          )}
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={fund.isPending}
+          >
+            {fund.isPending && (
+              <span className="spinner sm" aria-hidden="true" />
+            )}
+            충전하기
+          </button>
+        </div>
       </form>
       <p className="fine">
         충전한 프로모션 HP는 회원 HP가 아니에요. 환불·환전하지 않고, 쿠폰

@@ -1,14 +1,13 @@
-.actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
+/* 요청 ID·오류 코드는 대조하기 쉽게 모노 */
 .code {
   overflow-wrap: anywhere;
+  font-family: var(--f-mono);
 }
 .detail {
   min-width: 200px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-2);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }

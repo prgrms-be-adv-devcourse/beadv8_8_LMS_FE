@@ -1,20 +1,52 @@
+/* 검색창·정렬을 한 덩어리 조작대로 묶는다. 페이지를 넘기면 이 줄로 올라오므로 상단 바 높이만큼 띄운다 */
+.toolbar {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  scroll-margin-top: 76px;
+}
 .search {
   display: flex;
   gap: 8px;
-  flex: 1;
-  max-width: 420px;
+  flex: 1 1 320px;
+  max-width: 520px;
+  min-width: 0;
 }
 .sort {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.resultHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
 }
 .head {
   font-size: 18px;
   font-weight: 700;
 }
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
-  gap: 20px;
+.count {
+  font: 500 13px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+@media (max-width: 560px) {
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .sort {
+    width: 100%;
+  }
 }

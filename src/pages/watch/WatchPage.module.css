@@ -4,23 +4,59 @@
   gap: 24px;
   align-items: start;
 }
-.split > :global(.page) {
-  margin: 0;
-  max-width: none;
-  min-width: 0;
-}
 @media (max-width: 960px) {
   .split {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.stageCol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/*
+ * 극장 프레임: 플레이어를 늘 어두운 틀에 담는다. 라이트·다크 모드와 관계없이 화면 속 영상 주변은 어두워야 해서
+ * 토큰 대신 고정 색을 쓴다(영상 위 글자와 같은 예외).
+ */
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 10px 12px;
+  border-radius: var(--r-lg);
+  background: #0b0c0f;
+  box-shadow: var(--shadow-3);
+}
+.stageBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: #8a909e;
+}
+/* 탤리 램프: 지금 이 차시가 켜져 있다는 표시 */
+.tally {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 30%, transparent);
+}
+.stageNo {
+  margin-left: auto;
+}
+
 /* 재생 동의 전 안내 상자. 플레이어 자리와 같은 크기다 */
 .player {
   aspect-ratio: 16 / 9;
   max-width: 100%;
-  background: #0b0c0f;
+  background: #14161b;
   color: #f2f3f6;
-  border-radius: 10px;
+  border-radius: var(--r);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -30,36 +66,62 @@
   padding: 16px;
   text-align: center;
 }
+
+.meta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 .heading {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 .heading h1 {
   font-size: 22px;
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.meta :global(.btn) {
+  min-height: 40px;
+  min-width: 64px;
+}
+
+/* 커리큘럼 */
+.curriculum {
+  box-shadow: var(--shadow-1);
 }
 .curr {
   list-style: none;
-  margin: 0;
+  margin: 0 -10px;
   padding: 0;
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 .curr li {
+  position: relative;
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  transition: background-color var(--t-fast) var(--ease-out);
 }
-.curr li:first-child {
-  border-top: 0;
+.curr li:hover {
+  background: var(--hover);
+}
+.curr li.current {
+  background: color-mix(in srgb, var(--signal-soft) 55%, transparent);
+  box-shadow: inset 3px 0 0 var(--signal);
 }
 .mark {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   flex: none;
   border-radius: 50%;
   border: 1.5px solid var(--line-2);
@@ -70,15 +132,50 @@
 }
 .mark.now {
   border-color: var(--signal);
-  color: var(--signal);
+  background: var(--signal);
+  color: var(--signal-ink);
 }
 .lesson {
   flex: 1;
+  min-width: 0;
   border: 0;
   background: none;
   padding: 0;
   text-align: left;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+/* 줄 어디를 눌러도 그 차시로 간다 */
+.lesson::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+}
+.lesson:focus-visible {
+  outline: none;
+}
+.lesson:focus-visible::after {
+  outline: 2px solid var(--signal);
+  outline-offset: -2px;
 }
 .lesson[aria-current='true'] {
   font-weight: 700;
+  color: var(--ink);
+}
+
+@media (max-width: 480px) {
+  .stage {
+    margin-inline: -6px;
+    padding: 8px 8px 10px;
+  }
+  .meta .heading {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .curr li {
+    transition: none;
+  }
 }

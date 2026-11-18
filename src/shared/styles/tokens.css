@@ -7,7 +7,7 @@
   --line-2: #c3c8d3;
   --ink: #14161b;
   --ink-2: #454b5a;
-  --ink-3: #737a8c;
+  --ink-3: #666d80;
   --signal: #ee5a24;
   --signal-ink: #ffffff;
   --signal-soft: #fce6dc;
@@ -27,7 +27,48 @@
     'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui,
     sans-serif;
   --f-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --r: 10px;
+  --r: 12px;
+
+  /* ── 확장 토큰: 화면 공통 다듬기(깊이·움직임·모서리)에 쓴다. 새 화면도 숫자를 직접 쓰지 말고 여기서 꺼낸다 ── */
+  /* 표면: 살짝 들어간 흰 면(표 머리·호버), 반투명 덮개 */
+  --surface-2: #f8f9fb;
+  --hover: color-mix(in srgb, var(--ink) 5%, transparent);
+  --press: color-mix(in srgb, var(--ink) 9%, transparent);
+  --scrim: rgba(14, 16, 20, 0.52);
+  /* 신호색 짝: 그라데이션 끝, 눌림, 흰 면 위 작은 글자(AA) */
+  --signal-2: #ff8f3f;
+  --signal-strong: #d94a17;
+  --signal-text: #c8420f;
+  --grad-signal: linear-gradient(
+    135deg,
+    var(--signal) 0%,
+    var(--signal-2) 100%
+  );
+  /* 모서리 */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+  /* 깊이: 1 놓인 카드, 2 뜬 카드·메뉴, 3 모달·떠 있는 창 */
+  --shadow-1:
+    0 1px 2px rgba(20, 22, 27, 0.05), 0 1px 1px rgba(20, 22, 27, 0.03);
+  --shadow-2:
+    0 2px 4px rgba(20, 22, 27, 0.05), 0 8px 20px rgba(20, 22, 27, 0.08);
+  --shadow-3:
+    0 4px 10px rgba(20, 22, 27, 0.08), 0 24px 56px rgba(20, 22, 27, 0.16);
+  /* 포커스 링(테두리와 함께 쓰는 번짐) */
+  --ring: 0 0 0 3px color-mix(in srgb, var(--signal) 30%, transparent);
+  --ring-ink: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent);
+  /* 움직임: 빠르게 끊고 부드럽게 멈춘다 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 120ms;
+  --t: 200ms;
+  --t-slow: 360ms;
+  /* 뼈대(.skeleton) 위를 지나가는 옅은 빛. 다크에서는 더 약하게 */
+  --sheen: rgba(255, 255, 255, 0.65);
   color-scheme: light;
 }
 
@@ -53,6 +94,17 @@
     --bad: #ff6f7f;
     --bad-soft: #3a1c22;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+    --surface-2: #1b1f26;
+    --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+    --press: color-mix(in srgb, var(--ink) 12%, transparent);
+    --scrim: rgba(4, 5, 8, 0.66);
+    --signal-2: #ffa25c;
+    --signal-strong: #ff8256;
+    --signal-text: #ff8a5e;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
+    --shadow-3: 0 4px 10px rgba(0, 0, 0, 0.4), 0 24px 56px rgba(0, 0, 0, 0.5);
+    --sheen: rgba(255, 255, 255, 0.05);
     color-scheme: dark;
   }
 }
@@ -78,5 +130,16 @@
   --bad: #ff6f7f;
   --bad-soft: #3a1c22;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  --surface-2: #1b1f26;
+  --hover: color-mix(in srgb, var(--ink) 7%, transparent);
+  --press: color-mix(in srgb, var(--ink) 12%, transparent);
+  --scrim: rgba(4, 5, 8, 0.66);
+  --signal-2: #ffa25c;
+  --signal-strong: #ff8256;
+  --signal-text: #ff8a5e;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 4px 10px rgba(0, 0, 0, 0.4), 0 24px 56px rgba(0, 0, 0, 0.5);
+  --sheen: rgba(255, 255, 255, 0.05);
   color-scheme: dark;
 }

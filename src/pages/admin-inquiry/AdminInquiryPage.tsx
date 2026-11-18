@@ -23,6 +23,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import admin from '@/pages/admin-shared.module.css'
 
 export function AdminInquiryPage() {
   const inquiryId = Number(useParams().inquiryId)
@@ -82,7 +83,7 @@ function ObjectionLinkPanel({ inquiry }: { inquiry: Inquiry }) {
   const hint = lookup(LINK_HINT, status)
   return (
     <section className="panel" aria-label="이의 제기 연동">
-      <dl className="kv">
+      <dl className={`kv ${admin.kv}`}>
         <dt>연동 상태</dt>
         <dd>
           <ObjectionLinkPill status={status} />

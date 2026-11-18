@@ -9,7 +9,7 @@ import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
 import { Rating, Stars } from '@/entities/lecture/ui/Rating'
 import { useAddToCart } from '@/features/cart/useCartActions'
 import { CheckoutModal } from '@/features/checkout/CheckoutModal'
-import { LectureCoupons } from '@/features/coupon-issue/LectureCoupons'
+import { LectureCouponIssue } from '@/features/coupon-issue/LectureCouponIssue'
 import { ContentPreviewModal } from '@/features/lecture-preview/ContentPreviewModal'
 import {
   useBuyerState,
@@ -55,66 +55,86 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
   // 쿠폰은 살 수 있는 회원만 받는다(비회원·관리자·판매자 본인은 보지 않는다).
   const couponViewer = !!me && MEMBER.includes(me.role) && !seller
   const [preview, setPreview] = useState<LectureContent | null>(null)
+  const contents = [...lecture.contents].sort((a, b) => a.sequence - b.sequence)
   return (
-    <div className="split">
-      <div className="page" style={{ gap: 20 }}>
+    <div className={styles.layout}>
+      <header className={styles.hero}>
         <LectureThumb
           lectureId={lecture.lectureId}
           title={lecture.title}
           thumbnailUrl={lecture.thumbnailUrl}
           size="big"
         />
-        <h1 className={styles.title}>{lecture.title}</h1>
-        <div className={styles.sellerRow}>
-          <b>{lecture.sellerNickname}</b>
-          <span className="pill info">인증된 인플루언서</span>
-          <span className={styles.spacer} />
-          <Rating average={lecture.averageRating} count={lecture.reviewCount} />
+        <div className={styles.heroText}>
+          <span className={styles.eyebrow} aria-hidden="true">
+            LECTURE · {String(contents.length).padStart(2, '0')} EP
+          </span>
+          <h1 className={styles.title}>{lecture.title}</h1>
+          <div className={styles.sellerRow}>
+            <span className={styles.avatar} aria-hidden="true">
+              {initialOf(lecture.sellerNickname)}
+            </span>
+            <b>{lecture.sellerNickname}</b>
+            <span className="pill info">인증된 인플루언서</span>
+            <span className={styles.spacer} />
+            <Rating
+              average={lecture.averageRating}
+              count={lecture.reviewCount}
+            />
+          </div>
         </div>
-        {couponViewer && <LectureCoupons lectureId={lecture.lectureId} />}
+      </header>
+      {/* 좁은 화면에서는 구매 패널이 소개 위(히어로 바로 아래)에 온다 */}
+      <div className={styles.side}>
+        {seller ? (
+          <SellerPanel lecture={lecture} />
+        ) : (
+          <BuyPanel lecture={lecture} couponViewer={couponViewer} />
+        )}
+      </div>
+      <div className={styles.body}>
         {lecture.description && (
-          <section className="panel">
+          <section className={`panel ${styles.section}`}>
             <h2>강의 소개</h2>
             <p className={styles.description}>{lecture.description}</p>
           </section>
         )}
-        <section className="panel">
+        <section className={`panel ${styles.section}`}>
           <div className="panel-head">
             <h2>커리큘럼</h2>
             <span className="fine num">{lecture.contents.length}개</span>
           </div>
           <ol className={styles.curr}>
-            {[...lecture.contents]
-              .sort((a, b) => a.sequence - b.sequence)
-              .map((c, i) => (
-                <li key={c.contentId}>
-                  <span className={styles.no}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span className={styles.t}>{c.title}</span>
-                  <span className="pill mute">
-                    {c.contentType === 'VIDEO' ? '영상' : '자료'}
-                  </span>
-                  {seller && (
-                    <button
-                      type="button"
-                      className="btn ghost sm"
-                      onClick={() => setPreview(c)}
-                    >
-                      미리보기
-                    </button>
-                  )}
-                </li>
-              ))}
+            {contents.map((c, i) => (
+              <li key={c.contentId}>
+                <span className={styles.no}>
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span
+                  className={`${styles.kind} ${
+                    c.contentType === 'VIDEO' ? styles.video : styles.file
+                  }`}
+                  aria-hidden="true"
+                />
+                <span className={styles.t}>{c.title}</span>
+                <span className="pill mute">
+                  {c.contentType === 'VIDEO' ? '영상' : '자료'}
+                </span>
+                {seller && (
+                  <button
+                    type="button"
+                    className="btn ghost sm"
+                    onClick={() => setPreview(c)}
+                  >
+                    미리보기
+                  </button>
+                )}
+              </li>
+            ))}
           </ol>
         </section>
         <Reviews lectureId={lecture.lectureId} />
       </div>
-      {seller ? (
-        <SellerPanel lecture={lecture} />
-      ) : (
-        <BuyPanel lecture={lecture} />
-      )}
       {preview && (
         <ContentPreviewModal
           lectureId={lecture.lectureId}
@@ -126,10 +146,18 @@ function Detail({ lecture }: { lecture: LectureDetail }) {
   )
 }
 
+/** 아바타 자리의 첫 글자. 이모지·한글도 한 글자로 자른다 */
+function initialOf(name: string) {
+  return Array.from(name.trim())[0] ?? '?'
+}
+
 /** 판매자 본인에게 보이는 오른쪽 패널. 상태와 반려 사유를 보여 주고 수정 화면으로 보낸다 */
 function SellerPanel({ lecture }: { lecture: LectureDetail }) {
   return (
-    <aside className="panel sticky">
+    <aside className={`panel sticky ${styles.panel}`}>
+      <span className={styles.eyebrow} aria-hidden="true">
+        PRICE
+      </span>
       <div className={styles.bigPrice}>
         {formatNumber(lecture.priceHp)} <span>HP</span>
       </div>
@@ -157,7 +185,14 @@ function SellerPanel({ lecture }: { lecture: LectureDetail }) {
   )
 }
 
-function BuyPanel({ lecture }: { lecture: LectureDetail }) {
+function BuyPanel({
+  lecture,
+  couponViewer,
+}: {
+  lecture: LectureDetail
+  /** 쿠폰을 받을 수 있는 회원이면 가격 아래에 '쿠폰 받기'를 둔다 */
+  couponViewer: boolean
+}) {
   const viewer = useViewer()
   const buyer = useBuyerState()
   const addToCart = useAddToCart()
@@ -166,10 +201,14 @@ function BuyPanel({ lecture }: { lecture: LectureDetail }) {
   const block = blockReason(lecture, buyer, viewer === 'ADMIN')
 
   return (
-    <aside className="panel sticky">
+    <aside className={`panel sticky ${styles.panel}`}>
+      <span className={styles.eyebrow} aria-hidden="true">
+        PRICE
+      </span>
       <div className={styles.bigPrice}>
         {formatNumber(lecture.priceHp)} <span>HP</span>
       </div>
+      {couponViewer && <LectureCouponIssue lectureId={lecture.lectureId} />}
       {owned ? (
         <>
           <div className="notice">
@@ -249,7 +288,7 @@ function blockReason(
 function Reviews({ lectureId }: { lectureId: number }) {
   const { data, error, isPending } = useQuery(reviewsQuery(lectureId))
   return (
-    <section className="panel">
+    <section className={`panel ${styles.section}`}>
       <div className="panel-head">
         <h2>리뷰</h2>
         <span className="fine">구매 확정 후에만 쓸 수 있어요</span>
@@ -259,18 +298,25 @@ function Reviews({ lectureId }: { lectureId: number }) {
       ) : error ? (
         <p className="fine">리뷰를 불러오지 못했어요. {error.message}</p>
       ) : data.content.length === 0 ? (
-        <p className="fine">아직 리뷰가 없어요.</p>
+        <p className={`fine ${styles.noReview}`}>아직 리뷰가 없어요.</p>
       ) : (
         <div>
           {data.content.map((r) => (
-            <div key={r.reviewId} className={styles.review}>
-              <div className={styles.reviewHead}>
-                <b>{r.reviewerNickname}</b>
-                <Stars value={r.rating} />
+            <article key={r.reviewId} className={styles.review}>
+              <span className={styles.avatar} aria-hidden="true">
+                {initialOf(r.reviewerNickname)}
+              </span>
+              <div className={styles.reviewMain}>
+                <div className={styles.reviewHead}>
+                  <b>{r.reviewerNickname}</b>
+                  <Stars value={r.rating} />
+                  <span className={`fine ${styles.reviewDate}`}>
+                    {formatDate(r.createdAt)}
+                  </span>
+                </div>
+                {r.content && <p className={styles.reviewText}>{r.content}</p>}
               </div>
-              {r.content && <p className={styles.reviewText}>{r.content}</p>}
-              <span className="fine">{formatDate(r.createdAt)}</span>
-            </div>
+            </article>
           ))}
         </div>
       )}

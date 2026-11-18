@@ -1,6 +1,7 @@
 import type { MyLecture } from '@/entities/lecture/types'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
+import styles from './DeleteLectureModal.module.css'
 import { useDeleteLecture } from './useDeleteLecture'
 
 type DeleteLectureModalProps = {
@@ -40,13 +41,21 @@ export function DeleteLectureModal({
         </>
       }
     >
-      <p>
-        <b>{lecture.title}</b>
-      </p>
-      <p>
-        목록 노출과 신규 판매만 멈추고, 기존 구매자는 계속 볼 수 있어요. 지급은
-        예정대로 진행돼요.
-      </p>
+      <div className={styles.body}>
+        <p className={styles.target}>
+          <b>{lecture.title}</b>
+        </p>
+        <p>
+          목록 노출과 신규 판매만 멈추고, 기존 구매자는 계속 볼 수 있어요.
+          지급은 예정대로 진행돼요.
+        </p>
+        <p className={styles.irreversible}>
+          <span className={styles.mark} aria-hidden="true">
+            !
+          </span>
+          삭제는 되돌릴 수 없어요. 다시 판매하려면 강의를 새로 등록해야 해요.
+        </p>
+      </div>
     </Modal>
   )
 }

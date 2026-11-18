@@ -1,0 +1,125 @@
+/* 내 강의 목록 */
+.panel {
+  box-shadow: var(--shadow-1);
+  padding: 6px 20px;
+  gap: 0;
+}
+.listHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--line);
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.row {
+  align-items: flex-start;
+  padding: 18px 0;
+}
+.main {
+  gap: 8px;
+}
+.titleLine {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.titleLine :global(.row-title) {
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+/* 구매 취소 가능 기한: 놓치면 안 되는 날짜라 진하게 */
+.due {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+/* 구매 → 확정 기한 → 판매자 지급. 지금 단계는 신호색 점으로 켠다 */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.steps li {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.steps li::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  flex: none;
+}
+.steps li + li::after {
+  content: '';
+  position: absolute;
+  left: -15px;
+  top: 50%;
+  width: 12px;
+  border-top: 1px dashed var(--line-2);
+}
+.steps .done::before {
+  background: var(--ink-3);
+  border-color: var(--ink-3);
+}
+.steps .now {
+  color: var(--ink);
+  font-weight: 600;
+}
+.steps .now::before {
+  background: var(--signal);
+  border-color: var(--signal);
+  box-shadow: 0 0 0 3px var(--signal-soft);
+}
+
+.actions {
+  align-self: center;
+  align-items: center;
+  justify-content: flex-end;
+}
+.play {
+  gap: 6px;
+}
+.play svg {
+  width: 11px;
+  height: 11px;
+}
+/* 되돌릴 수 없는 행동은 다른 버튼과 간격을 벌려 실수로 누르지 않게 한다 */
+.danger {
+  margin-left: 10px;
+}
+
+@media (max-width: 720px) {
+  .actions {
+    align-self: stretch;
+    justify-content: flex-start;
+    width: 100%;
+  }
+  .actions :global(.btn) {
+    min-height: 40px;
+  }
+  .danger {
+    margin-left: auto;
+  }
+}

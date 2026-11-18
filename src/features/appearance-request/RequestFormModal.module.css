@@ -1,0 +1,82 @@
+/* 출연 요청서: 누구에게 → 언제 → 출연료 → 요청서 순서로 읽히게 단계로 나눈다 */
+.to {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.toText {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.form {
+  gap: 24px;
+}
+.step {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.step + .step {
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.stepNo {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--surface);
+  font: 600 11px/1 var(--f-mono);
+  letter-spacing: 0.04em;
+}
+.feeInput {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.fee:global(.input) {
+  width: 100%;
+  padding-right: 44px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.feeUnit {
+  position: absolute;
+  right: 14px;
+  font: 600 13px var(--f-mono);
+  color: var(--ink-3);
+  pointer-events: none;
+}
+/* 보류될 HP 안내는 호박색 띠로 묶어 '이만큼이 묶인다'가 먼저 읽히게 */
+.hold {
+  border-left: 3px solid var(--hold);
+  padding-left: 12px;
+}
+.hold :global(.breakdown) > :global(.row):first-child b {
+  color: var(--hold);
+}
