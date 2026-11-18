@@ -1,3 +1,52 @@
+/* 요약: 계기판 숫자 두 칸. 곧 만료가 있으면 그 칸만 신호색 */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 16px;
+  max-width: 520px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.stat dt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.stat dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.stat dd b {
+  margin-right: 2px;
+  font: 600 28px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.statHint {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.alert {
+  border-color: color-mix(in srgb, var(--signal) 55%, var(--line));
+  background: color-mix(in srgb, var(--signal-soft) 40%, var(--surface));
+}
+.alert dt,
+.alert dd b {
+  color: var(--signal-text);
+}
+
 .filters {
   display: flex;
   gap: 6px;
@@ -84,16 +133,44 @@
   color: var(--ink);
 }
 
+/* 대상 강의 · 만료일과 쓰러 가는 길 */
+.target {
+  overflow-wrap: anywhere;
+}
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 4px;
+}
+.expiry {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.use {
+  margin-left: auto;
+  min-height: 36px;
+  gap: 4px;
+}
+.use svg {
+  width: 14px;
+  height: 14px;
+}
+
 /* 만료 임박: 신호색 테두리와 D-day 표식 */
 .expiring {
   border-color: color-mix(in srgb, var(--signal) 55%, var(--line));
 }
 .soon {
-  align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 2px;
   padding: 2px 8px;
   border-radius: var(--r-pill);
   background: var(--signal-soft);
