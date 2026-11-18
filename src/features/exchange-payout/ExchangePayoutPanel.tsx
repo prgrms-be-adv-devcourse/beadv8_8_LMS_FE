@@ -18,7 +18,6 @@ import styles from './ExchangePayoutPanel.module.css'
 import { FinalFailureModal } from './FinalFailureModal'
 import { RetryPayoutModal } from './RetryPayoutModal'
 import { usePayoutBusy, useRecheckPayout } from './useExchangePayout'
-import admin from '@/pages/admin-shared.module.css'
 
 /**
  * 관리자 환전 상세의 송금 시도 이력과 처리. 마지막 시도·환전 상태에 맞는 버튼만 보인다.
@@ -53,7 +52,7 @@ export function ExchangePayoutPanel({ exchange }: { exchange: AdminExchange }) {
 
 function AttemptTable({ attempts }: { attempts: AdminExchangePayout[] }) {
   return (
-    <div className={`tbl-wrap ${admin.tableWrap}`}>
+    <div className={`tbl-wrap ${styles.tableWrap}`}>
       <table className="tbl" aria-label="송금 시도 이력">
         <thead>
           <tr>
@@ -179,7 +178,7 @@ function Actions({
           송금하거나, 최종 실패로 끝내 신청자에게 돌려줄 수 있어요.
         </p>
       )}
-      <div className={admin.actionRow}>
+      <div className={styles.actions}>
         {checkable && (
           <button
             type="button"

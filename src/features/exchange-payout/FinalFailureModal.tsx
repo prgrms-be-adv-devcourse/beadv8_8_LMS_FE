@@ -13,7 +13,6 @@ import {
   useFailPayoutFinally,
   usePayoutBusy,
 } from './useExchangePayout'
-import admin from '@/pages/admin-shared.module.css'
 
 /** 최종 실패 확정. 환전을 끝내고 보류한 수익 HP를 신청자에게 돌려줘 되돌릴 수 없다 */
 export function FinalFailureModal({
@@ -54,7 +53,7 @@ export function FinalFailureModal({
         </>
       }
     >
-      <dl className={`kv ${admin.kv}`}>
+      <dl className="kv">
         <dt>신청자</dt>
         <dd>{applicantLabel(exchange)}</dd>
         <dt>돌려줄 수익 HP</dt>

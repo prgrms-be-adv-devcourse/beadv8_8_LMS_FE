@@ -318,28 +318,38 @@ function MessageItem({
     )
   const deleted = message.deletedAt !== null
   return (
-    <li className={deleted ? `${styles.item} ${styles.deleted}` : styles.item}>
-      <div className={styles.head}>
-        <b>{sender}</b>
-        <span className="fine num">{formatDateTime(message.sentAt)}</span>
-        <span className="fine num">#{message.roomSequence}</span>
+    <li
+      className={`${styles.item} ${styles.message} ${deleted ? styles.deleted : ''}`}
+    >
+      {/* 보낸 사람 첫 글자. 글자를 DOM에 넣지 않아 이름 검색에 섞이지 않는다 */}
+      <span
+        className={styles.avatar}
+        data-initial={sender.slice(0, 1)}
+        aria-hidden="true"
+      />
+      <div className={styles.body}>
+        <div className={styles.head}>
+          <b>{sender}</b>
+          <span className="fine num">{formatDateTime(message.sentAt)}</span>
+          <span className="fine num">#{message.roomSequence}</span>
+          {message.messageType === 'NOTIFICATION' && (
+            <span className="pill info">출연 알림</span>
+          )}
+          {deleted && (
+            <span className="pill bad">
+              삭제됨 · {formatDateTime(message.deletedAt!)}
+            </span>
+          )}
+        </div>
+        <p className={styles.text}>
+          {message.messageType === 'NOTIFICATION'
+            ? notificationLines(message)
+            : message.content}
+        </p>
         {message.messageType === 'NOTIFICATION' && (
-          <span className="pill info">출연 알림</span>
-        )}
-        {deleted && (
-          <span className="pill bad">
-            삭제됨 · {formatDateTime(message.deletedAt!)}
-          </span>
+          <NotificationRefs message={message} />
         )}
       </div>
-      <p className={styles.text}>
-        {message.messageType === 'NOTIFICATION'
-          ? notificationLines(message)
-          : message.content}
-      </p>
-      {message.messageType === 'NOTIFICATION' && (
-        <NotificationRefs message={message} />
-      )}
     </li>
   )
 }

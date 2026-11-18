@@ -3,7 +3,6 @@ import type { AdminExchange } from '@/entities/wallet/types'
 import { formatNumber } from '@/shared/lib/money'
 import { Modal } from '@/shared/ui/Modal'
 import { useApproveExchange, useReviewingExchange } from './useExchangeReview'
-import admin from '@/pages/admin-shared.module.css'
 
 /** 승인 확인. 승인은 보류를 유지할 뿐 송금하지 않는다(BE #294) */
 export function ApproveExchangeModal({
@@ -36,7 +35,7 @@ export function ApproveExchangeModal({
         </>
       }
     >
-      <dl className={`kv ${admin.kv}`}>
+      <dl className="kv">
         <dt>신청자</dt>
         <dd>{applicantLabel(exchange)}</dd>
         <dt>신청 금액</dt>
