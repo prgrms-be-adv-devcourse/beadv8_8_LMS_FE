@@ -125,7 +125,7 @@ function ReviewItem({ review }: { review: UpgradeReview }) {
       <div className="row-main">
         <div className={styles.head}>
           <b>{review.nickname}</b>
-          <span className="fine">회원 #{review.memberId}</span>
+          <span className={`fine ${admin.mono}`}>회원 #{review.memberId}</span>
           <UpgradeStatusPill status={review.status} />
         </div>
         <span className="fine">
@@ -176,7 +176,7 @@ function Decide({ requestId }: { requestId: number }) {
       <div className="row-actions">
         <button
           type="button"
-          className="btn sm"
+          className="btn sm danger"
           disabled={busy}
           onClick={() => setRejecting(true)}
         >

@@ -84,7 +84,13 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
           {current ? (
-            <ContentView lectureId={lecture.lectureId} content={current} />
+            <div className={styles.stage}>
+              <span className={styles.stageTag} aria-hidden="true">
+                <span className={styles.rec} />
+                PREVIEW · {String(index + 1).padStart(2, '0')}
+              </span>
+              <ContentView lectureId={lecture.lectureId} content={current} />
+            </div>
           ) : (
             <EmptyState title="올라온 콘텐츠가 없어요" />
           )}
@@ -115,7 +121,7 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
             </ol>
           </section>
         </div>
-        <aside className="panel sticky" ref={asideRef}>
+        <aside className={`panel sticky ${admin.decide}`} ref={asideRef}>
           <h2>검수 체크리스트</h2>
           <dl className={`kv ${admin.kv}`}>
             <dt>판매자</dt>
@@ -190,9 +196,22 @@ function Decide({ lectureId }: { lectureId: number }) {
     },
   })
   const busy = approve.isPending || reject.isPending
+  const done = checked.filter(Boolean).length
 
   return (
     <>
+      <div className={styles.checkHead} aria-hidden="true">
+        <span>확인</span>
+        <span className={styles.progress}>
+          <span
+            className={styles.bar}
+            style={{ transform: `scaleX(${done / CHECKLIST.length})` }}
+          />
+        </span>
+        <span className="num">
+          {done}/{CHECKLIST.length}
+        </span>
+      </div>
       {CHECKLIST.map((label, i) => (
         <label key={label} className="chk-row" htmlFor={`lc-${i}`}>
           <input
@@ -216,51 +235,53 @@ function Decide({ lectureId }: { lectureId: number }) {
       >
         승인하고 공개
       </button>
-      <div className="tpl-chips">
-        <span className="fine">자주 쓰는 사유</span>
-        {REJECT_TEMPLATES.map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={reason === t ? 'chip sm on' : 'chip sm'}
-            onClick={() => {
+      <div className={styles.rejectBox}>
+        <div className="tpl-chips">
+          <span className="fine">자주 쓰는 사유</span>
+          {REJECT_TEMPLATES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={reason === t ? 'chip sm on' : 'chip sm'}
+              onClick={() => {
+                fields.changed('reason')
+                setReason(t)
+              }}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <Field
+          id="lc-why"
+          label="반려 사유"
+          error={fields.error('reason')}
+          hint="판매자에게 그대로 전달돼요."
+        >
+          <textarea
+            {...fields.inputProps('reason')}
+            className="textarea"
+            value={reason}
+            onChange={(e) => {
               fields.changed('reason')
-              setReason(t)
+              setReason(e.target.value)
             }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-      <Field
-        id="lc-why"
-        label="반려 사유"
-        error={fields.error('reason')}
-        hint="판매자에게 그대로 전달돼요."
-      >
-        <textarea
-          {...fields.inputProps('reason')}
-          className="textarea"
-          value={reason}
-          onChange={(e) => {
-            fields.changed('reason')
-            setReason(e.target.value)
+            placeholder="예: 3강 음량이 다른 강의보다 크게 낮아요"
+          />
+        </Field>
+        <button
+          type="button"
+          className="btn danger block"
+          disabled={busy}
+          {...fields.submitProps}
+          onClick={() => {
+            if (fields.blockSubmit()) return
+            reject.mutate(reason.trim(), { onError: fields.applyServerErrors })
           }}
-          placeholder="예: 3강 음량이 다른 강의보다 크게 낮아요"
-        />
-      </Field>
-      <button
-        type="button"
-        className="btn danger block"
-        disabled={busy}
-        {...fields.submitProps}
-        onClick={() => {
-          if (fields.blockSubmit()) return
-          reject.mutate(reason.trim(), { onError: fields.applyServerErrors })
-        }}
-      >
-        반려
-      </button>
+        >
+          반려
+        </button>
+      </div>
     </>
   )
 }

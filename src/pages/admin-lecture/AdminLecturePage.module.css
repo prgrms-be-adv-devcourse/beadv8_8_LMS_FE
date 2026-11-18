@@ -32,6 +32,105 @@
 .lesson[aria-current='true'] {
   font-weight: 700;
 }
+/* 지금 보는 회차: 번호 칸에 탤리 램프 색을 켠다 */
+.curr li:has(.lesson[aria-current='true']) .no {
+  color: var(--signal-text);
+}
+.curr li:has(.lesson[aria-current='true']) {
+  box-shadow: inset 3px 0 0 var(--signal);
+  padding-left: 10px;
+}
+.lesson:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lesson:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-radius: var(--r-xs);
+}
+
+/* 미리보기 플레이어 프레임: 모니터처럼 테두리·그림자를 두르고 왼쪽 위에 회차 표식 */
+.stage {
+  position: relative;
+  padding: 10px;
+  padding-top: 36px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+.stageTag {
+  position: absolute;
+  top: 11px;
+  left: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.rec {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--signal);
+}
+
+/* 체크리스트 진행: 다 확인해야 승인할 수 있다는 것을 막대로 보인다 */
+.checkHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.progress {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  overflow: hidden;
+}
+.bar {
+  display: block;
+  height: 100%;
+  background: var(--earn);
+  transform-origin: left;
+  transition: transform var(--t) var(--ease-out);
+}
+.checkHead + :global(.chk-row) {
+  border-top: 0;
+}
+.checkHead ~ :global(.chk-row) {
+  color: var(--ink-2);
+  min-height: 40px;
+}
+.checkHead ~ :global(.chk-row):has(input:checked) {
+  color: var(--ink);
+}
+
+/* 반려는 승인과 떨어진 별도 상자에 둔다(오조작 방지) */
+.rejectBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--bad) 40%, var(--line));
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    transition: none;
+  }
+}
 .reason {
   display: flex;
   flex-direction: column;

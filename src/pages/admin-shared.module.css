@@ -81,6 +81,10 @@
 .queue :global(.q-item):hover {
   background: var(--surface-2);
 }
+/* 멈춤·실패 상태 행은 왼쪽 위험색 띠로 훑어볼 때 먼저 보이게 한다 */
+.queue :global(.q-item):has(:global(.row-main) :global(.pill.bad)) {
+  box-shadow: inset 3px 0 0 var(--bad);
+}
 .queue :global(.row-actions) {
   margin-left: auto;
 }

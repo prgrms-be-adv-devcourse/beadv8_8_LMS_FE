@@ -150,7 +150,7 @@ function TaskItem({ task }: { task: LectureHpTask }) {
             {lookup(HP_TASK_PURPOSE_LABEL, task.purpose) ?? UNKNOWN_NAME}
           </b>
         </div>
-        <span className="fine">
+        <span className={`fine ${admin.mono}`}>
           주문 #{task.orderId} · 항목 #{task.orderItemId} · 구매자 회원 #
           {task.payerUserId}
           {task.receiverUserId !== null &&

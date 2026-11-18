@@ -171,7 +171,7 @@ function ReviewItem({
       <div className="row-main">
         <div className={styles.head}>
           <b>{review.nickname}</b>
-          <span className="fine">회원 #{review.memberId}</span>
+          <span className={`fine ${admin.mono}`}>회원 #{review.memberId}</span>
           <UpgradeStatusPill status={review.status} />
         </div>
         <a
@@ -201,7 +201,7 @@ function ReviewItem({
         <div className="row-actions">
           <button
             type="button"
-            className="btn sm"
+            className="btn sm danger"
             disabled={busy}
             onClick={onReject}
           >

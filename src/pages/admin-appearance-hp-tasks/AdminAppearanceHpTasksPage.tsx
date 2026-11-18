@@ -113,7 +113,7 @@ function TaskItem({ task }: { task: AppearanceHpTask }) {
             {appearanceHpTaskReasonName(task.reason)}
           </b>
         </div>
-        <span className="fine">
+        <span className={`fine ${admin.mono}`}>
           {appearanceHpTaskRefName(task.refType)} #{task.refId}
           {task.appearanceId !== null && ` · 출연 #${task.appearanceId}`} ·
           호스트 회원 #{task.memberId}
