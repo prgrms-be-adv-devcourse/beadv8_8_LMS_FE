@@ -410,18 +410,21 @@ describe('강의 상세 쿠폰 발급', () => {
 
   it('쿠폰을 불러오지 못하면 쿠폰 영역만 숨기고 강의는 그대로 보인다', async () => {
     mockLectureDetail()
-    const coupons = mockCoupons({
-      lectureCoupons: { 7: [couponSummary()] },
-      failNext: { 'GET /coupons': couponProblem(404, 'LECTURE_NOT_FOUND') },
-    })
+    mockCoupons({ lectureCoupons: { 7: [couponSummary()] } })
+    // 한 번만 실패시키면 다시 그릴 때 다시 부른 요청이 성공해 버튼이 보일 수 있어 늘 실패시킨다.
+    let couponCalls = 0
+    server.use(
+      http.get('*/api/v1/coupons', () => {
+        couponCalls++
+        return couponProblem(404, 'LECTURE_NOT_FOUND')
+      }),
+    )
     renderApp('/lectures/7', 'USER')
 
     expect(
       await screen.findByRole('heading', { name: '첫 방송 세팅' }),
     ).toBeInTheDocument()
-    await waitFor(() =>
-      expect(coupons.failNext['GET /coupons']).toBeUndefined(),
-    )
+    await waitFor(() => expect(couponCalls).toBeGreaterThan(0))
     await act(() => Promise.resolve())
     expect(screen.queryByRole('button', { name: ANY_ENTRY })).toBeNull()
   })
