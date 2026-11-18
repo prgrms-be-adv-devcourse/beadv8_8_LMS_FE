@@ -25,6 +25,7 @@ export function CheckoutCoupons({
   return (
     <section className={styles.area} aria-label="쿠폰 할인" aria-busy={pending}>
       <div className={styles.head}>
+        <span className={styles.ticket} aria-hidden="true" />
         <b>쿠폰</b>
         {view?.applied && view.recommended && !pending && (
           <span className="pill ok">
@@ -64,7 +65,7 @@ export function CheckoutCoupons({
         </p>
       ) : null}
       {view?.applied && !pending && (
-        <div className="rows">
+        <div className={styles.lines}>
           {view.rows.map((row) => (
             <CouponLine
               key={row.lectureId}
@@ -140,16 +141,11 @@ function CouponLine({
   rejected: State['orderError']
 }) {
   return (
-    <div
-      className="row-item"
-      style={{ padding: '10px 0' }}
-      role="group"
-      aria-label={row.title}
-    >
-      <div className="row-main">
-        <span className="row-title">{row.title}</span>
+    <div className={styles.line} role="group" aria-label={row.title}>
+      <div className={styles.lineMain}>
+        <span className={styles.lineTitle}>{row.title}</span>
         {row.coupons.map((c) => (
-          <span key={c.memberCouponId} className="fine">
+          <span key={c.memberCouponId} className={`fine ${styles.used}`}>
             {c.name} · −{formatNumber(c.discount)} HP
             {/* 직접 고른 쿠폰이 이 강의에서 할인되지 않아도 쿠폰은 사용된다(0 할인을 따로 다루지 않는다) */}
             {manual && c.discount === 0 && (
@@ -164,13 +160,13 @@ function CouponLine({
           </span>
         ))}
       </div>
-      <div style={{ textAlign: 'right' }}>
+      <div className={styles.lineAmount}>
         {row.discount > 0 && (
           <div className="fine num">
             <s>{formatNumber(row.price)} HP</s>
           </div>
         )}
-        <span className="num">{formatNumber(row.buyerAmount)} HP</span>
+        <b className="num">{formatNumber(row.buyerAmount)} HP</b>
       </div>
     </div>
   )
@@ -253,7 +249,9 @@ function SlotPicker({
             checked={chosen === c.memberCouponId}
             onChange={() => coupons.choose(lectureId, slot, c.memberCouponId)}
           />
-          {c.couponName} · {discountLabel(c)}
+          <span className={styles.optionName}>
+            {c.couponName} · {discountLabel(c)}
+          </span>
           {!c.stackable && <span className="pill mute">단독 사용</span>}
           {coupons.orderError?.memberCouponId === c.memberCouponId && (
             <span className="fine c-bad" role="alert">
@@ -279,7 +277,7 @@ function SlotPicker({
         />
       )}
       {showStatus && untypedFailed.length > 0 && (
-        <p className="fine">
+        <p className={`fine ${styles.unusable}`}>
           쿠폰 종류를 확인하지 못해 고를 수 없어요:{' '}
           {untypedFailed.map((c) => c.couponName).join(', ')}
         </p>

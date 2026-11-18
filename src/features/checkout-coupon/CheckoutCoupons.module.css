@@ -10,6 +10,61 @@
   align-items: center;
   gap: 8px;
 }
+/* 쿠폰 머리의 작은 티켓 표식(장식) */
+.ticket {
+  width: 18px;
+  height: 12px;
+  border-radius: 3px;
+  background: var(--signal);
+  -webkit-mask:
+    radial-gradient(circle at 0 50%, transparent 3px, #000 3.5px) left / 51%
+      100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent 3px, #000 3.5px) right / 51%
+      100% no-repeat;
+  mask:
+    radial-gradient(circle at 0 50%, transparent 3px, #000 3.5px) left / 51%
+      100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent 3px, #000 3.5px) right / 51%
+      100% no-repeat;
+}
+
+/* 적용 결과: 강의마다 쓴 쿠폰과 할인 뒤 금액 */
+.lines {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.line {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.line:first-child {
+  border-top: 0;
+}
+.lineMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.lineTitle {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.used {
+  color: var(--signal-text);
+}
+.lineAmount {
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+}
 
 /*
  * 직접 선택: 강의 단위 fieldset 안에 판매자·플랫폼 칸 fieldset이 들어간다.
@@ -49,14 +104,59 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+/* 쿠폰 하나가 카드 하나. 고른 카드는 신호색 테두리와 왼쪽 탤리 줄로 표시한다 */
 .option {
+  position: relative;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: 6px 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
   font-size: 14px;
   color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast) var(--ease-out),
+    background-color var(--t-fast) var(--ease-out);
+}
+.option:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+.option input {
+  accent-color: var(--signal);
+  margin: 0;
+}
+.option:has(input:checked) {
+  border-color: var(--signal);
+  background: color-mix(in srgb, var(--signal-soft) 45%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--signal);
+}
+.optionName {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
 }
 .slot:disabled .option {
   color: var(--ink-3);
+  cursor: default;
+  opacity: 0.7;
+}
+/* 고를 수 없는 쿠폰은 흐린 점선 카드로, 이유를 함께 보인다 */
+.unusable {
+  padding: 10px 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option {
+    transition: none;
+  }
 }

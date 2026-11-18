@@ -9,6 +9,7 @@ import { ProcessingNote } from '@/entities/order/ui/ProcessingNote'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './OrderDonePage.module.css'
 
 /**
  * 주문 결과. 결제가 끝난(PAID) 주문만 완료로 안내한다.
@@ -48,6 +49,8 @@ function OrderResult({ order }: { order: Order }) {
   switch (order.status) {
     case 'PAID': {
       const cancelUntil = order.items[0]?.autoConfirmAt
+      // 강의 하나만 산 주문이면 바로 시청으로 이어 준다(재생 동의는 시청 화면이 받는다)
+      const only = order.items.length === 1 ? order.items[0] : undefined
       return (
         <ResultPanel
           order={order}
@@ -60,9 +63,23 @@ function OrderResult({ order }: { order: Order }) {
           }`}
           actions={
             <>
-              <Link className="btn primary" to="/library">
-                내 강의로
-              </Link>
+              {only ? (
+                <>
+                  <Link
+                    className={`btn primary ${styles.main}`}
+                    to={`/library/${only.lectureId}/watch`}
+                  >
+                    바로 시청
+                  </Link>
+                  <Link className="btn" to="/library">
+                    내 강의로
+                  </Link>
+                </>
+              ) : (
+                <Link className={`btn primary ${styles.main}`} to="/library">
+                  내 강의로
+                </Link>
+              )}
               {ordersLink()}
               <Link className="btn ghost" to="/lectures">
                 강의 더 보기
@@ -173,8 +190,16 @@ function OrderItemAmount({ item }: { item: OrderItem }) {
 
 type Tone = 'ok' | 'bad' | 'mute' | 'wait'
 
+/** 결제 완료 표시. 원과 체크를 차례로 그려 성공의 순간을 짧게 보인다(움직임 줄이기 설정이면 그린 채로) */
+const CHECK = (
+  <svg className={styles.check} viewBox="0 0 52 52" aria-hidden="true">
+    <circle className={styles.checkRing} cx="26" cy="26" r="23" />
+    <path className={styles.checkMark} d="M15 27.5l7.5 7.5L37.5 19" />
+  </svg>
+)
+
 const ICON: Record<Tone, ReactNode> = {
-  ok: '✓',
+  ok: CHECK,
   bad: '!',
   mute: '?',
   wait: <span className="spinner" />,
@@ -196,14 +221,17 @@ function ResultPanel({
   actions: ReactNode
 }) {
   return (
-    <section className="panel result" aria-busy={tone === 'wait'}>
-      <span className={`result-ico ${tone}`} aria-hidden="true">
+    <section
+      className={`panel result ${styles.result} ${styles[tone] ?? ''}`}
+      aria-busy={tone === 'wait'}
+    >
+      <span className={`result-ico ${tone} ${styles.ico}`} aria-hidden="true">
         {ICON[tone]}
       </span>
       <h1>{title}</h1>
       <p className="lede">{text}</p>
       {note}
-      <div className="breakdown">
+      <div className={`breakdown ${styles.receipt}`}>
         <div className="row sub">
           <span>주문 번호</span>
           <span className="num">{order.orderId}</span>
@@ -222,7 +250,7 @@ function ResultPanel({
           <b className="num">{formatNumber(order.buyerAmountHp)} HP</b>
         </div>
       </div>
-      <div className="result-actions">{actions}</div>
+      <div className={`result-actions ${styles.actions}`}>{actions}</div>
     </section>
   )
 }

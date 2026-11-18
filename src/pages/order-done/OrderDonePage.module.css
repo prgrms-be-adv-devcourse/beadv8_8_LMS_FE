@@ -1,0 +1,115 @@
+/* 주문 결과 카드 */
+.result {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-2);
+  padding: 40px 28px 28px;
+  gap: 14px;
+}
+/* 카드 위쪽 얇은 상태 띠: 완료는 수익 초록, 실패는 빨강, 처리 중은 회색 */
+.result::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--line-2);
+}
+.ok::before {
+  background: var(--earn);
+}
+.bad::before {
+  background: var(--bad);
+}
+
+.ico {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 4px;
+}
+.ok .ico {
+  animation: pop var(--t-slow) var(--ease-spring) both;
+}
+
+.check {
+  width: 44px;
+  height: 44px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.checkRing {
+  stroke-width: 3;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: draw 420ms var(--ease-out) 80ms forwards;
+}
+.checkMark {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 36;
+  animation: draw 260ms var(--ease-out) 440ms forwards;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 영수증처럼: 위아래 점선으로 끊는다 */
+.receipt {
+  margin-top: 6px;
+  background: var(--surface-2);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+  padding: 16px 18px;
+}
+.receipt :global(.row.total) {
+  align-items: baseline;
+  border-top-style: dashed;
+  padding-top: 12px;
+  margin-top: 4px;
+}
+.receipt :global(.row.total b) {
+  font-size: 22px;
+}
+
+.actions {
+  margin-top: 6px;
+  width: 100%;
+}
+.main {
+  min-width: 160px;
+}
+
+@media (max-width: 480px) {
+  .result {
+    padding: 32px 18px 20px;
+  }
+  .actions > :global(.btn) {
+    flex: 1 1 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ok .ico {
+    animation: none;
+  }
+  .checkRing,
+  .checkMark {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

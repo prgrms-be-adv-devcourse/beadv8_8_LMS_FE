@@ -1,0 +1,77 @@
+/* 주문 확인: 주문할 강의 목록과 HP 부족 안내 */
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+.item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+.item:first-child {
+  border-top: 0;
+}
+.title {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.price {
+  flex: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.short {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.shortIco {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bad);
+  color: var(--surface);
+  font-weight: 800;
+}
+.shortText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.shortText b {
+  font-size: 16px;
+  color: var(--bad);
+}
+
+/* 충전으로 가는 버튼은 이 상태에서 할 수 있는 유일한 행동이라 신호색으로 켠다 */
+/* 공용 .btn.primary보다 앞서도록 범위를 좁힌다 */
+:global(.btn.primary).charge {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--signal-ink);
+}
+:global(.btn.primary).charge:hover {
+  background: var(--signal-strong);
+  border-color: var(--signal-strong);
+}

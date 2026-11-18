@@ -9,6 +9,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './CartPage.module.css'
 
 export function CartPage() {
   const { data: cart, error, isPending, refetch } = useQuery(cartQuery)
@@ -60,25 +61,39 @@ export function CartPage() {
               판매가 멈춘 강의는 주문에서 빠져요. 다시 판매되면 살 수 있어요.
             </div>
           )}
-          <div className="split">
-            <section className="panel">
-              <div className="rows">
+          <div className={styles.layout}>
+            <section
+              className={`panel ${styles.list}`}
+              aria-labelledby="cart-list-title"
+            >
+              <div className={styles.listHead}>
+                <span id="cart-list-title" className={styles.eyebrow}>
+                  담은 강의
+                </span>
+                <span className="fine num">{cart.items.length}개</span>
+              </div>
+              <div>
                 {cart.items.map((item) => (
                   <div
                     key={item.lectureId}
-                    className={item.purchasable ? 'row-item' : 'row-item off'}
+                    className={
+                      item.purchasable
+                        ? styles.item
+                        : `${styles.item} ${styles.off}`
+                    }
                   >
-                    <LectureThumb
-                      lectureId={item.lectureId}
-                      title={item.title}
-                      thumbnailUrl={item.thumbnailUrl}
-                      size="sm"
-                    />
-                    <div className="row-main">
+                    <div className={styles.thumb}>
+                      <LectureThumb
+                        lectureId={item.lectureId}
+                        title={item.title}
+                        thumbnailUrl={item.thumbnailUrl}
+                        size="sm"
+                      />
+                    </div>
+                    <div className={styles.main}>
                       <Link
-                        className="row-title"
+                        className={styles.title}
                         to={`/lectures/${item.lectureId}`}
-                        style={{ textDecoration: 'none' }}
                       >
                         {item.title}
                       </Link>
@@ -88,10 +103,12 @@ export function CartPage() {
                         </span>
                       )}
                     </div>
-                    <b className="num">{formatNumber(item.priceHp)} HP</b>
+                    <b className={`num ${styles.price}`}>
+                      {formatNumber(item.priceHp)} HP
+                    </b>
                     <button
                       type="button"
-                      className="btn ghost sm"
+                      className={`btn ghost sm ${styles.remove}`}
                       disabled={remove.isPending}
                       onClick={() => remove.mutate(item.lectureId)}
                       aria-label={`${item.title} 장바구니에서 빼기`}
@@ -102,31 +119,43 @@ export function CartPage() {
                 ))}
               </div>
             </section>
-            <aside className="panel sticky">
-              <h2>주문 요약</h2>
-              <div className="breakdown">
-                <div className="row sub">
+            <aside
+              className={`panel ${styles.summary}`}
+              aria-labelledby="cart-summary-title"
+            >
+              <div className={styles.summaryHead}>
+                <span className={styles.eyebrow} aria-hidden="true">
+                  Checkout
+                </span>
+                <h2 id="cart-summary-title">주문 요약</h2>
+              </div>
+              <div className={styles.lines}>
+                <div className={styles.line}>
                   <span>주문할 강의 {purchasable.length}개</span>
                   <span className="num">
                     {formatNumber(cart.purchasableTotalHp)}
                   </span>
                 </div>
                 {excluded > 0 && (
-                  <div className="row sub">
+                  <div className={styles.line}>
                     <span>살 수 없어 제외 {excluded}개</span>
                     <span className="num">0</span>
                   </div>
                 )}
-                <div className="row total">
-                  <span>합계</span>
-                  <b className="num">
-                    {formatNumber(cart.purchasableTotalHp)} HP
-                  </b>
-                </div>
+                <p className="fine">
+                  쿠폰 할인과 보유 HP는 주문 확인에서 계산해요.
+                </p>
+              </div>
+              <div className={styles.total}>
+                <span className={styles.totalLabel}>합계</span>
+                <b className={`num ${styles.totalValue}`}>
+                  {formatNumber(cart.purchasableTotalHp)}
+                  <span className={styles.totalUnit}>HP</span>
+                </b>
               </div>
               <button
                 type="button"
-                className="btn primary block"
+                className={`btn primary block ${styles.pay}`}
                 disabled={purchasable.length === 0}
                 onClick={() => setCheckout(true)}
               >
