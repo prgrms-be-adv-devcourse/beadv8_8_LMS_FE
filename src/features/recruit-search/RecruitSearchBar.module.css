@@ -1,0 +1,167 @@
+/* 검색어·정렬 줄과 조건 줄, 걸린 조건 칩을 한 장의 조작대로 묶는다 */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.top {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.search {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 320px;
+  max-width: 560px;
+  min-width: 0;
+}
+.search > input {
+  flex: 1;
+  min-width: 0;
+}
+.submit {
+  flex: none;
+  min-width: 72px;
+}
+/* 펼치기 버튼은 좁은 화면에서만 보인다 */
+.toggle {
+  display: none;
+}
+.badge {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font: 600 12px/20px var(--f-mono);
+  text-align: center;
+}
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.conditions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.range {
+  gap: 4px;
+}
+/* 작은 머리표: 계기판 글자 */
+.rangeLabel {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+.range:global(.invalid) .rangeLabel {
+  color: var(--bad);
+}
+.rangeInputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.date {
+  width: 156px;
+}
+.fee {
+  width: 120px;
+}
+.tilde,
+.unit {
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.apply {
+  flex: none;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.check input {
+  margin: 0;
+}
+.applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.x {
+  color: var(--ink-3);
+}
+@media (max-width: 560px) {
+  .bar {
+    padding: 12px;
+  }
+  .search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+  .toggle {
+    display: inline-flex;
+  }
+  .conditions:not(.open) {
+    display: none;
+  }
+  .conditions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  /* 세로로 쌓을 때는 적용 버튼을 맨 아래에 둔다 */
+  .apply {
+    order: 1;
+  }
+  .date,
+  .fee {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+}

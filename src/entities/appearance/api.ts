@@ -1,6 +1,11 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
+import {
+  NO_RECRUIT_SEARCH,
+  recruitSearchQuery,
+  type RecruitSearch,
+} from './recruitSearch'
 import type {
   Appearance,
   AppearanceReviewInput,
@@ -72,7 +77,9 @@ export const appearanceKeys = {
     tab: RecruitListTab,
     page: number,
     view: HoldListView = 'active',
-  ) => [...appearanceKeys.all, 'recruits', tab, page, view] as const,
+    conditions: Partial<ReturnType<typeof recruitSearchQuery>> = {},
+  ) =>
+    [...appearanceKeys.all, 'recruits', tab, page, view, conditions] as const,
   recruit: (recruitId: number) =>
     [...appearanceKeys.all, 'recruit', recruitId] as const,
   recruitApplications: (recruitId: number, page: number) =>
@@ -189,17 +196,20 @@ export function cancelAppearanceRequest(requestId: number) {
 }
 
 /**
- * 모집 중(open, 마감 전만) / 내가 올린 모집글(mine). 최신순 고정.
- * 내 모집글은 보기(view)에 맞는 상태만 받고, 보류 확인 중인 글이 보이는 동안 다시 부른다
+ * 모집 중(open, 마감 전만) / 내가 올린 모집글(mine).
+ * 모집 중은 검색 조건(검색어·방송 날짜·출연료·남은 자리·정렬)을 함께 보낸다. 내 모집글은 조건 없이 최신순이고,
+ * 보기(view)에 맞는 상태만 받고, 보류 확인 중인 글이 보이는 동안 다시 부른다
  */
 export const recruitsQuery = (
   tab: RecruitListTab,
   page: number,
   view: HoldListView = 'active',
-) =>
-  queryOptions({
-    queryKey: appearanceKeys.recruits(tab, page, view),
-    queryFn: () =>
+  search: RecruitSearch = NO_RECRUIT_SEARCH,
+) => {
+  const conditions = tab === 'open' ? recruitSearchQuery(search) : {}
+  return queryOptions({
+    queryKey: appearanceKeys.recruits(tab, page, view, conditions),
+    queryFn: ({ signal }) =>
       tab === 'mine'
         ? api<PagedModel<RecruitSummary>>('/appearances/recruits/mine', {
             query: {
@@ -207,11 +217,13 @@ export const recruitsQuery = (
               size: 10,
               status: statusQuery(view, ACTIVE_RECRUIT_STATUSES),
             },
+            signal,
           })
         : api<PagedModel<RecruitSummary>>('/appearances/recruits', {
-            query: { page, size: 10 },
+            query: { ...conditions, page, size: 10 },
+            signal,
           }),
-    // 같은 탭·보기의 페이지를 넘길 때만 이전 목록을 유지한다(다른 탭·보기 목록을 잠깐이라도 보여 주지 않는다).
+    // 같은 탭·보기에서 페이지·조건을 바꿀 때만 이전 목록을 유지한다(다른 탭·보기 목록을 잠깐이라도 보여 주지 않는다).
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[2] === tab && previousQuery?.queryKey[4] === view
         ? previous
@@ -221,6 +233,7 @@ export const recruitsQuery = (
         ? pollWhileHoldPending(query.state.data?.content.map((r) => r.status))
         : false,
   })
+}
 
 /** 모집글 상세. 보류 확인 중이면(올린 호스트에게만 보인다) 끝날 때까지 다시 부른다 */
 export const recruitQuery = (recruitId: number) =>

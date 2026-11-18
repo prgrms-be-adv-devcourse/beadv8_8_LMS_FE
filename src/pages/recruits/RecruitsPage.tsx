@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { myApplicationsQuery, recruitsQuery } from '@/entities/appearance/api'
+import { hasRecruitConditions } from '@/entities/appearance/recruitSearch'
 import type {
   Application,
   RecruitListTab,
@@ -19,6 +20,9 @@ import {
 import { RecruitSeats } from '@/entities/appearance/ui/RecruitSeats'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { RecruitFormModal } from '@/features/recruit/RecruitFormModal'
+import { RecruitSearchBar } from '@/features/recruit-search/RecruitSearchBar'
+import { useRecruitSearch } from '@/features/recruit-search/useRecruitSearch'
+import { isApiError } from '@/shared/api/ApiError'
 import { meQuery } from '@/shared/auth/me'
 import { INFLUENCER } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
@@ -96,14 +100,33 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
   const [selectedView, selectView] = useHoldListView()
   // 보기는 내 모집글에만 있다(공개 모집에는 보류 상태 글이 나오지 않는다).
   const view = tab === 'mine' ? selectedView : 'active'
+  // 검색 조건은 공개 모집(모집 중)에만 있다. 내 모집글은 조건 없이 최신순이다.
+  const { search, update, clear } = useRecruitSearch()
+  const searchable = tab === 'open'
+  const filtered = searchable && hasRecruitConditions(search)
+  // 조건을 모두 지우면 검색 막대를 새로 그려 입력 중이던 값까지 비운다
+  const [cleared, setCleared] = useState(0)
+  const clearAll = () => {
+    clear()
+    setCleared((n) => n + 1)
+  }
   // 보류 확인 중인 글이 보이는 동안 목록이 스스로 다시 부른다(recruitsQuery).
-  const query = useQuery(recruitsQuery(tab, page, view))
-  const { data, error, isPending, refetch } = query
+  const query = useQuery(recruitsQuery(tab, page, view, search))
+  const { data, error, isPending, isPlaceholderData, refetch } = query
   const moving = useClampPage(page, query, setPage)
   const { data: me } = useQuery(meQuery)
 
   return (
     <>
+      {searchable && (
+        <RecruitSearchBar
+          key={cleared}
+          search={search}
+          update={update}
+          onClear={clearAll}
+          focusKeyword={cleared > 0}
+        />
+      )}
       {tab === 'mine' && (
         <div className="toolbar">
           <span className="fine">
@@ -117,7 +140,21 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
       {isPending || moving ? (
         <CardSkeleton />
       ) : error ? (
-        <LoadError error={error} retry={refetch} />
+        searchable && isApiError(error) && error.status === 400 ? (
+          <EmptyState
+            title="검색 조건을 확인해 주세요"
+            art="search"
+            action={
+              <button type="button" className="btn" onClick={clearAll}>
+                조건 지우기
+              </button>
+            }
+          >
+            {error.message}
+          </EmptyState>
+        ) : (
+          <LoadError error={error} retry={refetch} />
+        )
       ) : data.content.length === 0 ? (
         tab === 'mine' && view === 'failed' ? (
           <EmptyState title="등록되지 않은 모집글이 없어요">
@@ -127,6 +164,18 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
           <EmptyState title="아직 올린 모집글이 없어요">
             모집글을 올리면 여러 게스트의 지원을 받을 수 있어요.
           </EmptyState>
+        ) : filtered ? (
+          <EmptyState
+            title="조건에 맞는 모집글이 없어요"
+            art="search"
+            action={
+              <button type="button" className="btn" onClick={clearAll}>
+                조건 지우기
+              </button>
+            }
+          >
+            검색어나 날짜·출연료 조건을 바꿔 보세요.
+          </EmptyState>
         ) : (
           <EmptyState title="지금 모집 중인 글이 없어요">
             새 모집글이 올라오면 여기에 보여요.
@@ -134,7 +183,24 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
         )
       ) : (
         <>
-          <div className={`rec-list ${styles.list}`}>
+          {searchable && (
+            <div className={styles.resultHead}>
+              <h2 className={styles.head}>
+                {filtered ? '검색 결과' : '모집 중인 글'}
+              </h2>
+              <span className={styles.count}>
+                {formatNumber(data.page.totalElements)}개
+              </span>
+            </div>
+          )}
+          <div
+            className={
+              isPlaceholderData
+                ? `rec-list ${styles.list} ${styles.stale}`
+                : `rec-list ${styles.list}`
+            }
+            aria-busy={isPlaceholderData || undefined}
+          >
             {data.content.map((recruit) => (
               <RecruitCard
                 key={recruit.id}
