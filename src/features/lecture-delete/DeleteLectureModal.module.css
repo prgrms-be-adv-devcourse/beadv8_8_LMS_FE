@@ -1,0 +1,47 @@
+/* 위험 행동 확인: 대상 · 결과 · 되돌릴 수 없음 */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.target::before {
+  content: '';
+  width: 4px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: var(--bad);
+  flex: none;
+}
+.irreversible {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+  font-weight: 600;
+}
+.mark {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: var(--bad);
+  color: var(--surface);
+  font: 700 11px var(--f-mono);
+  flex: none;
+}

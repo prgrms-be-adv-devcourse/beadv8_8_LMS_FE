@@ -20,6 +20,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './CouponApplyForm.module.css'
 import { isOnSale, type MyLectureOptions } from './useMyLectureOptions'
 
 /** 화면 순서대로 둔 입력칸(오류를 보일 수 있는 칸만). 대상·할인 방식·만료 방식·중첩은 고르는 칸이라 오류가 없다 */
@@ -204,6 +205,7 @@ export function CouponApplyForm({
           {formError}
         </div>
       )}
+      <GroupTitle step="01" title="대상" />
       <Field
         id={FIELD_ID.name}
         label="쿠폰 이름"
@@ -237,6 +239,7 @@ export function CouponApplyForm({
           ))}
         </select>
       </Field>
+      <GroupTitle step="02" title="할인" />
       <div className="form-row">
         <Field id="sc-discount-type" label="할인 방식">
           <select
@@ -267,6 +270,7 @@ export function CouponApplyForm({
           />
         </Field>
       </div>
+      <GroupTitle step="03" title="발급" />
       <Field
         id={FIELD_ID.quantity}
         label="수량"
@@ -303,6 +307,7 @@ export function CouponApplyForm({
           />
         </Field>
       </div>
+      <GroupTitle step="04" title="사용" />
       <div className="form-row">
         <Field id="sc-expiry-type" label="만료 방식">
           <select
@@ -356,20 +361,33 @@ export function CouponApplyForm({
         />
         <span>다른 쿠폰과 함께 쓸 수 있어요</span>
       </label>
-      <p className="fine">
-        일시는 한국 시간이에요. 신청한 뒤 심사를 요청하면 관리자가 확인하고
-        발급을 시작해요.
-      </p>
-      <div>
+      <div className={styles.submit}>
         <button
           type="submit"
           className="btn primary"
           disabled={create.isPending}
           {...fields.submitProps}
         >
+          {create.isPending && (
+            <span className="spinner xs" aria-hidden="true" />
+          )}
           {create.isPending ? '신청하는 중…' : '쿠폰 신청'}
         </button>
+        <p className="fine">
+          일시는 한국 시간이에요. 신청한 뒤 심사를 요청하면 관리자가 확인하고
+          발급을 시작해요.
+        </p>
       </div>
     </form>
+  )
+}
+
+/** 폼 묶음 제목. 번호는 순서 안내용 장식이다 */
+function GroupTitle({ step, title }: { step: string; title: string }) {
+  return (
+    <h3 className={styles.groupTitle}>
+      <span aria-hidden="true">{step}</span>
+      {title}
+    </h3>
   )
 }

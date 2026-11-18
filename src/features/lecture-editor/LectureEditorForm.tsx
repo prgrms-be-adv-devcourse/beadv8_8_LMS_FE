@@ -15,6 +15,7 @@ import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
+import styles from './LectureEditor.module.css'
 import { LessonList, type Lesson } from './LessonList'
 import { ThumbnailPicker } from './ThumbnailPicker'
 import { UploadLeaveGuard } from './UploadLeaveGuard'
@@ -188,12 +189,45 @@ export function LectureEditorForm({
       ? '수정 후 재검수 신청'
       : '저장'
 
+  // 오른쪽 준비 상황: 위 검사 규칙(제목·가격·강마다 제목과 파일·썸네일 업로드)을 그대로 보여 준다.
+  const readyLessons = contents.filter((c) => c !== null).length
+  const checks: Check[] = [
+    { label: '제목', state: title.trim() ? 'ok' : 'todo' },
+    { label: '가격', state: priceError(priceHp) ? 'todo' : 'ok' },
+    {
+      label: '강마다 제목과 파일',
+      state: lessons.some(
+        (l) => uploads.get(l.key).upload?.status === 'uploading',
+      )
+        ? 'busy'
+        : readyLessons === lessons.length && lessons.length > 0
+          ? 'ok'
+          : 'todo',
+      detail: `${readyLessons}/${lessons.length}`,
+    },
+    {
+      label: '썸네일 (선택)',
+      state:
+        thumb?.status === 'uploading'
+          ? 'busy'
+          : thumb?.status === 'error'
+            ? 'todo'
+            : 'ok',
+    },
+  ]
+  const doneCount = checks.filter((c) => c.state === 'ok').length
+
   return (
-    <form {...fields.formProps} className="split" noValidate onSubmit={submit}>
+    <form
+      {...fields.formProps}
+      className={`split ${styles.editor}`}
+      noValidate
+      onSubmit={submit}
+    >
       <div className="page" style={{ gap: 16 }}>
-        <section className="panel form">
-          <div className="panel-head">
-            <h2>기본 정보</h2>
+        <section className={`panel form ${styles.card}`}>
+          <div className={styles.cardHead}>
+            <SectionTitle step="01" title="기본 정보" />
             {editing && <span className="pill ok">수정해도 바로 반영</span>}
           </div>
           <Field id="le-title" label="강의 제목" error={fields.error('title')}>
@@ -221,32 +255,52 @@ export function LectureEditorForm({
               onChange={(e) => setDescription(e.target.value)}
             />
           </Field>
+        </section>
+
+        <section className={`panel form ${styles.card}`}>
+          <div className={styles.cardHead}>
+            <SectionTitle step="02" title="가격" />
+          </div>
           <Field
             id="le-price"
             label="가격 (HP)"
             error={fields.error('priceHp')}
+            hint="1,000 HP 단위로 정해요. 1 HP는 1원이에요."
           >
-            <input
-              {...fields.inputProps('priceHp')}
-              className="input num"
-              inputMode="numeric"
-              value={price}
-              onChange={(e) => {
-                setPrice(e.target.value.replace(/\D/g, ''))
-                fields.changed('priceHp')
-              }}
-            />
+            <div className={styles.priceBox}>
+              <input
+                {...fields.inputProps('priceHp')}
+                className="input num"
+                inputMode="numeric"
+                value={price}
+                onChange={(e) => {
+                  setPrice(e.target.value.replace(/\D/g, ''))
+                  fields.changed('priceHp')
+                }}
+              />
+              <span className={styles.unit} aria-hidden="true">
+                HP
+              </span>
+            </div>
           </Field>
+        </section>
+
+        <section className={`panel form ${styles.card}`}>
+          <div className={styles.cardHead}>
+            <SectionTitle step="03" title="썸네일" />
+            <span className="fine">선택</span>
+          </div>
           <ThumbnailPicker
             uploads={uploads}
             hasCurrent={!!currentThumb}
             onRemoveCurrent={() => setThumbRemoved(true)}
+            previewUrl={thumbUrl}
           />
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <h2>강의 내용</h2>
+        <section className={`panel ${styles.card}`}>
+          <div className={styles.cardHead}>
+            <SectionTitle step="04" title="강의 내용" />
             {contentsEditable ? (
               <span className="fine num">{lessons.length}강</span>
             ) : (
@@ -257,6 +311,12 @@ export function LectureEditorForm({
             <div className="notice">
               {readOnlyContentsNotice(lecture.status)}
             </div>
+          )}
+          {contentsEditable && (
+            <p className="fine">
+              강마다 mp4 영상이나 pdf 자료를 하나씩 올려요. 파일을 강 자리로
+              끌어다 놓아도 돼요.
+            </p>
           )}
           <LessonList
             lessons={lessons}
@@ -290,8 +350,7 @@ export function LectureEditorForm({
           {contentsEditable && (
             <button
               type="button"
-              className="btn"
-              style={{ alignSelf: 'flex-start' }}
+              className={`btn ${styles.addLesson}`}
               onClick={() => setLessons((prev) => [...prev, newLesson()])}
             >
               <span aria-hidden="true">+</span> 강 추가
@@ -300,56 +359,129 @@ export function LectureEditorForm({
         </section>
       </div>
 
-      <aside className="panel sticky">
-        <LectureThumb
-          lectureId={lecture?.lectureId ?? 0}
-          title={title || '강의 제목'}
-          thumbnailUrl={thumbUrl}
-        />
-        <b>{title || '강의 제목'}</b>
-        <div className="big-price" style={{ fontSize: 22 }}>
-          {formatNumber(priceHp)} HP
-        </div>
-        {!editing ? (
-          <p className="fine">
-            검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
-            공개·판매가 시작돼요.
-          </p>
-        ) : rejected ? (
-          <div className="notice warn">
-            반려 사유를 고친 뒤 다시 검수를 신청해요.
-          </div>
-        ) : changed.info ? (
-          <div className="notice">
-            <span className="pill ok">바로 반영</span>
-            제목·소개·가격·썸네일만 바뀌어 재검수 없이 반영돼요.
-          </div>
-        ) : (
-          <p className="fine">바뀐 내용이 없어요.</p>
-        )}
-        {serverErrors.form && (
-          <div className="notice bad" role="alert">
-            {serverErrors.form}
-          </div>
-        )}
-        <button
-          type="submit"
-          className="btn primary block"
-          // 칸 검사 오류는 눌러서 첫 오류 칸을 안내하고, 그 밖의 이유(강 목록·업로드·바뀐 것 없음)는 그냥 막는다.
-          disabled={submitting || (!fields.hasErrors && !canSubmit)}
-          {...fields.submitProps}
+      <aside className={styles.side}>
+        <section
+          className={`panel ${styles.summary}`}
+          aria-label="강의 카드 미리보기"
         >
-          {submitLabel}
-        </button>
-        {!ready && (
-          <p className="fine">
-            제목, 1,000 HP 단위 가격, 모든 강의 제목과 파일이 있어야 해요.
-          </p>
-        )}
+          <span className={styles.eyebrow} aria-hidden="true">
+            Preview
+          </span>
+          <LectureThumb
+            lectureId={lecture?.lectureId ?? 0}
+            title={title || '강의 제목'}
+            thumbnailUrl={thumbUrl}
+          />
+          <b className={styles.summaryTitle}>{title || '강의 제목'}</b>
+          <div className="big-price" style={{ fontSize: 22 }}>
+            {formatNumber(priceHp)} HP
+          </div>
+          <ul className={styles.checklist} aria-label="준비 상황">
+            {checks.map((check) => (
+              <li
+                key={check.label}
+                className={
+                  check.state === 'ok'
+                    ? `${styles.check} ${styles.checkOk}`
+                    : check.state === 'busy'
+                      ? `${styles.check} ${styles.checkBusy}`
+                      : styles.check
+                }
+              >
+                <span className={styles.dot} aria-hidden="true">
+                  {check.state === 'ok' && '✓'}
+                </span>
+                {check.label}
+                <span className="sr-only">{CHECK_STATE_TEXT[check.state]}</span>
+                {check.detail && <span aria-hidden="true">{check.detail}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <div className={`panel ${styles.save}`}>
+          <div className={styles.saveMeta}>
+            <span className={styles.eyebrow} aria-hidden="true">
+              {editing ? 'Save' : 'Submit'}
+            </span>
+            <span
+              className={
+                ready
+                  ? `${styles.progressText} ${styles.allSet}`
+                  : styles.progressText
+              }
+              aria-hidden="true"
+            >
+              {doneCount}/{checks.length} 준비
+            </span>
+          </div>
+          {!editing ? (
+            <p className="fine">
+              검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
+              공개·판매가 시작돼요.
+            </p>
+          ) : rejected ? (
+            <div className="notice warn">
+              반려 사유를 고친 뒤 다시 검수를 신청해요.
+            </div>
+          ) : changed.info ? (
+            <div className="notice">
+              <span className="pill ok">바로 반영</span>
+              제목·소개·가격·썸네일만 바뀌어 재검수 없이 반영돼요.
+            </div>
+          ) : (
+            <p className="fine">바뀐 내용이 없어요.</p>
+          )}
+          {serverErrors.form && (
+            <div className="notice bad" role="alert">
+              {serverErrors.form}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="btn primary block"
+            // 칸 검사 오류는 눌러서 첫 오류 칸을 안내하고, 그 밖의 이유(강 목록·업로드·바뀐 것 없음)는 그냥 막는다.
+            disabled={submitting || (!fields.hasErrors && !canSubmit)}
+            {...fields.submitProps}
+          >
+            {submitting && <span className="spinner xs" aria-hidden="true" />}
+            {submitLabel}
+          </button>
+          {!ready && (
+            <p className="fine">
+              제목, 1,000 HP 단위 가격, 모든 강의 제목과 파일이 있어야 해요.
+            </p>
+          )}
+        </div>
       </aside>
 
       <UploadLeaveGuard active={uploads.uploading} />
     </form>
+  )
+}
+
+type Check = {
+  label: string
+  state: 'ok' | 'busy' | 'todo'
+  /** 개수 같은 덧붙임(모노) */
+  detail?: string
+}
+
+const CHECK_STATE_TEXT: Record<Check['state'], string> = {
+  ok: '완료',
+  busy: '올리는 중',
+  todo: '아직',
+}
+
+/** 섹션 카드 제목. 번호는 순서 안내용 장식이다 */
+function SectionTitle({ step, title }: { step: string; title: string }) {
+  return (
+    <div className={styles.cardTitle}>
+      <span className={styles.step} aria-hidden="true">
+        {step}
+      </span>
+      <h2>{title}</h2>
+    </div>
   )
 }
 

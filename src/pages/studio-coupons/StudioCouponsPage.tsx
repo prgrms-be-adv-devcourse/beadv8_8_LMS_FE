@@ -84,8 +84,16 @@ function ApplyPanel({ lectures }: { lectures: MyLectureOptions }) {
   const [created, setCreated] = useState<Coupon | null>(null)
 
   return (
-    <section className="panel" aria-labelledby="coupon-apply-title">
-      <h2 id="coupon-apply-title">새 쿠폰</h2>
+    <section
+      className={`panel ${styles.panel}`}
+      aria-labelledby="coupon-apply-title"
+    >
+      <div className={styles.panelHead}>
+        <span className={styles.eyebrow} aria-hidden="true">
+          New coupon
+        </span>
+        <h2 id="coupon-apply-title">새 쿠폰</h2>
+      </div>
       {created ? (
         <CreatedResult
           created={created}
@@ -159,15 +167,23 @@ function MyCoupons({ lectures }: { lectures: MyLectureOptions }) {
   )
 
   return (
-    <section className="panel" aria-labelledby="coupon-list-title">
-      <h2 id="coupon-list-title">내 쿠폰</h2>
+    <section
+      className={`panel ${styles.panel}`}
+      aria-labelledby="coupon-list-title"
+    >
+      <div className={styles.panelHead}>
+        <span className={styles.eyebrow} aria-hidden="true">
+          My coupons
+        </span>
+        <h2 id="coupon-list-title">내 쿠폰</h2>
+      </div>
       <div className="toolbar">
         <div role="group" aria-label="쿠폰 상태" className={styles.filters}>
           {[null, ...STATUSES].map((s) => (
             <button
               key={s ?? 'ALL'}
               type="button"
-              className={status === s ? 'btn sm primary' : 'btn sm'}
+              className={styles.filter}
               aria-pressed={status === s}
               onClick={() => setStatus(s)}
             >
@@ -210,14 +226,23 @@ function CouponRow({
   coupon: Coupon
   lectureTitle?: string
 }) {
+  // 더는 발급하지 않는 쿠폰(중단·종료)은 한 단계 흐리게 둔다.
+  const ended = coupon.status === 'SUSPENDED' || coupon.status === 'CLOSED'
+  const issuedRatio =
+    coupon.quantity > 0
+      ? Math.min(1, (coupon.quantity - remainingOf(coupon)) / coupon.quantity)
+      : 0
   return (
-    <li className="row-item" aria-label={coupon.name}>
-      <div className="row-main">
+    <li
+      className={ended ? `${styles.ticket} ${styles.muted}` : styles.ticket}
+      aria-label={coupon.name}
+    >
+      <DiscountStub coupon={coupon} />
+      <div className={styles.ticketBody}>
         <div className={styles.head}>
           <Link
-            className="row-title"
+            className={`row-title ${styles.name}`}
             to={`/studio/coupons/${coupon.couponId}`}
-            style={{ textDecoration: 'none' }}
           >
             {coupon.name}
           </Link>
@@ -227,20 +252,50 @@ function CouponRow({
           {targetLabel(coupon.targetType, lectureTitle)} ·{' '}
           {discountLabel(coupon)}
         </span>
-        <span className="fine num">
-          {issuePeriodLabel(coupon)} · 남은 {formatNumber(remainingOf(coupon))}
-          장 / {formatNumber(coupon.quantity)}장
-        </span>
+        <span className={styles.period}>{issuePeriodLabel(coupon)}</span>
+        <div className={styles.usage}>
+          <span className={styles.meter} aria-hidden="true">
+            <span style={{ transform: `scaleX(${issuedRatio})` }} />
+          </span>
+          <span className={styles.count}>
+            남은 {formatNumber(remainingOf(coupon))}장 /{' '}
+            {formatNumber(coupon.quantity)}장
+          </span>
+        </div>
         {coupon.status === 'REJECTED' && coupon.rejectReason && (
           <p className={`app-note ${styles.reason}`}>
             반려 사유: {coupon.rejectReason}
           </p>
         )}
       </div>
-      <div className="row-actions">
+      <div className={styles.ticketActions}>
         <SellerCouponActions coupon={coupon} />
       </div>
     </li>
+  )
+}
+
+/** 쿠폰 왼쪽 꼬리표: 할인 크기를 크게. 글은 본문의 할인 문구가 이미 읽어 준다 */
+function DiscountStub({ coupon }: { coupon: Coupon }) {
+  const value =
+    coupon.discountType === 'RATE' ? (
+      <>
+        {coupon.discountValue}
+        <small>%</small>
+      </>
+    ) : coupon.discountType === 'AMOUNT' ? (
+      <>
+        {formatNumber(coupon.discountValue)}
+        <small>HP</small>
+      </>
+    ) : (
+      '—'
+    )
+  return (
+    <div className={styles.stub} aria-hidden="true">
+      <span className={styles.value}>{value}</span>
+      <span className={styles.off}>OFF</span>
+    </div>
   )
 }
 
@@ -256,7 +311,10 @@ function CouponDetail({
   )
 
   return (
-    <section className="panel" aria-labelledby="coupon-detail-title">
+    <section
+      className={`panel ${styles.panel}`}
+      aria-labelledby="coupon-detail-title"
+    >
       <h2 id="coupon-detail-title">{data?.name ?? '쿠폰 상세'}</h2>
       {isPending ? (
         <Loading />

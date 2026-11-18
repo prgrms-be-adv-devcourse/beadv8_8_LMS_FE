@@ -1,12 +1,143 @@
+.panel {
+  box-shadow: var(--shadow-1);
+}
+.panelHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eyebrow {
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* 상태 필터: 눌림 상태가 있는 버튼 묶음(segmented). 좁으면 가로로 넘긴다 */
 .filters {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--sunken);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.filter {
+  flex: none;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.filter:hover {
+  color: var(--ink);
+}
+.filter:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.filter[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-1);
+}
+
 .list {
   list-style: none;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 쿠폰 한 장: 왼쪽 할인 꼬리표 | 내용 | 행동 */
+.ticket {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out);
+}
+.ticket:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+}
+.muted {
+  opacity: 0.7;
+}
+.stub {
+  position: relative;
+  flex: none;
+  width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 8px;
+  background: var(--sunken);
+  border-right: 1.5px dashed var(--line-2);
+}
+/* 절취선 위아래 반원 홈 */
+.stub::before,
+.stub::after {
+  content: '';
+  position: absolute;
+  right: -8px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.stub::before {
+  top: -8px;
+}
+.stub::after {
+  bottom: -8px;
+}
+.value {
+  font: 600 22px var(--f-mono);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.value small {
+  font-size: 12px;
+  margin-left: 1px;
+  color: var(--ink-2);
+}
+.off {
+  font: 600 10px var(--f-mono);
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
+}
+.ticketBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
 }
 .head {
   display: flex;
@@ -14,8 +145,58 @@
   align-items: center;
   flex-wrap: wrap;
 }
+.name {
+  text-decoration: none;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.period {
+  font: 12px var(--f-mono);
+  color: var(--ink-3);
+}
+/* 발급 수량 막대(장식): 발급된 만큼 채운다 */
+.usage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.meter {
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sunken);
+  overflow: hidden;
+}
+.meter > span {
+  display: block;
+  height: 100%;
+  background: var(--ink-2);
+  transform-origin: left center;
+}
+.count {
+  font: 12px var(--f-mono);
+  color: var(--ink-2);
+}
+.ticketActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 16px 14px 0;
+  flex-wrap: wrap;
+}
+.ticketActions:empty {
+  display: none;
+}
+
 .reason {
   color: var(--bad);
+  background: var(--bad-soft);
+  border-left: 3px solid var(--bad);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -29,4 +210,32 @@
   gap: 6px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+@media (max-width: 560px) {
+  .ticket {
+    flex-wrap: wrap;
+  }
+  .stub {
+    width: 84px;
+  }
+  .ticketBody {
+    flex-basis: calc(100% - 84px);
+  }
+  .ticketActions {
+    width: 100%;
+    padding: 0 16px 14px;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filter,
+  .ticket {
+    transition: none;
+  }
+  .ticket:hover {
+    transform: none;
+  }
 }

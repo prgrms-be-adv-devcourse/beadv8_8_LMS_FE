@@ -2,6 +2,8 @@ import { useRef } from 'react'
 import { TITLE_MAX } from '@/entities/lecture/rules'
 import type { ContentType, LectureContent } from '@/entities/lecture/types'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import styles from './LectureEditor.module.css'
+import { useFileDrop } from './useFileDrop'
 import type { Upload, Uploads } from './useUploads'
 
 /** 이미 강의에 연결돼 있는 파일. 새 파일을 올리지 않으면 이 fileId를 그대로 다시 보낸다 */
@@ -37,7 +39,7 @@ export function LessonList({
   onRemove,
 }: LessonListProps) {
   return (
-    <div className="lessons">
+    <div className={`lessons ${styles.lessons}`}>
       {lessons.map((lesson, i) => (
         <LessonRow
           key={lesson.key}
@@ -93,6 +95,15 @@ function LessonRow({
   const { upload, rejection } = uploads.get(lesson.key)
   const busy = upload?.status === 'uploading'
   const error = rejection ?? (upload?.status === 'error' ? upload.error : null)
+  const { dragging, dropProps } = useFileDrop(
+    (file) => uploads.start(lesson.key, 'LESSON', file),
+    busy || readOnly,
+  )
+  const number = (
+    <span className={`num ${styles.no}`} aria-hidden="true">
+      {String(no).padStart(2, '0')}
+    </span>
+  )
   const preview = saved && onPreview && (
     <button
       type="button"
@@ -105,8 +116,12 @@ function LessonRow({
 
   if (readOnly) {
     return (
-      <div className="lesson" role="group" aria-label={`${no}강`}>
-        <span className="no num">{String(no).padStart(2, '0')}</span>
+      <div
+        className={`lesson ${styles.lesson}`}
+        role="group"
+        aria-label={`${no}강`}
+      >
+        {number}
         <div className="lesson-main">
           <span className="row-title">{lesson.title}</span>
           <div className="lesson-meta">
@@ -118,9 +133,25 @@ function LessonRow({
     )
   }
 
+  const slotClass = [
+    styles.fileSlot,
+    dragging && styles.dragging,
+    error ? styles.fileError : upload?.status === 'done' && styles.fileDone,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className="lesson" role="group" aria-label={`${no}강`}>
-      <span className="no num">{String(no).padStart(2, '0')}</span>
+    <div
+      className={
+        titleError
+          ? `lesson ${styles.lesson} ${styles.lessonBad}`
+          : `lesson ${styles.lesson}`
+      }
+      role="group"
+      aria-label={`${no}강`}
+    >
+      {number}
       <div className="lesson-main">
         <input
           className="input"
@@ -136,8 +167,44 @@ function LessonRow({
             {titleError}
           </span>
         )}
-        <div className="lesson-meta">
-          <UploadMeta no={no} upload={upload} current={lesson.current} />
+        {/* 파일 자리: 버튼으로 고르거나 이 자리로 끌어다 놓는다 */}
+        <div {...dropProps} className={slotClass}>
+          <div className={`lesson-meta ${styles.fileState}`}>
+            <UploadMeta no={no} upload={upload} current={lesson.current} />
+          </div>
+          <div className={styles.fileButtons}>
+            <input
+              ref={input}
+              type="file"
+              accept="video/mp4,application/pdf,.mp4,.pdf"
+              hidden
+              aria-label={`${no}강 파일`}
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                // 같은 파일을 다시 골라도 change가 일어나게 비운다.
+                e.target.value = ''
+                if (file) uploads.start(lesson.key, 'LESSON', file)
+              }}
+            />
+            {preview}
+            {upload?.status === 'error' && (
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => uploads.retry(lesson.key)}
+              >
+                다시 올리기
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn sm"
+              disabled={busy}
+              onClick={() => input.current?.click()}
+            >
+              {upload || lesson.current ? '파일 교체' : '파일 올리기'}
+            </button>
+          </div>
         </div>
         {error && (
           <span className="fine c-bad" role="alert">
@@ -145,56 +212,27 @@ function LessonRow({
           </span>
         )}
       </div>
-      <div className="row-actions">
-        <input
-          ref={input}
-          type="file"
-          accept="video/mp4,application/pdf,.mp4,.pdf"
-          hidden
-          aria-label={`${no}강 파일`}
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            // 같은 파일을 다시 골라도 change가 일어나게 비운다.
-            e.target.value = ''
-            if (file) uploads.start(lesson.key, 'LESSON', file)
-          }}
-        />
-        {preview}
-        {upload?.status === 'error' && (
+      <div className={`row-actions ${styles.lessonTools}`}>
+        <span className={styles.order}>
           <button
             type="button"
-            className="btn sm"
-            onClick={() => uploads.retry(lesson.key)}
+            className="btn ghost sm"
+            aria-label="위로"
+            disabled={first}
+            onClick={() => onMove(-1)}
           >
-            다시 올리기
+            ↑
           </button>
-        )}
-        <button
-          type="button"
-          className="btn sm"
-          disabled={busy}
-          onClick={() => input.current?.click()}
-        >
-          {upload || lesson.current ? '파일 교체' : '파일 올리기'}
-        </button>
-        <button
-          type="button"
-          className="btn ghost sm"
-          aria-label="위로"
-          disabled={first}
-          onClick={() => onMove(-1)}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className="btn ghost sm"
-          aria-label="아래로"
-          disabled={last}
-          onClick={() => onMove(1)}
-        >
-          ↓
-        </button>
+          <button
+            type="button"
+            className="btn ghost sm"
+            aria-label="아래로"
+            disabled={last}
+            onClick={() => onMove(1)}
+          >
+            ↓
+          </button>
+        </span>
         <button
           type="button"
           className="btn ghost sm"
@@ -234,9 +272,14 @@ export function UploadMeta({
   }
   const kind = upload.fileType === 'LECTURE_DOCUMENT' ? '자료' : '영상'
   return (
-    <span className="fine">
-      {kind} · {upload.file.name} ({formatBytes(upload.file.size)})
-    </span>
+    <>
+      <span className={styles.doneMark} aria-hidden="true">
+        ✓
+      </span>
+      <span className="fine">
+        {kind} · {upload.file.name} ({formatBytes(upload.file.size)})
+      </span>
+    </>
   )
 }
 
@@ -249,20 +292,20 @@ export function UploadProgress({
 }) {
   const percent = Math.round(ratio * 100)
   return (
-    <>
-      <span className="fine">올리는 중… {percent}%</span>
+    <span className={styles.progressWrap}>
       <span
-        className="progress"
+        className={`progress ${styles.bar}`}
         role="progressbar"
         aria-label={label}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        style={{ width: 80 }}
       >
-        <span style={{ width: `${percent}%` }} />
+        {/* 폭 대신 transform으로 채워 배치를 다시 계산하지 않는다 */}
+        <span style={{ transform: `scaleX(${percent / 100})` }} />
       </span>
-    </>
+      <span className={`fine ${styles.pct}`}>올리는 중… {percent}%</span>
+    </span>
   )
 }
 
