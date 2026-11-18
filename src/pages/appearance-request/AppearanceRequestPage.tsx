@@ -12,6 +12,7 @@ import type {
   RequestSide,
 } from '@/entities/appearance/types'
 import { HostChannel } from '@/entities/appearance/ui/HostChannel'
+import { HpLocation } from '@/entities/appearance/ui/HpLocation'
 import { RequestStatusPill } from '@/entities/appearance/ui/RequestStatusPill'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import {
@@ -75,8 +76,17 @@ function Detail({
   return (
     <>
       <div className={styles.head}>
+        <div className={styles.headLine}>
+          <span
+            className={
+              side === 'host' ? `${styles.role} ${styles.host}` : styles.role
+            }
+          >
+            {side === 'host' ? '내가 호스트' : '내가 게스트'}
+          </span>
+          <RequestStatusPill status={request.status} side={side} />
+        </div>
         <h1>{request.title}</h1>
-        <RequestStatusPill status={request.status} side={side} />
       </div>
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
@@ -112,7 +122,15 @@ function Detail({
             <p className={styles.content}>{request.content}</p>
           </section>
         </div>
-        <aside className="panel sticky">
+        <aside className={`panel sticky ${styles.aside}`}>
+          <div className={styles.money}>
+            <span className={styles.eyebrow}>출연료</span>
+            <span className={styles.amount}>
+              <b className="num">{formatNumber(request.fee)}</b>
+              <span className={styles.unit}>HP</span>
+            </span>
+            <HpLocation request={request.status} />
+          </div>
           <StatusNote request={request} side={side} expired={expired} />
           {waiting && !expired && side === 'guest' && (
             <>

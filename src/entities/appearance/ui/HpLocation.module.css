@@ -1,0 +1,23 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 500 11px/1 var(--f-mono);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.hold {
+  color: var(--hold);
+}
+.earn {
+  color: var(--earn);
+}
+.back {
+  color: var(--ink-3);
+}
