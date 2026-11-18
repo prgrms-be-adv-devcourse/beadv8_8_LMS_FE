@@ -1179,8 +1179,11 @@
   .heroText {
     display: contents;
   }
+  /* 세로로 쌓을 때 줄바꿈(wrap)이 남아 있으면 16:9 화면이 든 그림 칸의 높이가 내용보다 작게 잡혀
+     거래 카드가 아래 버튼을 덮는다 */
   .hero {
     flex-direction: column;
+    flex-wrap: nowrap;
     align-items: stretch;
   }
   .stage {
