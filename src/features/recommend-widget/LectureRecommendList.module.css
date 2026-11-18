@@ -1,35 +1,70 @@
-/* 추천 강의 카드: 제목과 이유 문장 */
+/* 추천 강의 카드: 순번 · 제목 · 이유 문장. 순번은 CardRow의 CSS 카운터라 글자로 읽히지 않는다 */
 .card {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 16px;
+  padding: 14px 16px 16px;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface);
+  box-shadow: var(--shadow-1);
   color: var(--ink);
   text-decoration: none;
   min-width: 0;
   transition:
-    border-color 0.12s,
-    transform 0.12s;
+    border-color var(--t-fast) var(--ease-out),
+    box-shadow var(--t) var(--ease-out),
+    transform var(--t) var(--ease-out);
 }
-.card:hover {
+.card::before {
+  content: counter(pick, decimal-leading-zero);
+  /* 순번은 링크 이름에 넣지 않는다(대체 글자 빈칸) */
+  content: counter(pick, decimal-leading-zero) / '';
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+}
+@media (hover: hover) {
+  .card:hover {
+    border-color: var(--line-2);
+    box-shadow: var(--shadow-2);
+    transform: translateY(-2px);
+  }
+}
+.card:active {
+  transform: scale(0.98);
+}
+.card:focus-visible {
+  outline: none;
   border-color: var(--signal);
-  transform: translateY(-2px);
+  box-shadow: var(--ring), var(--shadow-2);
 }
 .title {
   font-size: 15px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .reason {
   font-size: 13px;
+  line-height: 1.55;
   color: var(--ink-2);
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 @media (prefers-reduced-motion: reduce) {
   .card {
     transition: none;
+  }
+  .card:hover,
+  .card:active {
+    transform: none;
   }
 }

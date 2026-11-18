@@ -1,35 +1,71 @@
-/* 라이트·다크 모두 표면색 위에 두고, 포인트 색은 머리글에만 쓴다 */
+/* 라이트·다크 모두 표면색 위에 두고, 신호색은 머리글의 탤리 램프와 윗변의 짧은 막대에만 쓴다 */
 .strip {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px 18px 16px;
   border: 1px solid var(--line);
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+.strip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 44px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--grad-signal);
 }
 .head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
+  flex-direction: column;
+  gap: 4px;
 }
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font: 600 11px var(--f-mono);
-  letter-spacing: 0.1em;
-  color: var(--signal);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--signal-text);
+}
+.eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 22%, transparent);
 }
 .title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
+  line-height: 1.3;
 }
 .note {
-  flex-basis: 100%;
   font-size: 13px;
   color: var(--ink-3);
 }
-/* 추천하지 못한 까닭(notice) */
+/* 추천하지 못한 까닭(notice): 빈 줄 대신 안내 상자로 보인다 */
 .notice {
+  padding: 14px 16px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r);
+  background: var(--surface-2);
   font-size: 14px;
+  line-height: 1.55;
   color: var(--ink-2);
+}
+@media (max-width: 480px) {
+  .strip {
+    padding: 16px 14px 14px;
+  }
+  .strip::before {
+    left: 14px;
+  }
 }

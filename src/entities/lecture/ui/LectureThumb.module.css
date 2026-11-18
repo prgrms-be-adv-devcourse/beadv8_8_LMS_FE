@@ -79,7 +79,7 @@
     linear-gradient(currentColor, currentColor) bottom right / 2px 14px;
   background-repeat: no-repeat;
 }
-/* 탤리 램프와 ON AIR 표시. 글자는 CSS가 그려 낭독·글자 검색에 걸리지 않는다 */
+/* 탤리 램프와 ON AIR 표시. 글자는 CSS가 그려 글자 검색에 걸리지 않고, 자리 그림 전체가 aria-hidden이다 */
 .mark {
   position: absolute;
   top: 16px;
