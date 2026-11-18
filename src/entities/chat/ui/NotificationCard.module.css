@@ -1,21 +1,51 @@
-/* 목업 .sys-card */
+/* 목업 .sys-card. 출연 건의 사건이라 일반 안내(필)보다 또렷한 정보 블록으로 보인다 */
 .card {
   align-self: center;
-  width: min(320px, 100%);
+  width: min(340px, 100%);
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
+  animation: rise var(--t-fast) var(--ease-out);
+}
+/* 머리표: 탤리 램프 점 + 모노 대문자 */
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--signal-text);
+}
+.eyebrow::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--signal);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 20%, transparent);
 }
 .title {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
+/* 제목·출연료·일정 같은 값 줄: 들어간 면에, 숫자는 자리 맞춤 */
 .body {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   color: var(--ink-2);
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -28,4 +58,19 @@
   font: 500 11px var(--f-mono);
   color: var(--ink-3);
   margin-left: auto;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
 }

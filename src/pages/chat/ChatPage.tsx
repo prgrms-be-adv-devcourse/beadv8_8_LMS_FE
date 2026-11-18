@@ -4,6 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -12,6 +13,7 @@ import {
   useState,
   type ClipboardEvent,
   type FormEvent,
+  type ReactNode,
 } from 'react'
 import { Link, useParams } from 'react-router'
 import {
@@ -62,13 +64,24 @@ import { useUnreadMemberCount } from '@/features/chat/readCounts'
 import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
-import { formatDate, parseServerDate } from '@/shared/lib/date'
+import { daysUntil, formatDate, parseServerDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { Avatar } from '@/shared/ui/Avatar'
-import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import { toast } from '@/shared/ui/toastStore'
+import {
+  AlertIcon,
+  BackIcon,
+  ChatArt,
+  CloseIcon,
+  ExitIcon,
+  InfoIcon,
+  InviteIcon,
+  LockIcon,
+  SendIcon,
+  UsersIcon,
+} from './ChatIcons'
 import styles from './ChatPage.module.css'
 
 export function ChatPage() {
@@ -115,16 +128,14 @@ export function ChatPage() {
       ) : !rooms ? (
         <LoadError error={error} retry={refetch} />
       ) : rooms.length === 0 && !chatRoomId ? (
-        <EmptyState
-          title="아직 대화가 없어요"
-          action={
-            <Link className="btn primary" to="/influencers">
-              인플루언서 찾기
-            </Link>
-          }
-        >
-          인플루언서 프로필에서 채팅을 시작할 수 있어요.
-        </EmptyState>
+        <div className={`panel ${styles.empty}`}>
+          <ChatArt className={styles.art} />
+          <b>아직 대화가 없어요</b>
+          <p>인플루언서 프로필에서 채팅을 시작할 수 있어요.</p>
+          <Link className="btn primary" to="/influencers">
+            인플루언서 찾기
+          </Link>
+        </div>
       ) : (
         <div
           className={
@@ -136,9 +147,17 @@ export function ChatPage() {
             <Thread key={room.chatRoomId} room={room} myUserId={me.id} />
           ) : (
             <div className={styles.placeholder}>
-              {chatRoomId
-                ? '채팅방을 찾을 수 없어요. 이미 나갔거나 내보내진 방일 수 있어요.'
-                : '왼쪽에서 대화를 골라 주세요.'}
+              <ChatArt className={styles.art} />
+              <p>
+                {chatRoomId
+                  ? '채팅방을 찾을 수 없어요. 이미 나갔거나 내보내진 방일 수 있어요.'
+                  : '왼쪽에서 대화를 골라 주세요.'}
+              </p>
+              {chatRoomId && (
+                <Link className="btn ghost sm" to="/chat">
+                  대화 목록으로
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -159,55 +178,91 @@ function RoomList({
   const sorted = sortRoomsByRecent(rooms)
   return (
     <nav className={styles.rooms} aria-label="대화 목록">
+      <div className={styles.roomsHead} aria-hidden="true">
+        <span>대화</span>
+        <span className={styles.roomsCount}>{rooms.length}</span>
+      </div>
       {sorted.map((room) => {
         const partner = partnerOf(room, myUserId)
         const group = isGroupRoom(room) ? room.group : null
         const name = group ? group.title : (partner?.nickname ?? UNKNOWN_MEMBER)
+        const current = room.chatRoomId === currentId
         // 보고 있는 방은 읽음 처리 중이라 0으로 보인다.
-        const count =
-          room.chatRoomId === currentId ? 0 : (room.unreadCount ?? 0)
+        const count = current ? 0 : (room.unreadCount ?? 0)
+        const sentAt = room.lastMessage?.sentAt
         return (
           <Link
             key={room.chatRoomId}
             to={`/chat/${room.chatRoomId}`}
-            className={
-              room.chatRoomId === currentId
-                ? `${styles.room} ${styles.on}`
-                : styles.room
-            }
-            aria-current={room.chatRoomId === currentId ? 'page' : undefined}
+            className={[
+              styles.room,
+              current && styles.on,
+              count > 0 && styles.unread,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            aria-current={current ? 'page' : undefined}
           >
-            <Avatar
-              name={group ? group.title : (partner?.nickname ?? '?')}
-              size={36}
-            />
+            {/* 단체방은 뒤에 겹친 원으로 여러 사람이 있는 방임을 보인다(인원은 서버 값만 글로) */}
+            <span
+              className={
+                group
+                  ? `${styles.roomAvatar} ${styles.stack}`
+                  : styles.roomAvatar
+              }
+            >
+              <Avatar
+                name={group ? group.title : (partner?.nickname ?? '?')}
+                size={40}
+              />
+            </span>
             <span className={styles.rm}>
-              <b>
-                {name}
+              <span className={styles.rmTop}>
+                <b className={styles.rmName}>{name}</b>
                 {group && (
                   <span className={styles.groupMeta}>
+                    <UsersIcon />
                     단체 {group.memberCount}명
                   </span>
                 )}
-              </b>
-              <span>{roomPreview(room, myUserId, partner?.active)}</span>
-            </span>
-            {group && room.status !== 'ACTIVE' && (
-              <span className="pill mute">{groupStatusLabel(room.status)}</span>
-            )}
-            {count > 0 && (
-              <span
-                className={styles.cnt}
-                aria-label={`안 읽은 메시지 ${count}개`}
-              >
-                {count}
+                {sentAt && (
+                  <time className={styles.rmTime} dateTime={sentAt}>
+                    {roomTime(sentAt)}
+                  </time>
+                )}
               </span>
-            )}
+              <span className={styles.rmBottom}>
+                <span className={styles.preview}>
+                  {roomPreview(room, myUserId, partner?.active)}
+                </span>
+                {group && room.status !== 'ACTIVE' && (
+                  <span className="pill mute">
+                    {groupStatusLabel(room.status)}
+                  </span>
+                )}
+                {count > 0 && (
+                  <span
+                    className={styles.cnt}
+                    aria-label={`안 읽은 메시지 ${count}개`}
+                  >
+                    {count > 99 ? '99+' : count}
+                  </span>
+                )}
+              </span>
+            </span>
           </Link>
         )
       })}
     </nav>
   )
+}
+
+/** 방 목록의 마지막 메시지 시각: 오늘은 시:분, 어제는 '어제', 그 전은 월/일 */
+function roomTime(sentAt: string) {
+  const days = daysUntil(sentAt)
+  if (days === 0) return timeFormatter.format(parseServerDate(sentAt))
+  if (days === -1) return '어제'
+  return formatDate(sentAt).replace(/\(.+\)$/, '')
 }
 
 /** 방 목록 두 번째 줄: 마지막 메시지(없으면 시작 날짜) */
@@ -354,6 +409,14 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
           participationVersion={me?.participationVersion}
         />
       )}
+      {(status === 'connecting' || status === 'disconnected') && (
+        <p className={styles.connBar} data-state={status} role="status">
+          <span className={styles.connDot} aria-hidden="true" />
+          {status === 'connecting'
+            ? '채팅 서버에 연결하고 있어요'
+            : '연결이 끊겼어요. 다시 연결하고 있어요'}
+        </p>
+      )}
       <div className={styles.msgs} ref={listRef} aria-live="polite">
         {isPending ? (
           <Loading />
@@ -381,8 +444,7 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
               hasNextPage && (
                 <button
                   type="button"
-                  className="btn ghost sm"
-                  style={{ alignSelf: 'center' }}
+                  className={`btn ghost sm ${styles.older}`}
                   disabled={isFetchingNextPage}
                   onClick={loadOlder}
                 >
@@ -391,31 +453,47 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
               )
             )}
             {messages.length === 0 && (
-              <p
-                className="fine"
-                style={{ textAlign: 'center', marginTop: 40 }}
-              >
-                {group
-                  ? perms?.canInvite
-                    ? '단체방이 열렸어요. 지원자를 초대해 대화를 시작해 보세요.'
-                    : '이 방에서 볼 수 있는 대화가 아직 없어요.'
-                  : `${partner?.nickname} 님과 대화를 시작해 보세요.`}
-              </p>
+              <div className={styles.threadEmpty}>
+                <ChatArt className={styles.art} />
+                <p className="fine">
+                  {group
+                    ? perms?.canInvite
+                      ? '단체방이 열렸어요. 지원자를 초대해 대화를 시작해 보세요.'
+                      : '이 방에서 볼 수 있는 대화가 아직 없어요.'
+                    : `${partner?.nickname} 님과 대화를 시작해 보세요.`}
+                </p>
+              </div>
             )}
-            {messages.map((m) => (
-              <MessageItem
-                key={m.messageId}
-                message={m}
-                mine={m.senderUserId === myUserId}
-                group={group}
-                nameOf={nameOf}
-              />
-            ))}
-            {pending.map((p) => (
+            {messages.map((m, i) => {
+              const prev = messages[i - 1]
+              const newDay = !prev || dayKey(prev.sentAt) !== dayKey(m.sentAt)
+              return (
+                <Fragment key={m.messageId}>
+                  {newDay && <DayDivider sentAt={m.sentAt} />}
+                  <MessageItem
+                    message={m}
+                    mine={m.senderUserId === myUserId}
+                    group={group}
+                    nameOf={nameOf}
+                    first={!sameRun(prev, m)}
+                    last={!sameRun(m, messages[i + 1])}
+                  />
+                </Fragment>
+              )
+            })}
+            {pending.map((p, i) => (
               <PendingItem
                 key={p.clientMessageId}
                 chatRoomId={room.chatRoomId}
                 pending={p}
+                // 바로 앞이 내 메시지면 같은 묶음으로 이어 그린다(꼬리 모서리 없음).
+                first={
+                  i === 0 &&
+                  !(
+                    messages.at(-1)?.messageType === 'TEXT' &&
+                    messages.at(-1)?.senderUserId === myUserId
+                  )
+                }
               />
             ))}
           </>
@@ -423,20 +501,24 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
       </div>
       {partnerLeft ? (
         <div className={styles.partnerLeft} role="status">
-          상대가 나간 대화예요. 상대가 다시 채팅을 시작하면 이어서 대화할 수
-          있어요.
+          <InfoIcon />
+          <span>
+            상대가 나간 대화예요. 상대가 다시 채팅을 시작하면 이어서 대화할 수
+            있어요.
+          </span>
         </div>
       ) : isGroupRoom(room) && perms && !perms.canSend ? (
         // 단체방이 사용 중이 아니면(일시 중지·읽기 전용) 보낼 수 없다. 읽기·나가기는 그대로 된다.
         <div className={styles.partnerLeft} role="status">
-          {groupStatusNotice(room, perms.host)}
+          <LockIcon />
+          <span>{groupStatusNotice(room, perms.host)}</span>
         </div>
       ) : (
         <form className={styles.composer} onSubmit={send}>
           <div className={styles.composerInput}>
             <input
               ref={inputRef}
-              className="input"
+              className={styles.field}
               value={text}
               maxLength={CHAT_MESSAGE_MAX_LENGTH}
               onChange={(e) => setText(e.target.value)}
@@ -459,10 +541,11 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
           </div>
           <button
             type="submit"
-            className="btn primary"
+            className={styles.send}
             disabled={status !== 'connected' || !text.trim()}
           >
-            보내기
+            <SendIcon />
+            <span className={styles.sendLabel}>보내기</span>
           </button>
         </form>
       )}
@@ -484,13 +567,15 @@ function DirectHead({
   const [confirmLeave, setConfirmLeave] = useState(false)
   return (
     <div className={styles.threadHead}>
-      <Avatar name={partner?.nickname ?? '?'} size={32} />
+      <Avatar name={partner?.nickname ?? '?'} size={36} />
       <div className={styles.who}>
         <b>{partner?.nickname}</b>
         {partner && (
-          <Link className="fine" to={`/influencers/${partner.userId}`}>
-            프로필 보기
-          </Link>
+          <span className={styles.groupLinks}>
+            <Link className="fine" to={`/influencers/${partner.userId}`}>
+              프로필 보기
+            </Link>
+          </span>
         )}
       </div>
       {confirmLeave ? (
@@ -504,16 +589,37 @@ function DirectHead({
           }
         />
       ) : (
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => setConfirmLeave(true)}
-        >
-          나가기
-        </button>
+        <span className={styles.actions}>
+          <HeadAction icon={<ExitIcon />} onClick={() => setConfirmLeave(true)}>
+            나가기
+          </HeadAction>
+        </span>
       )}
       <CloseThread />
     </div>
+  )
+}
+
+/** 대화 머리의 행동 버튼. 좁은 화면에서는 아이콘만 보이고 글자는 접근성 이름으로 남는다 */
+function HeadAction({
+  icon,
+  onClick,
+  children,
+}: {
+  icon: ReactNode
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      className={`btn ghost sm ${styles.act}`}
+      onClick={onClick}
+      title={children}
+    >
+      {icon}
+      <span className={styles.actLabel}>{children}</span>
+    </button>
   )
 }
 
@@ -545,10 +651,12 @@ function GroupHead({
   useRefreshOnMemberCount(chatRoomId, group.memberCount)
   return (
     <div className={styles.threadHead}>
-      <Avatar name={group.title} size={32} />
+      <span className={`${styles.roomAvatar} ${styles.stack}`}>
+        <Avatar name={group.title} size={36} />
+      </span>
       <div className={styles.who}>
         <b>
-          {group.title}
+          <span className={styles.whoName}>{group.title}</span>
           {status !== 'ACTIVE' && (
             <span className="pill mute">{groupStatusLabel(status)}</span>
           )}
@@ -556,9 +664,10 @@ function GroupHead({
         <span className={styles.groupLinks}>
           <button
             type="button"
-            className="link fine"
+            className={styles.metaBtn}
             onClick={() => setModal('members')}
           >
+            <UsersIcon />
             참여자 {group.memberCount}명
           </button>
           <Link className="fine" to={`/recruits/${group.recruitId}`}>
@@ -566,48 +675,38 @@ function GroupHead({
           </Link>
         </span>
       </div>
-      {perms.canInvite && (
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => setModal('invite')}
-        >
-          초대
-        </button>
-      )}
-      {perms.canClose && (
-        <button
-          type="button"
-          className="btn ghost sm"
-          onClick={() => setModal('close')}
-        >
-          폐쇄
-        </button>
-      )}
-      {perms.canLeave &&
-        (confirmLeave ? (
-          <LeaveConfirm
-            message={
-              perms.host
-                ? '나가면 이 방의 대화를 다시 볼 수 없어요.'
-                : '나가면 이 방의 대화를 다시 볼 수 없고, 호스트가 다시 초대해야만 들어올 수 있어요.'
-            }
-            pending={leave.isPending || participationVersion === undefined}
-            onCancel={() => setConfirmLeave(false)}
-            onLeave={() =>
-              participationVersion !== undefined &&
-              leave.mutate({ chatRoomId, participationVersion })
-            }
-          />
-        ) : (
-          <button
-            type="button"
-            className="btn ghost sm"
-            onClick={() => setConfirmLeave(true)}
-          >
+      <span className={styles.actions}>
+        {perms.canInvite && (
+          <HeadAction icon={<InviteIcon />} onClick={() => setModal('invite')}>
+            초대
+          </HeadAction>
+        )}
+        {perms.canClose && (
+          <HeadAction icon={<LockIcon />} onClick={() => setModal('close')}>
+            폐쇄
+          </HeadAction>
+        )}
+        {perms.canLeave && !confirmLeave && (
+          <HeadAction icon={<ExitIcon />} onClick={() => setConfirmLeave(true)}>
             나가기
-          </button>
-        ))}
+          </HeadAction>
+        )}
+      </span>
+      {perms.canLeave && confirmLeave && (
+        <LeaveConfirm
+          message={
+            perms.host
+              ? '나가면 이 방의 대화를 다시 볼 수 없어요.'
+              : '나가면 이 방의 대화를 다시 볼 수 없고, 호스트가 다시 초대해야만 들어올 수 있어요.'
+          }
+          pending={leave.isPending || participationVersion === undefined}
+          onCancel={() => setConfirmLeave(false)}
+          onLeave={() =>
+            participationVersion !== undefined &&
+            leave.mutate({ chatRoomId, participationVersion })
+          }
+        />
+      )}
       <CloseThread />
       {modal === 'members' && (
         <GroupMembersModal
@@ -669,23 +768,28 @@ function LeaveConfirm({
 }) {
   return (
     <span className={styles.leaveConfirm}>
-      <span className="fine">{message}</span>
-      <button type="button" className="btn ghost sm" onClick={onCancel}>
-        취소
-      </button>
-      <button
-        type="button"
-        className="btn danger sm"
-        disabled={pending}
-        onClick={onLeave}
-      >
-        나가기
-      </button>
+      <span className={styles.leaveMsg}>{message}</span>
+      <span className={styles.leaveBtns}>
+        <button type="button" className="btn ghost sm" onClick={onCancel}>
+          취소
+        </button>
+        <button
+          type="button"
+          className="btn danger sm"
+          disabled={pending}
+          onClick={onLeave}
+        >
+          나가기
+        </button>
+      </span>
     </span>
   )
 }
 
-/** 닫기는 화면만 닫는다(퇴장 아님). 참여는 유지되고 이후 메시지는 안 읽은 수로 쌓인다. */
+/**
+ * 닫기는 화면만 닫는다(퇴장 아님). 참여는 유지되고 이후 메시지는 안 읽은 수로 쌓인다.
+ * 좁은 화면에서는 목록으로 돌아가는 뒤로 가기 모양으로 머리 맨 앞에 온다
+ */
 function CloseThread() {
   return (
     <Link
@@ -694,8 +798,54 @@ function CloseThread() {
       aria-label="대화 닫기"
       title="대화 닫기 (나가지 않아요)"
     >
-      ✕
+      <span className={styles.closeX}>
+        <CloseIcon />
+      </span>
+      <span className={styles.closeBack}>
+        <BackIcon />
+      </span>
     </Link>
+  )
+}
+
+const dayFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: 'Asia/Seoul',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  weekday: 'short',
+})
+const dayKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Seoul',
+})
+
+/** KST 날짜(YYYY-MM-DD). 날짜 구분선을 넣을 자리를 정한다 */
+function dayKey(sentAt: string) {
+  return dayKeyFormatter.format(parseServerDate(sentAt))
+}
+
+/**
+ * 같은 사람이 같은 분에 이어 보낸 글이면 한 묶음으로 그린다(이름·아바타는 첫 줄, 시간은 마지막 줄).
+ * 안내·알림이 사이에 끼면 묶음이 끊긴다
+ */
+function sameRun(a: ChatMessage | undefined, b: ChatMessage | undefined) {
+  if (!a || !b) return false
+  if (a.messageType !== 'TEXT' || b.messageType !== 'TEXT') return false
+  if (a.senderUserId !== b.senderUserId) return false
+  return (
+    dayKey(a.sentAt) === dayKey(b.sentAt) &&
+    timeFormatter.format(parseServerDate(a.sentAt)) ===
+      timeFormatter.format(parseServerDate(b.sentAt))
+  )
+}
+
+function DayDivider({ sentAt }: { sentAt: string }) {
+  return (
+    <p className={styles.day}>
+      <time dateTime={dayKey(sentAt)}>
+        {dayFormatter.format(parseServerDate(sentAt))}
+      </time>
+    </p>
   )
 }
 
@@ -755,23 +905,34 @@ const NO_PENDING: PendingMessage[] = []
 function PendingItem({
   chatRoomId,
   pending,
+  first,
 }: {
   chatRoomId: number
   pending: PendingMessage
+  /** 묶음의 첫 줄이면 꼬리 모서리를 단다 */
+  first: boolean
 }) {
+  const run = first ? '' : ` ${styles.cont}`
   if (pending.status === 'sending')
     return (
-      <div className={`${styles.msg} ${styles.me} ${styles.sending}`}>
+      <div className={`${styles.msg} ${styles.me} ${styles.sending}${run}`}>
         <div className={styles.bubble}>{pending.content}</div>
-        <time>보내는 중…</time>
+        <span className={styles.meta}>
+          <time>보내는 중…</time>
+        </span>
       </div>
     )
   const unconfirmed = pending.status === 'unconfirmed'
   return (
     <div
-      className={`${styles.msg} ${styles.me} ${unconfirmed ? styles.unconfirmed : styles.failed}`}
+      className={`${styles.msg} ${styles.me} ${unconfirmed ? styles.unconfirmed : styles.failed}${run}`}
     >
       <div className={styles.bubble}>{pending.content}</div>
+      <span className={styles.meta} aria-hidden="true">
+        <span className={styles.failMark}>
+          <AlertIcon />
+        </span>
+      </span>
       <span
         className={unconfirmed ? styles.unconfirmedNote : styles.failNote}
         role="alert"
@@ -784,20 +945,22 @@ function PendingItem({
         ) : (
           <span>{pending.error ?? '보내지 못했어요.'}</span>
         )}
-        <button
-          type="button"
-          className="link"
-          onClick={() => retryPending(chatRoomId, pending.clientMessageId)}
-        >
-          다시 보내기
-        </button>
-        <button
-          type="button"
-          className="link"
-          onClick={() => discardPending(chatRoomId, pending.clientMessageId)}
-        >
-          지우기
-        </button>
+        <span className={styles.noteBtns}>
+          <button
+            type="button"
+            className={styles.noteBtn}
+            onClick={() => retryPending(chatRoomId, pending.clientMessageId)}
+          >
+            다시 보내기
+          </button>
+          <button
+            type="button"
+            className={styles.noteBtn}
+            onClick={() => discardPending(chatRoomId, pending.clientMessageId)}
+          >
+            지우기
+          </button>
+        </span>
       </span>
     </div>
   )
@@ -815,6 +978,8 @@ function MessageItem({
   mine,
   group,
   nameOf,
+  first,
+  last,
 }: {
   message: ChatMessage
   mine: boolean
@@ -822,6 +987,10 @@ function MessageItem({
   group: ChatGroupSummary | null
   /** 단체방 안내의 회원 이름 */
   nameOf: NameOf
+  /** 묶음의 첫 줄(이름·아바타·꼬리 모서리) */
+  first: boolean
+  /** 묶음의 마지막 줄(시간) */
+  last: boolean
 }) {
   const unread = useUnreadMemberCount(message)
   if (message.messageType === 'SYSTEM')
@@ -834,9 +1003,24 @@ function MessageItem({
         dateTime={message.sentAt}
       />
     )
+  // 단체방의 다른 사람 메시지는 아바타 칸을 두고, 이어진 줄은 그 칸을 비워 둔다.
+  const withAvatar = group !== null && !mine
+  const className = [
+    styles.msg,
+    mine && styles.me,
+    withAvatar && styles.withAvatar,
+    !first && styles.cont,
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
-    <div className={mine ? `${styles.msg} ${styles.me}` : styles.msg}>
-      {group && !mine && (
+    <div className={className}>
+      {withAvatar && first && (
+        <span className={styles.msgAvatar}>
+          <Avatar name={senderName(message)} size={32} />
+        </span>
+      )}
+      {group && !mine && first && (
         <span className={styles.sender}>
           {senderName(message)}
           {message.senderUserId === group.hostUserId && <HostCrown />}
@@ -858,9 +1042,11 @@ function MessageItem({
             {unread}
           </span>
         )}
-        <time dateTime={message.sentAt}>
-          {timeFormatter.format(parseServerDate(message.sentAt))}
-        </time>
+        {last && (
+          <time dateTime={message.sentAt}>
+            {timeFormatter.format(parseServerDate(message.sentAt))}
+          </time>
+        )}
       </span>
     </div>
   )

@@ -24,6 +24,10 @@ export function NotificationCard({
   const link = notificationLink(fields)
   return (
     <article className={styles.card} aria-label="출연 알림">
+      {/* 카드의 이름(aria-label)과 같은 글이라 보조 기술에는 한 번만 읽힌다 */}
+      <span className={styles.eyebrow} aria-hidden="true">
+        출연 알림
+      </span>
       <b className={styles.title}>{title}</b>
       {rest && <p className={styles.body}>{rest}</p>}
       <div className={styles.foot}>
