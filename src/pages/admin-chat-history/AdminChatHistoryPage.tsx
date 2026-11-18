@@ -20,6 +20,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminChatHistoryPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 /** 기록 문구. actor는 행위자, target은 대상 회원(초대·내보내기)의 이름 */
 type LogText = (actor: string, target: string) => string
@@ -247,7 +248,7 @@ function HistoryView({
             <span className="pill mute">종료</span>
           )}
         </div>
-        <dl className="kv">
+        <dl className={`kv ${admin.kv}`}>
           <dt>만든 시각</dt>
           <dd>{formatDateTime(history.createdAt)}</dd>
           {history.endedAt && (

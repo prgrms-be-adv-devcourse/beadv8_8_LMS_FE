@@ -24,6 +24,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminPromotionsPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const TABS: { status: UpgradeRequestStatus; label: string; empty: string }[] = [
   { status: 'PENDING', label: '심사 대기', empty: '심사 대기 신청이 없어요' },
@@ -75,13 +76,17 @@ export function AdminPromotionsPage() {
           ))
         }
       />
-      <div className="toolbar">
-        <div role="group" aria-label="심사 상태" className={styles.tabs}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="심사 상태"
+          className={`${styles.tabs} ${admin.seg}`}
+        >
           {TABS.map((t) => (
             <button
               key={t.status}
               type="button"
-              className={status === t.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === t.status}
               onClick={() => setStatus(t.status)}
             >
@@ -97,7 +102,7 @@ export function AdminPromotionsPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={tab.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <ul className={styles.list} aria-label="승급 신청 목록">
             {data.content.map((review) => (
               <ReviewItem key={review.requestId} review={review} />

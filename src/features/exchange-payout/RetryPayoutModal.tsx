@@ -3,6 +3,7 @@ import type { AdminExchange } from '@/entities/wallet/types'
 import { formatNumber } from '@/shared/lib/money'
 import { Modal } from '@/shared/ui/Modal'
 import { usePayoutBusy, useRetryPayout } from './useExchangePayout'
+import admin from '@/pages/admin-shared.module.css'
 
 /** 재송금 확인. 새 지급 요청 ID로 실제 송금을 다시 보내 되돌릴 수 없다 */
 export function RetryPayoutModal({
@@ -34,7 +35,7 @@ export function RetryPayoutModal({
         </>
       }
     >
-      <dl className="kv">
+      <dl className={`kv ${admin.kv}`}>
         <dt>신청자</dt>
         <dd>{applicantLabel(exchange)}</dd>
         <dt>송금액</dt>

@@ -31,6 +31,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { InlineLoadError, LoadError, Loading } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
 import styles from './AdminHpReconciliationsPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const TABS: { value: ReconciliationApp; label: string }[] = [
   { value: 'lecture', label: RECONCILIATION_APPS.lecture.label },
@@ -120,7 +121,7 @@ function Reconciliation<M extends { id: number; rule: string }>({
 
   return (
     <>
-      <div className="toolbar">
+      <div className={`toolbar ${admin.toolbar}`}>
         <span className="fine">
           {running
             ? '실행이 끝나면 지금 실행할 수 있어요.'
@@ -182,7 +183,7 @@ function Summary({
         <h2 id="hp-reconciliation-summary">마지막 결과</h2>
         <ReconciliationStatusPill status={run.status} />
       </div>
-      <dl className="kv">
+      <dl className={`kv ${admin.kv}`}>
         <dt>계기</dt>
         <dd>
           {reconciliationTriggerName(run.triggerType)}
@@ -307,7 +308,7 @@ function RuleCell({ rule }: { rule: string }) {
 
 function LectureTable({ rows }: { rows: LectureMismatch[] }) {
   return (
-    <div className="tbl-wrap">
+    <div className={`tbl-wrap ${admin.tableWrap}`}>
       <table className="tbl">
         <thead>
           <tr>
@@ -345,7 +346,7 @@ function LectureTable({ rows }: { rows: LectureMismatch[] }) {
 
 function AppearanceTable({ rows }: { rows: AppearanceMismatch[] }) {
   return (
-    <div className="tbl-wrap">
+    <div className={`tbl-wrap ${admin.tableWrap}`}>
       <table className="tbl">
         <thead>
           <tr>

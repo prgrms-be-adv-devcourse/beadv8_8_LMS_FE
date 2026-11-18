@@ -20,6 +20,7 @@ import { formatDateTime } from '@/shared/lib/date'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminExchangePage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const back = (
   <Link className="back" to="/admin/exchanges">
@@ -72,7 +73,7 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
           </section>
           <section className="panel" aria-labelledby="exchange-applicant">
             <h2 id="exchange-applicant">신청자</h2>
-            <dl className="kv">
+            <dl className={`kv ${admin.kv}`}>
               <dt>회원</dt>
               <dd>
                 {applicant ? `${applicant.nickname} · ` : ''}회원 #
@@ -97,7 +98,7 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
           {reviewed && (
             <section className="panel" aria-labelledby="exchange-history">
               <h2 id="exchange-history">처리 기록</h2>
-              <dl className="kv">
+              <dl className={`kv ${admin.kv}`}>
                 {exchange.approvedAt && (
                   <>
                     <dt>승인</dt>

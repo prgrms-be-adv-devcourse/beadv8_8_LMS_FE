@@ -17,6 +17,7 @@ import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminLecturePage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 /** 화면 안내용 검수 기준. 서버로 보내지 않는다. */
 const CHECKLIST = [
@@ -116,7 +117,7 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
         </div>
         <aside className="panel sticky" ref={asideRef}>
           <h2>검수 체크리스트</h2>
-          <dl className="kv">
+          <dl className={`kv ${admin.kv}`}>
             <dt>판매자</dt>
             <dd>{lecture.sellerNickname}</dd>
             <dt>가격</dt>

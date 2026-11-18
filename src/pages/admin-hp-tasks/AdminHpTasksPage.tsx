@@ -20,6 +20,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminHpTasksPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const TASK_TYPES = Object.keys(HP_TASK_TYPE_LABEL) as HpTaskType[]
 
@@ -77,13 +78,17 @@ export function AdminHpTasksPage() {
         title="강의 HP 작업"
         lede="강의 주문의 HP 보류·반환·지급·보류 무효화 요청이에요. 실패하면 자동으로 다시 시도하고, 정해진 횟수를 넘기거나 다시 보내도 안 되는 오류면 멈춰요. 멈춘 작업은 원인을 고친 뒤 상세에서 재시도하고, 재시도해도 결과가 바뀌지 않는 주문 보류는 무효화해요."
       />
-      <div className="toolbar">
-        <div role="group" aria-label="작업 상태" className={styles.filters}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="작업 상태"
+          className={`${styles.filters} ${admin.seg}`}
+        >
           {HP_TASK_STATUS_FILTERS.map((f) => (
             <button
               key={f.status}
               type="button"
-              className={status === f.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === f.status}
               onClick={() => update({ status: f.status })}
             >
@@ -116,7 +121,7 @@ export function AdminHpTasksPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={filter.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <ul className={styles.list} aria-label="HP 작업 목록">
             {data.content.map((task) => (
               <TaskItem key={task.id} task={task} />

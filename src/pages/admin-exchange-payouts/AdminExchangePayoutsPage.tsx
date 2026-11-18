@@ -20,6 +20,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminExchangePayoutsPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 const DEFAULT_STATUS: AdminPayoutFilter = 'MANUAL_REVIEW_REQUIRED'
 
@@ -63,15 +64,17 @@ export function AdminExchangePayoutsPage() {
           ))
         }
       />
-      <div className="toolbar">
-        <div role="group" aria-label="송금 상태" className={styles.filters}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="송금 상태"
+          className={`${styles.filters} ${admin.seg}`}
+        >
           {ADMIN_PAYOUT_FILTERS.map((f) => (
             <button
               key={f.status}
               type="button"
-              className={
-                filter.status === f.status ? 'btn sm primary' : 'btn sm'
-              }
+              className="btn sm"
               aria-pressed={filter.status === f.status}
               onClick={() => setStatus(f.status)}
             >
@@ -88,8 +91,8 @@ export function AdminExchangePayoutsPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={filter.empty} />
       ) : (
-        <section className="panel">
-          <div className="tbl-wrap">
+        <section className={`panel ${admin.tablePanel}`}>
+          <div className={`tbl-wrap ${admin.tableWrap}`}>
             <table className="tbl" aria-label="송금 시도 목록">
               <thead>
                 <tr>

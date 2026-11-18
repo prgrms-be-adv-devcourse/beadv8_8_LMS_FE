@@ -12,6 +12,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import admin from '@/pages/admin-shared.module.css'
 
 export function AdminPlatformWalletPage() {
   return (
@@ -59,8 +60,8 @@ function History() {
       </EmptyState>
     )
   return (
-    <section className="panel">
-      <div className="tbl-wrap">
+    <section className={`panel ${admin.tablePanel}`}>
+      <div className={`tbl-wrap ${admin.tableWrap}`}>
         <table className="tbl" aria-label="수수료 수입 내역">
           <thead>
             <tr>

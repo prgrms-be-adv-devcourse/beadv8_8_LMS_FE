@@ -21,6 +21,7 @@ import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminAppearanceHpTasksPage.module.css'
+import admin from '@/pages/admin-shared.module.css'
 
 type StatusFilter = (typeof APPEARANCE_HP_TASK_STATUS_FILTERS)[number]
 
@@ -57,15 +58,17 @@ export function AdminAppearanceHpTasksPage() {
         title="출연 HP 작업"
         lede="출연 요청서·모집글·출연의 보류 HP 반환·위약금 정산·지급 요청이에요. 실패하면 자동으로 다시 시도하고, 지갑이 거절하거나 재시도를 다 써도 실패하면 자동 처리가 멈춰요. 멈춘 작업은 원인을 고친 뒤 다시 시도하면 같은 요청 ID로 바로 한 번 보내요."
       />
-      <div className="toolbar">
-        <div role="group" aria-label="작업 상태" className={styles.filters}>
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div
+          role="group"
+          aria-label="작업 상태"
+          className={`${styles.filters} ${admin.seg}`}
+        >
           {APPEARANCE_HP_TASK_STATUS_FILTERS.map((f) => (
             <button
               key={f.status}
               type="button"
-              className={
-                filter.status === f.status ? 'btn sm primary' : 'btn sm'
-              }
+              className="btn sm"
               aria-pressed={filter.status === f.status}
               onClick={() => update(f.status)}
             >
@@ -81,7 +84,7 @@ export function AdminAppearanceHpTasksPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={filter.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <ul className={styles.list} aria-label="출연 HP 작업 목록">
             {data.content.map((task) => (
               <TaskItem key={task.id} task={task} />

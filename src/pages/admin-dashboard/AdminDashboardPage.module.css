@@ -1,9 +1,211 @@
+/* 해야 할 일 보드: 업무 묶음(심사·돈·지원) 아래 대기 건수 카드 */
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font: 600 11px var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.groupHint {
+  font: 400 12px var(--f-body);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-3);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
 .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 112px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
   text-decoration: none;
+}
+.link {
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    box-shadow var(--t-fast) var(--ease-out),
+    border-color var(--t-fast) var(--ease-out);
+}
+.link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-2);
+  border-color: var(--line-2);
+}
+.link:active {
+  transform: scale(0.98);
+}
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+  border-color: var(--signal);
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  padding-right: 20px;
+}
+/* 탤리 램프: 대기 건이 있을 때만 켠다 */
+.lamp {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+}
+.card[data-state='signal'] .lamp {
+  background: var(--signal);
+  box-shadow: 0 0 0 3px var(--signal-soft);
+}
+.card[data-state='bad'] .lamp {
+  background: var(--bad);
+  box-shadow: 0 0 0 3px var(--bad-soft);
+}
+.card[data-state='signal'] {
+  border-color: color-mix(in srgb, var(--signal) 35%, var(--line));
+}
+.card[data-state='bad'] {
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
+}
+
+.count {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-height: 34px;
+}
+.number {
+  font: 600 30px/1 var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.card[data-state='bad'] .number {
+  color: var(--bad);
+}
+.unit {
+  font-size: 13px;
+  color: var(--ink-3);
+}
+/* 대기 없음: 숫자 대신 차분한 완료 표시 */
+.clear {
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--earn);
+}
+.clear::before {
+  content: '✓';
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 2px;
+  border-radius: var(--r-pill);
+  background: var(--earn-soft);
+  font-size: 11px;
+}
+
+.arrow {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: var(--ink-3);
+  font-size: 14px;
+  transition:
+    transform var(--t-fast) var(--ease-out),
+    color var(--t-fast) var(--ease-out);
+}
+.link:hover .arrow {
+  transform: translateX(3px);
+  color: var(--ink);
+}
+
+/* 불러오는 중 자리 모양 */
+.skel {
+  position: relative;
+  display: block;
+  width: 64px;
+  height: 26px;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+}
+.skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--surface) 70%, transparent),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.2s var(--ease-in-out) infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.failed {
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--line));
+  background: var(--surface-2);
+}
+.failText {
+  font-size: 13px;
+  font-weight: 600;
 }
 .actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link,
+  .arrow {
+    transition: none;
+  }
+  .link:hover,
+  .link:active,
+  .link:hover .arrow {
+    transform: none;
+  }
+  .skel::after {
+    animation: none;
+  }
 }

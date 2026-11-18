@@ -11,6 +11,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import admin from '@/pages/admin-shared.module.css'
 
 const PENDING = 'PENDING_INSPECTION'
 
@@ -58,17 +59,13 @@ export function AdminLecturesPage() {
           ))
         }
       />
-      <div className="toolbar">
-        <div
-          role="group"
-          aria-label="검수 상태"
-          style={{ display: 'flex', gap: 6 }}
-        >
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div role="group" aria-label="검수 상태" className={admin.seg}>
           {TABS.map((t) => (
             <button
               key={t.status}
               type="button"
-              className={status === t.status ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === t.status}
               onClick={() => setStatus(t.status)}
             >
@@ -84,7 +81,7 @@ export function AdminLecturesPage() {
       ) : data.content.length === 0 ? (
         <EmptyState title={tab.empty} />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <div>
             {data.content.map((lecture) => (
               <div key={lecture.lectureId} className="q-item">

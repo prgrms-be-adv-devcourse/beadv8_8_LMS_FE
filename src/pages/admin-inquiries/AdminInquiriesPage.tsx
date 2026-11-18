@@ -9,6 +9,7 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import admin from '@/pages/admin-shared.module.css'
 
 const STATUSES: (InquiryStatus | undefined)[] = [
   undefined,
@@ -64,17 +65,13 @@ export function AdminInquiriesPage() {
         title="문의 답변"
         lede="회원 문의에 답하고, 강의 내용 다름 이의 제기를 판단해요. 답변은 문의한 회원의 고객센터에 보여요."
       />
-      <div className="toolbar">
-        <div
-          role="group"
-          aria-label="답변 상태"
-          style={{ display: 'flex', gap: 6 }}
-        >
+      <div className={`toolbar ${admin.toolbar}`}>
+        <div role="group" aria-label="답변 상태" className={admin.seg}>
           {STATUSES.map((s) => (
             <button
               key={s ?? 'ALL'}
               type="button"
-              className={status === s ? 'btn sm primary' : 'btn sm'}
+              className="btn sm"
               aria-pressed={status === s}
               onClick={() => update({ status: s })}
             >
@@ -103,7 +100,7 @@ export function AdminInquiriesPage() {
           }
         />
       ) : (
-        <section className="panel">
+        <section className={`panel ${admin.queue}`}>
           <InquiryList
             inquiries={data.content}
             to={(id) => `/admin/inquiries/${id}`}
