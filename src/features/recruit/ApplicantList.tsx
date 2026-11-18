@@ -11,6 +11,7 @@ import { formatDateTime } from '@/shared/lib/date'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './ApplicantList.module.css'
 import { AcceptApplicationModal, RejectApplicationModal } from './RecruitModals'
 
 type ModalState = { type: 'accept' | 'reject'; application: Application } | null
@@ -31,7 +32,7 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
     <section className="panel">
       <div className="panel-head">
         <h2>지원자 {recruit.applicantCount}명</h2>
-        <span className="fine">
+        <span className={styles.filled}>
           성립 {recruit.selectedCount} / {recruit.recruitCount}명
         </span>
       </div>
@@ -40,7 +41,7 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
-        <p className="fine">아직 지원한 게스트가 없어요.</p>
+        <p className={styles.empty}>아직 지원한 게스트가 없어요.</p>
       ) : (
         <>
           {/* 대기 지원이 다른 페이지에만 있을 수 있어 현재 페이지로 판단하지 않는다. */}
@@ -54,27 +55,18 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
             {data.content.map((application) => (
               <div
                 key={application.id}
-                className={
-                  application.status === 'WITHDRAWN' ? 'appl off' : 'appl'
-                }
+                className={[
+                  'appl',
+                  styles.row,
+                  application.status === 'WITHDRAWN' && 'off',
+                  application.status === 'SELECTED' && styles.selected,
+                  application.status === 'APPLIED' && open && styles.pending,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
-                <div
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 8,
-                      alignItems: 'center',
-                      flexWrap: 'wrap',
-                    }}
-                  >
+                <div className={styles.main}>
+                  <div className={styles.who}>
                     <MemberChip memberId={application.guestId} size={32} />
                     <ApplicationStatusPill status={application.status} />
                     {application.appearanceId !== null && (
@@ -87,15 +79,13 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
                     )}
                   </div>
                   {application.message && (
-                    <p style={{ fontSize: 14, color: 'var(--ink-2)' }}>
-                      {application.message}
-                    </p>
+                    <p className={styles.message}>{application.message}</p>
                   )}
                   <span className="fine">
                     {formatDateTime(application.createdAt)} 지원
                   </span>
                 </div>
-                <div className="row-actions">
+                <div className={`row-actions ${styles.actions}`}>
                   {open && application.status === 'APPLIED' && (
                     <>
                       <button

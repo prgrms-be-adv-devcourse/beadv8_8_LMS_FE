@@ -1,0 +1,78 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-1);
+}
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* 잔잔한 shimmer: 덮개 빛줄기를 transform으로만 옮긴다 */
+.bone {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+}
+.bone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 60%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.4s var(--ease-in-out) infinite;
+}
+.date {
+  width: 64px;
+  height: 70px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.title {
+  height: 16px;
+  width: min(70%, 320px);
+}
+.line {
+  height: 12px;
+  width: min(90%, 420px);
+}
+.fee {
+  width: 96px;
+  height: 22px;
+  flex: none;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+@media (max-width: 560px) {
+  .fee {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bone::after {
+    animation: none;
+    display: none;
+  }
+}

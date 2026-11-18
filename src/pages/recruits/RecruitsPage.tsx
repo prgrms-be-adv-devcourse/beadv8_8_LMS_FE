@@ -7,7 +7,9 @@ import type {
   RecruitListTab,
   RecruitSummary,
 } from '@/entities/appearance/types'
+import { AirDate } from '@/entities/appearance/ui/AirDate'
 import { ApplicationStatusPill } from '@/entities/appearance/ui/ApplicationStatusPill'
+import { CardSkeleton } from '@/entities/appearance/ui/CardSkeleton'
 import { HoldListViewSelect } from '@/entities/appearance/ui/HoldListView'
 import { useHoldListView } from '@/entities/appearance/useHoldListView'
 import {
@@ -27,8 +29,9 @@ import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
-import { LoadError, Loading } from '@/shared/ui/QueryState'
+import { LoadError } from '@/shared/ui/QueryState'
 import { Tabs } from '@/shared/ui/Tabs'
+import styles from './RecruitsPage.module.css'
 
 type Tab = RecruitListTab | 'applications'
 
@@ -112,7 +115,7 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
         </div>
       )}
       {isPending || moving ? (
-        <Loading />
+        <CardSkeleton />
       ) : error ? (
         <LoadError error={error} retry={refetch} />
       ) : data.content.length === 0 ? (
@@ -131,7 +134,7 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
         )
       ) : (
         <>
-          <div className="rec-list">
+          <div className={`rec-list ${styles.list}`}>
             {data.content.map((recruit) => (
               <RecruitCard
                 key={recruit.id}
@@ -159,15 +162,16 @@ function RecruitCard({
   mine: boolean
 }) {
   return (
-    <Link to={`/recruits/${recruit.id}`} className="rec">
-      <div style={{ minWidth: 0 }}>
-        <div className="rec-title">
+    <Link to={`/recruits/${recruit.id}`} className={`rec ${styles.card}`}>
+      <AirDate value={recruit.scheduledAt} />
+      <div className={styles.body}>
+        <div className={`rec-title ${styles.title}`}>
           <RecruitDeadlinePill recruit={recruit} />
-          {recruit.title}
+          <span className={styles.titleText}>{recruit.title}</span>
         </div>
         <div className="rec-meta">
           {mine ? (
-            <span>내 모집</span>
+            <span className={styles.mine}>내 모집</span>
           ) : (
             <MemberChip memberId={recruit.hostId} size={20} />
           )}
@@ -176,9 +180,9 @@ function RecruitCard({
           <span>지원 {recruit.applicantCount}명</span>
         </div>
       </div>
-      <div className="rec-fee">
-        <b>{formatNumber(recruit.feePerPerson)} HP</b>
-        <span>1인 출연료</span>
+      <div className={`rec-fee ${styles.fee}`}>
+        <span className={styles.eyebrow}>1인 출연료</span>
+        <b className="num">{formatNumber(recruit.feePerPerson)} HP</b>
         <RecruitSeats
           selected={recruit.selectedCount}
           total={recruit.recruitCount}
@@ -194,11 +198,18 @@ function MyApplications() {
   const { data, error, isPending, refetch } = query
   const moving = useClampPage(page, query, setPage)
 
-  if (isPending || moving) return <Loading />
+  if (isPending || moving) return <CardSkeleton />
   if (error) return <LoadError error={error} retry={refetch} />
   if (data.content.length === 0)
     return (
-      <EmptyState title="아직 지원한 모집이 없어요">
+      <EmptyState
+        title="아직 지원한 모집이 없어요"
+        action={
+          <Link className="btn primary" to="/recruits">
+            모집 중인 글 보기
+          </Link>
+        }
+      >
         모집 중 탭에서 마음에 드는 모집글에 지원해 보세요.
       </EmptyState>
     )
@@ -222,7 +233,8 @@ function MyApplications() {
 
 function ApplicationRow({ application }: { application: Application }) {
   return (
-    <div className="row-item">
+    <div className={`row-item ${styles.appRow}`}>
+      <AirDate value={application.recruitScheduledAt} />
       <div className="row-main">
         <Link
           className="row-title link"

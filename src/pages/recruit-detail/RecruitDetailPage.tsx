@@ -5,7 +5,9 @@ import { recruitQuery } from '@/entities/appearance/api'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
 import { HOLD_FAILED_NOTICE, isHoldStatus } from '@/entities/appearance/rules'
 import type { HpReleaseStatus, Recruit } from '@/entities/appearance/types'
+import { AirDate } from '@/entities/appearance/ui/AirDate'
 import { HostChannel } from '@/entities/appearance/ui/HostChannel'
+import { RecruitSeats } from '@/entities/appearance/ui/RecruitSeats'
 import { RecruitStatusPill } from '@/entities/appearance/ui/RecruitStatusPill'
 import { CancelRecruitModal } from '@/features/appearance-cancel/CancelModals'
 import { RecruitGroupPanel } from '@/features/chat-group/RecruitGroupPanel'
@@ -24,6 +26,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { lookup } from '@/shared/lib/statusLabel'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
+import styles from './RecruitDetailPage.module.css'
 
 export function RecruitDetailPage() {
   const recruitId = Number(useParams().recruitId)
@@ -84,18 +87,22 @@ function Detail({
 
   return (
     <>
+      <header className={styles.head}>
+        <div className={styles.headPills}>
+          <RecruitStatusPill recruit={recruit} />
+          {host && <span className={styles.eyebrow}>내 모집글</span>}
+        </div>
+        <h1 className={styles.title}>{recruit.title}</h1>
+      </header>
       <div className="split">
         <div className="page" style={{ gap: 16 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <RecruitStatusPill recruit={recruit} />
+          <section className={`panel ${styles.body}`} aria-label="모집 내용">
+            <p className={styles.content}>{recruit.content}</p>
+            <div className={styles.channel}>
+              <span className={styles.eyebrow}>호스트 채널</span>
+              <HostChannel url={recruit.hostChannelUrl} />
             </div>
-            <h1 style={{ fontSize: 26, fontWeight: 700 }}>{recruit.title}</h1>
-            <p className="lede" style={{ whiteSpace: 'pre-wrap' }}>
-              {recruit.content}
-            </p>
-            <HostChannel url={recruit.hostChannelUrl} />
-          </div>
+          </section>
           {/* 보류 확인 중·실패한 글은 올린 호스트에게만 보이고 지원·단체방 같은 동작이 없다(BE가 404로 막는다). */}
           {holding ? null : host ? (
             <ApplicantList recruit={recruit} />
@@ -106,52 +113,87 @@ function Detail({
             <RecruitGroupPanel recruit={recruit} host={host} viewer={viewer} />
           )}
         </div>
-        <aside className="panel sticky">
-          <dl className="kv">
-            <dt>1인 출연료</dt>
-            <dd className="num">{formatNumber(recruit.feePerPerson)} HP</dd>
-            <dt>모집 인원</dt>
-            <dd>{recruit.recruitCount}명</dd>
-            <dt>성립</dt>
-            <dd>
-              {recruit.selectedCount} / {recruit.recruitCount}명
-            </dd>
-            <dt>지원자</dt>
-            <dd>{recruit.applicantCount}명</dd>
-            <dt>모집 마감</dt>
-            <dd>{formatDateTime(recruit.recruitDeadline)}</dd>
-            <dt>방송 예정</dt>
-            <dd>{formatDateTime(recruit.scheduledAt)}</dd>
-            <dt>예상 출연 시간</dt>
-            <dd>{recruit.expectedMinutes}분</dd>
+        <aside className={`panel sticky ${styles.sheet}`}>
+          <div className={styles.slot}>
+            <AirDate value={recruit.scheduledAt} size="lg" />
+            <div className={styles.slotText}>
+              <span className={styles.eyebrow}>방송 편성</span>
+              <span className={styles.slotFee}>
+                <b className="num">{formatNumber(recruit.feePerPerson)}</b>
+                <span className={styles.unit}>HP</span>
+              </span>
+              <span className={styles.slotNote}>
+                1인당 · {recruit.recruitCount}명 모집
+              </span>
+            </div>
+          </div>
+          <RecruitSeats
+            selected={recruit.selectedCount}
+            total={recruit.recruitCount}
+          />
+          <dl className={styles.kv}>
+            <div>
+              <dt>1인 출연료</dt>
+              <dd className="num">{formatNumber(recruit.feePerPerson)} HP</dd>
+            </div>
+            <div>
+              <dt>모집 인원</dt>
+              <dd>{recruit.recruitCount}명</dd>
+            </div>
+            <div>
+              <dt>성립</dt>
+              <dd>
+                {recruit.selectedCount} / {recruit.recruitCount}명
+              </dd>
+            </div>
+            <div>
+              <dt>지원자</dt>
+              <dd>{recruit.applicantCount}명</dd>
+            </div>
+            <div>
+              <dt>모집 마감</dt>
+              <dd>{formatDateTime(recruit.recruitDeadline)}</dd>
+            </div>
+            <div>
+              <dt>방송 예정</dt>
+              <dd>{formatDateTime(recruit.scheduledAt)}</dd>
+            </div>
+            <div>
+              <dt>예상 출연 시간</dt>
+              <dd>{recruit.expectedMinutes}분</dd>
+            </div>
           </dl>
           <StatusNote recruit={recruit} host={host} />
-          {host && open && (
-            <>
-              <button
-                type="button"
-                className="btn block"
-                onClick={() => setModal('edit')}
-              >
-                기본 정보 수정
-              </button>
-              <button
-                type="button"
-                className="btn danger block"
-                onClick={() => setModal('close')}
-              >
-                조기 마감
-              </button>
-            </>
-          )}
-          {host && cancelable && (
-            <button
-              type="button"
-              className="btn danger block"
-              onClick={() => setModal('cancel')}
-            >
-              모집 전체 취소
-            </button>
+          {host && (open || cancelable) && (
+            <div className={styles.actions}>
+              {open && (
+                <>
+                  <button
+                    type="button"
+                    className="btn block"
+                    onClick={() => setModal('edit')}
+                  >
+                    기본 정보 수정
+                  </button>
+                  <button
+                    type="button"
+                    className="btn danger block"
+                    onClick={() => setModal('close')}
+                  >
+                    조기 마감
+                  </button>
+                </>
+              )}
+              {cancelable && (
+                <button
+                  type="button"
+                  className="btn danger block"
+                  onClick={() => setModal('cancel')}
+                >
+                  모집 전체 취소
+                </button>
+              )}
+            </div>
           )}
         </aside>
       </div>

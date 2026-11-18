@@ -1,0 +1,139 @@
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.headPills {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.title {
+  font-family: var(--f-display);
+  font-weight: 400;
+  font-size: clamp(24px, 4vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.headPills .eyebrow {
+  color: var(--signal-text);
+}
+
+/* 본문: 읽기 좋은 폭과 줄 간격 */
+.body {
+  box-shadow: var(--shadow-1);
+}
+.content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink);
+  max-width: 68ch;
+}
+.channel {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 오른쪽 편성표: 방송 일시 조각 + 1인 출연료 + 좌석 + 세부 칸 */
+.sheet {
+  box-shadow: var(--shadow-2);
+  border-radius: var(--r-lg);
+  gap: 16px;
+}
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.slotText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.slotFee {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.slotFee b {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ink);
+}
+.unit {
+  font: 600 13px var(--f-mono);
+  color: var(--ink-3);
+}
+.slotNote {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sheet :global(.seats) {
+  flex-wrap: wrap;
+}
+.kv {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+}
+.kv > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.kv dt {
+  color: var(--ink-3);
+  flex: none;
+}
+.kv dd {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+@media (max-width: 960px) {
+  /* 한 단이 되면 편성표를 본문보다 먼저 보여 준다(일시·출연료가 먼저 읽히게) */
+  .sheet {
+    order: -1;
+  }
+}
+@media (max-width: 480px) {
+  .slotFee b {
+    font-size: 24px;
+  }
+}

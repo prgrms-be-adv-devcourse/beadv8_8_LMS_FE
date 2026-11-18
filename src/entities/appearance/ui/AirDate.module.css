@@ -1,0 +1,67 @@
+/* 방송 일시 달력 조각: 잉크 머리(월) + 큰 날짜 + 요일·시각. 숫자는 모두 모노 */
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: none;
+  width: 64px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  text-align: center;
+  line-height: 1;
+}
+.month {
+  background: var(--ink);
+  color: var(--surface);
+  font: 600 10px/1 var(--f-mono);
+  letter-spacing: 0.08em;
+  padding: 4px 0;
+}
+.day {
+  font: 600 24px/1 var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  padding: 7px 0 3px;
+}
+.meta {
+  font: 500 10.5px/1 var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  padding: 0 0 7px;
+  white-space: nowrap;
+}
+.lg {
+  width: 84px;
+  border-radius: var(--r);
+}
+.lg .month {
+  font-size: 11px;
+  padding: 5px 0;
+}
+.lg .day {
+  font-size: 34px;
+  padding: 9px 0 4px;
+}
+.lg .meta {
+  font-size: 12px;
+  padding-bottom: 9px;
+}
+/* 오늘 방송: 탤리 램프처럼 머리만 신호색 */
+.today .month {
+  background: var(--signal);
+  color: var(--signal-ink);
+}
+.today {
+  border-color: color-mix(in srgb, var(--signal) 45%, var(--line));
+}
+/* 이미 지난 방송은 한 단계 가라앉힌다 */
+.past .month {
+  background: var(--ink-3);
+}
+.past .day {
+  color: var(--ink-2);
+}
