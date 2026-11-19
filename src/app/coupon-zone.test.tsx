@@ -11,6 +11,7 @@ import {
   mockCoupons,
   quietLectureRequests,
 } from '@/test/couponMock'
+import { LECTURE_LOOKUP_CONCURRENCY } from '@/pages/coupon-zone/useLectureLookups'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -56,11 +57,12 @@ const ISSUABLE = [
     soldOut: true,
   }),
   couponSummary({ couponId: 6, name: '강의 9 쿠폰', lectureId: 9 }),
+  couponSummary({ couponId: 7, name: '검수 중 강의 쿠폰', lectureId: 10 }),
 ]
 
 /**
  * 강의 7은 제목을 주고, 강의 8은 없다(404, 판매가 끝났거나 지운 강의). 강의 9는 그 밖의 이유로 못 불러온다
- * (4xx라 다시 시도하지 않는다)
+ * (4xx라 다시 시도하지 않는다). 강의 10은 있지만 판매 중이 아니다(검수 중)
  */
 function mockLectures() {
   server.use(
@@ -77,15 +79,29 @@ function mockLectures() {
         { status: 400 },
       ),
     ),
+    http.get('*/api/v1/lectures/10', () =>
+      rs({
+        ...lecture,
+        lectureId: 10,
+        title: '검수 중 강의',
+        status: 'PENDING_INSPECTION',
+      }),
+    ),
   )
 }
 
-/** 강의 조회가 끝나 강의별 쿠폰이 모두 자리를 잡을 때까지(없는 강의 8의 쿠폰은 빠지고 강의 9의 쿠폰이 보인다) */
+/**
+ * 강의 조회가 끝나 강의별 쿠폰이 모두 자리를 잡을 때까지(강의 9의 쿠폰이 보이고, 없는 강의 8·판매 중이 아닌 강의 10의
+ * 쿠폰은 빠진다)
+ */
 async function lecturesSettled() {
   await ticket('강의 9 쿠폰')
-  await waitFor(() =>
-    expect(screen.queryByRole('group', { name: '강의 8 쿠폰' })).toBeNull(),
-  )
+  await waitFor(() => {
+    expect(screen.queryByRole('group', { name: '강의 8 쿠폰' })).toBeNull()
+    expect(
+      screen.queryByRole('group', { name: '검수 중 강의 쿠폰' }),
+    ).toBeNull()
+  })
 }
 
 /** 쿠폰 받기 화면을 유저로 연다 */
@@ -144,7 +160,8 @@ describe('쿠폰 받기 화면', () => {
     expect(
       within(first).getByRole('link', { name: '강의 보기' }),
     ).toHaveAttribute('href', '/lectures/7')
-    // 없는 강의(404)의 쿠폰은 받아도 쓸 곳이 없어 빼고, 그 밖의 이유로 못 불러온 강의는 제목 없이 강의 보기만 둔다.
+    // 없는 강의(404)·판매 중이 아닌 강의의 쿠폰은 받아도 쓸 곳이 없어 빼고, 그 밖의 이유로 못 불러온 강의는 제목 없이
+    // 강의 보기만 둔다.
     await lecturesSettled()
     expect(
       within(byLecture)
@@ -210,7 +227,7 @@ describe('쿠폰 받기 화면', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '모두 받기' }))
     expect(await screen.findByText('3장 받았어요')).toBeInTheDocument()
-    // 없는 강의(8)의 쿠폰은 보내지 않는다.
+    // 없는 강의(8)·판매 중이 아닌 강의(10)의 쿠폰은 보내지 않는다.
     expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1, 3, 6])
     expect(log).toEqual([
       '접수 1',
@@ -250,6 +267,53 @@ describe('쿠폰 받기 화면', () => {
     expect(within(failed).getByRole('button', { name: '소진' })).toBeDisabled()
   })
 
+  it(`강의 상세는 한 번에 ${LECTURE_LOOKUP_CONCURRENCY}개까지만 부르고, 하나가 끝나면 다음 강의를 부른다`, async () => {
+    const lectureIds = Array.from(
+      { length: LECTURE_LOOKUP_CONCURRENCY + 2 },
+      (_, i) => 101 + i,
+    )
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const requested: number[] = []
+    let inFlight = 0
+    let maxInFlight = 0
+    server.use(
+      http.get('*/api/v1/lectures/:lectureId', async ({ params }) => {
+        const lectureId = Number(params.lectureId)
+        if (!lectureIds.includes(lectureId)) return
+        requested.push(lectureId)
+        inFlight++
+        maxInFlight = Math.max(maxInFlight, inFlight)
+        await gate
+        inFlight--
+        return rs({ ...lecture, lectureId, title: `강의 ${lectureId}` })
+      }),
+    )
+    await openZone({
+      issuable: lectureIds.map((lectureId) =>
+        couponSummary({
+          couponId: lectureId,
+          name: `쿠폰 ${lectureId}`,
+          lectureId,
+        }),
+      ),
+    })
+
+    // 화면 순서대로 앞의 강의부터 부른다(요청이 닿는 순서는 정해지지 않아 모아 본다).
+    await waitFor(() =>
+      expect([...requested].sort()).toEqual(
+        lectureIds.slice(0, LECTURE_LOOKUP_CONCURRENCY),
+      ),
+    )
+    release()
+    for (const lectureId of lectureIds)
+      expect(
+        await screen.findByRole('group', { name: `강의 ${lectureId}` }),
+      ).toBeInTheDocument()
+    expect([...requested].sort()).toEqual(lectureIds)
+    expect(maxInFlight).toBe(LECTURE_LOOKUP_CONCURRENCY)
+  })
+
   it('불러오는 중에는 뼈대를 보인다', async () => {
     mockLectures()
     mockCoupons({ issuable: ISSUABLE })
@@ -281,9 +345,9 @@ describe('쿠폰 받기 화면', () => {
     expect(screen.queryByRole('button', { name: '모두 받기' })).toBeNull()
   })
 
-  it('받을 수 있는 쿠폰이 모두 없는 강의의 쿠폰이면 빈 안내를 보인다', async () => {
+  it('받을 수 있는 쿠폰이 모두 없거나 판매 중이 아닌 강의의 쿠폰이면 빈 안내를 보인다', async () => {
     await openZone({
-      issuable: ISSUABLE.filter((c) => c.lectureId === 8),
+      issuable: ISSUABLE.filter((c) => c.lectureId === 8 || c.lectureId === 10),
     })
 
     expect(

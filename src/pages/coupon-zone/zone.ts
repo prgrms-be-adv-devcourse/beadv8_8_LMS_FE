@@ -41,12 +41,15 @@ export function groupIssuable(coupons: CouponSummary[]): ZoneGroups {
 export type LectureLookup =
   | { state: 'loading' }
   | { state: 'found'; title: string }
-  /** 강의가 없거나(404) 판매가 끝났다(deleted). 그 쿠폰은 쓸 곳이 없다 */
+  /** 강의가 없거나(404) 판매 중이 아니다(삭제·검수 중·반려). 그 쿠폰은 받아도 쓸 곳이 없다 */
   | { state: 'gone' }
   /** 그 밖의 이유로 못 불러왔다. 제목 없이 강의 보기만 둔다 */
   | { state: 'failed' }
 
-/** 강의 상세 조회 결과를 읽는다. 다시 불러오다 실패해도 받은 강의가 있으면 그것을 따른다 */
+/**
+ * 강의 상세 조회 결과를 읽는다. 판매 중(ON_SALE)인 강의만 살 수 있으므로 그 밖의 상태(모르는 값 포함)와 지운 강의는
+ * 없는 강의로 본다. 다시 불러오다 실패해도 받은 강의가 있으면 그것을 따른다
+ */
 export function lectureLookupOf({
   data,
   error,
@@ -55,7 +58,7 @@ export function lectureLookupOf({
   error: unknown
 }): LectureLookup {
   if (data)
-    return data.deleted
+    return data.deleted || data.status !== 'ON_SALE'
       ? { state: 'gone' }
       : { state: 'found', title: data.title }
   if (isApiError(error) && error.status === 404) return { state: 'gone' }
@@ -67,7 +70,7 @@ export type ZoneView = Omit<ZoneGroups, 'byLecture'> & {
 }
 
 /**
- * 화면에 둘 묶음. 판매가 끝났거나 없는 강의의 쿠폰은 받아도 쓸 곳이 없어 뺀다
+ * 화면에 둘 묶음. 판매 중이 아니거나 없는 강의의 쿠폰은 받아도 쓸 곳이 없어 뺀다
  * (BE는 강의 상태와 관계없이 발급 중인 쿠폰을 모두 준다).
  */
 export function zoneViewOf(
@@ -84,7 +87,7 @@ export function zoneViewOf(
 
 /**
  * 받을 수 있는 쿠폰을 화면 순서(모든 강의 → 강의별 → 그 밖)로. 모두 받기도 이 순서로 보낸다.
- * 강의를 아직 확인하지 못한 쿠폰은 넣지 않는다(판매가 끝난 강의의 쿠폰을 받지 않게)
+ * 강의를 아직 확인하지 못한 쿠폰은 넣지 않는다(판매 중이 아닌 강의의 쿠폰을 받지 않게)
  */
 export const issuableOrder = ({ anyLecture, byLecture, other }: ZoneView) => [
   ...anyLecture,

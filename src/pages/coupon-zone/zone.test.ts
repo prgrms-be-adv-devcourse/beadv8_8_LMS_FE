@@ -18,7 +18,12 @@ const problem = (status: number, code: string) =>
   new ApiError(status, { status, code, detail: code })
 
 const lecture = (patch: Partial<LectureDetail> = {}) =>
-  ({ title: '첫 방송 세팅', deleted: false, ...patch }) as LectureDetail
+  ({
+    title: '첫 방송 세팅',
+    status: 'ON_SALE',
+    deleted: false,
+    ...patch,
+  }) as LectureDetail
 
 describe('받을 수 있는 쿠폰 나누기', () => {
   it('모든 강의 쿠폰과 강의별 쿠폰으로 나누고, 강의는 응답에 처음 나온 차례로 묶는다', () => {
@@ -56,14 +61,20 @@ describe('받을 수 있는 쿠폰 나누기', () => {
 })
 
 describe('강의 조회 결과', () => {
-  it('강의가 있으면 제목, 판매가 끝났거나(deleted) 404면 없는 강의, 그 밖의 실패는 실패다', () => {
+  it('판매 중인 강의면 제목, 판매 중이 아니거나(삭제·검수 중·반려·모르는 상태) 404면 없는 강의, 그 밖의 실패는 실패다', () => {
     expect(lectureLookupOf({ data: lecture(), error: null })).toEqual({
       state: 'found',
       title: '첫 방송 세팅',
     })
-    expect(
-      lectureLookupOf({ data: lecture({ deleted: true }), error: null }),
-    ).toEqual({ state: 'gone' })
+    for (const patch of [
+      { deleted: true },
+      { status: 'PENDING_INSPECTION' },
+      { status: 'REJECTED' },
+      { status: 'SOMETHING_NEW' },
+    ] as Partial<LectureDetail>[])
+      expect(lectureLookupOf({ data: lecture(patch), error: null })).toEqual({
+        state: 'gone',
+      })
     expect(
       lectureLookupOf({ error: problem(404, 'LECTURE_NOT_FOUND') }),
     ).toEqual({ state: 'gone' })

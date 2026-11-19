@@ -1,9 +1,8 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { issuableCouponsQuery } from '@/entities/coupon/api'
 import type { CouponSummary } from '@/entities/coupon/types'
-import { lectureQuery } from '@/entities/lecture/api'
 import { BulkIssueActions } from '@/features/coupon-issue/BulkIssueActions'
 import { IssueTicket } from '@/features/coupon-issue/IssueTicket'
 import {
@@ -14,10 +13,10 @@ import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError } from '@/shared/ui/QueryState'
 import styles from './CouponZonePage.module.css'
+import { useLectureLookups } from './useLectureLookups'
 import {
   groupIssuable,
   issuableOrder,
-  lectureLookupOf,
   shownCount,
   zoneViewOf,
   type LectureCoupons,
@@ -27,17 +26,15 @@ import {
 /**
  * 쿠폰 받기: 지금 받을 수 있는 쿠폰 전체를 모든 강의 쿠폰과 강의별 쿠폰으로 나눠 보이고, 한 장씩 또는 모두 받는다.
  * 받는 규칙(발급 접수·상태 조회, 모두 받기 순서)은 강의 상세의 쿠폰 받기 팝업과 같다.
- * 쿠폰 응답에 강의 제목이 없어 강의별 쿠폰은 강의마다 강의 상세를 불러온다. 판매가 끝났거나 없는 강의의 쿠폰은 뺀다.
+ * 쿠폰 응답에 강의 제목이 없어 강의별 쿠폰은 강의마다 강의 상세를 불러온다. 판매 중이 아니거나 없는 강의의 쿠폰은 뺀다.
  */
 export function CouponZonePage() {
   const { data, error, refetch } = useQuery(issuableCouponsQuery())
   const groups = groupIssuable(data ?? [])
-  const lectures = useQueries({
-    queries: groups.byLecture.map((group) => lectureQuery(group.lectureId)),
-  })
+  const lookups = useLectureLookups(groups.byLecture.map((g) => g.lectureId))
   const view = zoneViewOf(groups, (lectureId) => {
     const i = groups.byLecture.findIndex((g) => g.lectureId === lectureId)
-    return lectures[i] ? lectureLookupOf(lectures[i]) : { state: 'loading' }
+    return lookups[i] ?? { state: 'loading' }
   })
   // 발급 상태는 목록 밖에 둔다. 받은 뒤 목록을 다시 불러오다 실패해도 이미 받은 목록과 진행 중인 모두 받기를 유지한다.
   const board = useIssueBoard(issuableOrder(view))
@@ -159,7 +156,7 @@ function Tickets({
 }
 
 /**
- * 한 강의의 쿠폰. 강의를 확인하는 동안은 자리만 잡고(판매가 끝난 강의면 빠진다), 못 불러왔으면 제목 없이 강의 보기만 둔다
+ * 한 강의의 쿠폰. 강의를 확인하는 동안은 자리만 잡고(판매 중이 아니면 빠진다), 못 불러왔으면 제목 없이 강의 보기만 둔다
  */
 function LectureGroup({
   group,
