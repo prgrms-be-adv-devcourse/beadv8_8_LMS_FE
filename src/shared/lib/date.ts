@@ -1,3 +1,5 @@
+import { today } from '@/shared/lib/clock'
+
 const KST = 'Asia/Seoul'
 
 /**
@@ -29,7 +31,7 @@ const yearFormatter = new Intl.DateTimeFormat('ko-KR', {
 })
 
 /** 올해가 아니면 앞에 연도를 붙인다. 지난해·내년 날짜만 봐도 언제인지 알게 한다 */
-function withYear(text: string, value: string, now = new Date()): string {
+function withYear(text: string, value: string, now = today()): string {
   const yearOf = (date: Date) =>
     yearFormatter.formatToParts(date).find((p) => p.type === 'year')?.value
   const year = yearOf(parseServerDate(value))
@@ -37,7 +39,7 @@ function withYear(text: string, value: string, now = new Date()): string {
 }
 
 /** 10/14(화). 올해가 아니면 2025/10/14(화) */
-export function formatDate(value: string, now = new Date()): string {
+export function formatDate(value: string, now = today()): string {
   const parts = dateFormatter.formatToParts(parseServerDate(value))
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? ''
@@ -49,7 +51,7 @@ export function formatDate(value: string, now = new Date()): string {
 }
 
 /** 10/14(화) 20:00 */
-export function formatDateTime(value: string, now = new Date()): string {
+export function formatDateTime(value: string, now = today()): string {
   return `${formatDate(value, now)} ${timeFormatter.format(parseServerDate(value))}`
 }
 

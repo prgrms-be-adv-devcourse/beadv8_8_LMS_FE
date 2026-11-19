@@ -9,6 +9,12 @@ import { server } from './server'
 // CI처럼 느린 환경에서도 화면 전환·재조회를 기다릴 수 있게 findBy·waitFor 대기를 늘린다(기본 1초).
 configure({ asyncUtilTimeout: 5000 })
 
+// 테스트 예시 데이터는 2026년 날짜다. 날짜 표시는 올해가 아니면 연도를 붙이므로, 해가 바뀌어도 날짜 글자 단언이
+// 깨지지 않게 '올해'를 정하는 시각만 2026년으로 고정한다(다른 시각 계산은 실제 시각 그대로).
+vi.mock('@/shared/lib/clock', () => ({
+  today: () => new Date('2026-11-19T12:00:00+09:00'),
+}))
+
 // 채팅 실시간 연결은 가짜 STOMP 클라이언트로 바꾼다(jsdom에서 실제 WebSocket을 열지 않는다).
 vi.mock('@stomp/stompjs', () => ({
   Client: FakeStompClient,
