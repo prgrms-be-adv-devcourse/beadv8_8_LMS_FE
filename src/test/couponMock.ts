@@ -7,6 +7,7 @@ import type {
   CouponStatus,
   CouponSummary,
   CouponType,
+  IssuableCoupon,
   IssueStatus,
   MemberCoupon,
   QuoteCoupon,
@@ -17,8 +18,8 @@ import { server } from './server'
 
 /**
  * 쿠폰 BE 흉내(테스트 전용). 생성·조작·발급 접수·상태 조회는 dev의 쿠폰 3단계 계약, 목록·상세 조회와 이름(`name`)·
- * `rejectReason`은 BE 조회 API 계약을 따른다. 강의 없이 부르는 받을 수 있는 쿠폰 전체(GET /coupons)는 BE에서 함께
- * 만드는 계약이다(OPEN·발급 기간 안, 모든 강의·특정 강의, 최신순, 최대 100건, 응답은 강의별 목록과 같은 형식).
+ * `rejectReason`은 BE 조회 API 계약을 따른다. 쿠폰 받기 화면의 목록(GET /coupons/issuable)은 쪽 단위(page 0부터,
+ * size 기본 20·최대 100, 최신순 고정)이고, 판매 중이 아닌 강의의 쿠폰은 BE가 빼고 주므로 `issuable`에 넣은 그대로 나눠 준다.
  * 상태는 이 호출 안에만 있고 테스트가 끝나면 핸들러와 함께 사라진다.
  * 오류를 내려면 `failNext`에 '메서드 경로'(예: 'POST /coupons/7/issue-requests')별로 응답을 넣는다(한 번 쓰고 지운다).
  */
@@ -84,6 +85,21 @@ export const couponSummary = (
   status: 'OPEN',
   ...patch,
 })
+
+/** 쿠폰 받기 화면의 쿠폰 한 장. 강의 제목은 특정 강의 쿠폰이면 `강의 {lectureId}`, 모든 강의 쿠폰이면 null */
+export const issuableCoupon = (
+  patch: Partial<IssuableCoupon> = {},
+): IssuableCoupon => {
+  const summary = couponSummary(patch)
+  return {
+    lectureTitle:
+      summary.targetType === 'LECTURE' && summary.lectureId !== null
+        ? `강의 ${summary.lectureId}`
+        : null,
+    ...summary,
+    ...patch,
+  }
+}
 
 export const memberCoupon = (
   patch: Partial<MemberCoupon> = {},
@@ -191,10 +207,10 @@ export type CouponMockState = {
   mine: MemberCoupon[]
   /** 강의별로 받을 수 있는 쿠폰(GET /coupons?lectureId=). 키는 강의 ID */
   lectureCoupons: Record<number, CouponSummary[]>
-  /** 강의 없이 부른 받을 수 있는 쿠폰 전체(GET /coupons, 최신이 앞) */
-  issuable: CouponSummary[]
-  /** 강의 없이 부른 받을 수 있는 쿠폰 전체 요청 수 */
-  issuableCalls: number
+  /** 쿠폰 받기 화면의 받을 수 있는 쿠폰 전체(GET /coupons/issuable가 쪽으로 나눠 준다, 최신이 앞) */
+  issuable: IssuableCoupon[]
+  /** 쿠폰 받기 화면 목록 요청에서 받은 쪽 번호(순서대로) */
+  issuablePages: number[]
   /** 판매자가 신청한 쿠폰(최신이 앞) */
   seller: Coupon[]
   /** 관리자가 보는 전체 쿠폰(최신이 앞) */
@@ -256,7 +272,7 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
     mine: [],
     lectureCoupons: {},
     issuable: [],
-    issuableCalls: 0,
+    issuablePages: [],
     seller: [],
     admin: [],
     issueStatuses: [],
@@ -407,6 +423,26 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
       },
     ),
 
+    // 쿠폰 받기 화면 목록. '/coupons/:couponId'보다 앞에 둔다.
+    http.get('*/api/v1/coupons/issuable', ({ request }) => {
+      const params = new URL(request.url).searchParams
+      const page = Number(params.get('page') ?? 0)
+      const size = Math.min(Number(params.get('size') ?? 20), 100)
+      state.issuablePages.push(page)
+      return (
+        failure('GET /coupons/issuable') ??
+        rs({
+          content: state.issuable.slice(page * size, (page + 1) * size),
+          page: {
+            size,
+            number: page,
+            totalElements: state.issuable.length,
+            totalPages: Math.ceil(state.issuable.length / size),
+          },
+        })
+      )
+    }),
+
     // ── 판매자 ──
     http.get('*/api/v1/coupons/seller', ({ request }) => {
       const status = new URL(request.url).searchParams.get('status')
@@ -498,15 +534,12 @@ export function mockCoupons(init: Partial<CouponMockState> = {}) {
         ? rs(couponSummary({ couponId, type }))
         : couponProblem(404, 'COUPON_NOT_FOUND', '쿠폰을 찾을 수 없습니다.')
     }),
-    // 받을 수 있는 쿠폰. lectureId가 있으면 그 강의, 없으면 전체(쿠폰 받기 화면).
+    // 그 강의에서 받을 수 있는 쿠폰(강의 상세 팝업).
     // '/coupons/:couponId' 같은 경로와 겹치지 않게 맨 뒤에 둔다.
     http.get('*/api/v1/coupons', ({ request }) => {
-      const param = new URL(request.url).searchParams.get('lectureId')
-      if (param === null) {
-        state.issuableCalls++
-        return failure('GET /coupons') ?? rs(state.issuable)
-      }
-      const lectureId = Number(param)
+      const lectureId = Number(
+        new URL(request.url).searchParams.get('lectureId'),
+      )
       return (
         failure(`GET /coupons?lectureId=${lectureId}`) ??
         rs(state.lectureCoupons[lectureId] ?? [])

@@ -1,5 +1,7 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
+import { isApiError } from '@/shared/api/ApiError'
 import { api } from '@/shared/api/client'
+import type { PagedModel } from '@/shared/api/types'
 import type {
   Coupon,
   CouponCreateInput,
@@ -7,6 +9,7 @@ import type {
   CouponSelection,
   CouponStatus,
   CouponSummary,
+  IssuableCoupon,
   IssueRequestResult,
   IssueStatusView,
   MemberCoupon,
@@ -25,8 +28,8 @@ export const couponKeys = {
   /** 강의에서 받을 수 있는 쿠폰 */
   forLecture: (lectureId: number) =>
     [...couponKeys.all, 'lecture', lectureId] as const,
-  /** 강의와 관계없이 지금 받을 수 있는 쿠폰 전체(쿠폰 받기 화면) */
-  issuable: () => [...couponKeys.all, 'issuable'] as const,
+  /** 강의와 관계없이 지금 받을 수 있는 쿠폰 한 쪽(쿠폰 받기 화면). 발급 뒤에는 앞부분(issuable)으로 모든 쪽을 무효화한다 */
+  issuable: (page: number) => [...couponKeys.all, 'issuable', page] as const,
   /** 발급 요청 처리 상태 */
   issueStatus: (couponId: number, issueRequestId: string) =>
     [...couponKeys.all, 'issue', couponId, issueRequestId] as const,
@@ -68,14 +71,27 @@ export const lectureCouponsQuery = (lectureId: number) =>
     queryFn: () => api<CouponSummary[]>('/coupons', { query: { lectureId } }),
   })
 
+/** 쿠폰 받기 화면 한 쪽의 쿠폰 수 */
+export const ISSUABLE_PAGE_SIZE = 20
+
 /**
- * 지금 받을 수 있는 쿠폰 전체(OPEN·기간 안, 모든 강의 + 특정 강의, 최신순, 최대 100건). 소진·이미 받음 표시 포함,
- * 강의 제목은 없다. BE 조회 API(강의 없이 부르는 경우)
+ * 지금 받을 수 있는 쿠폰 한 쪽(발급 중·기간 안, 모든 강의 + 판매 중인 강의의 특정 강의 쿠폰, 최신순 고정).
+ * 소진·이미 받음 표시와 강의 제목이 함께 온다. 강의 정보를 확인하지 못하면 503 LECTURE_CATALOG_UNAVAILABLE
  */
-export const issuableCouponsQuery = () =>
+export const issuableCouponsQuery = (page: number) =>
   queryOptions({
-    queryKey: couponKeys.issuable(),
-    queryFn: () => api<CouponSummary[]>('/coupons'),
+    queryKey: couponKeys.issuable(page),
+    queryFn: () =>
+      api<PagedModel<IssuableCoupon>>('/coupons/issuable', {
+        query: { page, size: ISSUABLE_PAGE_SIZE },
+      }),
+    placeholderData: keepPreviousData,
+    // 강의 정보를 못 확인한 503은 곧바로 다시 불러도 같기 쉬워, 기다리지 않고 안내와 다시 시도 버튼으로 넘긴다.
+    retry: (count, error) =>
+      !(
+        isApiError(error) &&
+        (error.status < 500 || error.code === 'LECTURE_CATALOG_UNAVAILABLE')
+      ) && count < 2,
   })
 
 /**

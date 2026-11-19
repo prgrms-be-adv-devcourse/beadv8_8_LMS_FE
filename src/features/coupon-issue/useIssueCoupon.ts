@@ -130,7 +130,7 @@ export function useIssueCoupon(couponId: number) {
   const [accepted, setAccepted] = useState<Accepted | null>(null)
 
   // 발급 상태 조회와 겹치지 않는 키만 무효화한다(발급 상태 키는 'issue' 아래다). 모든 강의 쿠폰은 여러 강의의 목록과
-  // 쿠폰 받기 화면에 함께 있어 강의별 목록을 모두 무효화한다(지금 보는 목록만 다시 불러온다).
+  // 쿠폰 받기 화면의 여러 쪽에 함께 있어 강의별 목록과 모든 쪽을 무효화한다(지금 보는 목록만 다시 불러온다).
   const refreshIssued = () => {
     for (const scope of ['mine', 'lecture', 'issuable'] as const)
       void queryClient.invalidateQueries({

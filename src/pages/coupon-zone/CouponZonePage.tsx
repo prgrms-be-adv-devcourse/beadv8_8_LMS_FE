@@ -2,42 +2,35 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { issuableCouponsQuery } from '@/entities/coupon/api'
-import type { CouponSummary } from '@/entities/coupon/types'
+import type { IssuableCoupon } from '@/entities/coupon/types'
 import { BulkIssueActions } from '@/features/coupon-issue/BulkIssueActions'
 import { IssueTicket } from '@/features/coupon-issue/IssueTicket'
 import {
   useIssueBoard,
   type IssueBoard,
 } from '@/features/coupon-issue/useIssueBoard'
+import { isApiError } from '@/shared/api/ApiError'
+import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { PageHead } from '@/shared/ui/PageHead'
+import { Pager } from '@/shared/ui/Pager'
 import { LoadError } from '@/shared/ui/QueryState'
 import styles from './CouponZonePage.module.css'
-import { useLectureLookups } from './useLectureLookups'
-import {
-  groupIssuable,
-  issuableOrder,
-  shownCount,
-  zoneViewOf,
-  type LectureCoupons,
-  type LectureLookup,
-} from './zone'
+import { groupIssuable, issuableOrder, type LectureCoupons } from './zone'
 
 /**
- * 쿠폰 받기: 지금 받을 수 있는 쿠폰 전체를 모든 강의 쿠폰과 강의별 쿠폰으로 나눠 보이고, 한 장씩 또는 모두 받는다.
- * 받는 규칙(발급 접수·상태 조회, 모두 받기 순서)은 강의 상세의 쿠폰 받기 팝업과 같다.
- * 쿠폰 응답에 강의 제목이 없어 강의별 쿠폰은 강의마다 강의 상세를 불러온다. 판매 중이 아니거나 없는 강의의 쿠폰은 뺀다.
+ * 쿠폰 받기: 지금 받을 수 있는 쿠폰을 쪽 단위로 불러와 그 쪽 안에서 모든 강의 쿠폰과 강의별 쿠폰으로 나눠 보이고,
+ * 한 장씩 또는 그 쪽의 쿠폰을 모두 받는다. 받는 규칙(발급 접수·상태 조회, 모두 받기 순서)은 강의 상세의 쿠폰 받기 팝업과 같다.
+ * 판매 중이 아닌 강의의 쿠폰은 BE가 빼고, 강의 제목도 함께 준다.
  */
 export function CouponZonePage() {
-  const { data, error, refetch } = useQuery(issuableCouponsQuery())
-  const groups = groupIssuable(data ?? [])
-  const lookups = useLectureLookups(groups.byLecture.map((g) => g.lectureId))
-  const view = zoneViewOf(groups, (lectureId) => {
-    const i = groups.byLecture.findIndex((g) => g.lectureId === lectureId)
-    return lookups[i] ?? { state: 'loading' }
-  })
+  const [page, setPage] = usePageParam('page')
+  const query = useQuery(issuableCouponsQuery(page))
+  const { data, error, refetch } = query
+  const moving = useClampPage(page, query, setPage)
+  const groups = groupIssuable(data?.content ?? [])
   // 발급 상태는 목록 밖에 둔다. 받은 뒤 목록을 다시 불러오다 실패해도 이미 받은 목록과 진행 중인 모두 받기를 유지한다.
-  const board = useIssueBoard(issuableOrder(view))
+  const board = useIssueBoard(issuableOrder(groups))
 
   return (
     <div className="page">
@@ -46,45 +39,55 @@ export function CouponZonePage() {
         title="쿠폰 받기"
         lede="지금 받을 수 있는 쿠폰을 모았어요. 받은 쿠폰은 쿠폰함에 모이고, 결제할 때 골라 쓸 수 있어요."
       />
-      {data ? (
-        shownCount(view) > 0 ? (
+      {data && !moving ? (
+        data.content.length > 0 ? (
           <>
-            {view.anyLecture.length > 0 && (
+            {groups.anyLecture.length > 0 && (
               <ZoneSection
                 title="모든 강의 쿠폰"
                 hint="어느 강의를 결제하든 쓸 수 있어요."
-                count={view.anyLecture.length}
+                count={groups.anyLecture.length}
               >
-                <Tickets coupons={view.anyLecture} board={board} />
+                <Tickets coupons={groups.anyLecture} board={board} />
               </ZoneSection>
             )}
-            {view.byLecture.length > 0 && (
+            {groups.byLecture.length > 0 && (
               <ZoneSection
                 title="강의별 쿠폰"
                 hint="그 강의를 결제할 때만 쓸 수 있어요."
-                count={view.byLecture.reduce(
+                count={groups.byLecture.reduce(
                   (sum, group) => sum + group.coupons.length,
                   0,
                 )}
               >
                 <div className={styles.lectures}>
-                  {view.byLecture.map((group) => (
+                  {groups.byLecture.map((group) => (
                     <LectureGroup
                       key={group.lectureId}
                       group={group}
-                      lecture={group.lecture}
                       board={board}
                     />
                   ))}
                 </div>
               </ZoneSection>
             )}
-            {view.other.length > 0 && (
-              <ZoneSection title="그 밖의 쿠폰" count={view.other.length}>
-                <Tickets coupons={view.other} board={board} />
+            {groups.other.length > 0 && (
+              <ZoneSection title="그 밖의 쿠폰" count={groups.other.length}>
+                <Tickets coupons={groups.other} board={board} />
               </ZoneSection>
             )}
-            <ActionBar board={board} />
+            {/* 모두 받기는 지금 쪽의 쿠폰을 차례로 보내므로 끝날 때까지 쪽을 넘기지 않는다. 지난 결과는 그 쪽의 것이라 넘기면 지운다 */}
+            {!board.bulk && (
+              <Pager
+                page={data.page.number}
+                totalPages={data.page.totalPages}
+                onChange={(next) => {
+                  board.clearResult()
+                  setPage(next)
+                }}
+              />
+            )}
+            <ActionBar board={board} paged={data.page.totalPages > 1} />
           </>
         ) : (
           <EmptyState
@@ -98,8 +101,23 @@ export function CouponZonePage() {
             새 쿠폰이 열리면 여기에 모여요.
           </EmptyState>
         )
-      ) : error ? (
-        <LoadError error={error} retry={refetch} />
+      ) : error && !data ? (
+        isApiError(error, 'LECTURE_CATALOG_UNAVAILABLE') ? (
+          <EmptyState
+            role="alert"
+            art="error"
+            title="지금은 쿠폰을 불러올 수 없어요"
+            action={
+              <button type="button" className="btn" onClick={() => refetch()}>
+                다시 시도
+              </button>
+            }
+          >
+            강의 정보를 확인하지 못했어요. 잠시 뒤 다시 시도해 주세요.
+          </EmptyState>
+        ) : (
+          <LoadError error={error} retry={refetch} />
+        )
       ) : (
         <ZoneSkeleton />
       )}
@@ -137,7 +155,7 @@ function Tickets({
   coupons,
   board,
 }: {
-  coupons: CouponSummary[]
+  coupons: IssuableCoupon[]
   board: IssueBoard
 }) {
   return (
@@ -155,34 +173,16 @@ function Tickets({
   )
 }
 
-/**
- * 한 강의의 쿠폰. 강의를 확인하는 동안은 자리만 잡고(판매 중이 아니면 빠진다), 못 불러왔으면 제목 없이 강의 보기만 둔다
- */
+/** 한 강의의 쿠폰. 강의 제목이 없으면 제목 없이 강의 보기만 둔다 */
 function LectureGroup({
   group,
-  lecture,
   board,
 }: {
   group: LectureCoupons
-  lecture: LectureLookup
   board: IssueBoard
 }) {
   const titleId = useId()
-  if (lecture.state === 'loading')
-    return (
-      <div className={styles.lecture} aria-hidden="true">
-        <div className={styles.lectureHead}>
-          <span className={`skeleton ${styles.iconSkeleton}`} />
-          <span className={`skeleton title ${styles.titleSkeleton}`} />
-        </div>
-        <div className={styles.tickets}>
-          {group.coupons.map((coupon) => (
-            <SkeletonTicket key={coupon.couponId} />
-          ))}
-        </div>
-      </div>
-    )
-  const title = lecture.state === 'found' ? lecture.title : null
+  const title = group.lectureTitle
   return (
     <div
       className={styles.lecture}
@@ -231,8 +231,11 @@ function LectureGroup({
   )
 }
 
-/** 목록 아래에 붙는 줄: 받을 수 있는 수, 모두 받기 진행·결과, 쿠폰함에서 보기, 모두 받기 */
-function ActionBar({ board }: { board: IssueBoard }) {
+/**
+ * 목록 아래에 붙는 줄: 받을 수 있는 수, 모두 받기 진행·결과, 쿠폰함에서 보기, 모두 받기.
+ * 모두 받기는 지금 쪽만 보내므로 쪽이 여럿이면 이 쪽의 수라고 밝힌다
+ */
+function ActionBar({ board, paged }: { board: IssueBoard; paged: boolean }) {
   const { tally, bulk, bulkResult } = board
   if (
     tally.requestable.length === 0 &&
@@ -246,7 +249,8 @@ function ActionBar({ board }: { board: IssueBoard }) {
     <div className={styles.bar}>
       {idle && (
         <p className={styles.barHint}>
-          받을 수 있는 쿠폰 <b className="num">{tally.requestable.length}</b>장
+          {paged ? '이 쪽에서 받을 수 있는 쿠폰' : '받을 수 있는 쿠폰'}{' '}
+          <b className="num">{tally.requestable.length}</b>장
         </p>
       )}
       <BulkIssueActions board={board} />

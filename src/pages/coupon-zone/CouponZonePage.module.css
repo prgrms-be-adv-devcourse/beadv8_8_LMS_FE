@@ -84,15 +84,6 @@
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-.iconSkeleton:global(.skeleton) {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-sm);
-}
-.titleSkeleton {
-  flex: 0 1 220px;
-}
 .lectureLink {
   flex: none;
   margin-left: auto;
