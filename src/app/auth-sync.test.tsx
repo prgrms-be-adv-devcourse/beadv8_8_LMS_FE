@@ -166,6 +166,18 @@ describe('채팅 연결 인증', () => {
 
   const urlOf = (client: FakeStompClient) => new URL(client.brokerURL!)
 
+  /**
+   * 실제 클라이언트처럼 티켓을 받은 뒤(beforeConnect가 끝난 뒤) 연결한다. 재인증은 그 티켓의 연결 만료로 잡으므로,
+   * 티켓보다 먼저 연결하면(느린 환경에서 티켓 응답이 늦을 때) 재인증을 잡지 않는다.
+   */
+  async function connectWithTicket() {
+    await waitFor(() => expect(FakeStompClient.latest()).toBeDefined())
+    const client = FakeStompClient.latest()!
+    await act(() => client.ready)
+    act(() => client.connect())
+    return client
+  }
+
   it('연결할 때 일회용 티켓을 받아 주소에 싣고, CONNECT에는 토큰을 넣지 않는다', async () => {
     renderApp('/chat', 'INFLUENCER')
     const tickets = mockTickets()
@@ -285,15 +297,17 @@ describe('채팅 연결 인증', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     renderApp('/chat', 'INFLUENCER')
     const tickets = mockTickets()
-    const client = await connectSocket()
-    await act(() => client.ready)
+    const client = await connectWithTicket()
     const reauths = () =>
       client.published.filter((p) => p.destination === '/pub/chats/reauth')
 
     await act(() => vi.advanceTimersByTimeAsync(14 * 60_000 - 1_000))
     expect(reauths()).toEqual([])
     await act(() => vi.advanceTimersByTimeAsync(1_000))
-    await vi.waitFor(() => expect(reauths()).toHaveLength(1))
+    // 재인증 티켓을 받아 보내기까지 기다린다(vi.waitFor 기본 1초는 느린 환경에서 모자라다).
+    await vi.waitFor(() => expect(reauths()).toHaveLength(1), {
+      timeout: 5_000,
+    })
     expect(reauths()[0]).toEqual({
       destination: '/pub/chats/reauth',
       body: '',
@@ -309,7 +323,9 @@ describe('채팅 연결 인증', () => {
       }),
     )
     await act(() => vi.advanceTimersByTimeAsync(14 * 60_000))
-    await vi.waitFor(() => expect(reauths()).toHaveLength(2))
+    await vi.waitFor(() => expect(reauths()).toHaveLength(2), {
+      timeout: 5_000,
+    })
     // 연결을 끊지 않는다.
     expect(client.active).toBe(true)
     vi.useRealTimers()
@@ -319,8 +335,7 @@ describe('채팅 연결 인증', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     renderApp('/chat', 'INFLUENCER')
     const tickets = mockTickets()
-    const client = await connectSocket()
-    await act(() => client.ready)
+    const client = await connectWithTicket()
 
     act(() => otherTab().postMessage({ type: 'logout' }))
     await vi.waitFor(() => expect(client.active).toBe(false))
