@@ -144,7 +144,6 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  cleanup()
   vi.useRealTimers()
   queryClient.clear()
   closeLoginModal()

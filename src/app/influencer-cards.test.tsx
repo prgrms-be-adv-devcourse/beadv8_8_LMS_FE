@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -110,8 +110,6 @@ async function expectChatRoom(router: ReturnType<typeof renderApp>) {
 const card = (name: string) => screen.findByRole('article', { name })
 
 afterEach(() => {
-  // 채팅방으로 옮긴 화면을 먼저 내려야 캐시를 비울 때 이력을 다시 불러 다음 테스트로 새지 않는다.
-  cleanup()
   queryClient.clear()
   closeLoginModal()
 })

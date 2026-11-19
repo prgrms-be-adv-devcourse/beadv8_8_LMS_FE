@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -102,9 +102,6 @@ const issueButton = (card: HTMLElement) =>
 beforeEach(quietLectureRequests)
 
 afterEach(() => {
-  // 캐시를 비우기 전에 화면부터 내린다. 발급 상태 조회가 그려진 채 캐시가 비면 다시 그릴 때 조회를 새로 보내,
-  // 그 요청이 다음 테스트의 흉내 응답에 섞인다.
-  cleanup()
   vi.useRealTimers()
   queryClient.clear()
   closeLoginModal()

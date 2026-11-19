@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -124,8 +124,6 @@ async function settle() {
 }
 
 afterEach(() => {
-  // 화면을 먼저 내린다(떠 있는 채로 캐시를 비우면 이력을 새로 불러 다음 테스트로 샌다).
-  cleanup()
   vi.useRealTimers()
   queryClient.clear()
   closeLoginModal()

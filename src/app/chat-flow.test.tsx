@@ -1,11 +1,4 @@
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react'
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import {
@@ -112,9 +105,6 @@ async function connectSocket() {
 }
 
 afterEach(() => {
-  // 화면을 먼저 내린다. 떠 있는 채로 캐시를 비우고 채팅 스토어를 바꾸면 대화가 다시 그려지며 이력을 새로
-  // 불러, 그 요청이 다음 테스트의 핸들러로 샌다(vitest는 파일 afterEach를 공통 설정의 cleanup보다 먼저 돈다).
-  cleanup()
   queryClient.clear()
   closeLoginModal()
   seq = 0

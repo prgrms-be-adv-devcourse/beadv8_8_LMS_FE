@@ -29,16 +29,22 @@ beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 // jsdom은 document.hasFocus()가 늘 false다. 사용자가 화면을 보고 있는 것으로 둔다(채팅 읽음 처리 기준).
 beforeEach(() => {
   vi.spyOn(document, 'hasFocus').mockReturnValue(true)
+  // 흉내 응답·토큰·쿠키는 테스트 파일의 afterEach(남은 조회를 기다리는 settle 등)가 끝난 뒤 되돌린다.
+  // beforeEach가 돌려준 정리 함수는 모든 afterEach 뒤에 돈다.
+  return () => {
+    server.resetHandlers()
+    resetToast()
+    FakeStompClient.reset()
+    // access token은 모듈 메모리에 있어 테스트 사이에 남는다.
+    clearAccessToken()
+    document.cookie.split('; ').forEach((c) => {
+      document.cookie = `${c.split('=')[0]}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+    })
+  }
 })
-afterEach(() => {
-  server.resetHandlers()
-  resetToast()
-  FakeStompClient.reset()
-  cleanup()
-  // access token은 모듈 메모리에 있어 테스트 사이에 남는다.
-  clearAccessToken()
-  document.cookie.split('; ').forEach((c) => {
-    document.cookie = `${c.split('=')[0]}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
-  })
-})
+// 화면은 테스트 파일의 afterEach보다 먼저 내린다(vite.config의 sequence.hooks가 'list'라 이 afterEach가 먼저 돈다).
+// 화면이 붙은 채 파일의 afterEach가 캐시를 비우면, 아직 돌지 않은 useQuery effect나 다시 그리기가 지운 쿼리를 새로
+// 만들어 요청을 보내고, 그 요청이 늦게 나가 다음 테스트의 흉내 응답에 잡힌다(느린 환경에서 첫 쪽 요청이 두 번 잡혔다).
+// 그래서 테스트 파일에서 cleanup()을 따로 부르지 않아도 된다.
+afterEach(() => cleanup())
 afterAll(() => server.close())

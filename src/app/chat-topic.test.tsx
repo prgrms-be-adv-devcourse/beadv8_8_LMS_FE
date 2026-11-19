@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -145,7 +145,6 @@ async function openRoom(chatRoomId: number, firstText: string) {
 }
 
 afterEach(() => {
-  cleanup()
   vi.useRealTimers()
   queryClient.clear()
   closeLoginModal()
