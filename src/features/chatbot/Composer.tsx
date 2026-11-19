@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { MESSAGE_MAX_LENGTH, textLength } from '@/entities/chatbot/text'
+import { enterSends } from '@/shared/lib/enterToSend'
 import styles from './Composer.module.css'
 import { isBusy } from './conversation'
 import { setAskMode, useChatbotStore } from './store'
@@ -10,7 +11,8 @@ const MAX_HEIGHT_PX = 120
 
 /**
  * 창 아래 입력창. 자유 질문이 기본이고, FAQ 질문하기를 고르면 다음 한 번은 FAQ로 보낸다(위에 표시, ✕로 취소).
- * Enter로 보내고 Shift+Enter로 줄을 바꾼다(한글 조합 중 Enter는 보내지 않는다). 1~500자(코드 포인트)만 보낸다.
+ * Enter로 보내고 Shift+Enter·터치 기기의 Enter는 줄을 바꾸며, 한글 조합을 확정하는 Enter는 보내지 않는다
+ * (채팅 입력창과 같은 `enterSends`). 1~500자(코드 포인트)만 보낸다.
  * 답을 기다리는 동안 잠근다.
  */
 export function Composer() {
@@ -87,8 +89,7 @@ export function Composer() {
           disabled={busy}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing)
-              return
+            if (!enterSends(e)) return
             e.preventDefault()
             send()
           }}

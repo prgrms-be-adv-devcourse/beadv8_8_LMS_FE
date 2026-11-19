@@ -1,6 +1,13 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { applyStreamEvent, streamingAnswer } from '@/features/chatbot/answer'
 import {
   endSession,
@@ -207,6 +214,55 @@ describe('챗봇 자유 질문', () => {
     expect(
       within(dialog).getByText('500자까지 보낼 수 있어요 (501자)'),
     ).toBeInTheDocument()
+  })
+
+  it('한글 조합을 확정하는 Enter는 보내지 않는다', async () => {
+    const user = userEvent.setup()
+    const state = mockChatbot()
+    renderApp('/lectures', 'USER')
+    const dialog = await openWindow(user)
+    await user.type(field(dialog), '환불은')
+
+    // Chrome 계열: 조합 중 Enter는 isComposing으로 온다.
+    fireEvent.keyDown(field(dialog), { key: 'Enter', isComposing: true })
+    // Safari: 조합이 끝난 뒤 keydown이 와 isComposing이 false이고 keyCode가 229다.
+    fireEvent.keyDown(field(dialog), { key: 'Enter', keyCode: 229 })
+    expect(state.streamRequests).toEqual([])
+    expect(field(dialog)).toHaveValue('환불은')
+
+    await user.keyboard('{Enter}')
+    await waitFor(() =>
+      expect(state.streamRequests).toEqual([
+        { message: '환불은', history: [] },
+      ]),
+    )
+  })
+
+  it('터치 기기에서는 Enter가 줄을 바꾸고 보내기 버튼으로 보낸다', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    onTestFinished(() => {
+      vi.unstubAllGlobals()
+    })
+    const user = userEvent.setup()
+    const state = mockChatbot()
+    renderApp('/lectures', 'USER')
+    const dialog = await openWindow(user)
+
+    await user.type(field(dialog), '첫 줄{Enter}둘째 줄')
+    expect(field(dialog)).toHaveValue('첫 줄\n둘째 줄')
+    expect(state.streamRequests).toEqual([])
+
+    await user.click(within(dialog).getByRole('button', { name: '보내기' }))
+    await waitFor(() =>
+      expect(state.streamRequests).toEqual([
+        { message: '첫 줄\n둘째 줄', history: [] },
+      ]),
+    )
   })
 
   it('답을 기다리는 중에 새 대화를 누르면 요청을 끊고 대화를 비운다', async () => {
