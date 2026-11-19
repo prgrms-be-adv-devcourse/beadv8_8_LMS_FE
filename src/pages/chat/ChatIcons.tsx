@@ -32,6 +32,12 @@ export const BackIcon = () => (
   </Icon>
 )
 
+export const DownIcon = () => (
+  <Icon size={14}>
+    <path d="M12 5v14M6 13l6 6 6-6" />
+  </Icon>
+)
+
 export const SendIcon = () => (
   <Icon size={18}>
     <path d="M4 12l16-8-6 16-2.5-6.5L4 12z" />
