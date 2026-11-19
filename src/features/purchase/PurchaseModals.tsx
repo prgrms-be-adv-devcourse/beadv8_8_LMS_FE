@@ -15,19 +15,35 @@ type BaseProps = {
   onClose: () => void
 }
 
+/**
+ * 요청을 보낸 뒤 결과가 오기 전에는 닫기·Esc·바깥 클릭을 받지 않는다.
+ * 닫으면 확정·취소가 됐는지 모른 채 다시 누르게 된다.
+ */
+function closeUnless(pending: boolean, onClose: () => void) {
+  return () => {
+    if (!pending) onClose()
+  }
+}
+
 export function ConfirmPurchaseModal({
   item,
   payoutScheduledAt,
   onClose,
 }: BaseProps & { payoutScheduledAt?: string | null }) {
   const confirm = useConfirmPurchase()
+  const close = closeUnless(confirm.isPending, onClose)
   return (
     <Modal
       title="구매를 확정할까요?"
-      onClose={onClose}
+      onClose={close}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={onClose}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={confirm.isPending}
+            onClick={close}
+          >
             닫기
           </button>
           <button
@@ -68,13 +84,19 @@ export function CancelPurchaseModal({
   onClose,
 }: BaseProps & { refundHp?: number }) {
   const cancel = useCancelPurchase()
+  const close = closeUnless(cancel.isPending, onClose)
   return (
     <Modal
       title="구매를 취소할까요?"
-      onClose={onClose}
+      onClose={close}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={onClose}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={cancel.isPending}
+            onClick={close}
+          >
             닫기
           </button>
           <button
@@ -125,13 +147,19 @@ export function PlayConsentModal({
 }: BaseProps & { payoutScheduledAt?: string | null; onConsented: () => void }) {
   const [agreed, setAgreed] = useState(false)
   const consent = useConsentToPlay()
+  const close = closeUnless(consent.isPending, onClose)
   return (
     <Modal
       title="재생하면 구매가 확정돼요"
-      onClose={onClose}
+      onClose={close}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={onClose}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={consent.isPending}
+            onClick={close}
+          >
             나중에 볼게요
           </button>
           <button

@@ -1,3 +1,5 @@
+import { today } from '@/shared/lib/clock'
+
 const KST = 'Asia/Seoul'
 
 /**
@@ -23,17 +25,34 @@ const timeFormatter = new Intl.DateTimeFormat('ko-KR', {
   hourCycle: 'h23',
 })
 
-/** 10/14(화) */
-export function formatDate(value: string): string {
+const yearFormatter = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: KST,
+  year: 'numeric',
+})
+
+/** 올해가 아니면 앞에 연도를 붙인다. 지난해·내년 날짜만 봐도 언제인지 알게 한다 */
+function withYear(text: string, value: string, now = today()): string {
+  const yearOf = (date: Date) =>
+    yearFormatter.formatToParts(date).find((p) => p.type === 'year')?.value
+  const year = yearOf(parseServerDate(value))
+  return year === yearOf(now) ? text : `${year}/${text}`
+}
+
+/** 10/14(화). 올해가 아니면 2025/10/14(화) */
+export function formatDate(value: string, now = today()): string {
   const parts = dateFormatter.formatToParts(parseServerDate(value))
   const get = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((p) => p.type === type)?.value ?? ''
-  return `${get('month')}/${get('day')}(${get('weekday')})`
+  return withYear(
+    `${get('month')}/${get('day')}(${get('weekday')})`,
+    value,
+    now,
+  )
 }
 
 /** 10/14(화) 20:00 */
-export function formatDateTime(value: string): string {
-  return `${formatDate(value)} ${timeFormatter.format(parseServerDate(value))}`
+export function formatDateTime(value: string, now = today()): string {
+  return `${formatDate(value, now)} ${timeFormatter.format(parseServerDate(value))}`
 }
 
 /** 기한이 지났는지 */

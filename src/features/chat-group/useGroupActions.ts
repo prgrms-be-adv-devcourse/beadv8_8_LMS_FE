@@ -35,7 +35,7 @@ export function useCreateGroup(recruitId: number) {
       void queryClient.invalidateQueries({
         queryKey: appearanceKeys.recruit(recruitId),
       })
-      toast(error.message)
+      toast(error.message, { tone: 'error' })
     },
   })
 }
@@ -103,7 +103,7 @@ export function useCloseGroup(chatRoomId: number, recruitId: number) {
   return useMutation({
     mutationFn: () => closeChatGroup(chatRoomId),
     onSuccess: () => toast('단체방을 폐쇄했어요. 이제 읽기 전용이에요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
       void queryClient.invalidateQueries({

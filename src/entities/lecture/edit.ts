@@ -7,6 +7,10 @@ export function canEditContents(lecture: EditableLecture): boolean {
   return !lecture.deleted && lecture.status === 'REJECTED'
 }
 
+/** 검수를 신청하기 전에 알리는 잠금 규칙(BE D11). 반려되면 다시 고칠 수 있다 */
+export const CONTENTS_LOCK_NOTICE =
+  '검수를 신청하면 영상·자료를 바꿀 수 없어요. 반려되면 다시 고칠 수 있어요.'
+
 /** 콘텐츠를 바꿀 수 없는 상태에서 강의 내용 영역에 보여 줄 안내 */
 export function readOnlyContentsNotice(status: LectureStatus): string {
   return status === 'PENDING_INSPECTION'

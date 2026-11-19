@@ -37,8 +37,7 @@ export function exchangeAccountErrors({
   holderName,
 }: ExchangeAccountInput): Partial<Record<keyof ExchangeAccountInput, string>> {
   const errors: Partial<Record<keyof ExchangeAccountInput, string>> = {}
-  if (!/^\d{3}$/.test(bankCode))
-    errors.bankCode = '은행 코드는 숫자 3자리로 입력해 주세요.'
+  if (!/^\d{3}$/.test(bankCode)) errors.bankCode = '받을 은행을 골라 주세요.'
   if (!/^\d{8,20}$/.test(accountNumber))
     errors.accountNumber = '계좌번호는 숫자 8~20자리로 입력해 주세요.'
   const holder = holderName.trim()

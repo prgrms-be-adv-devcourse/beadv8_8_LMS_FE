@@ -31,6 +31,8 @@ export function IssueCouponButton({
       }
       disabled={disabled || locked}
       aria-busy={processing}
+      // 쿠폰마다 같은 글자의 버튼이라 읽을 때 구분되게 쿠폰 이름을 넣는다.
+      aria-label={`${coupon.name} ${label}`}
       onClick={onIssue}
     >
       {processing && <span className="spinner sm" aria-hidden="true" />}

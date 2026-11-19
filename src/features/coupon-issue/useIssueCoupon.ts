@@ -15,10 +15,10 @@ export const ISSUE_POLL_MAX = 10
 
 /** 처리 중이 너무 길 때 */
 export const ISSUE_DELAYED_MESSAGE =
-  '처리 중입니다. 잠시 후 쿠폰함에서 확인해 주세요'
+  '처리 중이에요. 잠시 후 쿠폰함에서 확인해 주세요'
 /** 서버가 발급 결과를 확인하지 못했을 때(UNKNOWN) */
 export const ISSUE_UNKNOWN_MESSAGE =
-  '확인할 수 없습니다. 잠시 후 다시 시도해 주세요'
+  '확인하지 못했어요. 잠시 후 다시 시도해 주세요'
 /** 서버가 발급 요청 기록을 찾지 못했을 때 */
 export const ISSUE_NOT_FOUND_MESSAGE =
   '발급 요청을 찾지 못했어요. 다시 시도해 주세요'

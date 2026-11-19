@@ -239,7 +239,9 @@ describe('쿠폰을 쓴 주문의 금액', () => {
       await screen.findByText('첫 방송 세팅', { selector: '.row-title' })
     ).closest('.row-item') as HTMLElement
     await userEvent.click(
-      await within(course).findByRole('button', { name: '구매 취소' }),
+      await within(course).findByRole('button', {
+        name: '첫 방송 세팅 구매 취소',
+      }),
     )
     const dialog = await screen.findByRole('dialog', {
       name: '구매를 취소할까요?',

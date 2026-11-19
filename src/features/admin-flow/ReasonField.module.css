@@ -1,0 +1,10 @@
+/* 안내는 왼쪽, 글자 수는 오른쪽 */
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.count {
+  margin-left: auto;
+  white-space: nowrap;
+}

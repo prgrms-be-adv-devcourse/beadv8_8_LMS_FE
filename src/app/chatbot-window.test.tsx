@@ -90,16 +90,41 @@ describe('챗봇 창', () => {
     expect(within(dialog).getByText('새로고침 전 대화')).toBeInTheDocument()
   })
 
-  it('새 대화는 대화를 비운다. 비어 있으면 누를 수 없다', async () => {
+  it('새 대화는 한 번 더 묻고 대화를 비운 뒤 입력칸으로 포커스한다. 비어 있으면 누를 수 없다', async () => {
     const user = userEvent.setup()
     renderApp('/lectures', 'USER')
     const dialog = await openWindow(user)
     const reset = within(dialog).getByRole('button', { name: '새 대화' })
     expect(reset).toBeDisabled()
     act(() => addItem(notice('지울 안내')))
+
+    // 아니요를 누르면 그대로 두고 새 대화 버튼으로 돌아온다
     await user.click(reset)
+    await user.click(within(dialog).getByRole('button', { name: '아니요' }))
+    expect(within(dialog).getByText('지울 안내')).toBeInTheDocument()
+    expect(reset).toHaveFocus()
+
+    // Esc는 창을 닫지 않고 묻기만 접는다
+    await user.click(reset)
+    expect(within(dialog).getByRole('button', { name: '아니요' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(queryWindow()).toBeInTheDocument()
+    expect(
+      within(dialog).queryByRole('button', { name: '지우고 새로 시작' }),
+    ).toBeNull()
+    expect(within(dialog).getByText('지울 안내')).toBeInTheDocument()
+
+    await user.click(reset)
+    await user.click(
+      within(dialog).getByRole('button', { name: '지우고 새로 시작' }),
+    )
     expect(within(dialog).queryByText('지울 안내')).not.toBeInTheDocument()
     expect(dialog).toBeInTheDocument()
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('textbox', { name: '챗봇에게 질문' }),
+      ).toHaveFocus(),
+    )
   })
 
   it('로그아웃하면 대화와 저장값을 지우고, 다른 회원으로 로그인하면 이전 대화가 없다', async () => {

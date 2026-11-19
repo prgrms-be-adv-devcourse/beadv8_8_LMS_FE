@@ -107,7 +107,7 @@
   letter-spacing: 0.04em;
   padding: 4px 8px;
   border-radius: var(--r-pill);
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 .hold,

@@ -12,9 +12,9 @@ import type {
   ProcessingStatus,
 } from '@/entities/order/types'
 import { closeLoginModal } from '@/shared/ui/loginModal'
-import { mockOrders } from '@/test/lectureOrders'
+import { clickBuyNow, mockOrders } from '@/test/lectureOrders'
 import { mockLectureSearch } from '@/test/lectureSearchMock'
-import { renderApp, rs } from '@/test/renderApp'
+import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
 const summary = (
@@ -158,9 +158,7 @@ async function buyNow(order: Order, status: number) {
     }),
   )
   renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
-  await userEvent.click(
-    await screen.findByRole('button', { name: '바로 구매' }),
-  )
+  await clickBuyNow()
   const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
   await userEvent.click(
     await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
@@ -288,6 +286,94 @@ describe('강의 목록', () => {
     ).toBeInTheDocument()
   })
 
+  describe('비회원이 강의를 누르고 로그인하면 그 강의 상세로 간다', () => {
+    function serveGuestList() {
+      mockLectureDetail()
+      server.use(
+        http.get('*/api/v1/lectures', () =>
+          rs({
+            content: [summary(7, '첫 방송 세팅', 30000)],
+            page: { size: 12, number: 0, totalElements: 1, totalPages: 1 },
+          }),
+        ),
+        http.get('*/api/v1/lectures/purchased', () => rs(emptyPage)),
+      )
+    }
+
+    it('이메일 로그인', async () => {
+      serveGuestList()
+      server.use(
+        http.post('*/api/v1/members/login', () =>
+          rs({
+            id: ME_ID,
+            email: 'user@hapbang.kr',
+            nickname: '하늘',
+            role: 'USER',
+            status: 'ACTIVE',
+            profileImageUrl: null,
+            contentCategories: [],
+            bio: null,
+          }),
+        ),
+        http.post('*/api/v1/members/auth/refresh', () =>
+          rs({ accessToken: 'password-token', expiresIn: 900 }),
+        ),
+      )
+      const router = renderApp('/lectures', 'GUEST')
+      await userEvent.click(
+        await screen.findByRole('button', { name: /첫 방송 세팅/ }),
+      )
+      const dialog = await screen.findByRole('dialog', {
+        name: '합방 시작하기',
+      })
+      const form = within(dialog).getByRole('form', {
+        name: '이메일로 로그인',
+      })
+      await userEvent.type(
+        within(form).getByLabelText('이메일'),
+        'user@hapbang.kr',
+      )
+      await userEvent.type(within(form).getByLabelText('비밀번호'), 'abcd1234')
+      await userEvent.click(
+        within(form).getByRole('button', { name: '이메일로 로그인' }),
+      )
+
+      await waitFor(() =>
+        expect(router.state.location.pathname).toBe('/lectures/7'),
+      )
+      expect(
+        await screen.findByRole('heading', { name: '첫 방송 세팅' }),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('구글 로그인은 돌아올 경로로 그 강의 상세를 저장한다', async () => {
+      serveGuestList()
+      const assign = vi.fn()
+      vi.stubGlobal('location', { ...window.location, assign })
+      try {
+        renderApp('/lectures', 'GUEST')
+        await userEvent.click(
+          await screen.findByRole('button', { name: /첫 방송 세팅/ }),
+        )
+        const dialog = await screen.findByRole('dialog', {
+          name: '합방 시작하기',
+        })
+        await userEvent.click(
+          within(dialog).getByRole('button', { name: /Google로 계속하기/ }),
+        )
+
+        expect(assign).toHaveBeenCalledWith(
+          '/api/v1/members/oauth2/authorization/google',
+        )
+        expect(sessionStorage.getItem('hapbang.returnTo')).toBe('/lectures/7')
+      } finally {
+        vi.unstubAllGlobals()
+        sessionStorage.removeItem('hapbang.returnTo')
+      }
+    })
+  })
+
   /** 강의 목록 요청의 page를 모은다. Spring Page처럼 범위를 넘는 페이지에는 빈 content와 실제 totalPages를 준다. */
   function serveLecturePages(totalPages: number) {
     const pages: number[] = []
@@ -359,9 +445,7 @@ describe('바로 구매', () => {
       availableTotalHp: 130000,
     })
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     // 수익 HP를 먼저 쓰는 미리보기
     expect(within(dialog).getByText('10,000')).toBeInTheDocument()
@@ -374,6 +458,96 @@ describe('바로 구매', () => {
       await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
     ).toBeInTheDocument()
     expect(ordered).toEqual([7])
+  })
+
+  it('결제하는 동안에는 주문 확인을 닫을 수 없다(닫기·Esc·바깥)', async () => {
+    mockLectureDetail()
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.post('*/api/v1/lectures/orders', async () => {
+        await gate
+        mockOrders(purchasedOrder())
+        return rs(purchasedOrder(), 201)
+      }),
+    )
+    renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
+    await clickBuyNow()
+    const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
+    )
+    expect(
+      await within(dialog).findByRole('button', { name: /결제하는 중/ }),
+    ).toBeDisabled()
+
+    // 머리의 닫기(X)와 아래 닫기 버튼, Esc, 바깥 클릭 모두 받지 않는다
+    for (const close of within(dialog).getAllByRole('button', {
+      name: '닫기',
+    }))
+      await userEvent.click(close)
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(dialog.parentElement!)
+    expect(
+      screen.getByRole('dialog', { name: '주문 확인' }),
+    ).toBeInTheDocument()
+
+    release()
+    expect(
+      await screen.findByRole('heading', { name: '주문을 마쳤어요' }),
+    ).toBeInTheDocument()
+  })
+
+  it('구매 내역을 불러오는 동안에는 바로 구매를 막는다', async () => {
+    mockLectureDetail()
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.get('*/api/v1/lectures/purchased', async () => {
+        await gate
+        return rs(emptyPage)
+      }),
+    )
+    renderApp('/lectures/7', 'USER')
+
+    const buy = await screen.findByRole('button', { name: '바로 구매' })
+    expect(buy).toBeDisabled()
+    release()
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: '바로 구매' })).toBeEnabled(),
+    )
+  })
+
+  it('장바구니에 담으면 바뀐 장바구니 보기 링크로 포커스를 옮긴다', async () => {
+    mockLectureDetail()
+    let cart: { lectureId: number }[] = []
+    server.use(
+      http.get('*/api/v1/lectures/purchased', () => rs(emptyPage)),
+      http.get('*/api/v1/lectures/cart', () =>
+        rs({
+          items: cart.map((i) => ({
+            ...i,
+            title: '첫 방송 세팅',
+            priceHp: 30000,
+            thumbnailUrl: null,
+            purchasable: true,
+          })),
+          purchasableTotalHp: 30000 * cart.length,
+        }),
+      ),
+      http.post('*/api/v1/lectures/cart/items', () => {
+        cart = [{ lectureId: 7 }]
+        return new HttpResponse(null, { status: 201 })
+      }),
+    )
+    renderApp('/lectures/7', 'USER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '장바구니 담기' }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: '장바구니 보기' })).toHaveFocus(),
+    )
   })
 
   it('지갑을 불러오는 동안에는 결제할 수 없다', async () => {
@@ -393,9 +567,7 @@ describe('바로 구매', () => {
       })
     })
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     expect(
       within(dialog).getByRole('button', { name: '잔액 확인 중…' }),
@@ -427,9 +599,7 @@ describe('바로 구매', () => {
           }),
     )
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       '보유 HP를 불러오지 못했어요. 지갑 오류',
@@ -454,14 +624,12 @@ describe('바로 구매', () => {
       availableTotalHp: 5000,
     })
 
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     expect(await within(dialog).findByText('25,000 HP')).toBeInTheDocument()
     expect(
       within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toHaveAttribute('href', '/wallet?charge=25000')
+    ).toHaveAttribute('href', '/wallet?charge=25000&returnTo=%2Flectures%2F7')
     expect(
       within(dialog).queryByRole('button', { name: /결제/ }),
     ).not.toBeInTheDocument()
@@ -505,9 +673,7 @@ describe('바로 구매', () => {
       )
       renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
 
-      await userEvent.click(
-        await screen.findByRole('button', { name: '바로 구매' }),
-      )
+      await clickBuyNow()
       const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
       await userEvent.click(
         await within(dialog).findByRole('button', { name: '30,000 HP 결제' }),
@@ -624,8 +790,9 @@ describe('내 강의', () => {
     const orders = mockOrders(purchasedOrder())
     renderApp('/library', 'USER')
 
+    // 행마다 같은 글자의 버튼이라 강의 제목을 이름에 넣는다
     await userEvent.click(
-      await screen.findByRole('button', { name: '구매 취소' }),
+      await screen.findByRole('button', { name: '첫 방송 세팅 구매 취소' }),
     )
     const dialog = await screen.findByRole('dialog', {
       name: '구매를 취소할까요?',
@@ -634,6 +801,49 @@ describe('내 강의', () => {
       within(dialog).getByRole('button', { name: '구매 취소' }),
     )
 
+    expect(await screen.findByText('아직 산 강의가 없어요')).toBeInTheDocument()
+    expect(orders.item(501)?.status).toBe('CANCELED')
+  })
+
+  it('구매 취소를 보내는 동안에는 확인 창을 닫을 수 없다', async () => {
+    const orders = mockOrders(purchasedOrder())
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    // 먼저 붙잡아 둔 뒤 mockOrders의 처리로 넘긴다.
+    server.use(
+      http.post(
+        '*/api/v1/lectures/orders/:orderId/items/:orderItemId/cancel',
+        async () => {
+          await gate
+        },
+      ),
+    )
+    renderApp('/library', 'USER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '첫 방송 세팅 구매 취소' }),
+    )
+    const dialog = await screen.findByRole('dialog', {
+      name: '구매를 취소할까요?',
+    })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '구매 취소' }),
+    )
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole('button', { name: '구매 취소' }),
+      ).toBeDisabled(),
+    )
+    for (const close of within(dialog).getAllByRole('button', {
+      name: '닫기',
+    }))
+      await userEvent.click(close)
+    await userEvent.keyboard('{Escape}')
+    expect(
+      screen.getByRole('dialog', { name: '구매를 취소할까요?' }),
+    ).toBeInTheDocument()
+
+    release()
     expect(await screen.findByText('아직 산 강의가 없어요')).toBeInTheDocument()
     expect(orders.item(501)?.status).toBe('CANCELED')
   })
@@ -666,6 +876,10 @@ describe('내 강의', () => {
     await userEvent.click(agree)
 
     await waitFor(() => expect(accessCalls).toBe(1))
+    // 구매 내역을 다시 받기 전에도 동의 버튼은 바로 사라진다
+    expect(
+      screen.queryByRole('button', { name: '동의하고 재생' }),
+    ).not.toBeInTheDocument()
     expect(orders.item(501)?.confirmationType).toBe('FIRST_PLAY')
     expect(document.querySelector('video')).toHaveAttribute(
       'src',
@@ -687,18 +901,35 @@ describe('내 강의', () => {
     renderApp('/library', 'USER')
 
     expect(await screen.findByText('구매 확정')).toHaveClass('pill', 'ok')
-    expect(screen.getByRole('button', { name: '재생' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '리뷰' })).toHaveAttribute(
-      'href',
-      '/library/7/review',
-    )
+    expect(
+      screen.getByRole('button', { name: '첫 방송 세팅 재생' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: '첫 방송 세팅 리뷰' }),
+    ).toHaveAttribute('href', '/library/7/review')
     expect(
       await screen.findByText('이의 제기 기간이 끝났어요'),
     ).toBeInTheDocument()
-    for (const name of ['구매 확정', '구매 취소'])
+    for (const name of [/구매 확정$/, /구매 취소$/, /이의 제기$/])
       expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /이의 제기$/ })).toBeNull()
     // 판매자 지급이 늦어지는 것은 구매자에게 안내하지 않는다.
     expect(screen.queryByText(/처리가 늦어지고 있어요/)).not.toBeInTheDocument()
+  })
+
+  it('이의 제기 기간 안이면 고객센터 문의를 이의 제기 유형과 이 주문 항목으로 채워 연다', async () => {
+    mockOrders(purchasedOrder('CONFIRMED'))
+    renderApp('/library', 'USER')
+
+    // 미리 채운 고객센터 화면은 support-flow가 본다
+    expect(
+      await screen.findByRole('link', {
+        name: '첫 방송 세팅 내용 다름 이의 제기',
+      }),
+    ).toHaveAttribute(
+      'href',
+      '/support?category=LECTURE_CONTENT_DISPUTE&orderItemId=501',
+    )
   })
 
   it('보유하지 않은 강의의 시청 화면은 안내만 보여 준다', async () => {
@@ -940,6 +1171,53 @@ describe('구매자 흐름 회귀', () => {
       ),
     )
     expect(pages).toEqual([0, 1])
+  })
+
+  it('리뷰 지우기는 확인한 뒤에 지운다', async () => {
+    mockOrders(purchasedOrder('CONFIRMED'))
+    let deletes = 0
+    server.use(
+      http.get('*/api/v1/lectures/7/reviews', () =>
+        rs({
+          content: [
+            {
+              reviewId: 1001,
+              reviewerUserId: ME_ID,
+              reviewerNickname: '하늘',
+              rating: 3,
+              content: '좋아요',
+              createdAt: '2026-10-14T10:00:00',
+              updatedAt: '2026-10-14T10:00:00',
+            },
+          ],
+          page: { number: 0, size: 100, totalElements: 1, totalPages: 1 },
+        }),
+      ),
+      http.delete('*/api/v1/lectures/reviews/1001', () => {
+        deletes++
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    const router = renderApp('/library/7/review', 'USER')
+
+    const remove = await screen.findByRole('button', { name: '리뷰 지우기' })
+    await userEvent.click(remove)
+    let dialog = await screen.findByRole('dialog', { name: '리뷰를 지울까요?' })
+    await userEvent.click(
+      within(dialog).getAllByRole('button', { name: '닫기' })[1],
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(deletes).toBe(0)
+
+    await userEvent.click(remove)
+    dialog = await screen.findByRole('dialog', { name: '리뷰를 지울까요?' })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '지우기' }),
+    )
+    expect(await screen.findByText('리뷰를 지웠어요.')).toBeInTheDocument()
+    expect(deletes).toBe(1)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/library'))
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('첫 페이지 밖의 내 리뷰를 찾아 내용 없이 별점만 수정한다', async () => {

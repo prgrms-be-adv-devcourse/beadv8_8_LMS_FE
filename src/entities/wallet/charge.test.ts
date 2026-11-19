@@ -24,6 +24,20 @@ describe('충전 금액', () => {
     expect(chargeHref(5001)).toBe('/wallet?charge=6000')
   })
 
+  it('충전하러 갈 때 같은 출처의 앱 경로만 돌아갈 곳으로 싣는다', () => {
+    expect(chargeHref(5001, '/lectures/7?tab=info')).toBe(
+      '/wallet?charge=6000&returnTo=%2Flectures%2F7%3Ftab%3Dinfo',
+    )
+    for (const returnTo of [
+      '//evil.test/x',
+      '/\\evil.test/x',
+      'https://evil.test/',
+      '/api/v1/members/me',
+      'lectures/7',
+    ])
+      expect(chargeHref(5001, returnTo)).toBe('/wallet?charge=6000')
+  })
+
   it('주소의 charge 값은 올바른 충전 금액일 때만 쓴다', () => {
     expect(parseChargeAmountParam('6000')).toBe(6000)
     expect(parseChargeAmountParam(null)).toBeNull()
@@ -40,6 +54,17 @@ describe('결제 결과 주소', () => {
       successUrl: 'https://hb.test/wallet/charge/result',
       failUrl: 'https://hb.test/wallet/charge/result?amount=30000',
     })
+  })
+
+  it('돌아갈 곳이 있으면 성공·실패 주소 모두에 싣는다', () => {
+    expect(chargeReturnUrls('https://hb.test', 30000, '/cart')).toEqual({
+      successUrl: 'https://hb.test/wallet/charge/result?returnTo=%2Fcart',
+      failUrl:
+        'https://hb.test/wallet/charge/result?amount=30000&returnTo=%2Fcart',
+    })
+    expect(chargeReturnUrls('https://hb.test', 30000, '//evil.test')).toEqual(
+      chargeReturnUrls('https://hb.test', 30000),
+    )
   })
 
   it('결과 쿼리를 성공·실패·없음으로 나눈다', () => {

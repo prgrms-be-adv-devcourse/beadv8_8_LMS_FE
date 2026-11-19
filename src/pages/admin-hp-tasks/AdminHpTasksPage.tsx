@@ -10,6 +10,9 @@ import {
 } from '@/entities/hp-task/labels'
 import type { HpTaskType, LectureHpTask } from '@/entities/hp-task/types'
 import { HpTaskStatusPill } from '@/entities/hp-task/ui/HpTaskStatusPill'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { useListLinkState } from '@/features/admin-flow/listOrigin'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
@@ -71,6 +74,12 @@ export function AdminHpTasksPage() {
   const filter =
     HP_TASK_STATUS_FILTERS.find((f) => f.status === status) ??
     HP_TASK_STATUS_FILTERS[0]
+  // 유형을 고르면 상태별 건수도 그 유형 안의 건수다.
+  const counts = knownCounts({
+    filter: status,
+    total: data?.page.totalElements,
+    isPlaceholderData: query.isPlaceholderData,
+  })
 
   return (
     <div className="page">
@@ -93,6 +102,7 @@ export function AdminHpTasksPage() {
               onClick={() => update({ status: f.status })}
             >
               {f.label}
+              <FilterCount count={counts[f.status]} />
             </button>
           ))}
         </div>
@@ -139,6 +149,7 @@ export function AdminHpTasksPage() {
 }
 
 function TaskItem({ task }: { task: LectureHpTask }) {
+  const linkState = useListLinkState()
   return (
     <li className="q-item" aria-label={`HP 작업 #${task.id}`}>
       <div className="row-main">
@@ -174,7 +185,11 @@ function TaskItem({ task }: { task: LectureHpTask }) {
         )}
       </div>
       <div className="row-actions">
-        <Link className="btn sm" to={`/admin/hp-tasks/${task.id}`}>
+        <Link
+          className="btn sm"
+          to={`/admin/hp-tasks/${task.id}`}
+          state={linkState}
+        >
           상세
         </Link>
       </div>

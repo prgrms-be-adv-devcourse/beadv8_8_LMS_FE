@@ -15,6 +15,7 @@ let sent: { key: string; search: string } | null = null
  * setSearchParams가 합칠 때 쓰는 값은 아직 끝나지 않은 이동(loader 대기)을 반영하지 않아, 연달아 바꾸면 앞서 바꾼 값이 사라진다.
  * 그래서 마지막으로 보낸 값 위에 합치고, 이동이 끝나 멈추면(완료·취소·실패, 뒤로 가기 포함) 실제 URL 값으로 다시 맞춘다.
  * 보낸 값은 이 훅을 쓰는 모든 곳이 함께 본다(조건을 바꾼 직후 페이지를 넘겨도 조건이 남는다).
+ * 같은 화면 안의 정렬·필터·탭·페이지 바꾸기라 스크롤을 맨 위로 옮기지 않는다(앱 셸의 ScrollRestoration).
  */
 export function useMergedSearchParams() {
   const [params, setParams] = useSearchParams()
@@ -29,7 +30,7 @@ export function useMergedSearchParams() {
       const base = sent?.key === key ? sent.search : search
       const next = merge(new URLSearchParams(base))
       sent = { key, search: `?${next.toString()}` }
-      setParams(next, { replace })
+      setParams(next, { replace, preventScrollReset: true })
     },
     [key, search, setParams],
   )

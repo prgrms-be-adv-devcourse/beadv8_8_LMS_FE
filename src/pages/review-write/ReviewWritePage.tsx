@@ -30,7 +30,15 @@ export function ReviewWritePage() {
   const body = () => {
     if (purchased.isPending || reviews.isPending) return <Loading />
     const error = purchased.error ?? reviews.error
-    if (error) return <LoadError error={error} />
+    if (error)
+      return (
+        <LoadError
+          error={error}
+          retry={() =>
+            void Promise.all([purchased.refetch(), reviews.refetch()])
+          }
+        />
+      )
     if (!owned || owned.itemStatus === 'PURCHASED')
       return (
         <EmptyState

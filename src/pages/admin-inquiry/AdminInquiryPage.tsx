@@ -11,6 +11,8 @@ import type {
 import { InquiryHead } from '@/entities/inquiry/ui/InquiryHead'
 import { ObjectionLinkPill } from '@/entities/inquiry/ui/InquiryPills'
 import { InquiryThread } from '@/entities/inquiry/ui/InquiryThread'
+import { BackLink } from '@/features/admin-flow/BackLink'
+import { useListOrigin } from '@/features/admin-flow/listOrigin'
 import {
   useDeleteReply,
   useEditReply,
@@ -28,18 +30,18 @@ import admin from '@/pages/admin-shared.module.css'
 export function AdminInquiryPage() {
   const inquiryId = Number(useParams().inquiryId)
   const { data, error, refetch } = useQuery(adminInquiryQuery(inquiryId))
+  // 들어온 목록의 필터·쪽으로 돌아간다.
+  const origin = useListOrigin('/admin/inquiries')
   // 다시 불러오다 실패해도(일시 오류) 이미 받은 문의를 그대로 보이고, 다음 다시 불러오기를 기다린다.
   // 철회 처리 중이던 문의가 사라졌으면(404) 회원 철회로 삭제된 것이다.
   return (
     <div className="page narrow">
-      <Link className="back" to="/admin/inquiries">
-        ← 문의 답변
-      </Link>
+      <BackLink to={origin.to} label="문의 답변" />
       {isWithdrawn(data, error) ? (
         <EmptyState
           title="삭제된 문의예요"
           action={
-            <Link className="btn" to="/admin/inquiries">
+            <Link className="btn" to={origin.to}>
               문의 목록
             </Link>
           }

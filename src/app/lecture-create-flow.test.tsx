@@ -106,6 +106,17 @@ const pdf = (name = 'b.pdf') =>
 
 const submitButton = () => screen.getByRole('button', { name: '검수 신청' })
 
+/** 검수 신청을 누르고 확인 창에서 신청한다(첫 등록은 영상·자료를 바꿀 수 없게 되니 한 번 더 묻는다) */
+async function submitAndConfirm() {
+  await userEvent.click(submitButton())
+  const dialog = await screen.findByRole('dialog', {
+    name: '검수를 신청할까요?',
+  })
+  await userEvent.click(
+    within(dialog).getByRole('button', { name: '신청하기' }),
+  )
+}
+
 /** n번째 강 행 */
 const lesson = (n: number) => screen.getByRole('group', { name: `${n}강` })
 
@@ -300,7 +311,7 @@ describe('강의 등록', () => {
       within(lesson(2)).getByRole('button', { name: '아래로' }),
     ).toBeDisabled()
 
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0].contents).toEqual([
       { fileId: 8, title: '체크리스트', contentType: 'DOCUMENT' },
@@ -367,7 +378,7 @@ describe('강의 등록', () => {
     expectSubmitBlocked(submitButton())
     await userEvent.type(screen.getByLabelText('가격 (HP)'), '30000')
 
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
 
     expect(
       await screen.findByText('검수를 신청했어요. 승인되면 공개돼요.'),
@@ -407,7 +418,7 @@ describe('강의 등록', () => {
 
     await userEvent.type(screen.getByLabelText('강의 제목'), '첫 방송')
     await fillLesson(1, '장비', mp4())
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
 
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0].thumbnailFileId).toBe(7)
@@ -433,7 +444,7 @@ describe('강의 등록', () => {
 
     await userEvent.type(screen.getByLabelText('강의 제목'), '첫 방송')
     await fillLesson(1, '장비', mp4())
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
 
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0].thumbnailFileId).toBeNull()
@@ -452,7 +463,7 @@ describe('강의 등록', () => {
     await userEvent.type(await screen.findByLabelText('강의 제목'), '첫 방송')
     await fillLesson(1, '장비', mp4())
 
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
     expect(
       await within(lesson(1)).findByText('강 제목을 입력해 주세요.'),
     ).toBeVisible()
@@ -464,7 +475,7 @@ describe('강의 등록', () => {
       within(lesson(1)).queryByText('강 제목을 입력해 주세요.'),
     ).not.toBeInTheDocument()
 
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
     const banner = await screen.findByText('첨부할 수 없는 파일이에요.')
     expect(banner).toHaveClass('notice', 'bad')
     expect(bodies).toHaveLength(2)
@@ -518,6 +529,101 @@ describe('강의 등록', () => {
     expect(after.defaultPrevented).toBe(false)
   })
 
+  it('검수 신청 전 영상·자료 잠금을 안내하고, 확인 창에서 돌아가면 보내지 않는다', async () => {
+    mockUpload()
+    const bodies = mockCreate()
+    openForm()
+    await userEvent.type(await screen.findByLabelText('강의 제목'), '첫 방송')
+    await fillLesson(1, '장비', mp4())
+    expect(
+      screen.getByText(
+        '검수를 신청하면 영상·자료를 바꿀 수 없어요. 반려되면 다시 고칠 수 있어요.',
+      ),
+    ).toBeVisible()
+
+    await userEvent.click(submitButton())
+    const dialog = await screen.findByRole('dialog', {
+      name: '검수를 신청할까요?',
+    })
+    expect(within(dialog).getByText(/1강, 10,000 HP로/)).toBeVisible()
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '돌아가기' }),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(bodies).toHaveLength(0)
+  })
+
+  it('저장하지 않은 입력이 있으면 떠나기 전에 묻고, 입력이 없으면 묻지 않는다', async () => {
+    const router = openForm()
+    const title = await screen.findByLabelText('강의 제목')
+
+    const clean = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(clean)
+    expect(clean.defaultPrevented).toBe(false)
+
+    await userEvent.type(title, '첫 방송')
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+
+    await userEvent.click(screen.getByRole('link', { name: '← 강의 판매' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: '화면을 떠날까요?',
+    })
+    expect(
+      within(dialog).getByText(
+        '저장하지 않은 입력이 있어요. 나가면 입력한 내용이 사라져요.',
+      ),
+    ).toBeVisible()
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '머무르기' }),
+    )
+    expect(router.state.location.pathname).toBe(PATH)
+    expect(title).toHaveValue('첫 방송')
+
+    // 지우고 처음 값으로 돌아오면 묻지 않는다.
+    await userEvent.clear(title)
+    await userEvent.click(screen.getByRole('link', { name: '← 강의 판매' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/studio'))
+  })
+
+  it('순서를 바꾸면 바뀐 자리를 알리고, 맨 끝에 닿으면 반대 버튼으로 포커스를 옮긴다', async () => {
+    openForm()
+    await userEvent.click(
+      await screen.findByRole('button', { name: '강 추가' }),
+    )
+    await userEvent.type(
+      within(lesson(2)).getByRole('textbox', { name: '2강 제목' }),
+      '체크리스트',
+    )
+
+    await userEvent.click(
+      within(lesson(2)).getByRole('button', { name: '위로' }),
+    )
+    expect(
+      await screen.findByText("'체크리스트' 강을 1강으로 옮겼어요."),
+    ).toHaveAttribute('aria-live', 'polite')
+    // 맨 위로 올라가 '위로'가 막혔으니 같은 강의 '아래로'에 포커스가 있다.
+    expect(
+      within(lesson(1)).getByRole('button', { name: '위로' }),
+    ).toBeDisabled()
+    expect(
+      within(lesson(1)).getByRole('button', { name: '아래로' }),
+    ).toHaveFocus()
+  })
+
+  it('파일이 없는 강은 묻지 않고 바로 지운다', async () => {
+    openForm()
+    await userEvent.click(
+      await screen.findByRole('button', { name: '강 추가' }),
+    )
+    await userEvent.click(
+      within(lesson(2)).getByRole('button', { name: '삭제' }),
+    )
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: '2강' })).not.toBeInTheDocument()
+  })
+
   it('업로드 중에 강을 삭제하면 그 업로드를 취소한다', async () => {
     const gate = hold()
     let putCount = 0
@@ -540,10 +646,16 @@ describe('강의 등록', () => {
     await userEvent.click(
       within(lesson(2)).getByRole('button', { name: '삭제' }),
     )
+    // 파일이 있는 강은 지우기 전에 묻는다.
+    const confirm = await screen.findByRole('dialog', {
+      name: '2강을 삭제할까요?',
+    })
+    expect(abort).not.toHaveBeenCalled()
+    await userEvent.click(within(confirm).getByRole('button', { name: '삭제' }))
     expect(abort).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('group', { name: '2강' })).not.toBeInTheDocument()
 
-    await userEvent.click(submitButton())
+    await submitAndConfirm()
     await waitFor(() => expect(bodies).toHaveLength(1))
     expect(bodies[0].contents).toEqual([
       { fileId: 7, title: '장비', contentType: 'VIDEO' },

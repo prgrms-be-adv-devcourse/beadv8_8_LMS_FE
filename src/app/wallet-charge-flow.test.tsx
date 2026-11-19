@@ -139,25 +139,50 @@ describe('충전 모달', () => {
     return { user, dialog: screen.getByRole('dialog', { name: 'HP 충전' }) }
   }
 
-  it('충전 금액이 1,000원 단위가 아니면 결제할 수 없다', async () => {
+  it('충전 금액이 1,000원 단위가 아니면 칸을 떠날 때 알리고 결제창을 열지 않는다', async () => {
+    const bodies = mockCreateOrder()
     renderApp('/wallet', 'USER')
     const { user, dialog } = await openChargeModal()
     const input = within(dialog).getByLabelText('충전 금액 (원)')
 
     await user.clear(input)
     await user.type(input, '1500')
+    // 입력하는 동안에는 오류를 보이지 않고, 천 단위로 끊어 보인다
+    expect(input).toHaveValue('1,500')
     expect(
-      within(dialog).getByText('1,000원 단위로 입력해 주세요.'),
+      within(dialog).queryByText('1,000원 단위로 입력해 주세요.'),
+    ).toBeNull()
+    const pay = within(dialog).getByRole('button', { name: '1,500원 결제하기' })
+    expect(pay).toHaveAttribute('aria-disabled', 'true')
+
+    // Enter로 제출해도 막고 오류를 보인다
+    await user.type(input, '{Enter}')
+    expect(
+      await within(dialog).findByText('1,000원 단위로 입력해 주세요.'),
     ).toBeInTheDocument()
-    expect(
-      within(dialog).getByRole('button', { name: '1,500원 결제하기' }),
-    ).toBeDisabled()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    expect(bodies).toEqual([])
 
     await user.click(within(dialog).getByRole('button', { name: '50,000' }))
-    expect(input).toHaveValue('50000')
+    expect(input).toHaveValue('50,000')
     expect(
       within(dialog).getByRole('button', { name: '50,000원 결제하기' }),
-    ).toBeEnabled()
+    ).not.toHaveAttribute('aria-disabled')
+  })
+
+  it('금액 칸에서 Enter를 누르면 결제창을 연다. 닫기 버튼은 닫기다', async () => {
+    const bodies = mockCreateOrder()
+    renderApp('/wallet', 'USER')
+    const { user, dialog } = await openChargeModal()
+    // 아래 버튼은 결제 취소로 읽히지 않게 '닫기'다(머리의 닫기 아이콘과 함께 둘)
+    expect(
+      within(dialog).getAllByRole('button', { name: '닫기' }).at(-1),
+    ).toHaveClass('ghost')
+
+    await user.type(within(dialog).getByLabelText('충전 금액 (원)'), '{Enter}')
+
+    await waitFor(() => expect(toss.requestPayment).toHaveBeenCalledTimes(1))
+    expect(bodies).toEqual([{ amount: 30000 }])
   })
 
   it('결제하기를 누르면 충전 주문을 만들고 그 주문으로 결제창을 연다', async () => {
@@ -275,10 +300,56 @@ describe('충전 모달', () => {
     const router = renderApp('/wallet?charge=6000', 'USER')
 
     const dialog = await screen.findByRole('dialog', { name: 'HP 충전' })
-    expect(within(dialog).getByLabelText('충전 금액 (원)')).toHaveValue('6000')
+    expect(within(dialog).getByLabelText('충전 금액 (원)')).toHaveValue('6,000')
     // 새로고침해도 다시 열리지 않게 주소에서 지운다
     await waitFor(() => expect(router.state.location.search).toBe(''))
   })
+
+  it('다른 화면에서 충전하러 오면 결제창이 돌아올 주소에 그 화면을 싣는다', async () => {
+    mockCreateOrder()
+    const router = renderApp(
+      `/wallet?charge=6000&returnTo=${encodeURIComponent('/lectures/7?from=card')}`,
+      'USER',
+    )
+    const dialog = await screen.findByRole('dialog', { name: 'HP 충전' })
+    await waitFor(() => expect(router.state.location.search).toBe(''))
+
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '6,000원 결제하기' }),
+    )
+
+    await waitFor(() => expect(toss.requestPayment).toHaveBeenCalledTimes(1))
+    const origin = window.location.origin
+    const back = encodeURIComponent('/lectures/7?from=card')
+    expect(toss.requestPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        successUrl: `${origin}/wallet/charge/result?returnTo=${back}`,
+        failUrl: `${origin}/wallet/charge/result?amount=6000&returnTo=${back}`,
+      }),
+    )
+  })
+
+  it.each(['//evil.test/x', '/api/v1/members/me', 'https://evil.test/'])(
+    '돌아갈 곳이 같은 출처의 앱 경로가 아니면(%s) 싣지 않는다',
+    async (returnTo) => {
+      mockCreateOrder()
+      renderApp(
+        `/wallet?charge=6000&returnTo=${encodeURIComponent(returnTo)}`,
+        'USER',
+      )
+      const dialog = await screen.findByRole('dialog', { name: 'HP 충전' })
+      await userEvent.click(
+        within(dialog).getByRole('button', { name: '6,000원 결제하기' }),
+      )
+
+      await waitFor(() => expect(toss.requestPayment).toHaveBeenCalledTimes(1))
+      expect(toss.requestPayment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          successUrl: `${window.location.origin}/wallet/charge/result`,
+        }),
+      )
+    },
+  )
 
   it('주소의 charge 값이 충전 금액이 아니면 모달을 열지 않는다', async () => {
     const router = renderApp('/wallet?charge=1500', 'USER')
@@ -370,7 +441,7 @@ describe('충전 결과', () => {
     )
     // 헤더 HP도 새 잔액으로 바뀐다
     expect(
-      within(screen.getByRole('banner')).getByRole('link', { name: '지갑' }),
+      within(screen.getByRole('banner')).getByRole('link', { name: /^지갑/ }),
     ).toHaveTextContent('38,000')
     expect(screen.getByRole('link', { name: '지갑으로' })).toHaveClass(
       'primary',
@@ -471,7 +542,59 @@ describe('충전 결과', () => {
     await userEvent.click(screen.getByRole('link', { name: '다시 결제하기' }))
     const dialog = await screen.findByRole('dialog', { name: 'HP 충전' })
     expect(router.state.location.pathname).toBe('/wallet')
-    expect(within(dialog).getByLabelText('충전 금액 (원)')).toHaveValue('30000')
+    expect(within(dialog).getByLabelText('충전 금액 (원)')).toHaveValue(
+      '30,000',
+    )
+  })
+
+  it('다른 화면에서 충전하러 왔으면 충전한 뒤 하던 일로 돌아가기를 먼저 보여 준다', async () => {
+    mockCart([{}])
+    mockConfirm(() => rs(order({ status: 'COMPLETED' })))
+    const router = renderApp(
+      `${SUCCESS}&returnTo=${encodeURIComponent('/lectures/7')}`,
+      'USER',
+    )
+
+    const back = await screen.findByRole('link', { name: '하던 일로 돌아가기' })
+    expect(back).toHaveClass('primary')
+    expect(back).toHaveAttribute('href', '/lectures/7')
+    expect(screen.getByRole('link', { name: '장바구니로' })).not.toHaveClass(
+      'primary',
+    )
+    await userEvent.click(back)
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/lectures/7'),
+    )
+  })
+
+  it('돌아갈 곳이 다른 출처면 하던 일로 돌아가기를 보이지 않는다', async () => {
+    mockCart()
+    mockConfirm(() => rs(order({ status: 'COMPLETED' })))
+    renderApp(
+      `${SUCCESS}&returnTo=${encodeURIComponent('//evil.test/')}`,
+      'USER',
+    )
+
+    expect(await screen.findByRole('link', { name: '지갑으로' })).toHaveClass(
+      'primary',
+    )
+    expect(
+      screen.queryByRole('link', { name: '하던 일로 돌아가기' }),
+    ).toBeNull()
+  })
+
+  it('결제를 취소하고 돌아오면 같은 금액으로 다시 결제해도 돌아갈 곳을 그대로 넘긴다', async () => {
+    renderApp(
+      `/wallet/charge/result?amount=6000&returnTo=${encodeURIComponent('/cart')}&code=PAY_PROCESS_CANCELED&message=x&orderId=HPCHG-1`,
+      'USER',
+    )
+
+    expect(
+      await screen.findByRole('link', { name: '다시 결제하기' }),
+    ).toHaveAttribute('href', `/wallet?charge=6000&returnTo=%2Fcart`)
+    expect(
+      screen.getByRole('link', { name: '하던 일로 돌아가기' }),
+    ).toHaveAttribute('href', '/cart')
   })
 
   it.each([

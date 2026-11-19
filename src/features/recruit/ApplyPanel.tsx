@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { isRecruitOpen } from '@/entities/appearance/recruit'
-import { APPLY_MESSAGE_MAX } from '@/entities/appearance/rules'
+import { APPLY_MESSAGE_MAX, GUEST_RULE } from '@/entities/appearance/rules'
 import type { Application, Recruit } from '@/entities/appearance/types'
 import { MemberChip } from '@/entities/member/ui/MemberChip'
 import { INFLUENCER, type Viewer } from '@/shared/auth/role'
@@ -81,6 +81,7 @@ function ApplyForm({ recruit }: { recruit: Recruit }) {
         호스트가 수락하면 바로 출연이 성립해요. 응답 전에는 지원을 취소할 수
         있지만, 취소하거나 거절되면 이 모집글에 다시 지원할 수 없어요.
       </p>
+      <p className="fine">{GUEST_RULE}</p>
     </>
   )
 }

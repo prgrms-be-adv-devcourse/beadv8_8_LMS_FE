@@ -71,15 +71,31 @@ describe('라우트 가드', () => {
     ).toBeInTheDocument()
   })
 
-  it('권한 없는 회원은 역할 첫 화면으로 보낸다', async () => {
+  it('권한 없는 유저는 그 자리에서 지금 역할·필요한 역할과 채널 인증을 안내받는다', async () => {
     const router = renderAt('/studio', 'USER')
     expect(
-      await screen.findByRole('heading', {
-        level: 1,
-        name: /합방 상대를 찾고/,
-      }),
+      await screen.findByText('인증된 인플루언서만 쓸 수 있는 화면이에요'),
     ).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe('/')
+    expect(screen.getByText(/지금은 유저 계정이에요/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '채널 인증하기' })).toHaveAttribute(
+      'href',
+      '/verify',
+    )
+    expect(router.state.location.pathname).toBe('/studio')
+    expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
+  })
+
+  it('인플루언서가 인증된 인플루언서 화면에 들어오면 승급 신청을 안내받는다', async () => {
+    const router = renderAt('/studio', 'INFLUENCER')
+    expect(
+      await screen.findByText('인증된 인플루언서만 쓸 수 있는 화면이에요'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/지금은 인플루언서 계정이에요/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '승급 신청하기' })).toHaveAttribute(
+      'href',
+      '/promote',
+    )
+    expect(router.state.location.pathname).toBe('/studio')
   })
 
   it('홈은 비회원도 볼 수 있다', async () => {
@@ -108,7 +124,7 @@ describe('라우트 가드', () => {
     ).toBeInTheDocument()
   })
 
-  it('관리자가 아닌 회원이 /admin에 들어오면 역할 첫 화면으로 보내고 관리 API를 부르지 않는다', async () => {
+  it('관리자가 아닌 회원이 /admin에 들어오면 관리자 화면이라고 안내하고 관리 API를 부르지 않는다', async () => {
     const adminRequests: string[] = []
     server.events.on('request:start', ({ request }) => {
       if (/\/api\/v1\/[a-z]+\/admin/.test(request.url))
@@ -117,12 +133,12 @@ describe('라우트 가드', () => {
     try {
       const router = renderAt('/admin', 'USER')
       expect(
-        await screen.findByRole('heading', {
-          level: 1,
-          name: /합방 상대를 찾고/,
-        }),
+        await screen.findByText('관리자만 쓸 수 있는 화면이에요'),
       ).toBeInTheDocument()
-      expect(router.state.location.pathname).toBe('/')
+      expect(
+        within(screen.getByRole('main')).getByRole('link', { name: '홈으로' }),
+      ).toHaveAttribute('href', '/')
+      expect(router.state.location.pathname).toBe('/admin')
       expect(adminRequests).toEqual([])
     } finally {
       server.events.removeAllListeners('request:start')
@@ -162,16 +178,16 @@ describe('라우트 가드', () => {
   )
 
   it.each(['/chat', '/chat/5'])(
-    '유저가 %s에 들어오면 역할 첫 화면으로 보낸다',
+    '유저가 %s에 들어오면 인플루언서 화면이라고 안내하고 채널 인증으로 이끈다',
     async (path) => {
       const router = renderAt(path, 'USER')
       expect(
-        await screen.findByRole('heading', {
-          level: 1,
-          name: /합방 상대를 찾고/,
-        }),
+        await screen.findByText('인플루언서부터 쓸 수 있는 화면이에요'),
       ).toBeInTheDocument()
-      expect(router.state.location.pathname).toBe('/')
+      expect(
+        screen.getByRole('link', { name: '채널 인증하기' }),
+      ).toHaveAttribute('href', '/verify')
+      expect(router.state.location.pathname).toBe(path)
     },
   )
 

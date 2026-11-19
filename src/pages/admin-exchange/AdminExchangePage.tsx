@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { adminExchangeQuery } from '@/entities/wallet/adminExchangeApi'
 import { hasPayoutStage } from '@/entities/wallet/exchangePayout'
 import {
@@ -10,6 +10,8 @@ import {
 } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
+import { BackLink } from '@/features/admin-flow/BackLink'
+import { useListOrigin } from '@/features/admin-flow/listOrigin'
 import { ExchangePayoutPanel } from '@/features/exchange-payout/ExchangePayoutPanel'
 import { ApproveExchangeModal } from '@/features/exchange-review/ApproveExchangeModal'
 import { RejectExchangeModal } from '@/features/exchange-review/RejectExchangeModal'
@@ -22,11 +24,14 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminExchangePage.module.css'
 import admin from '@/pages/admin-shared.module.css'
 
-const back = (
-  <Link className="back" to="/admin/exchanges">
-    ← 환전 승인
-  </Link>
-)
+const PAYOUTS = '/admin/exchange-payouts'
+
+/** 들어온 목록(환전 승인·송금 확인)의 필터·쪽으로 돌아간다 */
+function Back() {
+  const { to } = useListOrigin('/admin/exchanges', [PAYOUTS])
+  const fromPayouts = to.split('?')[0] === PAYOUTS
+  return <BackLink to={to} label={fromPayouts ? '송금 확인' : '환전 승인'} />
+}
 
 export function AdminExchangePage() {
   const exchangeId = Number(useParams().exchangeId)
@@ -37,14 +42,14 @@ export function AdminExchangePage() {
   if (isPending)
     return (
       <div className="page">
-        {back}
+        <Back />
         <Loading />
       </div>
     )
   if (error)
     return (
       <div className="page">
-        {back}
+        <Back />
         <LoadError error={error} retry={refetch} />
       </div>
     )
@@ -60,7 +65,7 @@ function Detail({ exchange }: { exchange: AdminExchange }) {
 
   return (
     <div className="page">
-      {back}
+      <Back />
       <PageHead
         title={`환전 신청 #${exchange.exchangeId}`}
         actions={<ExchangeStatusPill status={exchange.status} />}

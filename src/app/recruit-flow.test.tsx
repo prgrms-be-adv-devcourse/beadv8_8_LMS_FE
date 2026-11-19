@@ -118,8 +118,12 @@ describe('출연 모집 목록', () => {
     })
     expect(card).toHaveAttribute('href', '/recruits/7')
     expect(await within(card).findByText('밤새는곰')).toBeInTheDocument()
-    expect(within(card).getByText(/방송 10\/20\(.\) 21:00/)).toBeInTheDocument()
-    expect(within(card).getByText(/마감 10\/18\(.\) 23:59/)).toBeInTheDocument()
+    expect(
+      within(card).getByText(/방송 2999\/10\/20\(.\) 21:00/),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText(/마감 2999\/10\/18\(.\) 23:59/),
+    ).toBeInTheDocument()
     expect(within(card).getByText('지원 4명')).toBeInTheDocument()
     expect(within(card).getByText('30,000 HP')).toBeInTheDocument()
     expect(
@@ -271,7 +275,7 @@ describe('출연 모집 목록', () => {
     const first = firstLink.closest('.row-item') as HTMLElement
     expect(
       within(first).getByText(
-        /^방송 10\/20\(.\) 21:00 · 10\/15\(.\) 09:00 지원$/,
+        /^방송 2999\/10\/20\(.\) 21:00 · 10\/15\(.\) 09:00 지원$/,
       ),
     ).toBeInTheDocument()
     expect(within(first).getByText('모집 중')).toHaveClass('pill', 'warn')
@@ -453,7 +457,7 @@ describe('모집글 올리기', () => {
     await waitFor(() => expect(router.state.location.search).toBe('?tab=mine'))
     expect(router.state.location.pathname).toBe('/recruits')
     await expectSuccessToast('모집글을 올렸어요.')
-    expect(screen.queryByText(/포인트를 확인하고 있어요/)).toBeNull()
+    expect(screen.queryByText(/보류를 확인하고 있어요/)).toBeNull()
     expect(body).toMatchObject({
       title: '주말 게임 합방 게스트 모집',
       hostChannelUrl: 'https://chzzk.naver.com/sky',
@@ -482,7 +486,7 @@ describe('모집글 올리기', () => {
     await userEvent.type(count, '3')
     expect(
       await within(dialog).findByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toHaveAttribute('href', '/wallet?charge=30000')
+    ).toHaveAttribute('href', '/wallet?charge=30000&returnTo=%2Frecruits')
   })
 
   it('잔액이 부족하면(409 INSUFFICIENT_BALANCE) 안내와 지갑 링크를 보여 준다', async () => {
@@ -521,9 +525,9 @@ describe('모집글 올리기', () => {
       await within(dialog).findByRole('button', { name: /HP 보류하고 게시/ }),
     )
 
-    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
+    await expectSuccessToast('접수됐어요. 보류를 확인하고 있어요.')
     expect(router.state.location.pathname).toBe('/recruits')
-    // 주소값 없이 내 모집글로 간다. 그 글은 목록에 '포인트 확인 중'으로 보인다.
+    // 주소값 없이 내 모집글로 간다. 그 글은 목록에 'HP 보류 확인 중'으로 보인다.
     expect(router.state.location.search).toBe('?tab=mine')
     expect(screen.queryByRole('dialog', { name: '모집글 올리기' })).toBeNull()
     expect(posts).toBe(1)
@@ -908,22 +912,26 @@ describe('모집 상세 · 호스트', () => {
     ).toBeInTheDocument()
     await userEvent.click(within(row).getByRole('button', { name: '수락' }))
     const dialog = await screen.findByRole('dialog', {
-      name: '지원을 수락할까요?',
+      name: '편집하는 고래님의 지원을 수락할까요?',
     })
     expect(
       within(dialog).getByText(
         /수락하면 바로 출연이 성립돼요. 성립 후 호스트가 취소하면 1인 출연료의 30%/,
       ),
     ).toBeInTheDocument()
-    await userEvent.click(within(dialog).getByRole('button', { name: '수락' }))
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '편집하는 고래님 수락' }),
+    )
 
     expect(await within(row).findByText('출연 성립')).toBeInTheDocument()
-    expect(within(row).getByText('출연 #300')).toBeInTheDocument()
+    expect(
+      within(row).getByRole('link', { name: '출연 상세 보기' }),
+    ).toHaveAttribute('href', '/appearances/300')
     expect(accepted).toBe(true)
     expect(await screen.findByText('2 / 3명')).toBeInTheDocument()
   })
 
-  it('정원이 찼으면(409 RECRUIT_FULL) 정원이 찼다고 알린다', async () => {
+  it('정원이 찼으면(409 RECRUIT_FULL) 확인창을 닫고 정원이 찼다고 알린다', async () => {
     const current = { value: recruit({ hostId: ME_ID }) }
     mockHost(current, [applicant()])
     server.use(
@@ -935,10 +943,68 @@ describe('모집 상세 · 호스트', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: '수락' }))
     const dialog = await screen.findByRole('dialog', {
-      name: '지원을 수락할까요?',
+      name: /지원을 수락할까요\?$/,
     })
-    await userEvent.click(within(dialog).getByRole('button', { name: '수락' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: /수락$/ }))
     expect(await screen.findByText('정원이 찼어요.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('수락이 실패하면 확인창을 닫지 않고 창 안에 알린 뒤 다시 누를 수 있다', async () => {
+    const current = { value: recruit({ hostId: ME_ID }) }
+    const applicants = [applicant()]
+    mockHost(current, applicants)
+    let tries = 0
+    server.use(
+      http.post('*/api/v1/appearances/applications/50/accept', () => {
+        tries += 1
+        if (tries === 1) return problem(500, 'INTERNAL_ERROR', '서버 오류')
+        applicants[0] = applicant({ status: 'SELECTED', appearanceId: 300 })
+        return rs(applicants[0])
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+
+    await userEvent.click(await screen.findByRole('button', { name: '수락' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: /지원을 수락할까요\?$/,
+    })
+    await userEvent.click(within(dialog).getByRole('button', { name: /수락$/ }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '서버 오류',
+    )
+    expect(dialog).toBeInTheDocument()
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /수락$/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText('출연 성립')).toBeInTheDocument()
+    expect(tries).toBe(2)
+  })
+
+  it('그사이 지원이 처리됐으면(409 APPLICATION_NOT_PENDING) 확인창을 닫고 바뀐 상태를 다시 불러온다', async () => {
+    const current = { value: recruit({ hostId: ME_ID }) }
+    const applicants = [applicant()]
+    mockHost(current, applicants)
+    server.use(
+      http.post('*/api/v1/appearances/applications/50/reject', () => {
+        applicants[0] = applicant({ status: 'WITHDRAWN' })
+        return problem(409, 'APPLICATION_NOT_PENDING', '이미 처리된 지원이에요')
+      }),
+    )
+    renderApp('/recruits/7', 'INFLUENCER')
+
+    await userEvent.click(await screen.findByRole('button', { name: '거절' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: /지원을 거절할까요\?$/,
+    })
+    await userEvent.click(within(dialog).getByRole('button', { name: /거절$/ }))
+    expect(
+      await screen.findByText('이미 처리된 지원이에요'),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: '거절' })).toBeNull(),
+    )
   })
 
   it('정원이 다 찼으면 수락 버튼을 막는다', async () => {
@@ -971,11 +1037,14 @@ describe('모집 상세 · 호스트', () => {
     )
     renderApp('/recruits/7', 'INFLUENCER')
 
+    expect(await screen.findByText('편집하는 고래')).toBeInTheDocument()
     await userEvent.click(await screen.findByRole('button', { name: '거절' }))
     const dialog = await screen.findByRole('dialog', {
-      name: '지원을 거절할까요?',
+      name: '편집하는 고래님의 지원을 거절할까요?',
     })
-    await userEvent.click(within(dialog).getByRole('button', { name: '거절' }))
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '편집하는 고래님 거절' }),
+    )
     expect(await screen.findByText('미선정')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '수락' })).toBeNull()
   })
@@ -1561,7 +1630,7 @@ describe('보류 확인 중·실패 (내 모집글)', () => {
     const mine = mockMine(() => [recruit({ hostId: ME_ID, status })])
     renderApp('/recruits?tab=mine', 'INFLUENCER')
 
-    expect(await screen.findByText('포인트 확인 중')).toHaveClass(
+    expect(await screen.findByText('HP 보류 확인 중')).toHaveClass(
       'pill',
       'warn',
     )
@@ -1575,7 +1644,9 @@ describe('보류 확인 중·실패 (내 모집글)', () => {
     // 보류가 확인돼 모집 중이 되면 다시 부르지 않는다.
     status = 'RECRUITING'
     await advance(5_000)
-    await waitFor(() => expect(screen.queryByText('포인트 확인 중')).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText('HP 보류 확인 중')).toBeNull(),
+    )
     await settle()
     const stopped = mine.calls
     await advance(20_000)
@@ -1611,9 +1682,9 @@ describe('보류 확인 중·실패 (내 모집글)', () => {
     await userEvent.click(
       await within(dialog).findByRole('button', { name: /HP 보류하고 게시/ }),
     )
-    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
+    await expectSuccessToast('접수됐어요. 보류를 확인하고 있어요.')
     // 폼이 appearanceKeys.all로 무효화해 보기(view)가 붙은 목록 키도 다시 불러온다.
-    expect(await screen.findByText('포인트 확인 중')).toBeInTheDocument()
+    expect(await screen.findByText('HP 보류 확인 중')).toBeInTheDocument()
     await waitFor(() => expect(queryClient.isMutating()).toBe(0))
     await settle()
   })
@@ -1686,7 +1757,7 @@ describe('보류 확인 중·실패 (내 모집글)', () => {
     )
     renderApp('/recruits/7', 'INFLUENCER')
     expect(
-      await screen.findByText(/포인트\(HP\) 보류를 확인하고 있어요/),
+      await screen.findByText(/HP 보류를 확인하고 있어요/),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '기본 정보 수정' })).toBeNull()
     current.value = recruit({ hostId: ME_ID, status: 'RECRUITING' })

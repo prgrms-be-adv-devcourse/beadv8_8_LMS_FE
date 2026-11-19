@@ -31,6 +31,7 @@ import {
   ConfirmAppearanceModal,
 } from '@/features/appearance-confirm/ConfirmModals'
 import { AppearanceReviewSection } from '@/features/appearance-review/AppearanceReviewSection'
+import { PartnerActions } from '@/features/chat/PartnerActions'
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -164,6 +165,7 @@ function Detail({
                 </>
               )}
             </dl>
+            <PartnerActions memberId={partnerId} />
             {sourceLink && (
               <Link className="link" to={sourceLink.to}>
                 {sourceLink.label}

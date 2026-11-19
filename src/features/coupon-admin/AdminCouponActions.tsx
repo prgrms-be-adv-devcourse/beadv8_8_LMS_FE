@@ -1,8 +1,15 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import type { AdminCouponAction } from '@/entities/coupon/api'
-import { REJECT_REASON_MAX } from '@/entities/coupon/rules'
+import {
+  discountLabel,
+  issuePeriodLabel,
+  REJECT_REASON_MAX,
+} from '@/entities/coupon/rules'
 import type { Coupon } from '@/entities/coupon/types'
+import { promotionWalletQuery } from '@/entities/wallet/promotionWalletApi'
+import { formatNumber } from '@/shared/lib/money'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import {
@@ -44,7 +51,9 @@ export function AdminCouponActions({ coupon }: { coupon: Coupon }) {
   const retry = useCouponRetryStore((s) =>
     Object.hasOwn(s, coupon.couponId) ? s[coupon.couponId] : undefined,
   )
-  const [modal, setModal] = useState<'reject' | 'close' | null>(null)
+  const [modal, setModal] = useState<
+    'reject' | 'close' | 'open' | 'approve' | null
+  >(null)
   const actions = actionsOf(coupon)
   // 실패한 열기·승인·재개 뒤 상태가 이미 OPEN이면 원래 버튼이 없어지므로 같은 요청을 다시 보내는 버튼을 따로 둔다.
   // 상태가 그대로면 원래 버튼이 곧 다시 시도다.
@@ -91,7 +100,11 @@ export function AdminCouponActions({ coupon }: { coupon: Coupon }) {
               type="button"
               className={PRIMARY.has(a) ? 'btn primary sm' : 'btn sm'}
               disabled={action.isPending}
-              onClick={() => (a === 'close' ? setModal('close') : run(a))}
+              onClick={() =>
+                a === 'close' || a === 'open' || a === 'approve'
+                  ? setModal(a)
+                  : run(a)
+              }
             >
               {ACTION_TEXT[a].label}
             </button>
@@ -105,6 +118,15 @@ export function AdminCouponActions({ coupon }: { coupon: Coupon }) {
       )}
       {modal === 'reject' && (
         <RejectCouponModal coupon={coupon} onClose={() => setModal(null)} />
+      )}
+      {(modal === 'open' || modal === 'approve') && (
+        <StartIssueModal
+          coupon={coupon}
+          action={modal}
+          pending={action.isPending}
+          onConfirm={() => run(modal, () => setModal(null))}
+          onClose={() => setModal(null)}
+        />
       )}
       {modal === 'close' && (
         <Modal
@@ -138,6 +160,80 @@ export function AdminCouponActions({ coupon }: { coupon: Coupon }) {
       )}
     </div>
   )
+}
+
+/**
+ * 열기·승인 확인. 발급이 시작되고, 플랫폼 쿠폰은 프로모션 지갑 가용 잔액에서 쿠폰 예산을 예약한다(판매자 쿠폰은 예약하지 않는다).
+ * 끝나면(실패해도) 닫는다. 실패 문구와 다시 시도는 버튼 아래에 남는다.
+ */
+function StartIssueModal({
+  coupon,
+  action,
+  pending,
+  onConfirm,
+  onClose,
+}: {
+  coupon: Coupon
+  action: 'open' | 'approve'
+  pending: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const label = ACTION_TEXT[action].label
+  const platform = coupon.type === 'PLATFORM'
+  return (
+    <Modal
+      title={`쿠폰을 ${action === 'open' ? '열까요' : '승인할까요'}?`}
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            닫기
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={pending}
+            onClick={onConfirm}
+          >
+            {label}
+          </button>
+        </>
+      }
+    >
+      <dl className="kv">
+        <dt>쿠폰</dt>
+        <dd>{coupon.name}</dd>
+        <dt>할인</dt>
+        <dd>{discountLabel(coupon)}</dd>
+        <dt>수량</dt>
+        <dd className="num">{formatNumber(coupon.quantity)}장</dd>
+        <dt>발급 기간</dt>
+        <dd>{issuePeriodLabel(coupon)}</dd>
+        {platform && (
+          <>
+            <dt>프로모션 지갑 가용 잔액</dt>
+            <dd className="num">
+              <PromotionAvailable />
+            </dd>
+          </>
+        )}
+      </dl>
+      <p className="notice warn">
+        {action === 'open' ? '열면' : '승인하면'} 지금부터 발급돼요.
+        {platform &&
+          ' 할인에 쓸 쿠폰 예산을 가용 잔액에서 예약하고, 잔액이 모자라면 열리지 않아요.'}
+      </p>
+    </Modal>
+  )
+}
+
+/** 쿠폰 예산을 예약할 프로모션 지갑 가용 잔액 */
+function PromotionAvailable() {
+  const { data, isPending, error } = useQuery(promotionWalletQuery())
+  if (isPending) return <>불러오는 중…</>
+  if (error) return <>확인하지 못했어요</>
+  return <>{formatNumber(data.availableHp)} HP</>
 }
 
 /** 반려 사유(1~500자)는 신청한 판매자에게 보인다 */

@@ -1,4 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { closeWhenDone } from '@/entities/appearance/errors'
 import {
   CONTENT_MAX,
   hostChannelUrlError,
@@ -10,6 +12,8 @@ import type {
   Recruit,
   RecruitEdit,
 } from '@/entities/appearance/types'
+import { ActionError } from '@/entities/appearance/ui/ActionError'
+import { memberProfileQuery } from '@/entities/member/api'
 import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
@@ -32,6 +36,11 @@ const EDIT_FIELD_ID = {
 const EDIT_FIELD_ORDER = ['title', 'hostChannelUrl', 'content'] as const
 type ApplicationProps = { application: Application; onClose: () => void }
 
+/** 지원자 닉네임. 지원자 목록이 이미 불러 둔 프로필을 쓰고, 아직 없으면 null */
+function useApplicantName(application: Application) {
+  return useQuery(memberProfileQuery(application.guestId)).data?.nickname
+}
+
 /** 지원 수락 (호스트). 수락하면 바로 출연이 성립한다 */
 export function AcceptApplicationModal({
   application,
@@ -39,12 +48,13 @@ export function AcceptApplicationModal({
   onClose,
 }: ApplicationProps & { recruit: Recruit }) {
   const accept = useAcceptApplication(application.id)
+  const name = useApplicantName(application)
   const penalty = Math.floor(
     (recruit.feePerPerson * PENALTY_RATE_PERCENT) / 100,
   )
   return (
     <Modal
-      title="지원을 수락할까요?"
+      title={name ? `${name}님의 지원을 수락할까요?` : '지원을 수락할까요?'}
       onClose={onClose}
       footer={
         <>
@@ -55,9 +65,9 @@ export function AcceptApplicationModal({
             type="button"
             className="btn primary"
             disabled={accept.isPending}
-            onClick={() => accept.mutate(undefined, { onSettled: onClose })}
+            onClick={() => accept.mutate(undefined, closeWhenDone(onClose))}
           >
-            수락
+            {name ? `${name}님 수락` : '수락'}
           </button>
         </>
       }
@@ -72,6 +82,7 @@ export function AcceptApplicationModal({
         성립 {recruit.selectedCount} / {recruit.recruitCount}명이에요. 출연료는
         방송 뒤 출연을 확인하면 보류한 HP에서 지급돼요.
       </p>
+      <ActionError error={accept.error} />
     </Modal>
   )
 }
@@ -82,9 +93,10 @@ export function RejectApplicationModal({
   onClose,
 }: ApplicationProps) {
   const reject = useRejectApplication(application.id)
+  const name = useApplicantName(application)
   return (
     <Modal
-      title="지원을 거절할까요?"
+      title={name ? `${name}님의 지원을 거절할까요?` : '지원을 거절할까요?'}
       onClose={onClose}
       footer={
         <>
@@ -95,14 +107,15 @@ export function RejectApplicationModal({
             type="button"
             className="btn danger"
             disabled={reject.isPending}
-            onClick={() => reject.mutate(undefined, { onSettled: onClose })}
+            onClick={() => reject.mutate(undefined, closeWhenDone(onClose))}
           >
-            거절
+            {name ? `${name}님 거절` : '거절'}
           </button>
         </>
       }
     >
       <p>거절하면 이 게스트는 이 모집글에 다시 지원할 수 없어요.</p>
+      <ActionError error={reject.error} />
     </Modal>
   )
 }
@@ -126,7 +139,7 @@ export function WithdrawApplicationModal({
             type="button"
             className="btn danger"
             disabled={withdraw.isPending}
-            onClick={() => withdraw.mutate(undefined, { onSettled: onClose })}
+            onClick={() => withdraw.mutate(undefined, closeWhenDone(onClose))}
           >
             지원 취소
           </button>
@@ -134,6 +147,7 @@ export function WithdrawApplicationModal({
       }
     >
       <p>취소하면 이 모집글에 다시 지원할 수 없어요.</p>
+      <ActionError error={withdraw.error} />
     </Modal>
   )
 }
@@ -159,7 +173,7 @@ export function CloseRecruitModal({ recruit, onClose }: RecruitProps) {
             type="button"
             className="btn danger"
             disabled={close.isPending}
-            onClick={() => close.mutate(undefined, { onSettled: onClose })}
+            onClick={() => close.mutate(undefined, closeWhenDone(onClose))}
           >
             조기 마감
           </button>
@@ -191,6 +205,7 @@ export function CloseRecruitModal({ recruit, onClose }: RecruitProps) {
       <p className="fine">
         성립한 출연은 그대로 유지돼요. 마감한 뒤에는 다시 열 수 없어요.
       </p>
+      <ActionError error={close.error} />
     </Modal>
   )
 }

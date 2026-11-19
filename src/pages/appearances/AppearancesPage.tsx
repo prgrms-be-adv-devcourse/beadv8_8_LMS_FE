@@ -99,7 +99,7 @@ export function AppearancesPage() {
             <span className="fine">
               {view === 'failed'
                 ? 'HP 보류에 실패해 보내지지 않은 요청서예요.'
-                : '포인트 확인 중인 요청서는 확인이 끝나면 자동으로 바뀌어요.'}
+                : 'HP 보류 확인 중인 요청서는 확인이 끝나면 자동으로 바뀌어요.'}
             </span>
             <HoldListViewSelect value={view} onChange={selectView} />
           </div>

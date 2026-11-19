@@ -19,6 +19,7 @@ import { deliver } from '@/test/chatServer'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { ME_ID, renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toastTexts } from '@/test/toast'
 
 const HOST_ID = 3
 const GUEST_A = 21
@@ -55,12 +56,6 @@ const message = (patch: Partial<ChatMessage> = {}): ChatMessage => {
     ...patch,
   }
 }
-
-const toasts = () =>
-  screen
-    .queryAllByRole('status')
-    .filter((el) => el.classList.contains('toast'))
-    .map((el) => el.textContent)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -568,7 +563,7 @@ describe('참여자·내보내기', () => {
       ]),
     )
     await waitFor(() => expect(within(list).queryByText('바다')).toBeNull())
-    expect(toasts()).toContain('바다 님을 내보냈어요.')
+    expect(toastTexts()).toContain('바다 님을 내보냈어요.')
   })
 
   it('내보내기 확인은 취소에 포커스를 두고 이름·설명을 잇고, 취소하면 그 회원의 내보내기 버튼으로 돌아간다', async () => {
@@ -622,7 +617,7 @@ describe('참여자·내보내기', () => {
       within(dialog).getByRole('button', { name: '바다 님 내보내기 확인' }),
     )
     await waitFor(() =>
-      expect(toasts()).toContain(
+      expect(toastTexts()).toContain(
         '참여 상태가 바뀌었어요. 참여자 목록을 새로 불러왔으니 다시 확인해 주세요.',
       ),
     )

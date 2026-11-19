@@ -7,7 +7,7 @@ export function useDeleteLecture() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: deleteLecture,
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: lectureKeys.all }),
   })

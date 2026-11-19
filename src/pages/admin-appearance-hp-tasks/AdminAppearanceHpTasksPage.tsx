@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { appearanceHpTasksQuery } from '@/entities/appearance-hp-task/api'
 import {
   APPEARANCE_HP_TASK_STATUS_FILTERS,
@@ -8,7 +9,11 @@ import {
 } from '@/entities/appearance-hp-task/labels'
 import type { AppearanceHpTask } from '@/entities/appearance-hp-task/types'
 import { AppearanceHpTaskStatusPill } from '@/entities/appearance-hp-task/ui/AppearanceHpTaskStatusPill'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
 import {
+  appearanceRetryFailureMessage,
+  isFinalAppearanceRetryError,
   useAppearanceHpTaskRetrying,
   useRetryAppearanceHpTask,
 } from '@/features/appearance-hp-task-admin/useRetryAppearanceHpTask'
@@ -17,6 +22,7 @@ import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
+import { Modal } from '@/shared/ui/Modal'
 import { PageHead } from '@/shared/ui/PageHead'
 import { Pager } from '@/shared/ui/Pager'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
@@ -51,6 +57,11 @@ export function AdminAppearanceHpTasksPage() {
   )
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
+  const counts = knownCounts({
+    filter: filter.status,
+    total: data?.page.totalElements,
+    isPlaceholderData: query.isPlaceholderData,
+  })
 
   return (
     <div className="page">
@@ -73,6 +84,7 @@ export function AdminAppearanceHpTasksPage() {
               onClick={() => update(f.status)}
             >
               {f.label}
+              <FilterCount count={counts[f.status]} />
             </button>
           ))}
         </div>
@@ -143,7 +155,7 @@ function TaskItem({ task }: { task: AppearanceHpTask }) {
       </div>
       {task.status === 'DEAD' && (
         <div className="row-actions">
-          <RetryButton taskId={task.id} />
+          <RetryButton task={task} />
         </div>
       )}
     </li>
@@ -173,19 +185,85 @@ function timeText(task: AppearanceHpTask) {
   return ''
 }
 
-/** 결과는 훅이 안내하고 목록을 다시 불러온다. 진행 중에는 이 작업을 다시 보내지 못한다 */
-function RetryButton({ taskId }: { taskId: number }) {
-  const retry = useRetryAppearanceHpTask(taskId)
-  const busy = useAppearanceHpTaskRetrying(taskId)
+/** 확인 창을 거쳐 다시 시도한다. 진행 중에는 이 작업을 다시 보내지 못한다 */
+function RetryButton({ task }: { task: AppearanceHpTask }) {
+  const [open, setOpen] = useState(false)
+  const busy = useAppearanceHpTaskRetrying(task.id)
   return (
-    <button
-      type="button"
-      className="btn sm primary"
-      disabled={busy}
-      aria-busy={busy}
-      onClick={() => retry.mutate()}
+    <>
+      <button
+        type="button"
+        className="btn sm primary"
+        disabled={busy}
+        aria-busy={busy}
+        onClick={() => setOpen(true)}
+      >
+        {busy ? '다시 시도 중…' : '다시 시도'}
+      </button>
+      {open && <RetryModal task={task} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+/**
+ * 다시 시도 확인. 바로 처리되거나(DONE) 결과를 모르면(PENDING) 훅이 안내하고 창을 닫는다.
+ * 지갑이 다시 거절했거나(DEAD) 요청이 실패하면 창 안에 남기고 다시 시도하게 한다.
+ */
+function RetryModal({
+  task,
+  onClose,
+}: {
+  task: AppearanceHpTask
+  onClose: () => void
+}) {
+  const retry = useRetryAppearanceHpTask(task.id)
+  const busy = useAppearanceHpTaskRetrying(task.id)
+  const failure = appearanceRetryFailureMessage(retry.data, retry.error)
+  return (
+    <Modal
+      title="출연 HP 작업을 다시 시도할까요?"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            닫기
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() =>
+              retry.mutate(undefined, {
+                onSuccess: (result) => {
+                  if (result.status !== 'DEAD') onClose()
+                },
+                onError: (e) => {
+                  if (isFinalAppearanceRetryError(e)) onClose()
+                },
+              })
+            }
+          >
+            다시 시도
+          </button>
+        </>
+      }
     >
-      {busy ? '다시 시도 중…' : '다시 시도'}
-    </button>
+      <p>
+        #{task.id} {appearanceHpTaskTypeName(task.taskType)} ·{' '}
+        {appearanceHpTaskReasonName(task.reason)} ({amountText(task)})
+      </p>
+      <p>
+        같은 요청 ID로 지갑에 바로 한 번 보내요. 이미 처리된 요청이면 지갑이
+        중복을 막아 HP가 두 번 움직이지 않아요. 원인이 그대로면 다시 멈춰요.
+      </p>
+      {task.lastError && (
+        <p className={`fine ${styles.code}`}>마지막 오류: {task.lastError}</p>
+      )}
+      {failure && (
+        <div className="notice bad" role="alert">
+          {failure}
+        </div>
+      )}
+    </Modal>
   )
 }

@@ -2,7 +2,12 @@ import { applicantLabel } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
 import { formatNumber } from '@/shared/lib/money'
 import { Modal } from '@/shared/ui/Modal'
-import { useApproveExchange, useReviewingExchange } from './useExchangeReview'
+import {
+  isFinalReviewError,
+  reviewFailureMessage,
+  useApproveExchange,
+  useReviewingExchange,
+} from './useExchangeReview'
 
 /** 승인 확인. 승인은 보류를 유지할 뿐 송금하지 않는다(BE #294) */
 export function ApproveExchangeModal({
@@ -14,6 +19,7 @@ export function ApproveExchangeModal({
 }) {
   const approve = useApproveExchange()
   const busy = useReviewingExchange()
+  const failure = reviewFailureMessage(approve.error)
   const { account } = exchange
   return (
     <Modal
@@ -28,9 +34,15 @@ export function ApproveExchangeModal({
             type="button"
             className="btn primary"
             disabled={busy}
-            onClick={() => approve.mutate(exchange.exchangeId)}
+            onClick={() =>
+              approve.mutate(exchange.exchangeId, {
+                onError: (e) => {
+                  if (isFinalReviewError(e)) onClose()
+                },
+              })
+            }
           >
-            승인
+            {failure ? '다시 시도' : '승인'}
           </button>
         </>
       }
@@ -54,6 +66,11 @@ export function ApproveExchangeModal({
         승인해도 바로 송금하지 않아요. 보류한 수익 HP는 그대로 두고, 송금은 정산
         처리에서 해요. 승인한 뒤에는 회원이 신청을 취소할 수 없어요.
       </p>
+      {failure && (
+        <div className="notice bad" role="alert">
+          승인하지 못했어요. {failure}
+        </div>
+      )}
     </Modal>
   )
 }
