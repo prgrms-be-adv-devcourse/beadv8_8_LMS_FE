@@ -14,11 +14,9 @@ html {
   -webkit-tap-highlight-color: transparent;
   scrollbar-color: var(--line-2) transparent;
 }
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
-  }
-}
+/* 페이지 스크롤은 즉시 옮긴다(scroll-behavior: smooth를 두지 않는다). 화면을 옮길 때 맨 위로 가는 스크롤
+   (ScrollRestoration의 scrollTo)이 이전 위치에서 미끄러져 올라가지 않게 한다. 부드럽게 옮길 곳은
+   shared/lib/motion의 scrollBehavior()로 움직임 줄이기 설정을 따른다 */
 /* 안쪽 스크롤 영역(목록·표·모달)은 얇은 스크롤바. 페이지 스크롤바는 잡기 쉽게 기본 두께로 둔다 */
 * {
   scrollbar-width: thin;
@@ -246,8 +244,8 @@ blockquote {
   border-color: var(--ink-2);
 }
 .btn.signal {
-  background: var(--signal);
-  border-color: var(--signal);
+  background: var(--signal-fill);
+  border-color: var(--signal-fill);
   color: var(--signal-ink);
 }
 .btn.signal:hover {
@@ -308,8 +306,8 @@ blockquote {
 }
 .btn.signal:disabled:hover,
 .btn.signal[aria-disabled='true']:hover {
-  border-color: var(--signal);
-  background: var(--signal);
+  border-color: var(--signal-fill);
+  background: var(--signal-fill);
 }
 .btn.ghost:disabled:hover,
 .btn.ghost[aria-disabled='true']:hover {
@@ -443,8 +441,12 @@ a.panel {
   padding: 44px 24px;
   gap: 10px;
 }
-.empty-state b {
+.empty-state b,
+.empty-state :is(h1, h2) {
+  margin: 0;
+  font: inherit;
   font-size: 16px;
+  font-weight: 700;
 }
 .empty-state p {
   color: var(--ink-2);
@@ -753,6 +755,10 @@ a.panel {
     toast-out 180ms var(--ease-in-out) calc(var(--toast-life, 2600ms) - 180ms)
       forwards;
 }
+/* 포인터·포커스가 올라가 있으면 사라지는 움직임도 멈춘다(toastStore가 시간을 멈춘다) */
+.toast[data-paused] {
+  animation-play-state: paused;
+}
 /* 탤리 램프 점. 글자가 여러 줄이어도 첫 줄 높이에 맞춘다 */
 .toast::before {
   content: '';
@@ -763,6 +769,10 @@ a.panel {
   border-radius: 50%;
   background: var(--signal);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 28%, transparent);
+}
+.toast[data-tone='error']::before {
+  background: var(--bad);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 28%, transparent);
 }
 @keyframes toast-in {
   from {
@@ -1213,7 +1223,7 @@ ul.breakdown {
 .select,
 .textarea {
   width: 100%;
-  border: 1px solid var(--line-2);
+  border: 1px solid var(--line-field);
   background-color: var(--surface);
   border-radius: var(--r-sm);
   padding: 9px 12px;
@@ -1660,7 +1670,7 @@ ul.tags {
   color: inherit;
 }
 .pill.signal {
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 .pill.line {

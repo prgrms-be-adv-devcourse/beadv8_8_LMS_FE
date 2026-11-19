@@ -57,7 +57,7 @@
   background: color-mix(in srgb, var(--signal-soft) 45%, var(--surface));
 }
 .now .mark {
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 

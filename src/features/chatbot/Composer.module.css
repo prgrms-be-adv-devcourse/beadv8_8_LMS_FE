@@ -92,7 +92,7 @@
   height: 36px;
   border: 0;
   border-radius: 50%;
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   display: grid;
   place-items: center;
