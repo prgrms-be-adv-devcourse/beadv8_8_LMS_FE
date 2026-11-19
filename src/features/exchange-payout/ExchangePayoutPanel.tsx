@@ -17,7 +17,12 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './ExchangePayoutPanel.module.css'
 import { FinalFailureModal } from './FinalFailureModal'
 import { RetryPayoutModal } from './RetryPayoutModal'
-import { usePayoutBusy, useRecheckPayout } from './useExchangePayout'
+import {
+  retryResultMessage,
+  useLastRetryResult,
+  usePayoutBusy,
+  useRecheckPayout,
+} from './useExchangePayout'
 
 /**
  * 관리자 환전 상세의 송금 시도 이력과 처리. 마지막 시도·환전 상태에 맞는 버튼만 보인다.
@@ -42,11 +47,29 @@ export function ExchangePayoutPanel({ exchange }: { exchange: AdminExchange }) {
         </p>
       ) : (
         <>
+          <RetryResult exchangeId={exchange.exchangeId} />
           <AttemptTable attempts={data} />
           <Actions exchange={exchange} latest={latestPayout(data)} />
         </>
       )}
     </section>
+  )
+}
+
+/** 마지막 재송금 결과. 확인 창이 닫히고 처리 버튼이 사라져도(송금 성공 등) 패널에 남긴다 */
+function RetryResult({ exchangeId }: { exchangeId: number }) {
+  const attempt = useLastRetryResult(exchangeId)
+  if (!attempt) return null
+  const tone =
+    attempt.status === 'COMPLETED'
+      ? 'notice'
+      : attempt.status === 'FAILED'
+        ? 'notice bad'
+        : 'notice warn'
+  return (
+    <p className={tone} role="status">
+      재송금 결과(시도 #{attempt.attemptNo}): {retryResultMessage(attempt)}
+    </p>
   )
 }
 
@@ -212,7 +235,11 @@ function Actions({
         )}
       </div>
       {decidable && open === 'retry' && (
-        <RetryPayoutModal exchange={exchange} onClose={() => setOpen(null)} />
+        <RetryPayoutModal
+          exchange={exchange}
+          latest={latest}
+          onClose={() => setOpen(null)}
+        />
       )}
       {decidable && open === 'final' && (
         <FinalFailureModal exchange={exchange} onClose={() => setOpen(null)} />

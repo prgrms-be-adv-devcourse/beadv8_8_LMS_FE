@@ -1,5 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { hpTaskKeys, retryLectureHpTask } from '@/entities/hp-task/api'
+import {
+  fallbackActionMessage,
+  isGlobalAuthError,
+  useMountedRef,
+} from '@/features/admin-flow/actionError'
 import { isApiError } from '@/shared/api/ApiError'
 import { toast } from '@/shared/ui/toastStore'
 
@@ -15,27 +20,33 @@ function errorMessage(error: Error) {
   if (isApiError(error, 'HP_TASK_NOT_DEAD'))
     return '이미 재시도했거나 멈춘 작업이 아니에요. 최신 상태를 불러왔어요.'
   if (isApiError(error, 'HP_TASK_NOT_FOUND')) return 'HP 작업을 찾을 수 없어요.'
-  return error.message
+  return fallbackActionMessage(error)
+}
+
+/** 확인 창 안에 남길 실패 문구. 전역 안내·창을 닫는 오류면 null */
+export function retryFailureMessage(error: Error | null) {
+  if (!error || isGlobalAuthError(error) || isFinalRetryError(error))
+    return null
+  return errorMessage(error)
 }
 
 /**
  * 멈춘 작업 재시도. 처리하면(실패해도) 강의 HP 작업 조회 전체를 다시 불러온다.
  * 다른 관리자의 재시도와 겹쳤을 수 있다. 목록·상세·대시보드 건수가 같은 키 아래에 있다.
+ * 확인 창에서 쓴다: 실패는 창 안에 남기고(retryFailureMessage), 창을 닫는 오류이거나 응답 전에 창을 닫았으면 토스트로 알린다.
  * 401·403 안내는 queryClient의 MutationCache가 맡는다.
  */
 export function useRetryHpTask(taskId: number) {
   const queryClient = useQueryClient()
+  const mounted = useMountedRef()
   return useMutation({
     mutationKey: hpTaskKeys.retry(taskId),
     mutationFn: () => retryLectureHpTask(taskId),
     onSuccess: () =>
       toast('재시도를 요청했어요. 다음 재시도 배치(1분마다)가 다시 보내요.'),
     onError: (error) => {
-      if (
-        (isApiError(error) && error.sessionEnded) ||
-        isApiError(error, 'FORBIDDEN')
-      )
-        return
+      if (isGlobalAuthError(error)) return
+      if (mounted.current && !isFinalRetryError(error)) return
       toast(errorMessage(error))
     },
     onSettled: () =>

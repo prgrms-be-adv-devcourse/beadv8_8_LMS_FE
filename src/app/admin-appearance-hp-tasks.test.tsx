@@ -38,8 +38,18 @@ const item = (taskId: number) =>
       { name: `출연 HP 작업 #${taskId}` },
     ),
   )
+/** 목록 줄의 다시 시도(확인 창이 줄 안에 열리면 창의 버튼보다 앞에 있다) */
 const retryButton = async (taskId: number) =>
-  within(await item(taskId)).getByRole('button', { name: '다시 시도' })
+  within(await item(taskId)).getAllByRole('button', { name: '다시 시도' })[0]
+const dialog = () =>
+  screen.getByRole('dialog', { name: '출연 HP 작업을 다시 시도할까요?' })
+/** 목록의 다시 시도 → 확인 창의 다시 시도 */
+async function confirmRetry(taskId: number) {
+  await userEvent.click(await retryButton(taskId))
+  await userEvent.click(
+    within(dialog()).getByRole('button', { name: '다시 시도' }),
+  )
+}
 
 describe('관리자 출연 HP 작업 목록', () => {
   it('운영 메뉴에서 들어가 멈춘 작업을 마지막으로 바뀐 순으로 보고 한 줄에 모든 정보를 보여 준다', async () => {
@@ -53,14 +63,13 @@ describe('관리자 출연 HP 작업 목록', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '출연 HP 작업' }),
     ).toBeInTheDocument()
+    const penalty = await item(41)
     expect(
       within(screen.getByRole('group', { name: '작업 상태' })).getByRole(
         'button',
-        { name: '멈춤' },
+        { name: '멈춤 2건' },
       ),
     ).toHaveAttribute('aria-pressed', 'true')
-
-    const penalty = await item(41)
     expect(within(penalty).getByText('멈춤')).toHaveClass('pill', 'bad')
     expect(penalty).toHaveTextContent('#41 위약금 정산 · 호스트 취소')
     expect(penalty).toHaveTextContent(
@@ -185,13 +194,23 @@ describe('관리자 출연 HP 작업 목록', () => {
 describe('관리자 출연 HP 작업 다시 시도', () => {
   it('바로 처리되면(DONE) 처리됐다고 안내하고 멈춤 목록에서 빠진다', async () => {
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
-    // 같은 멱등 키로 보내 HP가 두 번 움직이지 않으므로 확인 창 없이 보낸다
+    // 지갑에 바로 보내 HP가 움직이므로 강의 HP 작업처럼 확인 창을 거친다
     await userEvent.click(await retryButton(41))
-    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(dialog()).toHaveTextContent(
+      '#41 위약금 정산 · 호스트 취소 (기준 출연료 50,000 HP · 위약금 15,000 HP(게스트에게))',
+    )
+    expect(dialog()).toHaveTextContent(
+      '마지막 오류: HOLD_ALREADY_CLOSED: 남은 보류가 없습니다.',
+    )
+    expect(appearanceHpTaskDb.retryCalls).toEqual([])
+    await userEvent.click(
+      within(dialog()).getByRole('button', { name: '다시 시도' }),
+    )
 
     expect(
       await screen.findByText('HP 작업 #41: 처리됐어요.'),
     ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(async () =>
       expect(
         within(await list()).queryByRole('listitem', {
@@ -213,17 +232,21 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
     )
   })
 
-  it('지갑이 다시 거절하면(DEAD) 마지막 오류와 함께 안내하고 목록에 다시 시도 기록이 남는다', async () => {
+  it('지갑이 다시 거절하면(DEAD) 마지막 오류를 확인 창 안에 남기고 목록에 다시 시도 기록이 남는다', async () => {
     appearanceHpTaskDb.retryResult = 'DEAD'
     appearanceHpTaskDb.retryError = 'WALLET_NOT_FOUND: 지갑을 찾을 수 없습니다.'
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
-    await userEvent.click(await retryButton(41))
+    await confirmRetry(41)
 
-    expect(
-      await screen.findByText(
-        'HP 작업 #41: 지갑이 다시 거절했어요. WALLET_NOT_FOUND: 지갑을 찾을 수 없습니다.',
-      ),
-    ).toBeInTheDocument()
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      'HP 작업 #41: 지갑이 다시 거절했어요. WALLET_NOT_FOUND: 지갑을 찾을 수 없습니다.',
+    )
+    // 토스트로 한 번 더 띄우지 않는다
+    expect(screen.getAllByText(/지갑이 다시 거절했어요/)).toHaveLength(1)
+    await settle()
+    await userEvent.click(
+      within(dialog()).getAllByRole('button', { name: '닫기' }).at(-1)!,
+    )
     await waitFor(async () =>
       expect(await item(41)).toHaveTextContent('관리자 다시 시도 1회'),
     )
@@ -236,7 +259,7 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
   it('결과를 모르면(PENDING) 자동으로 이어서 확인한다고 안내하고 대기 목록으로 옮긴다', async () => {
     appearanceHpTaskDb.retryResult = 'PENDING'
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
-    await userEvent.click(await retryButton(41))
+    await confirmRetry(41)
 
     expect(
       await screen.findByText(
@@ -257,16 +280,17 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
 
   it('이미 다시 시도된 작업이면(409 HP_TASK_NOT_DEAD) 안내하고 목록을 다시 불러온다', async () => {
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
-    const button = await retryButton(41)
+    await item(41)
     // 화면을 그린 뒤 다른 관리자가 먼저 다시 시도해 처리됐다.
     appearanceHpTaskDb.items.find((t) => t.id === 41)!.status = 'DONE'
-    await userEvent.click(button)
+    await confirmRetry(41)
 
     expect(
       await screen.findByText(
         '이미 다시 시도했거나 자동 처리가 멈춘 작업이 아니에요. 최신 목록을 불러왔어요.',
       ),
     ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(async () =>
       expect(
         within(await list()).queryByRole('listitem', {
@@ -292,7 +316,7 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
     await item(41)
     const before = appearanceHpTaskDb.listCalls.length
-    await userEvent.click(await retryButton(41))
+    await confirmRetry(41)
 
     expect(
       await screen.findByText(
@@ -302,6 +326,44 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
     await waitFor(() =>
       expect(appearanceHpTaskDb.listCalls.length).toBeGreaterThan(before),
     )
+  })
+
+  it('요청이 일시 오류(503)로 실패하면 사유를 창 안에 남기고 같은 창에서 다시 시도한다', async () => {
+    let fail = true
+    server.use(
+      http.post('*/api/v1/appearances/admin/hp-tasks/41/retry', () =>
+        fail
+          ? HttpResponse.json(
+              {
+                status: 503,
+                code: 'INTERNAL_ERROR',
+                detail: '출연 서비스가 잠시 응답하지 않아요.',
+              },
+              { status: 503 },
+            )
+          : undefined,
+      ),
+    )
+    renderApp('/admin/appearance-hp-tasks', 'ADMIN')
+    await confirmRetry(41)
+
+    expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
+      '출연 서비스가 잠시 응답하지 않아요.',
+    )
+    expect(
+      screen.getAllByText(/출연 서비스가 잠시 응답하지 않아요/),
+    ).toHaveLength(1)
+    await settle()
+
+    fail = false
+    await userEvent.click(
+      within(dialog()).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(
+      await screen.findByText('HP 작업 #41: 처리됐어요.'),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(appearanceHpTaskDb.retryCalls).toEqual([41])
   })
 
   it('처리 중에는 같은 작업을 또 보내지 못한다', async () => {
@@ -317,11 +379,14 @@ describe('관리자 출연 HP 작업 다시 시도', () => {
       }),
     )
     renderApp('/admin/appearance-hp-tasks', 'ADMIN')
-    await userEvent.click(await retryButton(41))
+    await confirmRetry(41)
     const busy = await within(await item(41)).findByRole('button', {
       name: '다시 시도 중…',
     })
     expect(busy).toBeDisabled()
+    expect(
+      within(dialog()).getByRole('button', { name: '다시 시도' }),
+    ).toBeDisabled()
     // 다른 작업은 따로 다시 시도할 수 있다
     expect(await retryButton(42)).toBeEnabled()
 

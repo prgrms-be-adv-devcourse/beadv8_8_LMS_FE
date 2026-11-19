@@ -1,15 +1,14 @@
-import { useState } from 'react'
-import {
-  FINAL_FAILURE_REASON_MAX,
-  finalFailureReasonError,
-} from '@/entities/wallet/exchangePayout'
+import { FINAL_FAILURE_REASON_MAX } from '@/entities/wallet/exchangePayout'
 import { applicantLabel } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
+import { ReasonField } from '@/features/admin-flow/ReasonField'
+import { useReasonInput } from '@/features/admin-flow/useReasonInput'
 import { formatNumber } from '@/shared/lib/money'
-import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import {
   isFinalFailureReasonError,
+  isFinalPayoutError,
+  payoutFailureMessage,
   useFailPayoutFinally,
   usePayoutBusy,
 } from './useExchangePayout'
@@ -22,16 +21,14 @@ export function FinalFailureModal({
   exchange: AdminExchange
   onClose: () => void
 }) {
-  const [reason, setReason] = useState('')
+  const reason = useReasonInput({
+    id: 'exchange-final-failure-reason',
+    max: FINAL_FAILURE_REASON_MAX,
+    emptyMessage: '최종 실패 사유를 입력해 주세요.',
+  })
   const fail = useFailPayoutFinally(exchange.exchangeId)
   const busy = usePayoutBusy(exchange.exchangeId)
-  const trimmed = reason.trim()
-  const localError = finalFailureReasonError(reason)
-  const error =
-    (reason !== '' ? localError : null) ??
-    (isFinalFailureReasonError(fail.error)
-      ? '최종 실패 사유는 앞뒤 공백을 빼고 1~500자여야 해요.'
-      : null)
+  const failure = payoutFailureMessage(fail.error)
 
   return (
     <Modal
@@ -45,10 +42,23 @@ export function FinalFailureModal({
           <button
             type="button"
             className="btn danger"
-            disabled={localError !== null || busy}
-            onClick={() => fail.mutate(trimmed, { onSuccess: onClose })}
+            disabled={busy}
+            {...reason.submitProps}
+            onClick={() => {
+              if (!reason.check()) return
+              fail.mutate(reason.trimmed, {
+                onSuccess: onClose,
+                onError: (e) => {
+                  if (isFinalPayoutError(e)) onClose()
+                  else if (isFinalFailureReasonError(e))
+                    reason.showServerError(
+                      `최종 실패 사유는 앞뒤 공백을 빼고 1~${FINAL_FAILURE_REASON_MAX}자여야 해요.`,
+                    )
+                },
+              })
+            }}
           >
-            최종 실패 확정
+            {failure ? '다시 시도' : '최종 실패 확정'}
           </button>
         </>
       }
@@ -63,27 +73,16 @@ export function FinalFailureModal({
         환전을 끝내고 보류한 수익 HP를 신청자에게 모두 돌려줘요. 이후에는 다시
         송금할 수 없어요.
       </p>
-      <Field
-        id="exchange-final-failure-reason"
+      <ReasonField
         label="최종 실패 사유"
-        error={error ?? undefined}
-        hint={`${trimmed.length}/${FINAL_FAILURE_REASON_MAX}`}
-      >
-        <textarea
-          id="exchange-final-failure-reason"
-          className="textarea"
-          value={reason}
-          aria-invalid={error !== null}
-          aria-describedby={
-            error ? 'exchange-final-failure-reason-error' : undefined
-          }
-          onChange={(e) => {
-            if (fail.error) fail.reset()
-            setReason(e.target.value)
-          }}
-          placeholder="예: 계좌가 해지되어 송금할 수 없어요"
-        />
-      </Field>
+        placeholder="예: 계좌가 해지되어 송금할 수 없어요"
+        {...reason.field}
+      />
+      {failure && (
+        <div className="notice bad" role="alert">
+          최종 실패로 끝내지 못했어요. {failure}
+        </div>
+      )}
     </Modal>
   )
 }
