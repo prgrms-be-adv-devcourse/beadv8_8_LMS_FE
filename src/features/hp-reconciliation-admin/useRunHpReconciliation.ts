@@ -63,7 +63,7 @@ export function useRunHpReconciliation(app: ReconciliationApp) {
         toast(
           '응답을 받지 못했어요. 서버에서 계속 실행 중일 수 있어요. 마지막 결과로 확인하세요.',
         )
-      else toast(error.message)
+      else toast(error.message, { tone: 'error' })
       return queryClient.invalidateQueries({ queryKey: latestKey })
     },
   })

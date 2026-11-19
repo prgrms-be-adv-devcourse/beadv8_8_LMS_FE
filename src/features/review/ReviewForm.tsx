@@ -56,7 +56,7 @@ export function ReviewForm({
       toast(review ? '리뷰를 고쳤어요.' : '리뷰를 등록했어요.')
       onDone()
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 
@@ -66,7 +66,7 @@ export function ReviewForm({
       toast('리뷰를 지웠어요.')
       onDone()
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 

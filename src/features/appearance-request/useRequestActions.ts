@@ -50,7 +50,7 @@ export function useRejectRequest(requestId: number) {
     mutationFn: (reason: string) => rejectAppearanceRequest(requestId, reason),
     // 보류 HP 반환은 BE가 따로 처리해 응답 시점에 끝나지 않았을 수 있다. 진행 상태는 상세에서 보여 준다.
     onSuccess: () => toast('출연 요청을 거절했어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -60,7 +60,7 @@ export function useCancelRequest(requestId: number) {
   return useMutation({
     mutationFn: () => cancelAppearanceRequest(requestId),
     onSuccess: () => toast('출연 요청을 취소했어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -71,7 +71,7 @@ export function useEditRequest(requestId: number) {
     mutationFn: (edit: AppearanceRequestEdit) =>
       updateAppearanceRequest(requestId, edit),
     onSuccess: () => toast('요청서를 고쳤어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }

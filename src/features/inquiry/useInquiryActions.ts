@@ -46,7 +46,7 @@ export function useCreateInquiry() {
           : '문의를 접수했어요.',
       )
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -71,7 +71,7 @@ export function useDeleteInquiry(inquiryId: number) {
       toast('문의를 삭제했어요.')
       navigate('/support', { replace: true })
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -83,7 +83,7 @@ export function useReplyInquiry(inquiryId: number) {
   return useMutation({
     mutationFn: (content: string) => replyInquiry(inquiryId, content),
     onSuccess: () => toast('답변을 달았어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -94,7 +94,7 @@ export function useEditReply(inquiryId: number) {
     mutationFn: ({ replyId, content }: { replyId: number; content: string }) =>
       editReply(inquiryId, replyId, content),
     onSuccess: () => toast('답변을 고쳤어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -105,7 +105,7 @@ export function useDeleteReply(inquiryId: number) {
   return useMutation({
     mutationFn: (replyId: number) => deleteReply(inquiryId, replyId),
     onSuccess: () => toast('답변을 삭제했어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -124,7 +124,7 @@ export function useResolveObjection(inquiryId: number) {
             ? '이의 제기를 인정했어요. 구매자에게 HP가 반환돼요.'
             : '이의 제기를 기각했어요. 판매자에게 지급돼요.',
       ),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: invalidate,
   })
 }

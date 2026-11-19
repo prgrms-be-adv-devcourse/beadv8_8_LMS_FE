@@ -36,7 +36,7 @@ export function useRetryHpTask(taskId: number) {
         isApiError(error, 'FORBIDDEN')
       )
         return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: hpTaskKeys.all }),

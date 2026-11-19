@@ -8,6 +8,7 @@ import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toasts } from '@/test/toast'
 
 const me = (patch: Partial<Me> = {}): Me => ({
   id: ME_ID,
@@ -27,9 +28,6 @@ const problem = (status: number, code: string, detail: string) =>
     { status, code, detail },
     { status, headers: { 'Content-Type': 'application/problem+json' } },
   )
-
-const toasts = () =>
-  screen.queryAllByRole('status').filter((el) => el.classList.contains('toast'))
 
 /** 헤더의 로그인 버튼으로 모달을 연다 */
 async function openLogin() {

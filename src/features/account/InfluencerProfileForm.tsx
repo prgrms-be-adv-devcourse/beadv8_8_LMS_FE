@@ -55,7 +55,7 @@ export function InfluencerProfileForm({ me }: { me: Me }) {
         setNotAllowed(error.message)
         // 역할이 바뀌었을 수 있다. 내 정보를 다시 받아 인플루언서가 아니면 이 칸을 숨긴다.
         void queryClient.invalidateQueries({ queryKey: meQuery.queryKey })
-      } else toast(error.message)
+      } else toast(error.message, { tone: 'error' })
     },
   })
 

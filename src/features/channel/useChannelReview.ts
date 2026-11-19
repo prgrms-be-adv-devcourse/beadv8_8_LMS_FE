@@ -45,7 +45,7 @@ export function useApproveChannel() {
     mutationKey: memberKeys.channelReview(),
     mutationFn: (channelId: number) => approveChannel(channelId),
     onSuccess: () => toast('채널을 승인했어요. 유저였다면 인플루언서가 돼요.'),
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -62,7 +62,7 @@ export function useRejectChannel() {
       reason: string
     }) => rejectChannel(channelId, reason),
     onSuccess: () => toast('채널을 반려했어요. 사유가 회원에게 보여요.'),
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }

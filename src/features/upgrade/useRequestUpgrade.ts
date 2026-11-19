@@ -8,7 +8,7 @@ export function useRequestUpgrade() {
   return useMutation({
     mutationFn: requestUpgrade,
     onSuccess: () => toast('승급을 신청했어요. 관리자 심사 후 알려 드려요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () =>
       queryClient.invalidateQueries({
         queryKey: memberKeys.myUpgradeRequests(),

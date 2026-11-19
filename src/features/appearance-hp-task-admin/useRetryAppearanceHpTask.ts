@@ -65,7 +65,7 @@ export function useRetryAppearanceHpTask(taskId: number) {
         isApiError(error, 'FORBIDDEN')
       )
         return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: appearanceHpTaskKeys.all }),

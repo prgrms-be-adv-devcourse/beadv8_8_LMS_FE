@@ -38,7 +38,7 @@ export function NicknameForm({ current }: { current: string }) {
       if (isApiError(error) && NICKNAME_ERROR_CODES.has(error.code)) {
         setServerError(error.message)
         inputRef.current?.focus()
-      } else toast(error.message)
+      } else toast(error.message, { tone: 'error' })
     },
   })
   const error =
