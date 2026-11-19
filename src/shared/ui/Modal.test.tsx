@@ -123,4 +123,78 @@ describe('모달 포커스', () => {
       expect(screen.getByRole('button', { name: '열기' })).toHaveFocus(),
     )
   })
+
+  it('연 버튼이 사라졌으면(지운 목록 줄 등) 본문(main)으로 포커스를 돌려준다', async () => {
+    const user = userEvent.setup()
+    function RowHarness() {
+      const [row, setRow] = useState(true)
+      const [open, setOpen] = useState(false)
+      return (
+        <main tabIndex={-1}>
+          {row && (
+            <button type="button" onClick={() => setOpen(true)}>
+              지우기
+            </button>
+          )}
+          {open && (
+            <Modal title="지울까요?" onClose={() => setOpen(false)}>
+              <button
+                type="button"
+                onClick={() => {
+                  setRow(false)
+                  setOpen(false)
+                }}
+              >
+                지우기 확인
+              </button>
+            </Modal>
+          )}
+        </main>
+      )
+    }
+    render(<RowHarness />)
+    await user.click(screen.getByRole('button', { name: '지우기' }))
+    await user.click(screen.getByRole('button', { name: '지우기 확인' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('main')).toHaveFocus())
+  })
+})
+
+describe('모달 바깥 닫기', () => {
+  const scrim = () => screen.getByRole('dialog').parentElement as HTMLElement
+
+  it('바깥(덮개)을 눌렀다 떼면 닫힌다', async () => {
+    const user = await open(<p>안내</p>)
+    await user.click(scrim())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('안에서 누른 채 끌어 바깥에서 놓으면 닫히지 않는다', async () => {
+    await open(<input aria-label="사유" />)
+    // 글자를 고르며 끌면 누름은 칸에서, click은 둘을 함께 감싼 덮개에서 난다
+    fireEvent.pointerDown(screen.getByLabelText('사유'))
+    fireEvent.click(scrim())
+    expect(screen.getByRole('dialog', { name: '확인' })).toBeInTheDocument()
+  })
+
+  it('dismissOnScrim={false}면 바깥을 눌러도 닫히지 않고 닫기·Esc로 닫힌다', async () => {
+    const user = userEvent.setup()
+    function FormHarness() {
+      const [shown, setShown] = useState(true)
+      return shown ? (
+        <Modal
+          title="입력"
+          onClose={() => setShown(false)}
+          dismissOnScrim={false}
+        >
+          <input aria-label="금액" />
+        </Modal>
+      ) : null
+    }
+    render(<FormHarness />)
+    await user.click(scrim())
+    expect(screen.getByRole('dialog', { name: '입력' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
 })

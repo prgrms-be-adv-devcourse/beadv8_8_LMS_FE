@@ -153,6 +153,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
     <Modal
       title="출연 요청 보내기"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>
