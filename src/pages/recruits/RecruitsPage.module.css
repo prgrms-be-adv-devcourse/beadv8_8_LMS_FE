@@ -119,3 +119,23 @@
     transform: none;
   }
 }
+/* 결과 머리: 모집 중인 글·검색 결과와 결과 수 */
+.resultHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 4px;
+}
+.head {
+  font-size: 18px;
+  font-weight: 700;
+}
+.count {
+  font: 500 13px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+/* 조건을 바꿔 새 결과를 기다리는 동안 이전 결과를 흐리게 둔다 */
+.stale {
+  opacity: 0.5;
+}
