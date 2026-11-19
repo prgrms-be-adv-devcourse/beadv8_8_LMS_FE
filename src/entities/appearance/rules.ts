@@ -199,6 +199,9 @@ export function canHostCancel(appearance: Appearance, now = new Date()) {
 /** 방송 예정 일시부터 호스트가 출연 확인·불참에 응답할 수 있는 기간(일). 지나면 자동 확인 (BE appearance.policy.confirm-period) */
 export const CONFIRM_PERIOD_DAYS = 7
 
+/** 성립하기 전에 게스트가 알아야 할 취소·지급 규칙. 요청 수락·지원 안내에 같은 문장으로 보인다 */
+export const GUEST_RULE = `성립한 뒤에는 방송 전까지 호스트에게 취소를 요청해 동의를 받아야 취소돼요(출연 1건당 ${CANCEL_REQUEST_LIMIT}번까지). 출연료는 방송 뒤 호스트가 확인하거나 ${CONFIRM_PERIOD_DAYS}일이 지나 자동 확인되면 지급돼요.`
+
 /** 출연 확인 기한 (방송 예정 일시 + 확인 기간). 이 시각부터는 응답할 수 없고 자동 확인된다 */
 export function confirmDeadline(scheduledAt: string) {
   return new Date(

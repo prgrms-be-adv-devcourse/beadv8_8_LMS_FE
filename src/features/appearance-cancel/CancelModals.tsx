@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { CANCEL_REASON_MAX, penaltyOf } from '@/entities/appearance/rules'
+import {
+  CANCEL_REASON_MAX,
+  CANCEL_REQUEST_LIMIT,
+  penaltyOf,
+} from '@/entities/appearance/rules'
 import type { Appearance, Recruit } from '@/entities/appearance/types'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -55,6 +59,10 @@ export function RequestCancelModal({ appearance, onClose }: AppearanceProps) {
   const [reason, setReason] = useState('')
   const request = useRequestAppearanceCancel(appearance.id)
   const trimmed = reason.trim()
+  const remaining = Math.max(
+    0,
+    CANCEL_REQUEST_LIMIT - appearance.cancelRequests.length,
+  )
   return (
     <Modal
       title="출연 취소를 요청할까요?"
@@ -79,6 +87,10 @@ export function RequestCancelModal({ appearance, onClose }: AppearanceProps) {
         {formatDateTime(appearance.scheduledAt)} 방송 출연 취소를 호스트에게
         요청해요. 호스트가 수락하면 위약금 없이 취소되고, 거절하거나 방송 전까지
         답하지 않으면 출연이 유지돼요.
+      </p>
+      <p className="fine">
+        취소 요청은 출연 1건당 {CANCEL_REQUEST_LIMIT}번까지 보낼 수 있어요. 지금{' '}
+        <b>{remaining}번</b> 남았어요.
       </p>
       <ReasonField
         id="cancel-request-reason"

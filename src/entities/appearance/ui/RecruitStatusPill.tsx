@@ -68,7 +68,7 @@ function labelOf(
     case 'CANCELED':
       return ['mute', '취소됨']
     case 'HOLD_PENDING':
-      return ['warn', '포인트 확인 중']
+      return ['warn', 'HP 보류 확인 중']
     case 'HOLD_FAILED':
       return ['bad', '등록되지 않음']
     default:

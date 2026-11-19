@@ -6,6 +6,7 @@ import {
   rejectAppearanceRequest,
   updateAppearanceRequest,
 } from '@/entities/appearance/api'
+import { isAlreadyHandled } from '@/entities/appearance/errors'
 import type {
   AppearanceRequest,
   AppearanceRequestEdit,
@@ -28,18 +29,21 @@ function useInvalidateRequests() {
  * 수락 (게스트). 확인창을 열 때 저장한 요청서(snapshot)의 버전을 보낸다.
  * 확인창이 열린 동안 상세가 다시 조회돼도, 게스트가 보지 않은 새 버전으로 수락하지 않는다.
  * 그사이 호스트가 고쳤으면 BE가 APPEARANCE_REQUEST_MODIFIED로 막고, 상세를 다시 불러와 바뀐 내용을 보여 준다.
+ * 확인창을 닫는 실패(이미 처리됨)만 토스트로 알리고, 나머지는 창 안에 남는다(ActionError).
  */
 export function useAcceptRequest(snapshot: AppearanceRequest) {
   const invalidate = useInvalidateRequests()
   return useMutation({
     mutationFn: () => acceptAppearanceRequest(snapshot.id, snapshot.version),
     onSuccess: () => toast('출연 요청을 수락했어요. 출연이 성립됐어요.'),
-    onError: (error) =>
+    onError: (error) => {
+      if (!isAlreadyHandled(error)) return
       toast(
         isApiError(error, 'APPEARANCE_REQUEST_MODIFIED')
           ? '호스트가 요청서를 고쳤어요. 바뀐 내용을 확인한 뒤 다시 수락해 주세요.'
           : error.message,
-      ),
+      )
+    },
     onSettled: invalidate,
   })
 }
