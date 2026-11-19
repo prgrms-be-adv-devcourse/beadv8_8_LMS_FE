@@ -1,0 +1,5 @@
+.count {
+  margin-left: 2px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}

@@ -658,6 +658,25 @@ describe('문의 답변 (관리자)', () => {
     expect(router.state.location.search).toBe('?status=ALL')
   })
 
+  it('필터를 고른 목록에서 문의를 열었다 돌아가면 그 필터·정렬로 돌아간다', async () => {
+    server.use(
+      http.get('*/api/v1/inquiries/admin', () =>
+        rs(page([summary({ userId: 7 })])),
+      ),
+      http.get('*/api/v1/inquiries/admin/5', () => rs(inquiry())),
+    )
+    const router = renderApp('/admin/inquiries?status=ALL&sort=LATEST', 'ADMIN')
+    await userEvent.click(
+      await screen.findByRole('link', { name: /환전이 늦어요/ }),
+    )
+    expect(router.state.location.pathname).toBe('/admin/inquiries/5')
+    await userEvent.click(
+      await screen.findByRole('link', { name: '← 문의 답변' }),
+    )
+    expect(router.state.location.pathname).toBe('/admin/inquiries')
+    expect(router.state.location.search).toBe('?status=ALL&sort=LATEST')
+  })
+
   it('답변을 달고, 고치고, 지운다', async () => {
     let current = inquiry()
     const calls: string[] = []

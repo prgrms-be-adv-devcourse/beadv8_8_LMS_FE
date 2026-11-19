@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type { AppearanceHpTask, AppearanceHpTaskStatus } from './types'
@@ -33,6 +33,7 @@ export const appearanceHpTasksQuery = (params: AppearanceHpTaskListParams) =>
           size: APPEARANCE_HP_TASK_PAGE_SIZE,
         },
       }),
+    placeholderData: keepPreviousData,
   })
 
 /**
