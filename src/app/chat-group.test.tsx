@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -60,7 +60,6 @@ const message = (patch: Partial<ChatMessage> = {}): ChatMessage => {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 afterEach(() => {
-  cleanup()
   queryClient.clear()
   closeLoginModal()
   seq = 0

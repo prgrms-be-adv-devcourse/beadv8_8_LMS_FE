@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -113,11 +113,7 @@ function recordIssueTraffic() {
 
 beforeEach(quietLectureRequests)
 
-afterEach(() => {
-  // 발급 상태 조회가 그려진 채 캐시가 비면 다시 그릴 때 조회를 새로 보내므로 화면부터 내린다.
-  cleanup()
-  queryClient.clear()
-})
+afterEach(() => queryClient.clear())
 
 describe('쿠폰 받기 화면', () => {
   it('받을 수 있는 쿠폰 한 쪽을 불러와 모든 강의 쿠폰과 강의별 쿠폰으로 나눠 보인다', async () => {

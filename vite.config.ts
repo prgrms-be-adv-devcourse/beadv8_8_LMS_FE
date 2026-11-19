@@ -28,6 +28,9 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test/setup.ts'],
+      // afterEach를 정의한 순서대로 돌린다(기본 'stack'은 거꾸로). 공통 설정(setup.ts)이 화면을 먼저 내린 뒤 테스트 파일이
+      // 캐시를 비우게 한다.
+      sequence: { hooks: 'list' },
       // 화면 흐름 테스트는 입력·대기(findBy 5초)가 여러 번이라, 느린 CI에서도 끝나도록 넉넉히 둔다(기본 5초).
       testTimeout: 15_000,
     },

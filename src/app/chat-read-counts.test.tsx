@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
@@ -137,7 +137,6 @@ function pushReadCounts(
 }
 
 afterEach(() => {
-  cleanup()
   queryClient.clear()
   closeLoginModal()
   useChatStore.setState({ pending: {} })
