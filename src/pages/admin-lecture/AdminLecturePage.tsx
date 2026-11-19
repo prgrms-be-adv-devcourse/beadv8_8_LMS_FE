@@ -1,9 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 import { adminLectureQuery } from '@/entities/lecture/api'
 import type { LectureDetail } from '@/entities/lecture/types'
 import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
+import { BackLink } from '@/features/admin-flow/BackLink'
+import { useListOrigin } from '@/features/admin-flow/listOrigin'
+import { ReasonField } from '@/features/admin-flow/ReasonField'
+import { useReasonInput } from '@/features/admin-flow/useReasonInput'
 import {
   useApproveLecture,
   useRejectLecture,
@@ -11,9 +15,8 @@ import {
 import { ContentView } from '@/features/lecture-watch/ContentView'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { scrollBehavior } from '@/shared/lib/motion'
 import { EmptyState } from '@/shared/ui/EmptyState'
-import { useFieldErrors } from '@/shared/lib/useFieldErrors'
-import { Field } from '@/shared/ui/Field'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminLecturePage.module.css'
@@ -34,11 +37,14 @@ const REJECT_TEMPLATES = [
   '연락처·실명 같은 개인정보가 화면에 보여요',
 ]
 
-const back = (
-  <Link className="back" to="/admin/lectures">
-    ← 강의 검수
-  </Link>
-)
+/** BE는 길이를 제한하지 않는다(TEXT). 다른 관리자 사유(환전 거절·쿠폰 반려)와 같은 길이로 둔다 */
+const REJECT_REASON_MAX = 500
+
+/** 들어온 목록의 탭·쪽으로 돌아간다 */
+function Back() {
+  const { to } = useListOrigin('/admin/lectures')
+  return <BackLink to={to} label="강의 검수" />
+}
 
 export function AdminLecturePage() {
   const lectureId = Number(useParams().lectureId)
@@ -49,14 +55,14 @@ export function AdminLecturePage() {
   if (isPending)
     return (
       <div className="page">
-        {back}
+        <Back />
         <Loading />
       </div>
     )
   if (error)
     return (
       <div className="page">
-        {back}
+        <Back />
         <LoadError error={error} retry={refetch} />
       </div>
     )
@@ -72,7 +78,7 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
 
   return (
     <div className="page">
-      {back}
+      <Back />
       <PageHead
         title={lecture.title}
         lede={lecture.description}
@@ -160,7 +166,7 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
           className="btn primary"
           onClick={() =>
             asideRef.current?.scrollIntoView({
-              behavior: 'smooth',
+              behavior: scrollBehavior(),
               block: 'start',
             })
           }
@@ -178,22 +184,23 @@ function resultNotice(lecture: LectureDetail) {
   return '반려 처리한 강의예요. 판매자가 고쳐서 다시 신청하면 검수 대기로 돌아와요.'
 }
 
-/** 체크리스트를 모두 확인해야 승인할 수 있고, 사유를 적어야 반려할 수 있다. 처리하면 목록으로 간다. */
+/**
+ * 체크리스트를 모두 확인해야 승인할 수 있고, 사유를 적어야 반려할 수 있다.
+ * 처리하면 들어온 목록(탭·쪽)으로 돌아간다.
+ */
 function Decide({ lectureId }: { lectureId: number }) {
   const navigate = useNavigate()
-  const toList = () => navigate('/admin/lectures')
+  const origin = useListOrigin('/admin/lectures')
+  const toList = () => navigate(origin.to)
   const approve = useApproveLecture(lectureId, { onDone: toList })
   const reject = useRejectLecture(lectureId, { onDone: toList })
   const [checked, setChecked] = useState<boolean[]>(() =>
     CHECKLIST.map(() => false),
   )
-  const [reason, setReason] = useState('')
-  const fields = useFieldErrors({
-    ids: { reason: 'lc-why' },
-    order: ['reason'],
-    errors: {
-      reason: !reason.trim() ? '반려 사유를 입력해 주세요.' : undefined,
-    },
+  const reason = useReasonInput({
+    id: 'lc-why',
+    max: REJECT_REASON_MAX,
+    emptyMessage: '반려 사유를 입력해 주세요.',
   })
   const busy = approve.isPending || reject.isPending
   const done = checked.filter(Boolean).length
@@ -242,41 +249,30 @@ function Decide({ lectureId }: { lectureId: number }) {
             <button
               key={t}
               type="button"
-              className={reason === t ? 'chip sm on' : 'chip sm'}
-              onClick={() => {
-                fields.changed('reason')
-                setReason(t)
-              }}
+              className={reason.field.value === t ? 'chip sm on' : 'chip sm'}
+              aria-pressed={reason.field.value === t}
+              onClick={() => reason.field.onChange(t)}
             >
               {t}
             </button>
           ))}
         </div>
-        <Field
-          id="lc-why"
+        <ReasonField
           label="반려 사유"
-          error={fields.error('reason')}
           hint="판매자에게 그대로 전달돼요."
-        >
-          <textarea
-            {...fields.inputProps('reason')}
-            className="textarea"
-            value={reason}
-            onChange={(e) => {
-              fields.changed('reason')
-              setReason(e.target.value)
-            }}
-            placeholder="예: 3강 음량이 다른 강의보다 크게 낮아요"
-          />
-        </Field>
+          placeholder="예: 3강 음량이 다른 강의보다 크게 낮아요"
+          {...reason.field}
+        />
         <button
           type="button"
           className="btn danger block"
           disabled={busy}
-          {...fields.submitProps}
+          {...reason.submitProps}
           onClick={() => {
-            if (fields.blockSubmit()) return
-            reject.mutate(reason.trim(), { onError: fields.applyServerErrors })
+            if (!reason.check()) return
+            reject.mutate(reason.trimmed, {
+              onError: reason.applyServerErrors,
+            })
           }}
         >
           반려

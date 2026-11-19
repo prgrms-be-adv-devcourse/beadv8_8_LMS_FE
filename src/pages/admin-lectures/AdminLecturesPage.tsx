@@ -3,6 +3,9 @@ import { Link } from 'react-router'
 import { inspectionsQuery } from '@/entities/lecture/api'
 import type { LectureStatus } from '@/entities/lecture/types'
 import { MyLectureStatusPill } from '@/entities/lecture/ui/MyLectureStatusPill'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { useListLinkState } from '@/features/admin-flow/listOrigin'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
@@ -44,6 +47,15 @@ export function AdminLecturesPage() {
   const pendingCount = pending.data?.page.totalElements
   const { data, error, isPending, refetch } = query
   const tab = TABS.find((t) => t.status === status) ?? TABS[0]
+  const counts = knownCounts<LectureStatus>(
+    {
+      filter: status,
+      total: data?.page.totalElements,
+      isPlaceholderData: query.isPlaceholderData,
+    },
+    { [PENDING]: pendingCount },
+  )
+  const linkState = useListLinkState()
 
   return (
     <div className="page">
@@ -70,6 +82,7 @@ export function AdminLecturesPage() {
               onClick={() => setStatus(t.status)}
             >
               {t.label}
+              <FilterCount count={counts[t.status]} />
             </button>
           ))}
         </div>
@@ -110,6 +123,7 @@ export function AdminLecturesPage() {
                     lecture.status === PENDING ? 'btn primary sm' : 'btn sm'
                   }
                   to={`/admin/lectures/${lecture.lectureId}`}
+                  state={linkState}
                 >
                   {lecture.status === PENDING ? '검수하기' : '보기'}
                 </Link>

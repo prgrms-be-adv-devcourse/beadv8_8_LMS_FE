@@ -4,6 +4,7 @@ import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
 import type { Viewer } from '@/shared/auth/role'
 import { startGoogleLogin, useViewer } from '@/shared/auth/session'
+import { scrollBehavior } from '@/shared/lib/motion'
 import { Avatar } from '@/shared/ui/Avatar'
 import { LoadError } from '@/shared/ui/QueryState'
 import styles from './HomePage.module.css'
@@ -84,7 +85,10 @@ export function HomePage() {
   const flowRef = useReveal<HTMLElement>()
   const bandRef = useReveal<HTMLElement>()
   const scrollToVideo = () =>
-    videoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    videoRef.current?.scrollIntoView({
+      behavior: scrollBehavior(),
+      block: 'start',
+    })
 
   return (
     <div className={styles.home}>

@@ -319,14 +319,17 @@ function RuleCell({ rule }: { rule: string }) {
 function LectureTable({ rows }: { rows: LectureMismatch[] }) {
   return (
     <div className={`tbl-wrap ${admin.tableWrap}`}>
-      <table className={`tbl ${styles.compare}`}>
+      <table
+        className={`tbl ${styles.compare}`}
+        aria-label="강의 대조 불일치 항목"
+      >
         <thead>
           <tr>
-            <th>규칙</th>
-            <th>주문 항목</th>
-            <th>항목 상태</th>
-            <th>강의 쪽</th>
-            <th>지갑 쪽</th>
+            <th scope="col">규칙</th>
+            <th scope="col">주문 항목</th>
+            <th scope="col">항목 상태</th>
+            <th scope="col">강의 쪽</th>
+            <th scope="col">지갑 쪽</th>
           </tr>
         </thead>
         <tbody>
@@ -357,13 +360,16 @@ function LectureTable({ rows }: { rows: LectureMismatch[] }) {
 function AppearanceTable({ rows }: { rows: AppearanceMismatch[] }) {
   return (
     <div className={`tbl-wrap ${admin.tableWrap}`}>
-      <table className={`tbl ${styles.compare}`}>
+      <table
+        className={`tbl ${styles.compare}`}
+        aria-label="출연 대조 불일치 항목"
+      >
         <thead>
           <tr>
-            <th>규칙</th>
-            <th>대상</th>
-            <th>출연 쪽</th>
-            <th>지갑 쪽</th>
+            <th scope="col">규칙</th>
+            <th scope="col">대상</th>
+            <th scope="col">출연 쪽</th>
+            <th scope="col">지갑 쪽</th>
           </tr>
         </thead>
         <tbody>

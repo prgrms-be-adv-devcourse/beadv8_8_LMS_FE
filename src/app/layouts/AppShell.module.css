@@ -133,8 +133,8 @@
     border-color var(--t-fast) var(--ease-out);
 }
 .logo:hover .onair {
-  background: var(--signal);
-  border-color: var(--signal);
+  background: var(--signal-fill);
+  border-color: var(--signal-fill);
   color: var(--signal-ink);
 }
 .lamp {
@@ -284,7 +284,7 @@
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   font: 600 11px/18px var(--f-mono);
   padding: 0 5px;
@@ -630,7 +630,7 @@
   min-width: 18px;
   padding: 0 6px;
   border-radius: 9px;
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   text-align: center;
 }
@@ -642,6 +642,10 @@
 }
 /* 건너뛰기 링크로 포커스가 와도 본문 전체에 테두리를 그리지 않는다 */
 .main:focus {
+  outline: none;
+}
+/* 화면을 옮기면 제목(h1)으로 포커스를 옮긴다(useRouteFocus). 읽기 시작점일 뿐이라 테두리를 그리지 않는다 */
+.main :global(h1[tabindex='-1']):focus {
   outline: none;
 }
 

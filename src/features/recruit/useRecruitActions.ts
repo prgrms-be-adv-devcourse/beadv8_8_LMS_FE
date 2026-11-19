@@ -8,6 +8,7 @@ import {
   updateRecruit,
   withdrawApplication,
 } from '@/entities/appearance/api'
+import { isAlreadyHandled } from '@/entities/appearance/errors'
 import type { RecruitEdit } from '@/entities/appearance/types'
 import { walletKeys } from '@/entities/wallet/api'
 import { isApiError } from '@/shared/api/ApiError'
@@ -38,7 +39,13 @@ function useInvalidateRecruits({ wallet = false } = {}) {
     ])
 }
 
-const onError = (error: Error) => toast(recruitErrorMessage(error))
+const onError = (error: Error) =>
+  toast(recruitErrorMessage(error), { tone: 'error' })
+
+/** 확인창의 처리. 창을 닫는 실패(이미 처리됨)만 토스트로 알리고, 나머지는 창 안에 남는다(ActionError) */
+const onConfirmError = (error: Error) => {
+  if (isAlreadyHandled(error)) toast(recruitErrorMessage(error))
+}
 
 export function useEditRecruit(recruitId: number) {
   const invalidate = useInvalidateRecruits()
@@ -55,7 +62,7 @@ export function useCloseRecruit(recruitId: number) {
   return useMutation({
     mutationFn: () => closeRecruit(recruitId),
     onSuccess: () => toast('모집을 마감했어요.'),
-    onError,
+    onError: onConfirmError,
     onSettled: invalidate,
   })
 }
@@ -75,7 +82,7 @@ export function useWithdrawApplication(applicationId: number) {
   return useMutation({
     mutationFn: () => withdrawApplication(applicationId),
     onSuccess: () => toast('지원을 취소했어요.'),
-    onError,
+    onError: onConfirmError,
     onSettled: invalidate,
   })
 }
@@ -86,7 +93,7 @@ export function useAcceptApplication(applicationId: number) {
   return useMutation({
     mutationFn: () => acceptApplication(applicationId),
     onSuccess: () => toast('지원을 수락했어요. 출연이 성립됐어요.'),
-    onError,
+    onError: onConfirmError,
     onSettled: invalidate,
   })
 }
@@ -96,7 +103,7 @@ export function useRejectApplication(applicationId: number) {
   return useMutation({
     mutationFn: () => rejectApplication(applicationId),
     onSuccess: () => toast('지원을 거절했어요.'),
-    onError,
+    onError: onConfirmError,
     onSettled: invalidate,
   })
 }

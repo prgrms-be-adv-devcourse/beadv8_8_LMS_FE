@@ -27,7 +27,7 @@ export function useApproveUpgrade() {
   return useMutation({
     mutationFn: (requestId: number) => approveUpgrade(requestId),
     onSuccess: () => toast('승급을 승인했어요. 이제 인증된 인플루언서예요.'),
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -43,7 +43,7 @@ export function useRejectUpgrade() {
       reason: string
     }) => rejectUpgrade(requestId, reason),
     onSuccess: () => toast('승급 신청을 반려했어요. 사유가 신청자에게 보여요.'),
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }

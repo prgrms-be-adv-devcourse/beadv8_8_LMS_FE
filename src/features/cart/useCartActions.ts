@@ -7,7 +7,7 @@ export function useAddToCart() {
   return useMutation({
     mutationFn: addCartItem,
     onSuccess: () => toast('장바구니에 담았어요.'),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: cartKeys.all }),
   })
 }
@@ -16,7 +16,7 @@ export function useRemoveFromCart() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: removeCartItem,
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: cartKeys.all }),
   })
 }

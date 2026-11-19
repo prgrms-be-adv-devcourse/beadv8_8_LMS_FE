@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type {
@@ -45,6 +45,7 @@ export const lectureHpTasksQuery = (params: HpTaskListParams) =>
           size: HP_TASK_PAGE_SIZE,
         },
       }),
+    placeholderData: keepPreviousData,
   })
 
 /** 작업과 시도 이력. 없으면 404 HP_TASK_NOT_FOUND */

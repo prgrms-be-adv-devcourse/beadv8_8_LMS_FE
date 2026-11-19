@@ -11,6 +11,9 @@ import {
 import type { AdminExchangePayout } from '@/entities/wallet/types'
 import { ExchangePayoutStatusPill } from '@/entities/wallet/ui/ExchangePayoutStatusPill'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { useListLinkState } from '@/features/admin-flow/listOrigin'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
@@ -47,6 +50,14 @@ export function AdminExchangePayoutsPage() {
   const review = useQuery(adminExchangePayoutsQuery(DEFAULT_STATUS, 0))
   const reviewCount = review.data?.page.totalElements
   const { data, error, isPending, refetch } = query
+  const counts = knownCounts<AdminPayoutFilter>(
+    {
+      filter: filter.status,
+      total: data?.page.totalElements,
+      isPlaceholderData: query.isPlaceholderData,
+    },
+    { [DEFAULT_STATUS]: reviewCount },
+  )
 
   return (
     <div className="page">
@@ -79,6 +90,7 @@ export function AdminExchangePayoutsPage() {
               onClick={() => setStatus(f.status)}
             >
               {f.label}
+              <FilterCount count={counts[f.status]} />
             </button>
           ))}
         </div>
@@ -96,13 +108,15 @@ export function AdminExchangePayoutsPage() {
             <table className="tbl" aria-label="송금 시도 목록">
               <thead>
                 <tr>
-                  <th>송금 요청 일시</th>
-                  <th>환전</th>
-                  <th className="r">송금액(원)</th>
-                  <th>사유</th>
-                  <th>시도 상태</th>
-                  <th>환전 상태</th>
-                  <th aria-label="상세" />
+                  <th scope="col">송금 요청 일시</th>
+                  <th scope="col">환전</th>
+                  <th scope="col" className="r">
+                    송금액(원)
+                  </th>
+                  <th scope="col">사유</th>
+                  <th scope="col">시도 상태</th>
+                  <th scope="col">환전 상태</th>
+                  <th scope="col" aria-label="상세" />
                 </tr>
               </thead>
               <tbody>
@@ -150,6 +164,7 @@ function FailedExchanges() {
 }
 
 function PayoutRow({ attempt }: { attempt: AdminExchangePayout }) {
+  const linkState = useListLinkState()
   return (
     <tr
       aria-label={`환전 #${attempt.exchangeId} 송금 시도 ${attempt.attemptNo}`}
@@ -190,7 +205,11 @@ function PayoutRow({ attempt }: { attempt: AdminExchangePayout }) {
         <ExchangeStatusPill status={attempt.exchangeStatus} />
       </td>
       <td className="r">
-        <Link className="btn sm" to={`/admin/exchanges/${attempt.exchangeId}`}>
+        <Link
+          className="btn sm"
+          to={`/admin/exchanges/${attempt.exchangeId}`}
+          state={linkState}
+        >
           상세
         </Link>
       </td>

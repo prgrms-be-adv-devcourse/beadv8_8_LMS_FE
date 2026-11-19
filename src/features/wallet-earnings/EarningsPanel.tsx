@@ -98,14 +98,16 @@ export function EarningsPanel() {
           ) : (
             <>
               <div className="tbl-wrap">
-                <table className="tbl">
+                <table className="tbl" aria-label="수익 내역">
                   <thead>
                     <tr>
-                      <th>출처</th>
-                      <th>내용</th>
-                      <th className="r">금액(HP)</th>
-                      <th>상태</th>
-                      <th>지급 예정</th>
+                      <th scope="col">출처</th>
+                      <th scope="col">내용</th>
+                      <th className="r" scope="col">
+                        금액(HP)
+                      </th>
+                      <th scope="col">상태</th>
+                      <th scope="col">지급 예정</th>
                     </tr>
                   </thead>
                   <tbody>

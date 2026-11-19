@@ -72,14 +72,14 @@ describe('관리자 강의 HP 작업 목록', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '강의 HP 작업' }),
     ).toBeInTheDocument()
+    const release = await item(72)
+    // 지금 보는 목록의 건수를 필터 버튼에 함께 보인다
     expect(
       within(screen.getByRole('group', { name: '작업 상태' })).getByRole(
         'button',
-        { name: '멈춤' },
+        { name: /^멈춤 \d+건$/ },
       ),
     ).toHaveAttribute('aria-pressed', 'true')
-
-    const release = await item(72)
     expect(within(release).getByText('멈춤')).toHaveClass('pill', 'bad')
     expect(release).toHaveTextContent('#72 반환 · 구매 취소 반환')
     expect(release).toHaveTextContent(
@@ -243,6 +243,19 @@ describe('관리자 강의 HP 작업 목록', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'HP 작업 #72' }),
     ).toBeInTheDocument()
+  })
+
+  it('필터를 고른 목록에서 상세로 들어갔다 돌아가면 그 필터로 돌아간다', async () => {
+    const router = renderApp('/admin/hp-tasks?taskType=RELEASE', 'ADMIN')
+    await userEvent.click(
+      within(await item(72)).getByRole('link', { name: '상세' }),
+    )
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'HP 작업 #72' }),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('link', { name: '← 강의 HP 작업' }))
+    expect(router.state.location.pathname).toBe('/admin/hp-tasks')
+    expect(router.state.location.search).toBe('?taskType=RELEASE')
   })
 })
 
@@ -481,6 +494,45 @@ describe('관리자 강의 HP 작업 상세', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('재시도가 일시 오류(503)로 실패하면 사유를 창 안에 남기고 같은 창에서 다시 시도한다', async () => {
+    let fail = true
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/72/retry', () =>
+        fail
+          ? HttpResponse.json(
+              {
+                status: 503,
+                code: 'INTERNAL_ERROR',
+                detail: '강의 서비스가 잠시 응답하지 않아요.',
+              },
+              { status: 503 },
+            )
+          : undefined,
+      ),
+    )
+    renderApp('/admin/hp-tasks/72', 'ADMIN')
+    await confirmRetry()
+
+    const dialog = screen.getByRole('dialog', {
+      name: 'HP 작업을 재시도할까요?',
+    })
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '재시도를 요청하지 못했어요. 강의 서비스가 잠시 응답하지 않아요.',
+    )
+    // 토스트로 한 번 더 띄우지 않는다
+    expect(
+      screen.getAllByText(/강의 서비스가 잠시 응답하지 않아요/),
+    ).toHaveLength(1)
+    await settle()
+
+    fail = false
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    )
+    expect(await screen.findByText(RETRIED)).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('처리 중에는 모달을 닫고 다시 열어도 또 보내지 못한다', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))
@@ -609,6 +661,41 @@ describe('관리자 강의 HP 작업 보류 무효화', () => {
     expect(await region('작업')).toHaveTextContent('무효화한 관리자관리자 #1')
     expect(screen.queryByRole('region', { name: '보류 무효화' })).toBeNull()
     expect(screen.queryByRole('region', { name: '재시도' })).toBeNull()
+  })
+
+  it('보류 무효화가 일시 오류(503)로 실패하면 사유를 창 안에 남기고 버튼을 다시 시도로 바꾼다', async () => {
+    server.use(
+      http.post('*/api/v1/lectures/admin/hp-tasks/75/void', () =>
+        HttpResponse.json(
+          {
+            status: 503,
+            code: 'INTERNAL_ERROR',
+            detail: '강의 서비스가 잠시 응답하지 않아요.',
+          },
+          { status: 503 },
+        ),
+      ),
+    )
+    renderApp('/admin/hp-tasks/75', 'ADMIN')
+    await userEvent.click(
+      within(await region('보류 무효화')).getByRole('button', {
+        name: '보류 무효화',
+      }),
+    )
+    const dialog = screen.getByRole('dialog', { name: '보류를 무효화할까요?' })
+    await userEvent.click(
+      within(dialog).getByRole('button', { name: '보류 무효화' }),
+    )
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '보류를 무효화하지 못했어요. 강의 서비스가 잠시 응답하지 않아요.',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getAllByText(/강의 서비스가 잠시 응답하지 않아요/),
+    ).toHaveLength(1)
   })
 
   it('이미 처리된 보류면(409 HP_TASK_NOT_DEAD) 안내하고 최신 상태를 다시 불러온다', async () => {

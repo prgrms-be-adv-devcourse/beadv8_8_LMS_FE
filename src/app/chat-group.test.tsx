@@ -19,6 +19,7 @@ import { deliver } from '@/test/chatServer'
 import { FakeStompClient } from '@/test/fakeStomp'
 import { ME_ID, renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toastTexts } from '@/test/toast'
 
 const HOST_ID = 3
 const GUEST_A = 21
@@ -55,12 +56,6 @@ const message = (patch: Partial<ChatMessage> = {}): ChatMessage => {
     ...patch,
   }
 }
-
-const toasts = () =>
-  screen
-    .queryAllByRole('status')
-    .filter((el) => el.classList.contains('toast'))
-    .map((el) => el.textContent)
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
@@ -568,7 +563,38 @@ describe('참여자·내보내기', () => {
       ]),
     )
     await waitFor(() => expect(within(list).queryByText('바다')).toBeNull())
-    expect(toasts()).toContain('바다 님을 내보냈어요.')
+    expect(toastTexts()).toContain('바다 님을 내보냈어요.')
+  })
+
+  it('내보내기 확인은 취소에 포커스를 두고 이름·설명을 잇고, 취소하면 그 회원의 내보내기 버튼으로 돌아간다', async () => {
+    const state = mockGroup({
+      members: [member(ME_ID, '하늘'), member(GUEST_A, '바다', 4)],
+    })
+    renderApp(`/chat/${GROUP_ROOM_ID}`, 'INFLUENCER')
+    const region = await thread()
+    await userEvent.click(
+      await within(region).findByRole('button', { name: '참여자 2명' }),
+    )
+    const dialog = await screen.findByRole('dialog', { name: '참여자 2명' })
+    await userEvent.click(
+      await within(dialog).findByRole('button', { name: '바다 님 내보내기' }),
+    )
+
+    const confirm = within(dialog).getByRole('group', {
+      name: '바다 님 내보내기 확인',
+    })
+    expect(confirm).toHaveAccessibleDescription(
+      '내보내면 다시 초대해야만 들어올 수 있어요.',
+    )
+    const cancel = within(confirm).getByRole('button', { name: '취소' })
+    expect(cancel).toHaveFocus()
+
+    await userEvent.click(cancel)
+    expect(within(dialog).queryByRole('group')).toBeNull()
+    expect(
+      within(dialog).getByRole('button', { name: '바다 님 내보내기' }),
+    ).toHaveFocus()
+    expect(state.kicks).toEqual([])
   })
 
   it('대상이 다시 초대돼 세대가 바뀌었으면 다시 확인하라고 알린다', async () => {
@@ -591,7 +617,7 @@ describe('참여자·내보내기', () => {
       within(dialog).getByRole('button', { name: '바다 님 내보내기 확인' }),
     )
     await waitFor(() =>
-      expect(toasts()).toContain(
+      expect(toastTexts()).toContain(
         '참여 상태가 바뀌었어요. 참여자 목록을 새로 불러왔으니 다시 확인해 주세요.',
       ),
     )

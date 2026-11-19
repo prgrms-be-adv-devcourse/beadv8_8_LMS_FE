@@ -14,10 +14,19 @@ import {
   mockCoupons,
   quietLectureRequests,
 } from '@/test/couponMock'
+import {
+  promotionWalletHandlers,
+  resetPromotionWalletDb,
+} from '@/test/promotionWalletMock'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
-beforeEach(quietLectureRequests)
+beforeEach(() => {
+  quietLectureRequests()
+  // 플랫폼 쿠폰 열기 확인 창이 프로모션 지갑 가용 잔액을 보여 준다
+  resetPromotionWalletDb({ availableHp: 200000 })
+  server.use(...promotionWalletHandlers)
+})
 
 afterEach(() => {
   server.events.removeAllListeners('request:start')
@@ -70,6 +79,22 @@ function watchListRequests() {
 const item = (name: string) =>
   screen.findByRole('listitem', { name: `${name} 쿠폰` })
 
+/**
+ * 열기·승인 버튼 → 확인 창의 같은 버튼. 확인 창은 버튼 옆(쿠폰 줄 안)에 열리므로 줄의 버튼은 첫 번째다.
+ */
+async function confirmStart(
+  label: '승인' | '열기',
+  scope: HTMLElement = document.body,
+) {
+  const [button] = await within(scope).findAllByRole('button', { name: label })
+  await userEvent.click(button)
+  const dialog = screen.getByRole('dialog', {
+    name: label === '승인' ? '쿠폰을 승인할까요?' : '쿠폰을 열까요?',
+  })
+  await userEvent.click(within(dialog).getByRole('button', { name: label }))
+  return dialog
+}
+
 /** 상세 머리의 상태 배지 */
 const statusPill = () =>
   document.querySelector('.page-head .pill') as HTMLElement | null
@@ -94,7 +119,8 @@ describe('관리자 쿠폰 운영', () => {
     expect(screen.queryByRole('listitem', { name: '발급 중 쿠폰 쿠폰' })).toBe(
       null,
     )
-    expect(screen.getByRole('button', { name: '심사 중' })).toHaveAttribute(
+    // 쪽 없이 한 번에 받아 지금 상태의 건수를 필터 버튼에 함께 보인다
+    expect(screen.getByRole('button', { name: '심사 중 1건' })).toHaveAttribute(
       'aria-pressed',
       'true',
     )
@@ -115,12 +141,38 @@ describe('관리자 쿠폰 운영', () => {
     expect(seen).toEqual(['?status=REVIEW', '?status=OPEN'])
   })
 
+  it('필터를 고른 목록에서 상세로 들어갔다 돌아가면 그 필터로 돌아간다', async () => {
+    mockCoupons({
+      admin: [coupon({ couponId: 4, name: '발급 중 쿠폰', status: 'OPEN' })],
+    })
+    const router = renderApp('/admin/coupons?status=OPEN', 'ADMIN')
+    await userEvent.click(
+      within(await item('발급 중 쿠폰')).getByRole('link', {
+        name: '발급 중 쿠폰',
+      }),
+    )
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '발급 중 쿠폰' }),
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('link', { name: '← 쿠폰 운영' }))
+    expect(router.state.location.pathname).toBe('/admin/coupons')
+    expect(router.state.location.search).toBe('?status=OPEN')
+  })
+
   it('승인하면 발급 중이 되고 심사 목록에서 빠진다', async () => {
     const state = mockCoupons({ admin: [review()] })
     renderApp('/admin/coupons', 'ADMIN')
 
     const row = await item('가을맞이 10% 할인')
     await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+    // 확인 창에서 할인·수량·발급 기간을 보고 승인한다(판매자 쿠폰은 프로모션 예산을 쓰지 않는다)
+    const dialog = screen.getByRole('dialog', { name: '쿠폰을 승인할까요?' })
+    expect(dialog).toHaveTextContent('할인10% 할인')
+    expect(dialog).toHaveTextContent('수량100장')
+    expect(dialog).toHaveTextContent('발급 기간')
+    expect(dialog).not.toHaveTextContent('가용 잔액')
+    expect(state.actions).toEqual([])
+    await userEvent.click(within(dialog).getByRole('button', { name: '승인' }))
 
     expect(await screen.findByText('심사할 쿠폰이 없어요')).toBeInTheDocument()
     expect(state.actions).toEqual(['approve 3'])
@@ -234,7 +286,15 @@ describe('관리자 쿠폰 운영', () => {
     expect(screen.getByText('10% 할인 · 최대 5,000 HP')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: '열기' }))
+    const confirm = screen.getByRole('dialog', { name: '쿠폰을 열까요?' })
+    expect(confirm).toHaveTextContent('할인10% 할인 · 최대 5,000 HP')
+    expect(await within(confirm).findByText('200,000 HP')).toBeInTheDocument()
+    expect(confirm).toHaveTextContent('프로모션 지갑 가용 잔액200,000 HP')
+    expect(confirm).toHaveTextContent('쿠폰 예산을 가용 잔액에서 예약')
+    expect(state.actions).toEqual([])
+    await userEvent.click(within(confirm).getByRole('button', { name: '열기' }))
     await waitFor(() => expect(statusPill()).toHaveTextContent(/^발급 중$/))
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(state.actions).toEqual(['open 100'])
     expect(screen.getByRole('button', { name: '중단' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '열기' })).toBeNull()
@@ -341,15 +401,15 @@ describe('관리자 쿠폰 운영', () => {
     })
     renderApp('/admin/coupons/5', 'ADMIN')
 
-    await userEvent.click(await screen.findByRole('button', { name: '열기' }))
+    await confirmStart('열기')
     expect(
       await screen.findByText('예산을 확보하지 못했어요. 다시 열어 주세요.'),
     ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(statusPill()).toHaveTextContent('열기 전')
-    const retry = screen.getByRole('button', { name: '열기' })
-    expect(retry).toBeEnabled()
+    expect(screen.getByRole('button', { name: '열기' })).toBeEnabled()
 
-    await userEvent.click(retry)
+    await confirmStart('열기')
     await waitFor(() => expect(statusPill()).toHaveTextContent(/^발급 중$/))
     expect(state.actions).toEqual(['open 5', 'open 5'])
     expect(
@@ -419,7 +479,7 @@ describe('관리자 쿠폰 운영', () => {
     renderApp('/admin/coupons', 'ADMIN')
 
     const row = await item('가을맞이 10% 할인')
-    await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+    await confirmStart('승인', row)
     expect(
       await within(row).findByText('잠시 후 다시 시도해 주세요.'),
     ).toBeInTheDocument()
@@ -430,7 +490,7 @@ describe('관리자 쿠폰 운영', () => {
     failAfterCommit(state, 3, 'approve', () => HttpResponse.error())
     renderApp('/admin/coupons/3', 'ADMIN')
 
-    await userEvent.click(await screen.findByRole('button', { name: '승인' }))
+    await confirmStart('승인')
     await waitFor(() => expect(statusPill()).toHaveTextContent(/^발급 중$/))
     expect(
       screen.getByText('응답을 받지 못했어요. 잠시 후 다시 시도해 주세요.'),
@@ -460,7 +520,7 @@ describe('관리자 쿠폰 운영', () => {
       renderApp('/admin/coupons', 'ADMIN')
 
       const row = await item('가을맞이 10% 할인')
-      await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+      await confirmStart('승인', row)
       expect(await within(row).findByRole('alert')).toBeInTheDocument()
       expect(screen.queryByText(/요청을 마치지 못했어요/)).toBeNull()
       expect(
@@ -475,7 +535,7 @@ describe('관리자 쿠폰 운영', () => {
     failAfterCommit(state, 3, 'approve')
     renderApp('/admin/coupons/3', 'ADMIN')
 
-    await userEvent.click(await screen.findByRole('button', { name: '승인' }))
+    await confirmStart('승인')
     // 다시 불러온 상태는 OPEN이라 승인 버튼은 없어지고 다시 시도 버튼이 남는다.
     await waitFor(() => expect(statusPill()).toHaveTextContent(/^발급 중$/))
     expect(screen.getByText('잠시 후 다시 시도해 주세요.')).toBeInTheDocument()
@@ -498,7 +558,7 @@ describe('관리자 쿠폰 운영', () => {
     renderApp('/admin/coupons', 'ADMIN')
 
     const row = await item('가을맞이 10% 할인')
-    await userEvent.click(within(row).getByRole('button', { name: '승인' }))
+    await confirmStart('승인', row)
     expect(await screen.findByText('심사할 쿠폰이 없어요')).toBeInTheDocument()
     expect(
       screen.getByText(

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
+import { BANKS } from '@/entities/wallet/banks'
 import {
   ACCOUNT_NUMBER_MAX_DIGITS,
   EXCHANGE_INPUT_MAX_DIGITS,
@@ -164,22 +165,22 @@ function ExchangeFields({
         <fieldset className={styles.account}>
           <legend>받을 계좌</legend>
           <div className={styles.accountRow}>
-            <Field
-              id="exchange-bank"
-              label="은행 코드"
-              error={bankCode === '' ? undefined : accountErrors.bankCode}
-              hint="숫자 3자리 (예: 004)"
-            >
-              <input
+            <Field id="exchange-bank" label="은행">
+              {/* 이름으로 고르고 금융결제원 은행 코드로 보낸다 */}
+              <select
                 id="exchange-bank"
-                className="input num"
-                inputMode="numeric"
+                className="select"
                 disabled={locked || !available}
                 value={bankCode}
-                onChange={(e) =>
-                  setBankCode(e.target.value.replace(/\D/g, '').slice(0, 3))
-                }
-              />
+                onChange={(e) => setBankCode(e.target.value)}
+              >
+                <option value="">은행 선택</option>
+                {BANKS.map((bank) => (
+                  <option key={bank.code} value={bank.code}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field
               id="exchange-account"

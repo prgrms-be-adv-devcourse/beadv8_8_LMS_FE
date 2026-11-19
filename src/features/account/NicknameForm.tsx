@@ -38,7 +38,7 @@ export function NicknameForm({ current }: { current: string }) {
       if (isApiError(error) && NICKNAME_ERROR_CODES.has(error.code)) {
         setServerError(error.message)
         inputRef.current?.focus()
-      } else toast(error.message)
+      } else toast(error.message, { tone: 'error' })
     },
   })
   const error =
@@ -60,7 +60,7 @@ export function NicknameForm({ current }: { current: string }) {
         error={shown ?? undefined}
         hint={
           <span id={HINT_ID}>
-            채팅, 리뷰, 모집 글에 보여요. 2~12자, 한글·영문·숫자·공백·밑줄.
+            채팅, 리뷰, 모집글에 보여요. 2~12자, 한글·영문·숫자·공백·밑줄.
           </span>
         }
       >

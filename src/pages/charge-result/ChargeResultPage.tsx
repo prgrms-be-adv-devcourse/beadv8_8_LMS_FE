@@ -6,6 +6,7 @@ import { walletQuery } from '@/entities/wallet/api'
 import {
   parseChargeAmountParam,
   parseChargeReturn,
+  walletChargeHref,
   type ChargeReturn,
 } from '@/entities/wallet/charge'
 import {
@@ -13,6 +14,7 @@ import {
   type ChargeFailure,
 } from '@/features/wallet-charge/useChargeConfirm'
 import { formatNumber } from '@/shared/lib/money'
+import { safeReturnPath } from '@/shared/lib/returnPath'
 import styles from './ChargeResultPage.module.css'
 
 const USER_CANCELED = 'PAY_PROCESS_CANCELED'
@@ -20,15 +22,17 @@ const USER_CANCELED = 'PAY_PROCESS_CANCELED'
 /**
  * 토스페이먼츠 결제창이 돌아오는 화면. 성공(paymentKey·orderId·amount)이면 승인을 요청하고,
  * 실패(code·message·orderId, 우리가 붙인 amount)면 사유만 보여 준다. 실패한 주문은 조회하지 않는다.
+ * 다른 화면에서 충전하러 왔으면(우리가 붙인 returnTo) 충전한 뒤 그 화면으로 돌아가는 버튼을 앞에 둔다.
  */
 export function ChargeResultPage() {
   const [params] = useSearchParams()
   const result = parseChargeReturn(params)
+  const returnTo = safeReturnPath(params.get('returnTo'))
   if (!result) return <Navigate to="/wallet" replace />
   return (
     <div className="page narrow">
       {result.kind === 'success' ? (
-        <ConfirmResult result={result} />
+        <ConfirmResult result={result} returnTo={returnTo} />
       ) : result.code === USER_CANCELED ? (
         <ResultPanel
           tone="mute"
@@ -36,12 +40,13 @@ export function ChargeResultPage() {
           text="결제창을 닫아 충전하지 않았어요. 결제 금액은 청구되지 않아요."
           amount={result.amount}
           orderId={result.orderId}
-          actions={<RetryActions amount={result.amount} />}
+          actions={<RetryActions amount={result.amount} returnTo={returnTo} />}
         />
       ) : (
         <FailedPanel
           amount={result.amount}
           orderId={result.orderId}
+          returnTo={returnTo}
           failure={{
             code: result.code,
             pgCode: null,
@@ -58,8 +63,10 @@ export function ChargeResultPage() {
 
 function ConfirmResult({
   result,
+  returnTo,
 }: {
   result: Extract<ChargeReturn, { kind: 'success' }>
+  returnTo: string | null
 }) {
   const { paymentKey, orderId, amount } = result
   const state = useChargeConfirm({ paymentKey, orderId, amount })
@@ -95,20 +102,29 @@ function ConfirmResult({
         <FailedPanel
           amount={amount}
           orderId={orderId}
+          returnTo={returnTo}
           failure={state.failure}
         />
       )
     case 'completed':
-      return <CompletedPanel amount={state.order.amount} orderId={orderId} />
+      return (
+        <CompletedPanel
+          amount={state.order.amount}
+          orderId={orderId}
+          returnTo={returnTo}
+        />
+      )
   }
 }
 
 function CompletedPanel({
   amount,
   orderId,
+  returnTo,
 }: {
   amount: number
   orderId: string
+  returnTo: string | null
 }) {
   const { data: wallet } = useQuery(walletQuery)
   const { data: cart } = useQuery(cartQuery)
@@ -130,12 +146,20 @@ function CompletedPanel({
       }
       actions={
         <>
-          {hasCart && (
-            <Link className="btn primary" to="/cart">
+          {returnTo && (
+            <Link className="btn primary" to={returnTo}>
+              하던 일로 돌아가기
+            </Link>
+          )}
+          {hasCart && returnTo !== '/cart' && (
+            <Link className={returnTo ? 'btn' : 'btn primary'} to="/cart">
               장바구니로
             </Link>
           )}
-          <Link className={hasCart ? 'btn' : 'btn primary'} to="/wallet">
+          <Link
+            className={returnTo || hasCart ? 'btn' : 'btn primary'}
+            to="/wallet"
+          >
             지갑으로
           </Link>
         </>
@@ -147,10 +171,12 @@ function CompletedPanel({
 function FailedPanel({
   amount,
   orderId,
+  returnTo,
   failure,
 }: {
   amount: number | null
   orderId: string | null
+  returnTo: string | null
   failure: ChargeFailure
 }) {
   return (
@@ -176,25 +202,40 @@ function FailedPanel({
           )}
         </>
       }
-      actions={<RetryActions amount={amount} />}
+      actions={<RetryActions amount={amount} returnTo={returnTo} />}
     />
   )
 }
 
-/** 같은 금액으로 새 주문을 만들어 다시 결제한다(실패한 주문은 다시 쓸 수 없다). */
-function RetryActions({ amount }: { amount: number | null }) {
+/**
+ * 같은 금액으로 새 주문을 만들어 다시 결제한다(실패한 주문은 다시 쓸 수 없다).
+ * 다시 결제해도 돌아갈 화면은 그대로 넘기고, 충전하지 않고 그 화면으로 돌아갈 수도 있다.
+ */
+function RetryActions({
+  amount,
+  returnTo,
+}: {
+  amount: number | null
+  returnTo: string | null
+}) {
   const retry =
     amount !== null && parseChargeAmountParam(String(amount)) !== null
-      ? `/wallet?charge=${amount}`
+      ? walletChargeHref(amount, returnTo)
       : '/wallet'
   return (
     <>
       <Link className="btn primary" to={retry}>
         다시 결제하기
       </Link>
-      <Link className="btn" to="/wallet">
-        지갑으로
-      </Link>
+      {returnTo ? (
+        <Link className="btn" to={returnTo}>
+          하던 일로 돌아가기
+        </Link>
+      ) : (
+        <Link className="btn" to="/wallet">
+          지갑으로
+        </Link>
+      )}
     </>
   )
 }

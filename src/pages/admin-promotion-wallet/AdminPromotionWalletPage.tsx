@@ -8,6 +8,7 @@ import {
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { Field } from '@/shared/ui/Field'
+import { Modal } from '@/shared/ui/Modal'
 import { PageHead } from '@/shared/ui/PageHead'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 import { toast } from '@/shared/ui/toastStore'
@@ -60,8 +61,17 @@ function Balance() {
   )
 }
 
+/** 충전 HP 칸 표시: 숫자만 받아 천 단위로 끊어 보인다. 안전하게 다룰 수 없는 큰 수는 적은 그대로 둔다 */
+function amountDisplay(digits: string) {
+  if (digits === '') return ''
+  const value = Number(digits)
+  return Number.isSafeInteger(value) ? formatNumber(value) : digits
+}
+
 function FundingForm() {
   const queryClient = useQueryClient()
+  const wallet = useQuery(promotionWalletQuery())
+  const [confirming, setConfirming] = useState(false)
   const [amount, setAmount] = useState('')
   const [sourceRef, setSourceRef] = useState('')
   const [memo, setMemo] = useState('')
@@ -91,10 +101,18 @@ function FundingForm() {
   const sourceRefError =
     sourceRef.trim() === '' ? '충전 근거 번호를 적어 주세요.' : ''
 
+  /** 검사를 통과하면 확인 창을 연다. 돈이 들어가는 일이라 금액·근거·충전 뒤 잔액을 한 번 더 보여 준다 */
   const submit = (e: FormEvent) => {
     e.preventDefault()
     setTouched(true)
     if (fund.isPending || amountError || sourceRefError) return
+    // 새로 여는 확인 창은 아직 보내지 않은 상태다. 지난 실패는 지우고, 같은 내용이면 보낼 때 같은 작업 ID를 쓴다.
+    setFormError(null)
+    setConfirming(true)
+  }
+
+  const confirm = () => {
+    if (fund.isPending) return
     const input = {
       amountHp,
       sourceRef: sourceRef.trim(),
@@ -112,6 +130,7 @@ function FundingForm() {
           setSourceRef('')
           setMemo('')
           setTouched(false)
+          setConfirming(false)
           lastSent.current = null
         },
         // 응답을 받지 못했어도 BE가 충전했을 수 있다. 잔액은 onSettled가 다시 읽는다.
@@ -139,7 +158,7 @@ function FundingForm() {
               id="pw-amount"
               className="input num"
               inputMode="numeric"
-              value={amount}
+              value={amountDisplay(amount)}
               onChange={(e) => {
                 changed()
                 setAmount(e.target.value.replace(/\D/g, ''))
@@ -176,7 +195,8 @@ function FundingForm() {
             }}
           />
         </Field>
-        {formError && (
+        {/* 확인 창이 열려 있으면 오류는 창 안에 보인다 */}
+        {formError && !confirming && (
           <p className="fine c-bad" role="alert">
             {formError}
           </p>
@@ -206,6 +226,67 @@ function FundingForm() {
         충전한 프로모션 HP는 회원 HP가 아니에요. 환불·환전하지 않고, 쿠폰
         할인분으로 판매자에게 지급되면 판매자의 수익 HP가 돼요.
       </p>
+      {confirming && (
+        <Modal
+          title="프로모션 HP를 충전할까요?"
+          onClose={() => setConfirming(false)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setConfirming(false)}
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={fund.isPending}
+                onClick={confirm}
+              >
+                {fund.isPending && (
+                  <span className="spinner sm" aria-hidden="true" />
+                )}
+                {formError ? '다시 시도' : '충전'}
+              </button>
+            </>
+          }
+        >
+          <dl className="kv">
+            <dt>충전 HP</dt>
+            <dd className="num">{formatNumber(amountHp)} HP</dd>
+            <dt>근거 번호</dt>
+            <dd>{sourceRef.trim()}</dd>
+            {memo.trim() && (
+              <>
+                <dt>메모</dt>
+                <dd>{memo.trim()}</dd>
+              </>
+            )}
+            {wallet.data && (
+              <>
+                <dt>지금 가용 잔액</dt>
+                <dd className="num">
+                  {formatNumber(wallet.data.availableHp)} HP
+                </dd>
+                <dt>충전 뒤 가용 잔액</dt>
+                <dd className="num">
+                  {formatNumber(wallet.data.availableHp + amountHp)} HP
+                </dd>
+              </>
+            )}
+          </dl>
+          <p className="notice warn">
+            충전한 HP는 되돌릴 수 없어요. 금액과 근거 번호를 확인해 주세요.
+          </p>
+          {formError && (
+            <div className="notice bad" role="alert">
+              {formError}
+            </div>
+          )}
+        </Modal>
+      )}
     </section>
   )
 }

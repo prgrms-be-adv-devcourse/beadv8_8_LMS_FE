@@ -109,7 +109,7 @@ function Recruits({ tab }: { tab: RecruitListTab }) {
           <span className="fine">
             {view === 'failed'
               ? 'HP 보류에 실패해 등록되지 않은 모집글이에요.'
-              : '포인트 확인 중인 글은 확인이 끝나면 자동으로 바뀌어요.'}
+              : 'HP 보류 확인 중인 글은 확인이 끝나면 자동으로 바뀌어요.'}
           </span>
           <HoldListViewSelect value={view} onChange={selectView} />
         </div>

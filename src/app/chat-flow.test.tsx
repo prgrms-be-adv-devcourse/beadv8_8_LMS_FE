@@ -1,4 +1,11 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import {
@@ -162,7 +169,7 @@ describe('채팅', () => {
     mockChat([room()])
     renderApp('/chat/5', 'INFLUENCER')
     const input = await screen.findByRole('textbox', { name: '메시지' })
-    // 연결 전에는 보낼 수 없다
+    // 비어 있으면 보낼 수 없다
     expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
 
     const client = await connectSocket()
@@ -569,9 +576,128 @@ describe('채팅', () => {
 
     act(() => client.disconnect())
     expect(useChatStore.getState().status).toBe('disconnected')
-    expect(screen.getByRole('button', { name: '보내기' })).toBeDisabled()
     act(() => client.connect())
     await waitFor(() => expect(messageCalls).toBe(3))
+  })
+
+  it('연결이 끊긴 동안에도 글을 써서 보낼 수 있고, 연결이 없으면 실패로 표시해 다시 보내기로 이어진다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    const thread = screen.getByRole('region', {
+      name: '편집하는 고래 님과의 대화',
+    })
+    const sent = () =>
+      client.published.filter((p) => p.destination === '/pub/chats/5/messages')
+
+    act(() => client.disconnect())
+    // 끊김 띠는 그대로 보인다.
+    expect(
+      within(thread).getByText('연결이 끊겼어요. 다시 연결하고 있어요'),
+    ).toBeInTheDocument()
+    await userEvent.type(input, '끊긴 동안 쓴 글')
+    const send = screen.getByRole('button', { name: '보내기' })
+    expect(send).toBeEnabled()
+    await userEvent.click(send)
+
+    expect(sent()).toHaveLength(0)
+    expect(input).toHaveValue('')
+    expect(await within(thread).findByRole('alert')).toHaveTextContent(
+      '채팅 서버에 연결되지 않았어요.',
+    )
+
+    act(() => client.connect())
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+    await userEvent.click(
+      within(thread).getByRole('button', { name: '다시 보내기' }),
+    )
+    expect(sent()).toHaveLength(1)
+    expect(JSON.parse(sent()[0].body).content).toBe('끊긴 동안 쓴 글')
+    expect(await within(thread).findByText('보내는 중…')).toBeInTheDocument()
+  })
+
+  it('Enter로 보내고 Shift+Enter로 줄을 바꾸며, 한글 조합 중 Enter는 보내지 않는다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    const sent = () =>
+      client.published.filter((p) => p.destination === '/pub/chats/5/messages')
+
+    await userEvent.type(input, '첫 줄{Shift>}{Enter}{/Shift}둘째 줄')
+    expect(input).toHaveValue('첫 줄\n둘째 줄')
+    expect(sent()).toHaveLength(0)
+
+    // Chrome 계열: 조합 중 Enter는 isComposing으로 온다.
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    // Safari: 조합이 끝난 뒤 keydown이 와 isComposing이 false이고 keyCode가 229다.
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(sent()).toHaveLength(0)
+    expect(input).toHaveValue('첫 줄\n둘째 줄')
+
+    await userEvent.keyboard('{Enter}')
+    expect(sent()).toHaveLength(1)
+    const body = JSON.parse(sent()[0].body)
+    expect(body.content).toBe('첫 줄\n둘째 줄')
+    expect(input).toHaveValue('')
+
+    // 말풍선은 줄바꿈을 그대로 담는다(화면에서는 pre-wrap으로 줄이 나뉜다).
+    act(() =>
+      deliver(
+        client,
+        message({
+          senderUserId: ME_ID,
+          content: '첫 줄\n둘째 줄',
+          clientMessageId: body.clientMessageId,
+        }),
+      ),
+    )
+    const bubble = await screen.findByText('첫 줄 둘째 줄')
+    expect(bubble.textContent).toBe('첫 줄\n둘째 줄')
+  })
+
+  it('터치 기기에서는 Enter가 줄을 바꾸고 보내기 버튼으로 보낸다', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    onTestFinished(() => {
+      vi.unstubAllGlobals()
+    })
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    const sent = () =>
+      client.published.filter((p) => p.destination === '/pub/chats/5/messages')
+
+    await userEvent.type(input, '첫 줄{Enter}둘째 줄')
+    expect(input).toHaveValue('첫 줄\n둘째 줄')
+    expect(sent()).toHaveLength(0)
+
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(sent()).toHaveLength(1)
+    expect(JSON.parse(sent()[0].body).content).toBe('첫 줄\n둘째 줄')
+  })
+
+  it('나가기 확인은 취소에 포커스를 두고 이름·설명을 잇고, 취소하면 나가기 버튼으로 돌아간다', async () => {
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    await userEvent.click(await screen.findByRole('button', { name: '나가기' }))
+
+    const confirm = screen.getByRole('group', { name: '나가기 확인' })
+    expect(confirm).toHaveAccessibleDescription(
+      /나가면 이 대화 기록을 다시 볼 수 없고/,
+    )
+    const cancel = within(confirm).getByRole('button', { name: '취소' })
+    expect(cancel).toHaveFocus()
+
+    await userEvent.click(cancel)
+    expect(screen.queryByRole('group', { name: '나가기 확인' })).toBeNull()
+    expect(screen.getByRole('button', { name: '나가기' })).toHaveFocus()
   })
 
   it('관리자는 인플루언서 프로필에서 채팅을 시작한다(출연 요청은 보이지 않는다)', async () => {
@@ -1157,24 +1283,114 @@ describe('다시 불러오기 실패 시 보이던 화면 유지', () => {
   })
 })
 
-describe('이전 메시지 조회 실패 뒤 스크롤', () => {
+describe('대화 스크롤·새 메시지 알림', () => {
   const original = Object.getOwnPropertyDescriptor(
     HTMLElement.prototype,
     'scrollHeight',
   )
-  afterEach(() => {
-    if (original)
-      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', original)
-  })
-
-  it('이전 메시지를 못 불러온 뒤 새 메시지가 오면 맨 아래로 내려간다', async () => {
-    // jsdom은 레이아웃이 없어 scrollHeight가 0이다. 자식 수에 비례하게 흉내 낸다.
+  beforeEach(() => {
+    // jsdom은 레이아웃이 없어 scrollHeight가 0이고 clientHeight도 0이다. 자식 수에 비례하게 흉내 낸다.
     Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
       configurable: true,
       get(this: HTMLElement) {
         return this.childElementCount * 100
       },
     })
+  })
+  afterEach(() => {
+    if (original)
+      Object.defineProperty(HTMLElement.prototype, 'scrollHeight', original)
+  })
+
+  const partner = {
+    userId: PARTNER_ID,
+    nickname: '편집하는 고래',
+    withdrawn: false,
+  }
+  /** 메시지 목록(스크롤 영역). '새 메시지' 버튼을 누르면 포커스를 받는다 */
+  const messageList = (thread: HTMLElement) =>
+    thread.querySelector<HTMLElement>('[tabindex="-1"]')!
+  /** 사용자가 목록을 그 위치로 스크롤한다 */
+  const scrollTo = (box: HTMLElement, top: number) => {
+    box.scrollTop = top
+    fireEvent.scroll(box)
+  }
+
+  async function openThread(
+    messages: ChatMessage[],
+    nextCursor: number | null = null,
+  ) {
+    mockChat([room()], messages, nextCursor)
+    renderApp('/chat/5', 'INFLUENCER')
+    const thread = await screen.findByRole('region', { name: /님과의 대화/ })
+    await within(thread).findByText(messages[0].content)
+    const client = await connectSocket()
+    return { thread, client, box: messageList(thread) }
+  }
+
+  it("위쪽 옛 대화를 읽는 중에 새 메시지가 오면 끌어내리지 않고 '새 메시지 n개'로 알리고, 누르면 맨 아래로 간다", async () => {
+    const { thread, client, box } = await openThread([
+      message({ content: '세 번째', roomSequence: 3 }),
+      message({ content: '두 번째', roomSequence: 2 }),
+      message({ content: '첫 번째', roomSequence: 1 }),
+    ])
+    expect(box.scrollTop).toBe(box.scrollHeight)
+
+    scrollTo(box, 0)
+    act(() => {
+      deliver(client, message({ content: '새 글 하나', roomSequence: 4 }))
+      deliver(client, message({ content: '새 글 둘', roomSequence: 5 }))
+    })
+    await within(thread).findByText('새 글 둘')
+    expect(box.scrollTop).toBe(0)
+    const jump = within(thread).getByRole('button', { name: '새 메시지 2개' })
+
+    await userEvent.click(jump)
+    expect(box.scrollTop).toBe(box.scrollHeight)
+    expect(box).toHaveFocus()
+    expect(
+      within(thread).queryByRole('button', { name: /새 메시지/ }),
+    ).toBeNull()
+  })
+
+  it('바닥 근처를 보고 있으면 새 메시지를 따라 내리고, 위쪽을 읽다가 바닥으로 돌아오면 버튼을 거둔다', async () => {
+    const { thread, client, box } = await openThread([
+      message({ content: '첫 번째', roomSequence: 1 }),
+    ])
+    // 바닥에서 80px 안
+    scrollTo(box, box.scrollHeight - 50)
+    act(() =>
+      deliver(client, message({ content: '따라 내림', roomSequence: 2 })),
+    )
+    await within(thread).findByText('따라 내림')
+    expect(box.scrollTop).toBe(box.scrollHeight)
+
+    scrollTo(box, 0)
+    act(() =>
+      deliver(client, message({ content: '위에서 받음', roomSequence: 3 })),
+    )
+    await within(thread).findByRole('button', { name: '새 메시지 1개' })
+    scrollTo(box, box.scrollHeight)
+    expect(
+      within(thread).queryByRole('button', { name: /새 메시지/ }),
+    ).toBeNull()
+  })
+
+  it('위쪽을 읽는 중이어도 내가 보내면 맨 아래로 내린다', async () => {
+    const { thread, box } = await openThread([
+      message({ content: '첫 번째', roomSequence: 1 }),
+      message({ content: '두 번째', roomSequence: 2 }),
+    ])
+    scrollTo(box, 0)
+    await userEvent.type(
+      within(thread).getByRole('textbox', { name: '메시지' }),
+      '내 답장{Enter}',
+    )
+    expect(await within(thread).findByText('보내는 중…')).toBeInTheDocument()
+    expect(box.scrollTop).toBe(box.scrollHeight)
+  })
+
+  it('이전 메시지를 못 불러온 뒤 바닥으로 돌아와 새 메시지가 오면 맨 아래로 내려간다', async () => {
     mockChat([room()])
     server.use(
       http.get('*/api/v1/chats/5/messages', ({ request }) =>
@@ -1193,20 +1409,73 @@ describe('이전 메시지 조회 실패 뒤 스크롤', () => {
     const thread = await screen.findByRole('region', { name: /님과의 대화/ })
     await within(thread).findByText('최근 메시지')
     const client = await connectSocket()
-    const box = thread.querySelector('[aria-live="polite"]') as HTMLElement
+    const box = messageList(thread)
 
-    // 위로 올려 이전 메시지를 부르다 실패한다.
-    box.scrollTop = 0
+    // 위로 올려 이전 메시지를 부르다 실패한다. 보던 위치를 지키려고 기억한 값은 버려야 한다.
+    scrollTo(box, 0)
     await userEvent.click(
       within(thread).getByRole('button', { name: '이전 메시지 더 보기' }),
     )
     await within(thread).findByRole('alert')
+    scrollTo(box, box.scrollHeight)
 
     act(() =>
       deliver(client, message({ content: '새로 온 메시지', roomSequence: 3 })),
     )
     await within(thread).findByText('새로 온 메시지')
     expect(box.scrollTop).toBe(box.scrollHeight)
+  })
+
+  it("목록 전체가 아니라 상대가 새로 보낸 메시지만 숨긴 알림 영역에서 '닉네임: 내용'으로 알리고, 1:1 말풍선에는 보낸 사람을 숨긴 글자로 단다", async () => {
+    const { thread, client } = await openThread([
+      message({ content: '이전 대화', roomSequence: 1, sender: partner }),
+    ])
+    const live = thread.querySelectorAll('[aria-live]')
+    // 낭독 영역은 숨긴 알림 영역 하나뿐이고, 불러온 이력은 읽지 않는다.
+    expect(live).toHaveLength(1)
+    const announcer = live[0] as HTMLElement
+    expect(announcer).toHaveClass('sr-only')
+    expect(announcer).toHaveTextContent('')
+    expect(
+      within(thread).getByText('이전 대화').parentElement,
+    ).toHaveTextContent(/^상대: 이전 대화/)
+
+    act(() =>
+      deliver(
+        client,
+        message({
+          content: '새로 온 메시지',
+          roomSequence: 2,
+          sender: partner,
+        }),
+      ),
+    )
+    await waitFor(() =>
+      expect(announcer).toHaveTextContent('편집하는 고래: 새로 온 메시지'),
+    )
+
+    // 내가 보낸 메시지는 알리지 않는다.
+    await userEvent.type(
+      within(thread).getByRole('textbox', { name: '메시지' }),
+      '내 답장{Enter}',
+    )
+    const { clientMessageId } = JSON.parse(client.published.at(-1)!.body)
+    act(() =>
+      deliver(
+        client,
+        message({
+          senderUserId: ME_ID,
+          content: '내 답장',
+          roomSequence: 3,
+          clientMessageId,
+        }),
+      ),
+    )
+    await waitFor(() => expect(screen.queryByText('보내는 중…')).toBeNull())
+    expect(announcer).not.toHaveTextContent('내 답장')
+    expect(within(thread).getByText('내 답장').parentElement).toHaveTextContent(
+      /^나: 내 답장/,
+    )
   })
 })
 
@@ -1639,23 +1908,30 @@ describe('메시지 길이 제한', () => {
     await settle()
   })
 
-  it('여러 줄을 붙여넣으면 줄바꿈을 빼고 센다', async () => {
+  it('여러 줄을 붙여넣으면 줄바꿈을 그대로 넣고 줄바꿈(CRLF 포함)을 한 글자로 센다', async () => {
     const { input } = await openComposer()
     await userEvent.click(input)
-    await userEvent.paste(`${'가\n'.repeat(1000)}끝`)
+    await userEvent.paste(`${'가\n'.repeat(900)}끝`)
 
-    // 줄바꿈을 빼면 1,001자라 자르지 않는다.
-    expect(input).toHaveValue(`${'가'.repeat(1000)}끝`)
+    expect(input).toHaveValue(`${'가\n'.repeat(900)}끝`)
+    expect(screen.getByText('1,801 / 2,000')).toBeInTheDocument()
     expect(
       screen.queryByText(
         '메시지는 2,000자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.',
       ),
     ).toBeNull()
-    await userEvent.paste(`${'나\r\n'.repeat(1000)}`)
-    expect((input as HTMLInputElement).value).toBe(
-      `${'가'.repeat(1000)}끝${'나'.repeat(999)}`,
+
+    // CRLF를 LF 하나로 바꿔 넣으므로 남은 199자에 '나\n' 99개와 '나'가 들어간다.
+    await userEvent.paste('나\r\n'.repeat(100))
+    expect((input as HTMLTextAreaElement).value).toBe(
+      `${'가\n'.repeat(900)}끝${'나\n'.repeat(99)}나`,
     )
     expect(screen.getByText('2,000 / 2,000')).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        '메시지는 2,000자까지 보낼 수 있어 넘는 부분은 잘라 넣었어요.',
+      ),
+    ).toBeInTheDocument()
     await settle()
   })
 
