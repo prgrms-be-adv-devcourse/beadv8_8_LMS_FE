@@ -86,6 +86,14 @@ export type CouponSummary = {
   status: CouponStatus
 }
 
+/**
+ * 쿠폰 받기 화면의 쿠폰 한 장(IssuableCouponView). 판매 중이 아닌 강의의 쿠폰은 BE가 빼고 준다
+ */
+export type IssuableCoupon = CouponSummary & {
+  /** 대상 강의 제목. 모든 강의 쿠폰이면 null */
+  lectureTitle: string | null
+}
+
 /** 내 쿠폰함 한 장(MemberCouponView) */
 export type MemberCoupon = {
   memberCouponId: number

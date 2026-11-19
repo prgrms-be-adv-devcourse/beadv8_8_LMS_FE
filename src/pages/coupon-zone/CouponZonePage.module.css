@@ -5,6 +5,10 @@
   gap: 12px;
   min-width: 0;
 }
+/* 다른 쪽을 불러오는 동안 이전 쪽 */
+.stale {
+  opacity: 0.5;
+}
 .sectionHead {
   display: flex;
   flex-wrap: wrap;
@@ -83,15 +87,6 @@
   font-size: 15px;
   font-weight: 700;
   overflow-wrap: anywhere;
-}
-.iconSkeleton:global(.skeleton) {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-sm);
-}
-.titleSkeleton {
-  flex: 0 1 220px;
 }
 .lectureLink {
   flex: none;
