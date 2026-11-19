@@ -319,4 +319,15 @@ describe('쿠폰 받기로 들어오는 곳', () => {
     await waitFor(() => expect(document.title).toBe('쿠폰 받기 · 합방'))
     expect(await ticket('전 강의 쿠폰')).toBeInTheDocument()
   })
+
+  it('쿠폰함 머리에서 쿠폰 받기로 간다', async () => {
+    mockLectures()
+    mockCoupons({ issuable: ISSUABLE })
+    const router = renderApp('/library/coupons', 'USER')
+    await screen.findByRole('heading', { level: 1, name: '쿠폰함' })
+
+    await userEvent.click(screen.getByRole('link', { name: '쿠폰 받기' }))
+    expect(router.state.location.pathname).toBe('/coupons')
+    expect(await ticket('전 강의 쿠폰')).toBeInTheDocument()
+  })
 })

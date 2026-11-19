@@ -290,7 +290,7 @@ describe('쿠폰함', () => {
     expect(within(lapsed).queryByRole('link')).toBeNull()
   })
 
-  it('받은 쿠폰이 없으면 쿠폰 받는 곳을 안내하고 강의로 보낸다', async () => {
+  it('받은 쿠폰이 없으면 쿠폰 받기로 보낸다', async () => {
     mockCoupons()
     renderApp('/library/coupons', 'INFLUENCER')
 
@@ -298,11 +298,16 @@ describe('쿠폰함', () => {
       await screen.findByText('쓸 수 있는 쿠폰이 없어요'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText("강의 상세의 '쿠폰 받기'에서 받을 수 있어요"),
+      screen.getByText('받을 수 있는 쿠폰은 쿠폰 받기에 모여 있어요'),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: '강의 보러 가기' }),
-    ).toHaveAttribute('href', '/lectures')
+      screen.getByRole('link', { name: '쿠폰 받으러 가기' }),
+    ).toHaveAttribute('href', '/coupons')
+    // 머리에도 쿠폰 받기가 늘 있다.
+    expect(screen.getByRole('link', { name: '쿠폰 받기' })).toHaveAttribute(
+      'href',
+      '/coupons',
+    )
     expect(screen.getByLabelText('쿠폰 요약')).toHaveTextContent('사용 가능0장')
   })
 
@@ -312,7 +317,7 @@ describe('쿠폰함', () => {
     renderApp('/library/coupons?view=past', 'USER')
 
     expect(await screen.findByText('지난 쿠폰이 없어요')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '강의 보러 가기' })).toBeNull()
+    expect(screen.queryByRole('link', { name: '쿠폰 받으러 가기' })).toBeNull()
   })
 
   it('쿠폰함을 불러오지 못하면 다시 시도할 수 있다', async () => {

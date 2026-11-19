@@ -52,6 +52,22 @@ export function CouponsPage() {
       <PageHead
         title="쿠폰함"
         lede="받은 쿠폰을 모아 봐요. 결제할 때 골라 쓸 수 있고, 만료일이 지나면 쓸 수 없어요."
+        actions={
+          <Link className={`btn ${styles.zoneLink}`} to="/coupons">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 7.5A1.5 1.5 0 0 1 5.5 6h13A1.5 1.5 0 0 1 20 7.5V10a2 2 0 0 0 0 4v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5V14a2 2 0 0 0 0-4zM14 6v12M9 9v6M6.8 12.8 9 15l2.2-2.2" />
+            </svg>
+            쿠폰 받기
+          </Link>
+        }
       />
       {isPending ? (
         <Loading />
@@ -122,12 +138,12 @@ function CouponBox({
         <EmptyState
           title="쓸 수 있는 쿠폰이 없어요"
           action={
-            <Link className="btn primary" to="/lectures">
-              강의 보러 가기
+            <Link className="btn primary" to="/coupons">
+              쿠폰 받으러 가기
             </Link>
           }
         >
-          강의 상세의 '쿠폰 받기'에서 받을 수 있어요
+          받을 수 있는 쿠폰은 쿠폰 받기에 모여 있어요
         </EmptyState>
       ) : (
         <EmptyState title="지난 쿠폰이 없어요">

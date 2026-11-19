@@ -1,3 +1,10 @@
+/* 머리의 쿠폰 받기(받을 수 있는 쿠폰 모음으로) */
+.zoneLink svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
 /* 요약: 계기판 숫자 두 칸. 곧 만료가 있으면 그 칸만 신호색 */
 .summary {
   display: grid;
