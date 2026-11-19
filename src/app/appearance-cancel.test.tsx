@@ -276,6 +276,47 @@ describe('출연 취소 (게스트)', () => {
     await settleDetail()
   })
 
+  it('취소 요청 창에 남은 요청 횟수를 보여 준다', async () => {
+    mockAppearance({
+      value: asGuest({
+        cancelRequests: [cancelRequest({ status: 'REJECTED' })],
+      }),
+    })
+    renderApp('/appearances/40', 'INFLUENCER')
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: '출연 취소 요청' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: '출연 취소를 요청할까요?',
+    })
+    expect(
+      within(dialog).getByText(
+        /취소 요청은 출연 1건당 2번까지 보낼 수 있어요. 지금/,
+      ),
+    ).toHaveTextContent('지금 1번 남았어요.')
+    await settleDetail()
+  })
+
+  it('상대와 채팅하기·프로필 보기로 이어진다', async () => {
+    mockAppearance({ value: asGuest() })
+    let target: unknown
+    server.use(
+      http.post('*/api/v1/chats', async ({ request }) => {
+        target = await request.json()
+        return rs({ chatRoomId: 77 })
+      }),
+    )
+    const router = renderApp('/appearances/40', 'INFLUENCER')
+
+    expect(
+      await screen.findByRole('link', { name: '프로필 보기' }),
+    ).toHaveAttribute('href', `/influencers/${PARTNER_ID}`)
+    await userEvent.click(screen.getByRole('button', { name: '채팅하기' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/chat/77'))
+    expect(target).toEqual({ targetUserId: PARTNER_ID })
+  })
+
   it('요청 2번을 다 썼으면 안내만 보인다', async () => {
     const current = {
       value: asGuest({

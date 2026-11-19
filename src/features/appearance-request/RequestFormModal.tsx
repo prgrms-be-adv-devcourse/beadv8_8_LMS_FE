@@ -81,10 +81,12 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
       urlTouched || !myChannel ? values.hostChannelUrl : myChannel.channelUrl,
   }
   const [shortHp, setShortHp] = useState(false)
+  // 지난 시각은 달력에서 고를 수 없게 min으로도 막는다(직접 입력한 값은 검사가 막는다).
+  const nowLocal = kstLocalInput()
   const fields = useFieldErrors({
     ids: FIELD_ID,
     order: FIELD_ORDER,
-    errors: validateRequestForm(formValues, kstLocalInput()),
+    errors: validateRequestForm(formValues, nowLocal),
   })
   const fee = Number(values.fee) || 0
   const spend = useHpSpend(fee)
@@ -103,11 +105,11 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
       }),
     onSuccess: (created) => {
       onClose()
-      // 보류가 끝나기 전(HOLD_PENDING)인 요청서도 보낸 요청에 '포인트 확인 중'으로 보이고, 끝날 때까지 목록이 다시 불러온다.
+      // 보류가 끝나기 전(HOLD_PENDING)인 요청서도 보낸 요청에 'HP 보류 확인 중'으로 보이고, 끝날 때까지 목록이 다시 불러온다.
       toast(
         created.status === 'REQUESTED'
           ? `${guest.nickname} 님에게 출연 요청을 보냈어요.`
-          : '접수됐어요. 포인트를 확인하고 있어요.',
+          : '접수됐어요. 보류를 확인하고 있어요.',
       )
       navigate(SENT_PATH)
     },
@@ -115,9 +117,9 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
       if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 요청서를 저장했고 HP 보류만 늦어지고 있다.
-        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록('포인트 확인 중')에서 결과를 보게 한다.
+        // 다시 보내면 중복 요청이 되므로 입력창을 닫고, 보낸 요청 목록('HP 보류 확인 중')에서 결과를 보게 한다.
         onClose()
-        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        toast('접수됐어요. 보류를 확인하고 있어요.')
         navigate(SENT_PATH)
         return
       }
@@ -221,6 +223,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
                 {...fields.inputProps('scheduledAt')}
                 type="datetime-local"
                 className="input"
+                min={nowLocal}
                 value={formValues.scheduledAt}
                 onChange={set('scheduledAt')}
               />
@@ -250,6 +253,7 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
               {...fields.inputProps('acceptDeadline')}
               type="datetime-local"
               className="input"
+              min={nowLocal}
               value={formValues.acceptDeadline}
               onChange={set('acceptDeadline')}
             />

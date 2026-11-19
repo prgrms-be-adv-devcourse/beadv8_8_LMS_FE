@@ -74,7 +74,7 @@ export function ApplicantList({ recruit }: { recruit: Recruit }) {
                         className="link fine"
                         to={`/appearances/${application.appearanceId}`}
                       >
-                        출연 #{application.appearanceId}
+                        출연 상세 보기
                       </Link>
                     )}
                   </div>

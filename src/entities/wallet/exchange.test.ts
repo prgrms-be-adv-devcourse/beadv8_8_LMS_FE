@@ -45,7 +45,7 @@ describe('exchangeAccountErrors', () => {
 
   it('은행 코드 3자리, 계좌번호 8~20자리, 예금주 앞뒤 공백 제외 1~50자를 검사한다', () => {
     expect(exchangeAccountErrors({ ...valid, bankCode: '04' }).bankCode).toBe(
-      '은행 코드는 숫자 3자리로 입력해 주세요.',
+      '받을 은행을 골라 주세요.',
     )
     expect(
       exchangeAccountErrors({ ...valid, bankCode: '0040' }).bankCode,

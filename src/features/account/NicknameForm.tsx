@@ -60,7 +60,7 @@ export function NicknameForm({ current }: { current: string }) {
         error={shown ?? undefined}
         hint={
           <span id={HINT_ID}>
-            채팅, 리뷰, 모집 글에 보여요. 2~12자, 한글·영문·숫자·공백·밑줄.
+            채팅, 리뷰, 모집글에 보여요. 2~12자, 한글·영문·숫자·공백·밑줄.
           </span>
         }
       >

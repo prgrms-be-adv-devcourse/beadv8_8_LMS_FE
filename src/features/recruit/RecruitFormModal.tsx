@@ -77,10 +77,12 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
       urlTouched || !myChannel ? values.hostChannelUrl : myChannel.channelUrl,
   }
   const [shortHp, setShortHp] = useState(false)
+  // 지난 시각은 달력에서 고를 수 없게 min으로도 막는다(직접 입력한 값은 검사가 막는다).
+  const nowLocal = kstLocalInput()
   const fields = useFieldErrors({
     ids: FIELD_ID,
     order: FIELD_ORDER,
-    errors: validateRecruitForm(formValues, kstLocalInput()),
+    errors: validateRecruitForm(formValues, nowLocal),
   })
   const fee = Number(values.feePerPerson) || 0
   const count = Number(values.recruitCount) || 0
@@ -101,11 +103,11 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: (created) => {
       onClose()
-      // 보류가 끝나기 전(HOLD_PENDING)인 모집글도 내 모집글에 '포인트 확인 중'으로 보이고, 끝날 때까지 목록이 다시 불러온다.
+      // 보류가 끝나기 전(HOLD_PENDING)인 모집글도 내 모집글에 'HP 보류 확인 중'으로 보이고, 끝날 때까지 목록이 다시 불러온다.
       toast(
         created.status === 'RECRUITING'
           ? '모집글을 올렸어요.'
-          : '접수됐어요. 포인트를 확인하고 있어요.',
+          : '접수됐어요. 보류를 확인하고 있어요.',
       )
       navigate(MINE_PATH)
     },
@@ -113,9 +115,9 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
       if (isApiError(error, 'INSUFFICIENT_BALANCE')) return setShortHp(true)
       if (isApiError(error, 'BILLING_UNAVAILABLE')) {
         // 실패가 아니라 결과 미확정: BE는 모집글을 저장했고 HP 보류만 늦어지고 있다.
-        // 다시 올리면 중복 모집글이 되므로 입력창을 닫고, 내 모집글('포인트 확인 중')에서 결과를 보게 한다.
+        // 다시 올리면 중복 모집글이 되므로 입력창을 닫고, 내 모집글('HP 보류 확인 중')에서 결과를 보게 한다.
         onClose()
-        toast('접수됐어요. 포인트를 확인하고 있어요.')
+        toast('접수됐어요. 보류를 확인하고 있어요.')
         navigate(MINE_PATH)
         return
       }
@@ -254,6 +256,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
               {...fieldProps('recruitDeadline')}
               type="datetime-local"
               className="input"
+              min={nowLocal}
               value={formValues.recruitDeadline}
             />
           </Field>
@@ -266,6 +269,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
               {...fieldProps('scheduledAt')}
               type="datetime-local"
               className="input"
+              min={nowLocal}
               value={formValues.scheduledAt}
             />
           </Field>
