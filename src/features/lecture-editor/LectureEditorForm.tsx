@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import {
   canEditContents,
+  CONTENTS_LOCK_NOTICE,
   readOnlyContentsNotice,
 } from '@/entities/lecture/edit'
 import { contentTypeOf, priceError, TITLE_MAX } from '@/entities/lecture/rules'
@@ -15,6 +16,7 @@ import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
+import { Modal } from '@/shared/ui/Modal'
 import styles from './LectureEditor.module.css'
 import { LessonList, type Lesson } from './LessonList'
 import { ThumbnailPicker } from './ThumbnailPicker'
@@ -84,11 +86,14 @@ export function LectureEditorForm({
   const [price, setPrice] = useState(
     lecture ? String(lecture.priceHp) : '10000',
   )
-  const [lessons, setLessons] = useState<Lesson[]>(() =>
+  const [initialLessons] = useState<Lesson[]>(() =>
     lecture ? lessonsOf(lecture) : [newLesson()],
   )
+  const [lessons, setLessons] = useState(initialLessons)
   const [thumbRemoved, setThumbRemoved] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  /** 첫 등록의 검수 신청 확인 창 */
+  const [confirming, setConfirming] = useState(false)
   const [serverErrors, setServerErrors] = useState<ServerErrors>(NO_ERRORS)
   const uploads = useUploads()
 
@@ -150,9 +155,31 @@ export function LectureEditorForm({
   const canSubmit =
     ready && !submitting && (!editing || rejected || changed.info)
 
-  const submit = async (e: FormEvent) => {
+  /** 저장하지 않은 입력(처음 연 값과 다름·올린 파일·뺀 썸네일)이 있는지. 떠나기 전에 묻는 데 쓴다 */
+  const dirty =
+    title !== (lecture?.title ?? '') ||
+    description !== (lecture?.description ?? '') ||
+    price !== (lecture ? String(lecture.priceHp) : '10000') ||
+    thumbRemoved ||
+    !!thumb ||
+    lessons.length !== initialLessons.length ||
+    lessons.some(
+      (l, i) =>
+        l.key !== initialLessons[i].key ||
+        l.title !== initialLessons[i].title ||
+        uploads.get(l.key).upload !== undefined,
+    )
+
+  const submit = (e: FormEvent) => {
     e.preventDefault()
     if (submitting || fields.blockSubmit() || !canSubmit) return
+    // 첫 등록은 검수를 신청하면 영상·자료를 바꿀 수 없어 한 번 더 묻는다.
+    if (!editing) setConfirming(true)
+    else void send()
+  }
+
+  const send = async () => {
+    setConfirming(false)
     setSubmitting(true)
     setServerErrors(NO_ERRORS)
     try {
@@ -403,13 +430,16 @@ export function LectureEditorForm({
             </p>
           )}
           {!editing ? (
-            <p className="fine">
-              검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
-              공개·판매가 시작돼요.
-            </p>
+            <>
+              <p className="fine">
+                검수 신청하면 &apos;검수 대기&apos;(비공개)가 되고, 승인되면
+                공개·판매가 시작돼요.
+              </p>
+              <div className="notice warn">{CONTENTS_LOCK_NOTICE}</div>
+            </>
           ) : rejected ? (
             <div className="notice warn">
-              반려 사유를 고친 뒤 다시 검수를 신청해요.
+              반려 사유를 고친 뒤 다시 검수를 신청해요. {CONTENTS_LOCK_NOTICE}
             </div>
           ) : changed.info ? (
             <div className="notice">
@@ -455,7 +485,40 @@ export function LectureEditorForm({
         </div>
       </aside>
 
-      <UploadLeaveGuard active={uploads.uploading} />
+      {/* 저장하는 동안은 막지 않는다(저장에 성공하면 강의 판매로 이동한다) */}
+      <UploadLeaveGuard
+        uploading={uploads.uploading}
+        dirty={dirty && !submitting}
+      />
+      {confirming && (
+        <Modal
+          title="검수를 신청할까요?"
+          onClose={() => setConfirming(false)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setConfirming(false)}
+              >
+                돌아가기
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => void send()}
+              >
+                신청하기
+              </button>
+            </>
+          }
+        >
+          <p>
+            {lessons.length}강, {formatNumber(priceHp)} HP로 검수를 신청해요.
+          </p>
+          <div className="notice warn">{CONTENTS_LOCK_NOTICE}</div>
+        </Modal>
+      )}
     </form>
   )
 }
