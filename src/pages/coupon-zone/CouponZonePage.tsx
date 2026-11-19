@@ -26,11 +26,18 @@ import { groupIssuable, issuableOrder, type LectureCoupons } from './zone'
 export function CouponZonePage() {
   const [page, setPage] = usePageParam('page')
   const query = useQuery(issuableCouponsQuery(page))
-  const { data, error, refetch } = query
+  const { data, error, refetch, isPlaceholderData: turning } = query
   const moving = useClampPage(page, query, setPage)
   const groups = groupIssuable(data?.content ?? [])
+  const coupons = issuableOrder(groups)
   // 발급 상태는 목록 밖에 둔다. 받은 뒤 목록을 다시 불러오다 실패해도 이미 받은 목록과 진행 중인 모두 받기를 유지한다.
-  const board = useIssueBoard(issuableOrder(groups))
+  const board = useIssueBoard(coupons)
+  // 발급 상태(요청 ID·결과 확인)는 지금 쪽의 쿠폰에만 있어, 받는 중인 쿠폰이 있으면(모두 받기 포함) 쪽을 넘기지 않는다.
+  const issuing =
+    board.bulk !== null ||
+    coupons.some((c) => board.stateOf(c.couponId).phase === 'processing')
+  // 쪽을 넘기는 동안 보이는 것은 이전 쪽이라, 새 쪽이 올 때까지 흐리게 두고 받기를 막는다.
+  const locked = board.bulk !== null || turning
 
   return (
     <div className="page">
@@ -47,8 +54,13 @@ export function CouponZonePage() {
                 title="모든 강의 쿠폰"
                 hint="어느 강의를 결제하든 쓸 수 있어요."
                 count={groups.anyLecture.length}
+                busy={turning}
               >
-                <Tickets coupons={groups.anyLecture} board={board} />
+                <Tickets
+                  coupons={groups.anyLecture}
+                  board={board}
+                  locked={locked}
+                />
               </ZoneSection>
             )}
             {groups.byLecture.length > 0 && (
@@ -59,6 +71,7 @@ export function CouponZonePage() {
                   (sum, group) => sum + group.coupons.length,
                   0,
                 )}
+                busy={turning}
               >
                 <div className={styles.lectures}>
                   {groups.byLecture.map((group) => (
@@ -66,20 +79,28 @@ export function CouponZonePage() {
                       key={group.lectureId}
                       group={group}
                       board={board}
+                      locked={locked}
                     />
                   ))}
                 </div>
               </ZoneSection>
             )}
             {groups.other.length > 0 && (
-              <ZoneSection title="그 밖의 쿠폰" count={groups.other.length}>
-                <Tickets coupons={groups.other} board={board} />
+              <ZoneSection
+                title="그 밖의 쿠폰"
+                count={groups.other.length}
+                busy={turning}
+              >
+                <Tickets coupons={groups.other} board={board} locked={locked} />
               </ZoneSection>
             )}
-            {/* 모두 받기는 지금 쪽의 쿠폰을 차례로 보내므로 끝날 때까지 쪽을 넘기지 않는다. 지난 결과는 그 쪽의 것이라 넘기면 지운다 */}
-            {!board.bulk && (
+            <p role="status" className="sr-only">
+              {turning ? '쿠폰을 불러오는 중…' : ''}
+            </p>
+            {/* 지난 모두 받기 결과는 그 쪽의 것이라 넘기면 지운다. 쪽 번호는 새 쪽을 기다리는 동안에도 고른 쪽을 가리킨다 */}
+            {!issuing && (
               <Pager
-                page={data.page.number}
+                page={page}
                 totalPages={data.page.totalPages}
                 onChange={(next) => {
                   board.clearResult()
@@ -87,7 +108,11 @@ export function CouponZonePage() {
                 }}
               />
             )}
-            <ActionBar board={board} paged={data.page.totalPages > 1} />
+            <ActionBar
+              board={board}
+              paged={data.page.totalPages > 1}
+              locked={turning}
+            />
           </>
         ) : (
           <EmptyState
@@ -125,20 +150,27 @@ export function CouponZonePage() {
   )
 }
 
+/** 쿠폰 구역. busy면 다른 쪽을 불러오는 중이라 흐리게 둔다 */
 function ZoneSection({
   title,
   hint,
   count,
+  busy,
   children,
 }: {
   title: string
   hint?: string
   count: number
+  busy: boolean
   children: ReactNode
 }) {
   const headingId = useId()
   return (
-    <section className={styles.section} aria-labelledby={headingId}>
+    <section
+      className={busy ? `${styles.section} ${styles.stale}` : styles.section}
+      aria-labelledby={headingId}
+      aria-busy={busy || undefined}
+    >
       <div className={styles.sectionHead}>
         <h2 id={headingId}>{title}</h2>
         <span className={styles.count}>
@@ -154,9 +186,11 @@ function ZoneSection({
 function Tickets({
   coupons,
   board,
+  locked,
 }: {
   coupons: IssuableCoupon[]
   board: IssueBoard
+  locked: boolean
 }) {
   return (
     <div className={styles.tickets}>
@@ -165,7 +199,7 @@ function Tickets({
           key={coupon.couponId}
           coupon={coupon}
           state={board.stateOf(coupon.couponId)}
-          locked={board.bulk !== null}
+          locked={locked}
           onIssue={() => board.issue(coupon.couponId)}
         />
       ))}
@@ -177,9 +211,11 @@ function Tickets({
 function LectureGroup({
   group,
   board,
+  locked,
 }: {
   group: LectureCoupons
   board: IssueBoard
+  locked: boolean
 }) {
   const titleId = useId()
   const title = group.lectureTitle
@@ -226,7 +262,7 @@ function LectureGroup({
           </svg>
         </Link>
       </div>
-      <Tickets coupons={group.coupons} board={board} />
+      <Tickets coupons={group.coupons} board={board} locked={locked} />
     </div>
   )
 }
@@ -235,7 +271,15 @@ function LectureGroup({
  * 목록 아래에 붙는 줄: 받을 수 있는 수, 모두 받기 진행·결과, 쿠폰함에서 보기, 모두 받기.
  * 모두 받기는 지금 쪽만 보내므로 쪽이 여럿이면 이 쪽의 수라고 밝힌다
  */
-function ActionBar({ board, paged }: { board: IssueBoard; paged: boolean }) {
+function ActionBar({
+  board,
+  paged,
+  locked,
+}: {
+  board: IssueBoard
+  paged: boolean
+  locked: boolean
+}) {
   const { tally, bulk, bulkResult } = board
   if (
     tally.requestable.length === 0 &&
@@ -253,7 +297,7 @@ function ActionBar({ board, paged }: { board: IssueBoard; paged: boolean }) {
           <b className="num">{tally.requestable.length}</b>장
         </p>
       )}
-      <BulkIssueActions board={board} />
+      <BulkIssueActions board={board} locked={locked} />
     </div>
   )
 }

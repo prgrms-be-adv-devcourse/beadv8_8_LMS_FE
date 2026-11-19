@@ -5,6 +5,10 @@
   gap: 12px;
   min-width: 0;
 }
+/* 다른 쪽을 불러오는 동안 이전 쪽 */
+.stale {
+  opacity: 0.5;
+}
 .sectionHead {
   display: flex;
   flex-wrap: wrap;

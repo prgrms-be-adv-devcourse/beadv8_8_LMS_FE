@@ -327,6 +327,88 @@ describe('쿠폰 받기 화면', () => {
     )
   })
 
+  it('한 장을 받는 중에도 결과가 나올 때까지 쪽을 넘기지 않는다', async () => {
+    const { coupons } = await openZone({
+      issuable: MANY,
+      issueStatuses: ['ISSUED'],
+    })
+    const card = await ticket('쿠폰 101')
+    expect(
+      screen.getByRole('navigation', { name: '페이지' }),
+    ).toBeInTheDocument()
+    // 접수를 붙잡아 두고 그동안 쪽 이동이 사라지는지 본다(쪽을 넘기면 그 쿠폰의 요청 상태가 끊긴다).
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.post(
+        '*/api/v1/coupons/:couponId/issue-requests',
+        async () => {
+          await gate
+        },
+        { once: true },
+      ),
+    )
+
+    await userEvent.click(
+      within(card).getByRole('button', { name: / 발급받기$/ }),
+    )
+    await waitFor(() =>
+      expect(screen.queryByRole('navigation', { name: '페이지' })).toBeNull(),
+    )
+    release()
+
+    expect(await within(card).findByText(/^발급 완료/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('navigation', { name: '페이지' }),
+    ).toBeInTheDocument()
+    expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([101])
+  })
+
+  it('쪽을 넘기는 동안에는 이전 쪽을 흐리게 두고 받기를 막으며 불러오는 중을 알린다', async () => {
+    const { coupons } = await openZone({ issuable: MANY })
+    const pager = await screen.findByRole('navigation', { name: '페이지' })
+    // 뒤 쪽 응답을 붙잡아 둔다(mockCoupons보다 뒤에 걸어야 먼저 거친다).
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    server.use(
+      http.get('*/api/v1/coupons/issuable', async ({ request }) => {
+        if (new URL(request.url).searchParams.get('page') === '1') await gate
+      }),
+    )
+
+    await userEvent.click(within(pager).getByRole('button', { name: '다음' }))
+    expect(await screen.findByText('쿠폰을 불러오는 중…')).toBeInTheDocument()
+    // 이전 쪽 쿠폰은 남아 있지만 누를 수 없고, 쪽 번호는 고른 쪽을 가리킨다.
+    expect(
+      within(screen.getByRole('group', { name: '쿠폰 101' })).getByRole(
+        'button',
+        { name: / 발급받기$/ },
+      ),
+    ).toBeDisabled()
+    expect(screen.getByRole('button', { name: '모두 받기' })).toBeDisabled()
+    expect(screen.getByRole('region', { name: '강의별 쿠폰' })).toHaveAttribute(
+      'aria-busy',
+      'true',
+    )
+    expect(
+      screen.getByRole('navigation', { name: '페이지' }),
+    ).toHaveTextContent('전체 2쪽 중 2쪽')
+    release()
+
+    expect(await ticket('쿠폰 121')).toBeInTheDocument()
+    expect(screen.queryByText('쿠폰을 불러오는 중…')).toBeNull()
+    expect(
+      screen.getByRole('region', { name: '강의별 쿠폰' }),
+    ).not.toHaveAttribute('aria-busy')
+    expect(screen.getByRole('button', { name: '모두 받기' })).toBeEnabled()
+    expect(
+      within(await ticket('쿠폰 121')).getByRole('button', {
+        name: / 발급받기$/,
+      }),
+    ).toBeEnabled()
+    expect(coupons.issueRequests).toEqual([])
+  })
+
   it('주소의 쪽이 마지막 쪽을 넘으면 마지막 쪽으로 옮긴다', async () => {
     const { router } = await openZone({ issuable: MANY }, '/coupons?page=9')
 
