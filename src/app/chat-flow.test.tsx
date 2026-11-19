@@ -629,7 +629,10 @@ describe('채팅', () => {
     expect(input).toHaveValue('첫 줄\n둘째 줄')
     expect(sent()).toHaveLength(0)
 
+    // Chrome 계열: 조합 중 Enter는 isComposing으로 온다.
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    // Safari: 조합이 끝난 뒤 keydown이 와 isComposing이 false이고 keyCode가 229다.
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
     expect(sent()).toHaveLength(0)
     expect(input).toHaveValue('첫 줄\n둘째 줄')
 
@@ -652,6 +655,32 @@ describe('채팅', () => {
     )
     const bubble = await screen.findByText('첫 줄 둘째 줄')
     expect(bubble.textContent).toBe('첫 줄\n둘째 줄')
+  })
+
+  it('터치 기기에서는 Enter가 줄을 바꾸고 보내기 버튼으로 보낸다', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    onTestFinished(() => {
+      vi.unstubAllGlobals()
+    })
+    mockChat([room()])
+    renderApp('/chat/5', 'INFLUENCER')
+    const input = await screen.findByRole('textbox', { name: '메시지' })
+    const client = await connectSocket()
+    const sent = () =>
+      client.published.filter((p) => p.destination === '/pub/chats/5/messages')
+
+    await userEvent.type(input, '첫 줄{Enter}둘째 줄')
+    expect(input).toHaveValue('첫 줄\n둘째 줄')
+    expect(sent()).toHaveLength(0)
+
+    await userEvent.click(screen.getByRole('button', { name: '보내기' }))
+    expect(sent()).toHaveLength(1)
+    expect(JSON.parse(sent()[0].body).content).toBe('첫 줄\n둘째 줄')
   })
 
   it('나가기 확인은 취소에 포커스를 두고 이름·설명을 잇고, 취소하면 나가기 버튼으로 돌아간다', async () => {
