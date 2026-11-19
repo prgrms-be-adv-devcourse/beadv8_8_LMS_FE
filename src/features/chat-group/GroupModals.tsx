@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useRef, useState, type FormEvent } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import { chatMembersQuery, inviteCandidatesQuery } from '@/entities/chat/api'
 import { INVITE_MAX, inviteFailureLabel } from '@/entities/chat/group'
 import type {
@@ -132,6 +132,15 @@ function MemberRow({
   onCancel: () => void
   onKick: () => void
 }) {
+  const messageId = useId()
+  // 확인을 닫으면(취소, 내보내기 실패) 다시 그려지는 '내보내기' 버튼으로 포커스를 돌린다.
+  const askRef = useRef<HTMLButtonElement>(null)
+  const refocus = useRef(false)
+  useLayoutEffect(() => {
+    if (confirming || !refocus.current) return
+    refocus.current = false
+    askRef.current?.focus()
+  }, [confirming])
   return (
     <li className={confirming ? `${styles.row} ${styles.asking}` : styles.row}>
       <Avatar name={member.nickname} size={36} />
@@ -150,19 +159,36 @@ function MemberRow({
       </span>
       {kickable &&
         (confirming ? (
-          <span className={styles.confirm}>
-            <span className={styles.confirmMsg}>
+          <span
+            className={styles.confirm}
+            role="group"
+            aria-label={`${member.nickname} 님 내보내기 확인`}
+            aria-describedby={messageId}
+          >
+            <span id={messageId} className={styles.confirmMsg}>
               내보내면 다시 초대해야만 들어올 수 있어요.
             </span>
             <span className={styles.confirmBtns}>
-              <button type="button" className="btn ghost sm" onClick={onCancel}>
+              {/* 되돌릴 수 없는 행동이라 실수로 누르지 않게 취소에 먼저 둔다. */}
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => {
+                  refocus.current = true
+                  onCancel()
+                }}
+                autoFocus
+              >
                 취소
               </button>
               <button
                 type="button"
                 className="btn danger sm"
                 disabled={pending}
-                onClick={onKick}
+                onClick={() => {
+                  refocus.current = true
+                  onKick()
+                }}
                 aria-label={`${member.nickname} 님 내보내기 확인`}
               >
                 내보내기
@@ -171,6 +197,7 @@ function MemberRow({
           </span>
         ) : (
           <button
+            ref={askRef}
             type="button"
             className={`btn ghost sm ${styles.kick}`}
             onClick={onAsk}

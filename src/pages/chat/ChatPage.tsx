@@ -7,13 +7,14 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ClipboardEvent,
-  type FormEvent,
   type ReactNode,
+  type Ref,
 } from 'react'
 import { Link, useParams } from 'react-router'
 import {
@@ -75,6 +76,7 @@ import {
   BackIcon,
   ChatArt,
   CloseIcon,
+  DownIcon,
   ExitIcon,
   InfoIcon,
   InviteIcon,
@@ -304,9 +306,11 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   } = useInfiniteQuery(chatMessagesQuery(room.chatRoomId))
 
   // 오래된 것부터 그린다(순번순, 같은 메시지는 한 번).
-  const messages = data ? orderedMessages(data.pages) : []
+  const messages = useMemo(
+    () => (data ? orderedMessages(data.pages) : []),
+    [data],
+  )
   const nameOf = useNoticeNames(room.chatRoomId, group !== null, messages)
-  const latestId = messages.at(-1)?.messageId
   // 화면에 보인 가장 최근 메시지까지 읽음으로 알린다(방을 보는 중 받은 메시지 포함).
   // 읽음에는 이력 응답의 참여 세대를 붙인다(없으면 방 목록의 내 세대).
   useMarkRoomRead(
@@ -316,18 +320,71 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
   )
   const listRef = useRef<HTMLDivElement>(null)
   const keepOffset = useRef<number | null>(null)
+  // 바닥 근처를 보고 있는지(스크롤할 때 잰다). 위쪽 옛 대화를 읽는 중이면 새 메시지가 와도 끌어내리지 않는다.
+  const following = useRef(true)
+  // 마지막으로 반영한 가장 최근 순번과 보내는 중 개수. 처음 불러오기 전에는 null
+  const shown = useRef<{ sequence: number; pending: number } | null>(null)
+  // 바닥을 떠나 있는 동안 온 다른 사람의 메시지 수
+  const [unseen, setUnseen] = useState(0)
+  // 숨긴 알림 영역에서 읽어 줄 상대의 새 메시지(최근 몇 개만 남긴다)
+  const [heard, setHeard] = useState<ChatMessage[]>([])
+  const loaded = data !== undefined
 
-  // 새 메시지가 오면 맨 아래로, 이전 메시지를 불러오면 보던 위치를 지킨다.
+  // 처음 연 대화는 맨 아래부터 보인다(참여가 바뀌어 이력을 버리고 다시 불러온 때도). 그 뒤로는 바닥을 보고 있었거나
+  // 내가 보냈을 때만 맨 아래로 내리고, 아니면 새 메시지 수만 센다. 이전 메시지를 위에 붙이면 보던 위치를 지킨다.
   useLayoutEffect(() => {
     const box = listRef.current
     if (!box) return
+    if (!loaded) {
+      shown.current = null
+      return
+    }
+    const before = shown.current
+    shown.current = {
+      sequence: messages.at(-1)?.roomSequence ?? 0,
+      pending: pending.length,
+    }
+    if (!before) {
+      box.scrollTop = box.scrollHeight
+      following.current = true
+      setUnseen(0)
+      return
+    }
+    const fromOthers = messages.filter(
+      (m) => m.roomSequence > before.sequence && m.senderUserId !== myUserId,
+    )
+    const said = fromOthers.filter((m) => m.messageType === 'TEXT')
+    if (said.length > 0)
+      setHeard((list) => [...list, ...said].slice(-ANNOUNCE_KEEP))
     if (keepOffset.current !== null) {
       box.scrollTop = box.scrollHeight - keepOffset.current
       keepOffset.current = null
-    } else {
+    } else if (following.current || pending.length > before.pending) {
       box.scrollTop = box.scrollHeight
+      following.current = true
+      setUnseen(0)
+    } else if (fromOthers.length > 0) {
+      setUnseen((n) => n + fromOthers.length)
     }
-  }, [latestId, messages.length, pending.length])
+  }, [loaded, messages, pending.length, myUserId])
+
+  const onScroll = () => {
+    const box = listRef.current
+    if (!box) return
+    following.current =
+      box.scrollHeight - box.scrollTop - box.clientHeight <= NEAR_BOTTOM_PX
+    if (following.current) setUnseen(0)
+  }
+
+  const showLatest = () => {
+    const box = listRef.current
+    if (!box) return
+    box.scrollTop = box.scrollHeight
+    following.current = true
+    setUnseen(0)
+    // 누른 버튼이 사라지므로 대화 목록으로 포커스를 옮긴다(키보드로 이어서 스크롤할 수 있다).
+    box.focus({ preventScroll: true })
+  }
 
   const loadOlder = () => {
     const box = listRef.current
@@ -339,23 +396,22 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     })
   }
 
-  const send = (e: FormEvent) => {
-    e.preventDefault()
+  const send = () => {
     const content = text.trim()
     if (!content) return
-    // 연결이 없으면 실패로 표시돼 다시 보낼 수 있다.
+    // 연결이 끊긴 동안에도 보낼 수 있다. 연결이 없으면 실패로 표시돼 다시 보내기로 이어진다.
     sendChatMessage(room.chatRoomId, content)
     setText('')
   }
 
   // 붙여넣으면 넘는 길이는 입력창(maxLength)이 말없이 버리므로, 직접 잘라 넣고 알린다.
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const caretAfterPaste = useRef<number | null>(null)
-  const pasteWithinLimit = (e: ClipboardEvent<HTMLInputElement>) => {
+  const pasteWithinLimit = (e: ClipboardEvent<HTMLTextAreaElement>) => {
     const input = e.currentTarget
-    // 한 줄 입력창은 줄바꿈을 지우고 넣는다. 같은 기준으로 세고, 줄바꿈이 있으면 직접 지워 넣는다.
+    // 줄바꿈은 그대로 넣는다. 입력창 값처럼 CRLF·CR을 LF 하나로 바꿔 넣고 같은 기준으로 센다(BE도 한 글자로 센다).
     const raw = e.clipboardData.getData('text')
-    const pasted = raw.replace(/[\r\n]/g, '')
+    const pasted = raw.replace(/\r\n?/g, '\n')
     const start = input.selectionStart ?? text.length
     const end = input.selectionEnd ?? text.length
     const room = CHAT_MESSAGE_MAX_LENGTH - (text.length - (end - start))
@@ -381,6 +437,15 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
     if (caret === null) return
     caretAfterPaste.current = null
     inputRef.current?.setSelectionRange(caret, caret)
+  }, [text])
+  // 글 줄 수에 맞춰 입력창을 늘리고, 정한 높이를 넘으면 칸 안에서 스크롤한다.
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    const height = el.scrollHeight + (el.offsetHeight - el.clientHeight)
+    el.style.height = `${Math.min(height, FIELD_MAX_HEIGHT_PX)}px`
+    el.style.overflowY = height > FIELD_MAX_HEIGHT_PX ? 'auto' : 'hidden'
   }, [text])
   const showCount = text.length > CHAT_MESSAGE_COUNT_FROM
 
@@ -417,87 +482,109 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
             : '연결이 끊겼어요. 다시 연결하고 있어요'}
         </p>
       )}
-      <div className={styles.msgs} ref={listRef} aria-live="polite">
-        {isPending ? (
-          <Loading />
-        ) : !data ? (
-          <LoadError error={error} retry={refetch} />
-        ) : (
-          <>
-            {/* 보이던 대화는 그대로 두고, 실패는 그 자리에서 알린다. */}
-            {error && !isFetchNextPageError && (
-              <InlineLoadError
-                title="대화를 새로 불러오지 못했어요."
-                error={error}
-                retrying={isFetching}
-                retry={() => void refetch()}
-              />
-            )}
-            {error && isFetchNextPageError ? (
-              <InlineLoadError
-                title="이전 메시지를 불러오지 못했어요."
-                error={error}
-                retrying={isFetchingNextPage}
-                retry={loadOlder}
-              />
-            ) : (
-              hasNextPage && (
-                <button
-                  type="button"
-                  className={`btn ghost sm ${styles.older}`}
-                  disabled={isFetchingNextPage}
-                  onClick={loadOlder}
-                >
-                  {isFetchingNextPage ? '불러오는 중…' : '이전 메시지 더 보기'}
-                </button>
-              )
-            )}
-            {messages.length === 0 && (
-              <div className={styles.threadEmpty}>
-                <ChatArt className={styles.art} />
-                <p className="fine">
-                  {group
-                    ? perms?.canInvite
-                      ? '단체방이 열렸어요. 지원자를 초대해 대화를 시작해 보세요.'
-                      : '이 방에서 볼 수 있는 대화가 아직 없어요.'
-                    : `${partner?.nickname} 님과 대화를 시작해 보세요.`}
-                </p>
-              </div>
-            )}
-            {messages.map((m, i) => {
-              const prev = messages[i - 1]
-              const newDay = !prev || dayKey(prev.sentAt) !== dayKey(m.sentAt)
-              return (
-                <Fragment key={m.messageId}>
-                  {newDay && <DayDivider sentAt={m.sentAt} />}
-                  <MessageItem
-                    message={m}
-                    mine={m.senderUserId === myUserId}
-                    group={group}
-                    nameOf={nameOf}
-                    first={!sameRun(prev, m)}
-                    last={!sameRun(m, messages[i + 1])}
-                  />
-                </Fragment>
-              )
-            })}
-            {pending.map((p, i) => (
-              <PendingItem
-                key={p.clientMessageId}
-                chatRoomId={room.chatRoomId}
-                pending={p}
-                // 바로 앞이 내 메시지면 같은 묶음으로 이어 그린다(꼬리 모서리 없음).
-                first={
-                  i === 0 &&
-                  !(
-                    messages.at(-1)?.messageType === 'TEXT' &&
-                    messages.at(-1)?.senderUserId === myUserId
-                  )
-                }
-              />
-            ))}
-          </>
+      <div className={styles.msgsWrap}>
+        <div
+          className={styles.msgs}
+          ref={listRef}
+          tabIndex={-1}
+          onScroll={onScroll}
+        >
+          {isPending ? (
+            <Loading />
+          ) : !data ? (
+            <LoadError error={error} retry={refetch} />
+          ) : (
+            <>
+              {/* 보이던 대화는 그대로 두고, 실패는 그 자리에서 알린다. */}
+              {error && !isFetchNextPageError && (
+                <InlineLoadError
+                  title="대화를 새로 불러오지 못했어요."
+                  error={error}
+                  retrying={isFetching}
+                  retry={() => void refetch()}
+                />
+              )}
+              {error && isFetchNextPageError ? (
+                <InlineLoadError
+                  title="이전 메시지를 불러오지 못했어요."
+                  error={error}
+                  retrying={isFetchingNextPage}
+                  retry={loadOlder}
+                />
+              ) : (
+                hasNextPage && (
+                  <button
+                    type="button"
+                    className={`btn ghost sm ${styles.older}`}
+                    disabled={isFetchingNextPage}
+                    onClick={loadOlder}
+                  >
+                    {isFetchingNextPage
+                      ? '불러오는 중…'
+                      : '이전 메시지 더 보기'}
+                  </button>
+                )
+              )}
+              {messages.length === 0 && (
+                <div className={styles.threadEmpty}>
+                  <ChatArt className={styles.art} />
+                  <p className="fine">
+                    {group
+                      ? perms?.canInvite
+                        ? '단체방이 열렸어요. 지원자를 초대해 대화를 시작해 보세요.'
+                        : '이 방에서 볼 수 있는 대화가 아직 없어요.'
+                      : `${partner?.nickname} 님과 대화를 시작해 보세요.`}
+                  </p>
+                </div>
+              )}
+              {messages.map((m, i) => {
+                const prev = messages[i - 1]
+                const newDay = !prev || dayKey(prev.sentAt) !== dayKey(m.sentAt)
+                return (
+                  <Fragment key={m.messageId}>
+                    {newDay && <DayDivider sentAt={m.sentAt} />}
+                    <MessageItem
+                      message={m}
+                      mine={m.senderUserId === myUserId}
+                      group={group}
+                      nameOf={nameOf}
+                      first={!sameRun(prev, m)}
+                      last={!sameRun(m, messages[i + 1])}
+                    />
+                  </Fragment>
+                )
+              })}
+              {pending.map((p, i) => (
+                <PendingItem
+                  key={p.clientMessageId}
+                  chatRoomId={room.chatRoomId}
+                  pending={p}
+                  direct={group === null}
+                  // 바로 앞이 내 메시지면 같은 묶음으로 이어 그린다(꼬리 모서리 없음).
+                  first={
+                    i === 0 &&
+                    !(
+                      messages.at(-1)?.messageType === 'TEXT' &&
+                      messages.at(-1)?.senderUserId === myUserId
+                    )
+                  }
+                />
+              ))}
+            </>
+          )}
+        </div>
+        {unseen > 0 && (
+          <button type="button" className={styles.newMsgs} onClick={showLatest}>
+            새 메시지 {formatNumber(unseen)}개
+            <DownIcon />
+          </button>
         )}
+      </div>
+      {/* 목록 전체를 낭독 영역으로 두면 불러온 옛 메시지까지 읽히므로, 상대가 새로 보낸 메시지만 여기서 알린다. */}
+      <div className="sr-only" aria-live="polite">
+        {heard.map((m) => (
+          <p key={m.messageId}>{`${senderName(m)}: ${m.content}`}</p>
+        ))}
       </div>
       {partnerLeft ? (
         <div className={styles.partnerLeft} role="status">
@@ -514,20 +601,37 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
           <span>{groupStatusNotice(room, perms.host)}</span>
         </div>
       ) : (
-        <form className={styles.composer} onSubmit={send}>
+        <form
+          className={styles.composer}
+          onSubmit={(e) => {
+            e.preventDefault()
+            send()
+          }}
+        >
           <div className={styles.composerInput}>
-            <input
+            <textarea
               ref={inputRef}
               className={styles.field}
+              rows={1}
               value={text}
               maxLength={CHAT_MESSAGE_MAX_LENGTH}
               onChange={(e) => setText(e.target.value)}
               onPaste={pasteWithinLimit}
-              placeholder={
-                status === 'connected'
-                  ? '메시지 입력'
-                  : '채팅 서버에 연결하는 중…'
-              }
+              onKeyDown={(e) => {
+                // Enter는 보내기, Shift+Enter는 줄바꿈. 한글 조합을 확정하는 Enter는 보내지 않는다. Safari는 조합이
+                // 끝난 뒤에 keydown이 와서 isComposing이 false이므로 keyCode 229로도 가린다.
+                if (
+                  e.key !== 'Enter' ||
+                  e.shiftKey ||
+                  e.nativeEvent.isComposing ||
+                  e.keyCode === 229 ||
+                  !enterSends()
+                )
+                  return
+                e.preventDefault()
+                send()
+              }}
+              placeholder="메시지 입력"
               aria-label="메시지"
               aria-describedby={showCount ? 'chat-count' : undefined}
               autoComplete="off"
@@ -539,11 +643,7 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
               </span>
             )}
           </div>
-          <button
-            type="submit"
-            className={styles.send}
-            disabled={status !== 'connected' || !text.trim()}
-          >
+          <button type="submit" className={styles.send} disabled={!text.trim()}>
             <SendIcon />
             <span className={styles.sendLabel}>보내기</span>
           </button>
@@ -564,7 +664,12 @@ function DirectHead({
   participationVersion: number | undefined
 }) {
   const leave = useLeaveChat()
-  const [confirmLeave, setConfirmLeave] = useState(false)
+  const {
+    open: confirmingLeave,
+    trigger: leaveButton,
+    ask: askLeave,
+    cancel: cancelLeave,
+  } = useInlineConfirm()
   return (
     <div className={styles.threadHead}>
       <Avatar name={partner?.nickname ?? '?'} size={36} />
@@ -578,11 +683,11 @@ function DirectHead({
           </span>
         )}
       </div>
-      {confirmLeave ? (
+      {confirmingLeave ? (
         <LeaveConfirm
           message="나가면 이 대화 기록을 다시 볼 수 없고 상대에게 퇴장 안내가 가요. 대화만 닫으려면 ✕를 눌러요."
           pending={leave.isPending || participationVersion === undefined}
-          onCancel={() => setConfirmLeave(false)}
+          onCancel={cancelLeave}
           onLeave={() =>
             participationVersion !== undefined &&
             leave.mutate({ chatRoomId, participationVersion })
@@ -590,7 +695,7 @@ function DirectHead({
         />
       ) : (
         <span className={styles.actions}>
-          <HeadAction icon={<ExitIcon />} onClick={() => setConfirmLeave(true)}>
+          <HeadAction ref={leaveButton} icon={<ExitIcon />} onClick={askLeave}>
             나가기
           </HeadAction>
         </span>
@@ -602,16 +707,19 @@ function DirectHead({
 
 /** 대화 머리의 행동 버튼. 좁은 화면에서는 아이콘만 보이고 글자는 접근성 이름으로 남는다 */
 function HeadAction({
+  ref,
   icon,
   onClick,
   children,
 }: {
+  ref?: Ref<HTMLButtonElement>
   icon: ReactNode
   onClick: () => void
   children: string
 }) {
   return (
     <button
+      ref={ref}
       type="button"
       className={`btn ghost sm ${styles.act}`}
       onClick={onClick}
@@ -643,7 +751,12 @@ function GroupHead({
   participationVersion: number | undefined
 }) {
   const leave = useLeaveChat()
-  const [confirmLeave, setConfirmLeave] = useState(false)
+  const {
+    open: confirmingLeave,
+    trigger: leaveButton,
+    ask: askLeave,
+    cancel: cancelLeave,
+  } = useInlineConfirm()
   const [modal, setModal] = useState<'members' | 'invite' | 'close' | null>(
     null,
   )
@@ -686,13 +799,13 @@ function GroupHead({
             폐쇄
           </HeadAction>
         )}
-        {perms.canLeave && !confirmLeave && (
-          <HeadAction icon={<ExitIcon />} onClick={() => setConfirmLeave(true)}>
+        {perms.canLeave && !confirmingLeave && (
+          <HeadAction ref={leaveButton} icon={<ExitIcon />} onClick={askLeave}>
             나가기
           </HeadAction>
         )}
       </span>
-      {perms.canLeave && confirmLeave && (
+      {perms.canLeave && confirmingLeave && (
         <LeaveConfirm
           message={
             perms.host
@@ -700,7 +813,7 @@ function GroupHead({
               : '나가면 이 방의 대화를 다시 볼 수 없고, 호스트가 다시 초대해야만 들어올 수 있어요.'
           }
           pending={leave.isPending || participationVersion === undefined}
-          onCancel={() => setConfirmLeave(false)}
+          onCancel={cancelLeave}
           onLeave={() =>
             participationVersion !== undefined &&
             leave.mutate({ chatRoomId, participationVersion })
@@ -755,6 +868,30 @@ function useRefreshOnMemberCount(chatRoomId: number, memberCount: number) {
   }, [queryClient, chatRoomId, memberCount])
 }
 
+/**
+ * 그 자리에서 한 번 더 확인하기. 열면 확인 묶음의 '취소'로 포커스가 가고(LeaveConfirm), 취소하면 확인을 연 버튼으로
+ * 돌아간다. 그 버튼은 확인하는 동안 빠졌다가 다시 그려지므로 그린 뒤에 옮긴다
+ */
+function useInlineConfirm() {
+  const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const refocus = useRef(false)
+  useLayoutEffect(() => {
+    if (open || !refocus.current) return
+    refocus.current = false
+    trigger.current?.focus()
+  }, [open])
+  return {
+    open,
+    trigger,
+    ask: () => setOpen(true),
+    cancel: () => {
+      refocus.current = true
+      setOpen(false)
+    },
+  }
+}
+
 function LeaveConfirm({
   message,
   pending,
@@ -766,11 +903,25 @@ function LeaveConfirm({
   onCancel: () => void
   onLeave: () => void
 }) {
+  const messageId = useId()
   return (
-    <span className={styles.leaveConfirm}>
-      <span className={styles.leaveMsg}>{message}</span>
+    <span
+      className={styles.leaveConfirm}
+      role="group"
+      aria-label="나가기 확인"
+      aria-describedby={messageId}
+    >
+      <span id={messageId} className={styles.leaveMsg}>
+        {message}
+      </span>
       <span className={styles.leaveBtns}>
-        <button type="button" className="btn ghost sm" onClick={onCancel}>
+        {/* 되돌릴 수 없는 행동이라 실수로 누르지 않게 취소에 먼저 둔다. */}
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={onCancel}
+          autoFocus
+        >
           취소
         </button>
         <button
@@ -898,6 +1049,28 @@ function cutWithinLimit(pasted: string, room: number) {
 
 const NO_PENDING: PendingMessage[] = []
 
+/** 바닥에서 이만큼 안을 보고 있으면 새 메시지가 올 때 따라 내린다 */
+const NEAR_BOTTOM_PX = 80
+/** 숨긴 알림 영역에 남겨 두는 최근 메시지 수(새로 더한 것만 읽힌다) */
+const ANNOUNCE_KEEP = 5
+/** 입력창이 이 높이까지 자라고 그 뒤로는 칸 안에서 스크롤한다 */
+const FIELD_MAX_HEIGHT_PX = 140
+
+/**
+ * Enter로 보내는지. 터치 기기의 화면 키보드에는 Shift가 없어 줄을 바꿀 길이 없으므로, Enter는 줄바꿈으로 두고
+ * 보내기 버튼으로만 보낸다
+ */
+function enterSends() {
+  return !(
+    typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+  )
+}
+
+/** 1:1 방 말풍선의 보낸 사람. 화면에는 좌우 위치로 보이므로 보조 기술에만 읽힌다 */
+function DirectSender({ mine }: { mine: boolean }) {
+  return <span className="sr-only">{mine ? '나: ' : '상대: '}</span>
+}
+
 /**
  * 보내는 중·실패·결과 미확인인 내 메시지. 실패·결과 미확인이면 같은 임시 ID로 다시 보내기·지우기.
  * 결과 미확인은 저장됐을 수도 있어 실패와 따로 안내한다(다시 보내도 두 번 저장되지 않는다).
@@ -905,10 +1078,13 @@ const NO_PENDING: PendingMessage[] = []
 function PendingItem({
   chatRoomId,
   pending,
+  direct,
   first,
 }: {
   chatRoomId: number
   pending: PendingMessage
+  /** 1:1 방이면 보낸 사람(나)을 보조 기술에 읽힌다 */
+  direct: boolean
   /** 묶음의 첫 줄이면 꼬리 모서리를 단다 */
   first: boolean
 }) {
@@ -916,6 +1092,7 @@ function PendingItem({
   if (pending.status === 'sending')
     return (
       <div className={`${styles.msg} ${styles.me} ${styles.sending}${run}`}>
+        {direct && <DirectSender mine />}
         <div className={styles.bubble}>{pending.content}</div>
         <span className={styles.meta}>
           <time>보내는 중…</time>
@@ -927,6 +1104,7 @@ function PendingItem({
     <div
       className={`${styles.msg} ${styles.me} ${unconfirmed ? styles.unconfirmed : styles.failed}${run}`}
     >
+      {direct && <DirectSender mine />}
       <div className={styles.bubble}>{pending.content}</div>
       <span className={styles.meta} aria-hidden="true">
         <span className={styles.failMark}>
@@ -1026,6 +1204,7 @@ function MessageItem({
           {message.senderUserId === group.hostUserId && <HostCrown />}
         </span>
       )}
+      {!group && <DirectSender mine={mine} />}
       <div className={styles.bubble}>{message.content}</div>
       <span className={styles.meta}>
         {/* 안 읽은 사람 수(0이면 숨김, 보낸 사람 제외). 누가 읽었는지는 보이지 않는다. 1:1 방의 내 메시지는 상대가
