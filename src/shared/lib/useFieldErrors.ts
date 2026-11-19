@@ -112,13 +112,20 @@ export function useFieldErrors<K extends string>({
     error: shownError,
     /** form에 펼친다: 건너뛴 칸 기록 */
     formProps: { onFocus: onFormFocus },
-    /** 입력칸에 펼친다: id·오류 상태·오류 문구 연결과 떠난 칸 기록 */
-    inputProps: (key: K) => {
+    /** 입력칸에 펼친다: id·오류 상태·안내문·오류 문구 연결과 떠난 칸 기록. 칸에 안내문(Field의 hint)이 있으면 hint: true, 필수 칸이면 required: true */
+    inputProps: (key: K, opts?: { hint?: boolean; required?: boolean }) => {
       const shown = Boolean(shownError(key))
+      const describedBy = [
+        opts?.hint ? `${ids[key]}-hint` : null,
+        shown ? `${ids[key]}-error` : null,
+      ]
+        .filter(Boolean)
+        .join(' ')
       return {
         id: ids[key],
         'aria-invalid': shown || undefined,
-        'aria-describedby': shown ? `${ids[key]}-error` : undefined,
+        'aria-describedby': describedBy || undefined,
+        'aria-required': opts?.required || undefined,
         onBlur: () => touch(key),
       }
     },

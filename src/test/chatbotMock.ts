@@ -1,3 +1,5 @@
+import { within } from '@testing-library/react'
+import type userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import type {
   ChatRequest,
@@ -9,6 +11,17 @@ import type { MemberProfileDetail } from '@/entities/member/types'
 import { noAppearanceRating } from './memberProfile'
 import { rs } from './renderApp'
 import { server } from './server'
+
+/** 챗봇 창에서 새 대화를 누르고, 한 번 더 묻는 띠에서 지운다 */
+export async function startNewConversation(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+) {
+  await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+  await user.click(
+    within(dialog).getByRole('button', { name: '지우고 새로 시작' }),
+  )
+}
 
 /** 챗봇 BE 흉내(BE docs/api/chatbot.md). 테스트는 mockChatbot이 돌려준 state를 바꿔 다음 응답을 정한다 */
 

@@ -123,7 +123,13 @@ describe('환불 모달', () => {
     })
     const { dialog } = await openRefundModal()
 
-    expect(within(dialog).getByLabelText('환불 금액 (HP)')).toHaveValue('12000')
+    expect(within(dialog).getByLabelText('환불 금액 (HP)')).toHaveValue(
+      '12,000',
+    )
+    expect(within(dialog).getByText(/1,000 HP 단위로/)).toBeInTheDocument()
+    expect(
+      within(dialog).getAllByRole('button', { name: '닫기' }).at(-1),
+    ).toHaveClass('ghost')
     expect(
       within(dialog).getByText('충전 HP · 환불 가능').closest('div'),
     ).toHaveTextContent('12,500')
@@ -159,11 +165,29 @@ describe('환불 모달', () => {
 
     await user.clear(input)
     await user.type(input, value)
+    // 입력하는 동안에는 알리지 않고, 칸을 떠나면 알린다
+    expect(within(dialog).queryByRole('alert')).toBeNull()
+    await user.tab()
 
     expect(within(dialog).getByRole('alert')).toHaveTextContent(message)
     expect(
       within(dialog).getByRole('button', { name: /HP 환불 신청$/ }),
-    ).toBeDisabled()
+    ).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('금액 칸에서 Enter를 누르면 신청한다', async () => {
+    const calls = mockRequestRefund((amount) =>
+      rs(refund({ requestedAmount: amount, completedAmount: amount })),
+    )
+    renderApp('/wallet', 'USER', { chargeBalanceHp: 12000 })
+    const { user, dialog } = await openRefundModal()
+    const input = within(dialog).getByLabelText('환불 금액 (HP)')
+
+    await user.clear(input)
+    await user.type(input, '5000{Enter}')
+
+    expect(await within(dialog).findByText('환불 완료')).toBeInTheDocument()
+    expect(calls).toEqual([{ key: expect.any(String), amount: 5000 }])
   })
 })
 

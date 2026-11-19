@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { appearanceKeys, createRecruit } from '@/entities/appearance/api'
 import {
   CONTENT_MAX,
@@ -20,6 +20,7 @@ import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { isApiError } from '@/shared/api/ApiError'
 import { kstLocalInput, toServerDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { currentPath } from '@/shared/lib/returnPath'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
@@ -55,6 +56,7 @@ const FIELD_ID: Record<keyof RecruitFormValues, string> = {
 export function RecruitFormModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: channels } = useQuery(myChannelsQuery)
   const myChannel = channels?.find((c) => c.status === 'APPROVED')
   const [values, setValues] = useState<RecruitFormValues>(() => ({
@@ -163,6 +165,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
     <Modal
       title="모집글 올리기"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>
@@ -172,7 +175,11 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
           {blockedByHp ? (
             <Link
               className="btn primary"
-              to={spend.short > 0 ? chargeHref(spend.short) : '/wallet'}
+              to={
+                spend.short > 0
+                  ? chargeHref(spend.short, currentPath(location))
+                  : '/wallet'
+              }
             >
               HP 충전하러 가기
             </Link>

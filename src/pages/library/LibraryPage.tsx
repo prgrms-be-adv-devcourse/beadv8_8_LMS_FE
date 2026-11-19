@@ -150,9 +150,11 @@ function LibraryRow({
         )}
       </div>
       <div className={`row-actions ${styles.actions}`}>
+        {/* 행마다 같은 글자의 버튼이 있어 읽을 때 구분되게 강의 제목을 이름에 넣는다. */}
         <button
           type="button"
           className={`btn primary sm ${styles.play}`}
+          aria-label={`${lecture.title} 재생`}
           onClick={() => (before ? onAction('consent', item) : onWatch())}
         >
           <svg viewBox="0 0 12 12" aria-hidden="true">
@@ -164,6 +166,7 @@ function LibraryRow({
           <button
             type="button"
             className="btn sm"
+            aria-label={`${lecture.title} 구매 확정`}
             onClick={() => onAction('confirm', item)}
           >
             구매 확정
@@ -173,18 +176,28 @@ function LibraryRow({
           <button
             type="button"
             className={`btn danger sm ${styles.danger}`}
+            aria-label={`${lecture.title} 구매 취소`}
             onClick={() => onAction('cancel', item)}
           >
             구매 취소
           </button>
         )}
         {!before && (
-          <Link className="btn sm" to={`/library/${lecture.lectureId}/review`}>
+          <Link
+            className="btn sm"
+            to={`/library/${lecture.lectureId}/review`}
+            aria-label={`${lecture.title} 리뷰`}
+          >
             리뷰
           </Link>
         )}
         {objectionOpen && (
-          <Link className="btn ghost sm" to="/support">
+          // 고객센터 새 문의를 이의 제기 유형과 이 주문 항목으로 채워 연다.
+          <Link
+            className="btn ghost sm"
+            to={`/support?category=LECTURE_CONTENT_DISPUTE&orderItemId=${lecture.orderItemId}`}
+            aria-label={`${lecture.title} 내용 다름 이의 제기`}
+          >
             내용 다름 이의 제기
           </Link>
         )}

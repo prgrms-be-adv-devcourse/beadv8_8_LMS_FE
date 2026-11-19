@@ -33,6 +33,8 @@ export function AlertsPage() {
   const { data, error, isPending, refetch } = useQuery(notificationsQuery)
   const markAll = useMarkAllNotificationsRead()
   const hasUnread = !!data?.some((n) => n.readAt == null)
+  // 다 읽으면 버튼을 숨기지 않고 막는다. 누른 버튼이 사라지거나 disabled가 되면 포커스를 잃는다.
+  const markAllBlocked = !hasUnread || markAll.isPending
 
   return (
     <div className="page">
@@ -40,12 +42,14 @@ export function AlertsPage() {
         title="알림"
         lede="출연 요청, 지급, 구매 확정처럼 HP가 움직이는 일을 알려 드려요."
         actions={
-          hasUnread && (
+          !!data?.length && (
             <button
               type="button"
               className="btn"
-              disabled={markAll.isPending}
-              onClick={() => markAll.mutate()}
+              aria-disabled={markAllBlocked || undefined}
+              onClick={() => {
+                if (!markAllBlocked) markAll.mutate()
+              }}
             >
               <svg
                 width="16"

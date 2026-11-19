@@ -39,7 +39,8 @@ function useInvalidateRecruits({ wallet = false } = {}) {
     ])
 }
 
-const onError = (error: Error) => toast(recruitErrorMessage(error))
+const onError = (error: Error) =>
+  toast(recruitErrorMessage(error), { tone: 'error' })
 
 /** 확인창의 처리. 창을 닫는 실패(이미 처리됨)만 토스트로 알리고, 나머지는 창 안에 남는다(ActionError) */
 const onConfirmError = (error: Error) => {

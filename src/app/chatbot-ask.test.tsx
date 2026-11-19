@@ -13,6 +13,7 @@ import {
   mockChatbot,
   sseResponse,
   tooManyRequests,
+  startNewConversation,
 } from '@/test/chatbotMock'
 import { renderApp } from '@/test/renderApp'
 
@@ -226,7 +227,7 @@ describe('챗봇 자유 질문', () => {
     await waitFor(() => expect(state.signals).toHaveLength(1))
     expect(state.signals[0].aborted).toBe(false)
 
-    await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+    await startNewConversation(user, dialog)
     // 요청 자체를 끊는다(받는 도중 끊기면 스트림 읽기가 멈추는 것은 entities/chatbot/stream.test.ts가 본다).
     await waitFor(() => expect(state.signals[0].aborted).toBe(true))
     gate.resolve()

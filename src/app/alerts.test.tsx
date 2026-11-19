@@ -121,7 +121,7 @@ describe('알림 목록', () => {
 })
 
 describe('모두 읽음', () => {
-  it('안 읽은 알림이 있을 때만 보이고, 누르면 목록과 헤더 배지에서 안 읽음이 사라진다', async () => {
+  it('누르면 목록과 헤더 배지에서 안 읽음이 사라지고, 버튼은 남아 포커스를 잃지 않은 채 막힌다', async () => {
     const calls = mockNotifications([
       notification(1),
       notification(2),
@@ -131,23 +131,31 @@ describe('모두 읽음', () => {
     await waitFor(() =>
       expect(headerAlertsLink()).toHaveAccessibleName('알림, 안 읽은 알림 2개'),
     )
-    await userEvent.click(
-      await screen.findByRole('button', { name: '모두 읽음' }),
-    )
+    const markAll = await screen.findByRole('button', { name: '모두 읽음' })
+    await userEvent.click(markAll)
     await waitFor(() => expect(headerAlertsLink()).toHaveAccessibleName('알림'))
     expect(headerAlertsLink()).toHaveTextContent(/^$/)
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: '모두 읽음' })).toBeNull(),
+      expect(screen.getByRole('button', { name: '모두 읽음' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
     )
+    expect(screen.getByRole('button', { name: '모두 읽음' })).toHaveFocus()
     expect(within(await list()).queryByText(/안 읽음/)).toBeNull()
+    // 막힌 버튼은 다시 눌러도 보내지 않는다
+    await userEvent.click(screen.getByRole('button', { name: '모두 읽음' }))
     expect(calls.readAllCount()).toBe(1)
   })
 
-  it('모두 읽은 목록에는 버튼이 없다', async () => {
-    mockNotifications([notification(1, { readAt: READ })])
+  it('모두 읽은 목록에서는 버튼을 막아 둔다', async () => {
+    const calls = mockNotifications([notification(1, { readAt: READ })])
     renderApp('/alerts', 'USER')
     await itemOf('알림 1')
-    expect(screen.queryByRole('button', { name: '모두 읽음' })).toBeNull()
+    const markAll = screen.getByRole('button', { name: '모두 읽음' })
+    expect(markAll).toHaveAttribute('aria-disabled', 'true')
+    await userEvent.click(markAll)
+    expect(calls.readAllCount()).toBe(0)
   })
 })
 

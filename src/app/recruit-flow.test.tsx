@@ -118,8 +118,12 @@ describe('출연 모집 목록', () => {
     })
     expect(card).toHaveAttribute('href', '/recruits/7')
     expect(await within(card).findByText('밤새는곰')).toBeInTheDocument()
-    expect(within(card).getByText(/방송 10\/20\(.\) 21:00/)).toBeInTheDocument()
-    expect(within(card).getByText(/마감 10\/18\(.\) 23:59/)).toBeInTheDocument()
+    expect(
+      within(card).getByText(/방송 2999\/10\/20\(.\) 21:00/),
+    ).toBeInTheDocument()
+    expect(
+      within(card).getByText(/마감 2999\/10\/18\(.\) 23:59/),
+    ).toBeInTheDocument()
     expect(within(card).getByText('지원 4명')).toBeInTheDocument()
     expect(within(card).getByText('30,000 HP')).toBeInTheDocument()
     expect(
@@ -271,7 +275,7 @@ describe('출연 모집 목록', () => {
     const first = firstLink.closest('.row-item') as HTMLElement
     expect(
       within(first).getByText(
-        /^방송 10\/20\(.\) 21:00 · 10\/15\(.\) 09:00 지원$/,
+        /^방송 2999\/10\/20\(.\) 21:00 · 10\/15\(.\) 09:00 지원$/,
       ),
     ).toBeInTheDocument()
     expect(within(first).getByText('모집 중')).toHaveClass('pill', 'warn')
@@ -482,7 +486,7 @@ describe('모집글 올리기', () => {
     await userEvent.type(count, '3')
     expect(
       await within(dialog).findByRole('link', { name: 'HP 충전하러 가기' }),
-    ).toHaveAttribute('href', '/wallet?charge=30000')
+    ).toHaveAttribute('href', '/wallet?charge=30000&returnTo=%2Frecruits')
   })
 
   it('잔액이 부족하면(409 INSUFFICIENT_BALANCE) 안내와 지갑 링크를 보여 준다', async () => {

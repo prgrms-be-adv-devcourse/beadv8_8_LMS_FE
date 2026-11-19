@@ -17,6 +17,7 @@ import { expectFieldError, expectNoFieldError } from '@/test/fieldError'
 import { noAppearanceRating, noRating } from '@/test/memberProfile'
 import { ME_ID, renderApp, rs, TEST_ACCESS_TOKEN } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toasts } from '@/test/toast'
 
 const me = (patch: Partial<Me> = {}): Me => ({
   id: ME_ID,
@@ -635,11 +636,7 @@ describe('계정 설정', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       '이미 쓰고 있는 닉네임이에요.',
     )
-    expect(
-      screen
-        .queryAllByRole('status')
-        .filter((el) => el.classList.contains('toast')),
-    ).toHaveLength(0)
+    expect(toasts()).toHaveLength(0)
     expect(save).toBeDisabled()
 
     await userEvent.type(input, '별')

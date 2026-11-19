@@ -163,7 +163,7 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
         hint={`${title.length} / ${INQUIRY_TITLE_MAX}`}
       >
         <input
-          {...fields.inputProps('title')}
+          {...fields.inputProps('title', { hint: true, required: true })}
           className="input"
           value={title}
           onChange={(e) => {
@@ -174,7 +174,7 @@ export function NewInquiryForm({ initialCategory, initialOrderItemId }: Props) {
       </Field>
       <Field id="inq-content" label="내용" error={fields.error('content')}>
         <textarea
-          {...fields.inputProps('content')}
+          {...fields.inputProps('content', { required: true })}
           className="textarea"
           value={content}
           onChange={(e) => {

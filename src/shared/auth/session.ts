@@ -7,7 +7,8 @@ import {
 } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { closeLoginModal } from '@/shared/ui/loginModal'
+import { safeReturnPath } from '@/shared/lib/returnPath'
+import { closeLoginModal, useLoginModalStore } from '@/shared/ui/loginModal'
 import { toast } from '@/shared/ui/toastStore'
 import { logout, meQuery, passwordLogin, withdraw, type Me } from './me'
 import { VIEWER_LABEL, type Role, type Viewer } from './role'
@@ -42,12 +43,12 @@ export function startGoogleLogin(
   location.assign(GOOGLE_LOGIN_URL)
 }
 
-/** 로그인 전에 저장한 경로를 한 번만 꺼낸다. 같은 출처 경로만 허용한다. */
+/** 로그인 전에 저장한 경로를 한 번만 꺼낸다. 같은 출처 앱 경로만 허용한다. */
 export function consumeReturnTo(): string | null {
   try {
     const path = sessionStorage.getItem(RETURN_TO_KEY)
     sessionStorage.removeItem(RETURN_TO_KEY)
-    return path && path.startsWith('/') && !path.startsWith('//') ? path : null
+    return safeReturnPath(path)
   } catch {
     return null
   }
@@ -142,18 +143,32 @@ async function signIn(request: () => Promise<Me>) {
 }
 
 /**
- * 이메일·비밀번호 로그인. 성공하면 모달을 닫고 지금 화면에 머문다.
+ * 로그인 모달을 닫고, 모달을 열 때 받은 돌아갈 곳(비회원이 누른 강의 상세 등)이 있으면 그리로 간다.
+ * 없으면 지금 화면에 머문다.
+ */
+function useFinishLogin() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  return (me: Me) => {
+    const { returnTo } = useLoginModalStore.getState()
+    replaceSession(queryClient, me)
+    closeLoginModal()
+    if (returnTo) void navigate(returnTo)
+  }
+}
+
+/**
+ * 이메일·비밀번호 로그인. 성공하면 모달을 닫고 지금 화면(돌아갈 곳이 있으면 그곳)으로 간다.
  * 실패 안내(비밀번호 틀림·잠금·이용 불가)는 로그인 폼이 그 자리에 보여 준다.
  * successMessage: 성공 안내(탈퇴 회원 복구 뒤 다시 로그인하면 복구했다고 알린다)
  */
 export function usePasswordLogin(successMessage = '로그인했어요.') {
-  const queryClient = useQueryClient()
+  const finish = useFinishLogin()
   return useMutation({
     mutationFn: (body: { email: string; password: string }) =>
       signIn(() => passwordLogin(body)),
     onSuccess: (me) => {
-      replaceSession(queryClient, me)
-      closeLoginModal()
+      finish(me)
       toast(successMessage)
     },
   })
@@ -161,11 +176,12 @@ export function usePasswordLogin(successMessage = '로그인했어요.') {
 
 /**
  * 테스트 계정 로그인: BE 초기 계정으로 이메일·비밀번호 로그인을 한다(이메일 로그인과 같은 줄을 탄다).
- * 성공하면 모달을 닫고 지금 화면에 머문다. 권한이 없는 화면이면 RoleGate가 그 자리에서 막힌 이유를 안내한다(관리자는 운영 첫 화면으로 보낸다).
+ * 성공하면 모달을 닫고 지금 화면(돌아갈 곳이 있으면 그곳)으로 간다. 권한이 없는 화면이면 RoleGate가 그 자리에서 막힌 이유를 안내한다
+ * (관리자는 운영 첫 화면으로 보낸다).
  * 계정·비밀번호는 부르는 쪽(features/auth/TestAccountLogin)이 넘긴다. 운영 번들에 들어가지 않게 그 모듈에만 둔다.
  */
 export function useTestAccountLogin() {
-  const queryClient = useQueryClient()
+  const finish = useFinishLogin()
   return useMutation({
     mutationFn: ({
       email,
@@ -176,8 +192,7 @@ export function useTestAccountLogin() {
       password: string
     }) => signIn(() => passwordLogin({ email, password })),
     onSuccess: (me, { role }) => {
-      replaceSession(queryClient, me)
-      closeLoginModal()
+      finish(me)
       toast(`${VIEWER_LABEL[role]} 테스트 계정으로 로그인했어요.`)
     },
     onError: () => toast('테스트 계정으로 로그인하지 못했어요.'),

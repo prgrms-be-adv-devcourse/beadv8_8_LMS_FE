@@ -21,6 +21,7 @@ import {
 } from '@/test/hpReconciliationMock'
 import { renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { expectErrorToast, toastTexts } from '@/test/toast'
 
 // HP 대사 API는 테스트 전용 목(src/test/hpReconciliationMock.ts)이 BE처럼 응답한다.
 beforeEach(() => {
@@ -36,11 +37,6 @@ afterEach(async () => {
 
 const region = (name: string) => screen.findByRole('region', { name })
 const runButton = () => screen.findByRole('button', { name: '지금 실행' })
-const toastText = () =>
-  screen
-    .queryAllByRole('status')
-    .filter((el) => el.classList.contains('toast'))
-    .map((el) => el.textContent)
 const count = async (label: string) =>
   within(await region('마지막 결과')).getByRole('group', { name: label })
 
@@ -184,7 +180,7 @@ describe('관리자 HP 대사 마지막 결과', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: '멈춘 작업 있음' })).toBeNull()
     await waitFor(() =>
-      expect(toastText()).toContain(
+      expect(toastTexts()).toContain(
         '강의 HP 대사를 마쳤어요. 어긋난 건이 없어요.',
       ),
     )
@@ -250,7 +246,7 @@ describe('관리자 HP 대사 지금 실행', () => {
 
     await user.click(await runButton())
     await waitFor(() =>
-      expect(toastText()).toContain(
+      expect(toastTexts()).toContain(
         '강의 HP 대사를 끝까지 비교하지 못했어요. 실패 이유를 확인하세요. 다음 실행이 같은 범위를 다시 봐요.',
       ),
     )
@@ -271,7 +267,7 @@ describe('관리자 HP 대사 지금 실행', () => {
 
     await user.click(await runButton())
     await waitFor(() =>
-      expect(toastText()).toContain(
+      expect(toastTexts()).toContain(
         '강의 HP 대사를 마쳤어요. 어긋난 건 2건을 확인하세요.',
       ),
     )
@@ -296,7 +292,7 @@ describe('관리자 HP 대사 지금 실행', () => {
 
     await user.click(await runButton())
     await waitFor(() =>
-      expect(toastText()).toContain(
+      expect(toastTexts()).toContain(
         '강의 HP 대사가 이미 실행 중이에요. 끝나면 결과가 보여요.',
       ),
     )
@@ -347,7 +343,7 @@ describe('관리자 HP 대사 지금 실행', () => {
 
       await user.click(await runButton())
       await waitFor(() =>
-        expect(toastText()).toContain(
+        expect(toastTexts()).toContain(
           '응답을 받지 못했어요. 서버에서 계속 실행 중일 수 있어요. 마지막 결과로 확인하세요.',
         ),
       )
@@ -383,9 +379,12 @@ describe('관리자 HP 대사 지금 실행', () => {
     const before = hpReconciliationDb.latestCalls.lecture
 
     await user.click(await runButton())
-    await waitFor(() => expect(toastText()).toContain('서버 오류예요.'))
+    // 요청 실패는 오류 토스트(role="alert")로 바로 읽힌다
+    await expectErrorToast('서버 오류예요.')
     expect(
-      toastText().some((t) => t?.includes('서버에서 계속 실행 중일 수 있어요')),
+      toastTexts().some((t) =>
+        t?.includes('서버에서 계속 실행 중일 수 있어요'),
+      ),
     ).toBe(false)
     await waitFor(() =>
       expect(hpReconciliationDb.latestCalls.lecture).toBeGreaterThan(before),

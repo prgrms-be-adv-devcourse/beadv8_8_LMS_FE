@@ -1,4 +1,5 @@
 import { isPast, parseServerDate } from '@/shared/lib/date'
+import { formatNumber } from '@/shared/lib/money'
 import type {
   Appearance,
   AppearanceSummary,
@@ -64,7 +65,7 @@ function validateShared(
   if (!values.content.trim())
     errors.content = `${contentLabel}을 입력해 주세요.`
   else if (values.content.length > CONTENT_MAX)
-    errors.content = `${contentLabel}은 ${CONTENT_MAX.toLocaleString()}자 이하로 써 주세요.`
+    errors.content = `${contentLabel}은 ${formatNumber(CONTENT_MAX)}자 이하로 써 주세요.`
 
   const minutes = Number(values.expectedMinutes)
   if (
@@ -96,7 +97,7 @@ export function validateRequestForm(
 
   const fee = Number(values.fee)
   if (!values.fee || !Number.isInteger(fee) || fee < MINIMUM_FEE)
-    errors.fee = `최저 출연료는 ${MINIMUM_FEE.toLocaleString()} HP예요.`
+    errors.fee = `최저 출연료는 ${formatNumber(MINIMUM_FEE)} HP예요.`
 
   if (!values.acceptDeadline) errors.acceptDeadline = '수락 기한을 정해 주세요.'
   else if (values.acceptDeadline <= nowLocal)
@@ -130,7 +131,7 @@ export function validateRecruitForm(
 
   const fee = Number(values.feePerPerson)
   if (!values.feePerPerson || !Number.isInteger(fee) || fee < MINIMUM_FEE)
-    errors.feePerPerson = `1인 최저 출연료는 ${MINIMUM_FEE.toLocaleString()} HP예요.`
+    errors.feePerPerson = `1인 최저 출연료는 ${formatNumber(MINIMUM_FEE)} HP예요.`
 
   const count = Number(values.recruitCount)
   if (
