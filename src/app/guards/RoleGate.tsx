@@ -122,7 +122,8 @@ function Forbidden({
           )
         }
       >
-        지금은 {viewerLabel(viewer)} 계정이에요.{next && ` ${next.desc}`}
+        이 화면을 볼 권한이 없어요. 지금은 {viewerLabel(viewer)} 계정이에요.
+        {next && ` ${next.desc}`}
       </EmptyState>
     </div>
   )
