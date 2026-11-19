@@ -118,6 +118,16 @@ describe('관리자 프로모션 지갑', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       /충전 결과를 확인하지 못했어요/,
     )
+    // 다시 열면 아직 보내지 않은 새 확인 창이다(지난 실패를 보이지 않는다)
+    await user.click(screen.getByRole('button', { name: '충전하기' }))
+    expect(within(confirmDialog()).queryByRole('alert')).toBeNull()
+    expect(
+      within(confirmDialog()).getByRole('button', { name: '충전' }),
+    ).toBeInTheDocument()
+    await user.click(
+      within(confirmDialog()).getAllByRole('button', { name: '닫기' }).at(-1)!,
+    )
+    expect(promotionWalletDb.fundingCalls).toHaveLength(2)
     // 값이 바뀌지 않는 입력(숫자가 아닌 글자)은 새 충전으로 보지 않지만, 내용을 바꾸면 새 ID다
     await user.type(screen.getByLabelText('충전 HP'), 'a')
     await user.type(screen.getByLabelText('메모 (선택)'), '11월 프로모션')

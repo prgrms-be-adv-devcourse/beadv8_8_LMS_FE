@@ -510,6 +510,38 @@ describe('관리자 환전 승인·거절', () => {
     expect(adminExchangeDb.approveCalls).toEqual([11])
   })
 
+  it('승인이 400(INVALID_REQUEST)으로 실패해도 사유 칸이 없는 승인 창 안에 안내를 남긴다', async () => {
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/11/approve', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않아요.',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/admin/exchanges/11', 'ADMIN')
+    const user = userEvent.setup()
+    await user.click(
+      within(await actions()).getByRole('button', { name: '승인' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: '환전 신청을 승인할까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '승인' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '승인하지 못했어요. 요청 값이 올바르지 않아요.',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/요청 값이 올바르지 않아요/)).toHaveLength(1)
+  })
+
   it('목록의 필터·쪽에서 들어간 상세는 돌아가기 링크가 그 필터·쪽으로 간다', async () => {
     resetAdminExchangeDb(
       Array.from({ length: 21 }, (_, i) =>

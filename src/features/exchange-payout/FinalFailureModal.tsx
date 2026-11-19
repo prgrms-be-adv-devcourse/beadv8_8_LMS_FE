@@ -28,7 +28,7 @@ export function FinalFailureModal({
   })
   const fail = useFailPayoutFinally(exchange.exchangeId)
   const busy = usePayoutBusy(exchange.exchangeId)
-  const failure = payoutFailureMessage(fail.error)
+  const failure = payoutFailureMessage(fail.error, { reasonField: true })
 
   return (
     <Modal

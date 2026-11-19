@@ -106,6 +106,8 @@ function FundingForm() {
     e.preventDefault()
     setTouched(true)
     if (fund.isPending || amountError || sourceRefError) return
+    // 새로 여는 확인 창은 아직 보내지 않은 상태다. 지난 실패는 지우고, 같은 내용이면 보낼 때 같은 작업 ID를 쓴다.
+    setFormError(null)
     setConfirming(true)
   }
 

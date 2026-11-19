@@ -73,12 +73,18 @@ export function isFinalPayoutError(error: Error) {
   )
 }
 
-/** 확인 창 안에 남길 실패 문구. 사유 형식 오류(칸 아래에 보인다)·전역 안내·창을 닫는 오류면 null */
-export function payoutFailureMessage(error: Error | null) {
+/**
+ * 확인 창 안에 남길 실패 문구. 전역 안내·창을 닫는 오류면 null.
+ * 사유 칸이 있는 창(최종 실패)만 사유 형식 오류(400)를 칸 아래에 보이므로 뺀다. 사유 칸이 없는 창(재송금)은 400도 창 안에 남긴다.
+ */
+export function payoutFailureMessage(
+  error: Error | null,
+  { reasonField = false }: { reasonField?: boolean } = {},
+) {
   if (
     !error ||
     isGlobalAuthError(error) ||
-    isFinalFailureReasonError(error) ||
+    (reasonField && isFinalFailureReasonError(error)) ||
     isFinalPayoutError(error)
   )
     return null

@@ -568,6 +568,39 @@ describe('환전 상세의 송금 시도 패널', () => {
     expect(adminExchangeDb.retryCalls).toEqual([62])
   })
 
+  it('재송금이 400(INVALID_REQUEST)으로 실패해도 사유 칸이 없는 재송금 창 안에 안내를 남긴다', async () => {
+    bankFailed()
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/62/payouts/retry', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않아요.',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/admin/exchanges/62', 'ADMIN')
+    const user = userEvent.setup()
+    await attemptRow(1)
+
+    await user.click(button('재송금')!)
+    const dialog = screen.getByRole('dialog', {
+      name: '송금을 다시 보낼까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '재송금' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '재송금하지 못했어요. 요청 값이 올바르지 않아요.',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/요청 값이 올바르지 않아요/)).toHaveLength(1)
+  })
+
   it('최종 실패 확정은 사유를 검사하고, 확정하면 처리 기록에 남고 버튼이 사라진다', async () => {
     bankFailed()
     queryClient.setQueryData(

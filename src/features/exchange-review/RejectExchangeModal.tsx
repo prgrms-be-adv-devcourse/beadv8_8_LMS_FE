@@ -26,7 +26,7 @@ export function RejectExchangeModal({
   })
   const reject = useRejectExchange()
   const busy = useReviewingExchange()
-  const failure = reviewFailureMessage(reject.error)
+  const failure = reviewFailureMessage(reject.error, { reasonField: true })
 
   return (
     <Modal
