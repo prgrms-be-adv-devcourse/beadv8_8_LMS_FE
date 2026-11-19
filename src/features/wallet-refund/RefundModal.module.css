@@ -66,3 +66,7 @@
 .guide:global(.fine) {
   color: var(--ink-2);
 }
+/* 모달 본문의 칸 간격을 그대로 쓰도록 form 자체는 상자를 만들지 않는다(Enter 제출용) */
+.form {
+  display: contents;
+}

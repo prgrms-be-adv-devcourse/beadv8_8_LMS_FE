@@ -16,6 +16,7 @@ import { RefundModal } from '@/features/wallet-refund/RefundModal'
 import { TransactionLedger } from '@/features/wallet-transactions/TransactionLedger'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
+import { safeReturnPath } from '@/shared/lib/returnPath'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { tossClientKey } from '@/shared/lib/tossPayments'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -26,6 +27,7 @@ import styles from './WalletPage.module.css'
  * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, HP 거래 원장.
  * 인플루언서는 지급 예정 수익, 환전 신청 진입과 환전 내역도 본다.
  * /wallet?charge=N으로 오면(다른 화면의 "HP 충전하러 가기") 충전 모달을 그 금액으로 연다.
+ * returnTo(그 화면)가 함께 오면 충전 결과 화면이 그리로 돌아가는 버튼을 보인다.
  */
 export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
@@ -35,7 +37,9 @@ export function WalletPage() {
   const [chargeAmount, setChargeAmount] = useState<number | null>(() =>
     clientKey ? parseChargeAmountParam(params.get('charge')) : null,
   )
-  const hasChargeParam = params.has('charge')
+  // 다른 화면에서 충전하러 왔으면 충전한 뒤 돌아갈 그 화면
+  const [returnTo] = useState(() => safeReturnPath(params.get('returnTo')))
+  const hasChargeParam = params.has('charge') || params.has('returnTo')
   const [refundOpen, setRefundOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -45,6 +49,7 @@ export function WalletPage() {
     merge(
       (next) => {
         next.delete('charge')
+        next.delete('returnTo')
         return next
       },
       { replace: true },
@@ -86,6 +91,7 @@ export function WalletPage() {
         <ChargeModal
           clientKey={clientKey}
           initialAmount={chargeAmount}
+          returnTo={returnTo}
           onClose={() => setChargeAmount(null)}
         />
       )}

@@ -89,8 +89,10 @@ function Player({
 }) {
   const [index, setIndex] = useState(0)
   const [consentOpen, setConsentOpen] = useState(false)
+  // 동의하면 구매 내역을 다시 받기 전이라도 바로 재생한다(동의 버튼이 남아 있지 않게).
+  const [consented, setConsented] = useState(false)
   // 구매 확정 전에는 재생 동의를 받기 전까지 시청 URL을 발급받지 않는다.
-  const needsConsent = owned.itemStatus === 'PURCHASED'
+  const needsConsent = owned.itemStatus === 'PURCHASED' && !consented
   const current = contents[index]
 
   if (contents.length === 0)
@@ -197,7 +199,10 @@ function Player({
             title,
           }}
           onClose={() => setConsentOpen(false)}
-          onConsented={() => setConsentOpen(false)}
+          onConsented={() => {
+            setConsented(true)
+            setConsentOpen(false)
+          }}
         />
       )}
     </div>

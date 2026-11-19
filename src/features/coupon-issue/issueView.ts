@@ -51,8 +51,8 @@ export function issueMessageOf(state: IssueCouponState): string {
         : '발급 완료'
     case 'rejected':
       return state.reason
-        ? `발급되지 않았습니다. ${state.reason}`
-        : '발급되지 않았습니다'
+        ? `발급되지 않았어요. ${state.reason}`
+        : '발급되지 않았어요'
     case 'delayed':
       return ISSUE_DELAYED_MESSAGE
     case 'unknown':

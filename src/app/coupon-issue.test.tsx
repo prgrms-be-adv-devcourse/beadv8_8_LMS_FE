@@ -97,7 +97,7 @@ function recordIssueTraffic() {
 }
 
 const issueButton = (card: HTMLElement) =>
-  within(card).getByRole('button', { name: '발급받기' })
+  within(card).getByRole('button', { name: / 발급받기$/ })
 
 beforeEach(quietLectureRequests)
 
@@ -124,6 +124,10 @@ describe('강의 상세 쿠폰 발급', () => {
       within(card).getByText('받은 날부터 30일 · 남은 수량 60장'),
     ).toBeInTheDocument()
 
+    // 쿠폰마다 같은 글자의 버튼이라 쿠폰 이름을 이름에 넣는다
+    expect(issueButton(card)).toHaveAccessibleName(
+      `${card.getAttribute('aria-label')} 발급받기`,
+    )
     await userEvent.click(issueButton(card))
     expect(await within(card).findByRole('status')).toHaveTextContent(
       '처리 중…',
@@ -136,7 +140,7 @@ describe('강의 상세 쿠폰 발급', () => {
         /^발급 완료 · .+까지 쓸 수 있어요$/,
       ),
     )
-    expect(within(card).getByRole('button', { name: '받음' })).toBeDisabled()
+    expect(within(card).getByRole('button', { name: / 받음$/ })).toBeDisabled()
     expect(coupons.issueRequests).toHaveLength(1)
     expect(coupons.issueRequests[0].issueRequestId).toMatch(
       /^[A-Za-z0-9_-]{1,64}$/,
@@ -191,7 +195,7 @@ describe('강의 상세 쿠폰 발급', () => {
     await userEvent.click(issueButton(card))
     expect(await within(card).findByText('모두 소진됐어요')).toBeInTheDocument()
     expect(screen.queryByText('BE가 쓴 문구')).not.toBeInTheDocument()
-    expect(within(card).getByRole('button', { name: '소진' })).toBeDisabled()
+    expect(within(card).getByRole('button', { name: / 소진$/ })).toBeDisabled()
     // 처음 보낸 요청의 소진은 그대로 믿고 상태를 묻지 않는다.
     expect(coupons.statusCalls).toBe(0)
   })
@@ -216,9 +220,13 @@ describe('강의 상세 쿠폰 발급', () => {
     // 받을 수 있는 쿠폰이 없고 받은 쿠폰이 있으면 버튼이 받은 수를 보인다(그래도 열 수 있다).
     await openSheet('받은 쿠폰 1장')
     const soldOut = await screen.findByRole('group', { name: '다 나간 쿠폰' })
-    expect(within(soldOut).getByRole('button', { name: '소진' })).toBeDisabled()
+    expect(
+      within(soldOut).getByRole('button', { name: / 소진$/ }),
+    ).toBeDisabled()
     const issued = screen.getByRole('group', { name: '받은 쿠폰' })
-    expect(within(issued).getByRole('button', { name: '받음' })).toBeDisabled()
+    expect(
+      within(issued).getByRole('button', { name: / 받음$/ }),
+    ).toBeDisabled()
     expect(within(issued).getByText('중복 사용 가능')).toBeInTheDocument()
   })
 
@@ -230,7 +238,7 @@ describe('강의 상세 쿠폰 발급', () => {
     for (let i = 0; i < 10; i++) await advance(1_000)
     expect(
       await within(card).findByText(
-        '처리 중입니다. 잠시 후 쿠폰함에서 확인해 주세요',
+        '처리 중이에요. 잠시 후 쿠폰함에서 확인해 주세요',
       ),
     ).toBeInTheDocument()
     expect(coupons.statusCalls).toBe(10)
@@ -280,7 +288,7 @@ describe('강의 상세 쿠폰 발급', () => {
     for (let i = 0; i < 10; i++) await advance(1_000)
     expect(
       await within(card).findByText(
-        '처리 중입니다. 잠시 후 쿠폰함에서 확인해 주세요',
+        '처리 중이에요. 잠시 후 쿠폰함에서 확인해 주세요',
       ),
     ).toBeInTheDocument()
     expect(lookups).toBe(10)
@@ -375,7 +383,7 @@ describe('강의 상세 쿠폰 발급', () => {
     coupons.failNext[ISSUE_KEY] = couponProblem(409, 'COUPON_SOLD_OUT')
     await userEvent.click(issueButton(card))
     expect(await within(card).findByText('모두 소진됐어요')).toBeInTheDocument()
-    expect(within(card).getByRole('button', { name: '소진' })).toBeDisabled()
+    expect(within(card).getByRole('button', { name: / 소진$/ })).toBeDisabled()
     expect(coupons.statusCalls).toBe(1)
   })
 
@@ -390,7 +398,7 @@ describe('강의 상세 쿠폰 발급', () => {
     await userEvent.click(issueButton(card))
     expect(
       await within(card).findByText(
-        '확인할 수 없습니다. 잠시 후 다시 시도해 주세요',
+        '확인하지 못했어요. 잠시 후 다시 시도해 주세요',
       ),
     ).toBeInTheDocument()
     expect(issueButton(card)).toBeEnabled()
@@ -404,9 +412,7 @@ describe('강의 상세 쿠폰 발급', () => {
 
     await userEvent.click(issueButton(card))
     expect(
-      await within(card).findByText(
-        '발급되지 않았습니다. 발급 한도를 넘었어요',
-      ),
+      await within(card).findByText('발급되지 않았어요. 발급 한도를 넘었어요'),
     ).toBeInTheDocument()
     expect(issueButton(card)).toBeDisabled()
   })
@@ -553,7 +559,9 @@ describe('쿠폰 받기 팝업', () => {
     expect(await within(sheet).findByText('2장 받았어요')).toBeInTheDocument()
     for (const name of ['쿠폰 A', '쿠폰 D']) {
       const card = within(sheet).getByRole('group', { name })
-      expect(within(card).getByRole('button', { name: '받음' })).toBeDisabled()
+      expect(
+        within(card).getByRole('button', { name: / 받음$/ }),
+      ).toBeDisabled()
       expect(within(card).getByText(/^발급 완료/)).toBeInTheDocument()
     }
     expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([1, 4])
@@ -615,7 +623,7 @@ describe('쿠폰 받기 팝업', () => {
       within(card('쿠폰 B')).getByText('모두 소진됐어요'),
     ).toBeInTheDocument()
     expect(
-      within(card('쿠폰 B')).getByRole('button', { name: '소진' }),
+      within(card('쿠폰 B')).getByRole('button', { name: / 소진$/ }),
     ).toBeDisabled()
     for (const name of ['쿠폰 A', '쿠폰 C'])
       expect(within(card(name)).getByText(/^발급 완료/)).toBeInTheDocument()

@@ -209,7 +209,11 @@ describe('출연 요청 보내기', () => {
       within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
     ).toHaveAttribute(
       'href',
-      expect.stringMatching(/^\/wallet\?charge=\d+000$/),
+      expect.stringMatching(
+        new RegExp(
+          `^/wallet\\?charge=\\d+000&returnTo=%2Finfluencers%2F${GUEST_ID}$`,
+        ),
+      ),
     )
   })
 

@@ -1040,8 +1040,11 @@
   font-size: 13px;
   color: var(--ink-3);
 }
+/* 누를 수 있는 것만 밑줄로 링크처럼 보인다(이용약관 같은 글자는 페이지가 없어 글자만 둔다) */
 .footer a {
-  color: var(--ink-3);
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .footer a:hover {
   color: var(--ink);

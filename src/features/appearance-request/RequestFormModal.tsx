@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import {
   appearanceKeys,
   createAppearanceRequest,
@@ -21,6 +21,7 @@ import { useHpSpend } from '@/entities/wallet/useHpSpend'
 import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { isApiError } from '@/shared/api/ApiError'
 import { kstLocalInput, toServerDateTime } from '@/shared/lib/date'
+import { currentPath } from '@/shared/lib/returnPath'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Avatar } from '@/shared/ui/Avatar'
 import { Field } from '@/shared/ui/Field'
@@ -60,6 +61,7 @@ const FIELD_ID: Record<keyof RequestFormValues, string> = {
 export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: channels } = useQuery(myChannelsQuery)
   const myChannel = channels?.find((c) => c.status === 'APPROVED')
   const [values, setValues] = useState<RequestFormValues>(() => ({
@@ -163,7 +165,11 @@ export function RequestFormModal({ guest, onClose }: RequestFormModalProps) {
           {blockedByHp ? (
             <Link
               className="btn primary"
-              to={spend.short > 0 ? chargeHref(spend.short) : '/wallet'}
+              to={
+                spend.short > 0
+                  ? chargeHref(spend.short, currentPath(location))
+                  : '/wallet'
+              }
             >
               HP 충전하러 가기
             </Link>
