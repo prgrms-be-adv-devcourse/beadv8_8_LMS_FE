@@ -25,6 +25,8 @@ export const couponKeys = {
   /** 강의에서 받을 수 있는 쿠폰 */
   forLecture: (lectureId: number) =>
     [...couponKeys.all, 'lecture', lectureId] as const,
+  /** 강의와 관계없이 지금 받을 수 있는 쿠폰 전체(쿠폰 받기 화면) */
+  issuable: () => [...couponKeys.all, 'issuable'] as const,
   /** 발급 요청 처리 상태 */
   issueStatus: (couponId: number, issueRequestId: string) =>
     [...couponKeys.all, 'issue', couponId, issueRequestId] as const,
@@ -64,6 +66,16 @@ export const lectureCouponsQuery = (lectureId: number) =>
   queryOptions({
     queryKey: couponKeys.forLecture(lectureId),
     queryFn: () => api<CouponSummary[]>('/coupons', { query: { lectureId } }),
+  })
+
+/**
+ * 지금 받을 수 있는 쿠폰 전체(OPEN·기간 안, 모든 강의 + 특정 강의, 최신순, 최대 100건). 소진·이미 받음 표시 포함,
+ * 강의 제목은 없다. BE 조회 API(강의 없이 부르는 경우)
+ */
+export const issuableCouponsQuery = () =>
+  queryOptions({
+    queryKey: couponKeys.issuable(),
+    queryFn: () => api<CouponSummary[]>('/coupons'),
   })
 
 /**

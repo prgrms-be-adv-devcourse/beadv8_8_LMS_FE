@@ -289,6 +289,10 @@ export const PAGE_LOADERS: Record<string, () => Promise<PageModule>> = {
     import('@/pages/coupons/CouponsPage').then((m) => ({
       Component: m.CouponsPage,
     })),
+  '/coupons': () =>
+    import('@/pages/coupon-zone/CouponZonePage').then((m) => ({
+      Component: m.CouponZonePage,
+    })),
   '/studio/coupons': () =>
     import('@/pages/studio-coupons/StudioCouponsPage').then((m) => ({
       Component: m.StudioCouponsPage,
