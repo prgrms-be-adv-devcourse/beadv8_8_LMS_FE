@@ -14,7 +14,7 @@ import {
   type RecruitSearch,
   type RecruitSort,
 } from '@/entities/appearance/recruitSearch'
-import { formatDate, kstLocalInput } from '@/shared/lib/date'
+import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import styles from './RecruitSearchBar.module.css'
@@ -385,10 +385,7 @@ function rangeText(
   return from ? `${from}${after}` : `${to}${before}`
 }
 
-/** 11/20(금). 올해가 아니면 연도를 앞에 붙인다 */
+/** 11/20(금). 올해가 아니면 formatDate가 연도를 붙인다(2027/1/5(화)) */
 function dayText(date: string) {
-  const day = formatDate(`${date}T00:00:00`)
-  return date.slice(0, 4) === kstLocalInput().slice(0, 4)
-    ? day
-    : `${date.slice(0, 4)}년 ${day}`
+  return formatDate(`${date}T00:00:00`)
 }

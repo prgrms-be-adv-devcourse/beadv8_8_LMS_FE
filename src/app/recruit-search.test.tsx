@@ -136,7 +136,7 @@ describe('출연 모집 검색', () => {
     const chips = screen.getByRole('list', { name: '적용한 조건' })
     expect(
       within(chips).getByRole('button', {
-        name: /^방송 2999년 10\/20\(.\) ~ 2999년 10\/22\(.\) 조건 지우기$/,
+        name: /^방송 2999\/10\/20\(.\) ~ 2999\/10\/22\(.\) 조건 지우기$/,
       }),
     ).toBeInTheDocument()
     expect(
