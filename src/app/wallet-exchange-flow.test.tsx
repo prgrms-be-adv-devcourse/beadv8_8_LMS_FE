@@ -120,10 +120,17 @@ describe('환전 진입점', () => {
     expect(calls()).toBe(0)
   })
 
-  it('유저가 신청 화면 주소로 들어오면 첫 화면으로 보낸다', async () => {
+  it('유저가 신청 화면 주소로 들어오면 그 자리에서 채널 인증을 안내하고 환전 API를 부르지 않는다', async () => {
     const calls = forbidExchanges()
     const router = renderApp('/wallet/exchange', 'USER')
-    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+    expect(
+      await screen.findByText('인플루언서부터 쓸 수 있는 화면이에요'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '채널 인증하기' })).toHaveAttribute(
+      'href',
+      '/verify',
+    )
+    expect(router.state.location.pathname).toBe('/wallet/exchange')
     expect(calls()).toBe(0)
   })
 

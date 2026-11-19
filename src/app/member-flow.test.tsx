@@ -468,6 +468,15 @@ describe('채널 인증', () => {
     ).toBeInTheDocument()
     // 역할이 바뀌어도 권한 없음으로 내보내지 않고, 같은 화면에서 완료 안내를 보여 준다.
     expect(await screen.findByText('인증 완료')).toBeInTheDocument()
+    // 다음 단계로 프로필 채우기·승급 신청을 이어 준다.
+    expect(screen.getByRole('link', { name: '프로필 채우기' })).toHaveAttribute(
+      'href',
+      '/profile/edit',
+    )
+    expect(screen.getByRole('link', { name: '승급 신청' })).toHaveAttribute(
+      'href',
+      '/promote',
+    )
     expect(router.state.location.pathname).toBe('/verify')
     expect(screen.queryByText('이 화면을 볼 권한이 없어요.')).toBeNull()
     expect(
