@@ -65,11 +65,17 @@ function History() {
         <table className="tbl" aria-label="수수료 수입 내역">
           <thead>
             <tr>
-              <th>기록 일시</th>
-              <th>환전</th>
-              <th className="r">신청 금액(HP)</th>
-              <th className="r">수수료(HP)</th>
-              <th className="r">송금액(원)</th>
+              <th scope="col">기록 일시</th>
+              <th scope="col">환전</th>
+              <th className="r" scope="col">
+                신청 금액(HP)
+              </th>
+              <th className="r" scope="col">
+                수수료(HP)
+              </th>
+              <th className="r" scope="col">
+                송금액(원)
+              </th>
             </tr>
           </thead>
           <tbody>

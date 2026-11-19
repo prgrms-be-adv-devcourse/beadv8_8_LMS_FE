@@ -45,18 +45,25 @@ export function Loading({
   )
 }
 
-/** 화면 데이터를 불러오지 못함. retry가 있으면 다시 시도 버튼을 둔다. */
+/**
+ * 화면 데이터를 불러오지 못함. retry가 있으면 다시 시도 버튼을 둔다.
+ * 불러오는 중 문구가 이 안내로 바뀌어도 낭독기가 알도록 알림(role="alert")으로 그린다.
+ */
 export function LoadError({
   error,
   retry,
+  headingLevel,
 }: {
   error: Error
   retry?: () => void
+  headingLevel?: 1 | 2 | 'b'
 }) {
   return (
     <EmptyState
+      role="alert"
       title="불러오지 못했어요"
       art="error"
+      headingLevel={headingLevel}
       action={
         retry && (
           <button type="button" className="btn" onClick={retry}>
