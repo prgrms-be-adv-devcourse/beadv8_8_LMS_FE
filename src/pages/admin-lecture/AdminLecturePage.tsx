@@ -11,6 +11,7 @@ import {
 import { ContentView } from '@/features/lecture-watch/ContentView'
 import { formatDate } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
+import { scrollBehavior } from '@/shared/lib/motion'
 import { EmptyState } from '@/shared/ui/EmptyState'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
@@ -160,7 +161,7 @@ function Inspection({ lecture }: { lecture: LectureDetail }) {
           className="btn primary"
           onClick={() =>
             asideRef.current?.scrollIntoView({
-              behavior: 'smooth',
+              behavior: scrollBehavior(),
               block: 'start',
             })
           }

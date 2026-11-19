@@ -15,6 +15,10 @@ vi.mock('@stomp/stompjs', () => ({
   ReconnectionTimeMode: { LINEAR: 0, EXPONENTIAL: 1 },
 }))
 
+// jsdom은 창 스크롤을 구현하지 않는다(부르면 not implemented 오류를 남긴다). 화면을 옮길 때 맨 위로 보내는
+// 앱 셸의 ScrollRestoration이 부르므로 아무것도 하지 않는 함수로 둔다. 테스트에서 호출을 보려면 vi.spyOn으로 감싼다.
+window.scrollTo = (() => {}) as typeof window.scrollTo
+
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }))
 // jsdom은 document.hasFocus()가 늘 false다. 사용자가 화면을 보고 있는 것으로 둔다(채팅 읽음 처리 기준).
 beforeEach(() => {
