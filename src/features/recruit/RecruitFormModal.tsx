@@ -163,6 +163,7 @@ export function RecruitFormModal({ onClose }: { onClose: () => void }) {
     <Modal
       title="모집글 올리기"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>

@@ -20,7 +20,7 @@ export function useRequestApproval() {
         toast('채널 승인을 요청했어요. 관리자 심사 후 알려 드려요.')
       }
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: memberKeys.myChannels() }),
   })

@@ -217,12 +217,12 @@ function Attempts({
           <table className="tbl" aria-label="시도 이력">
             <thead>
               <tr>
-                <th>회차</th>
-                <th>결과</th>
-                <th>오류</th>
-                <th>진단 정보</th>
-                <th>시작</th>
-                <th>끝</th>
+                <th scope="col">회차</th>
+                <th scope="col">결과</th>
+                <th scope="col">오류</th>
+                <th scope="col">진단 정보</th>
+                <th scope="col">시작</th>
+                <th scope="col">끝</th>
               </tr>
             </thead>
             <tbody>

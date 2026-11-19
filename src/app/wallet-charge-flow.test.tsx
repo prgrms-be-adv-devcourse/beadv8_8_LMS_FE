@@ -441,7 +441,7 @@ describe('충전 결과', () => {
     )
     // 헤더 HP도 새 잔액으로 바뀐다
     expect(
-      within(screen.getByRole('banner')).getByRole('link', { name: '지갑' }),
+      within(screen.getByRole('banner')).getByRole('link', { name: /^지갑/ }),
     ).toHaveTextContent('38,000')
     expect(screen.getByRole('link', { name: '지갑으로' })).toHaveClass(
       'primary',

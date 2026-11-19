@@ -45,7 +45,7 @@ function useSellerCouponAction(onDone?: (coupon: Coupon) => void) {
       toast(DONE[action])
       onDone?.(coupon)
     },
-    onError: (error) => toast(failureMessage(error)),
+    onError: (error) => toast(failureMessage(error), { tone: 'error' }),
     onSettled: () =>
       queryClient.invalidateQueries({
         queryKey: [...couponKeys.all, 'seller'],

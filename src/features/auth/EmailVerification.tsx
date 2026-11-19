@@ -345,7 +345,7 @@ function CodeStep({
           enterKeyHint="done"
           placeholder="000000"
           value={code}
-          {...fields.inputProps('code')}
+          {...fields.inputProps('code', { hint: true, required: true })}
           // 숫자 사이 공백·하이픈을 붙여 넣어도 숫자만 6자리까지 남긴다.
           onChange={(e) => {
             fields.changed('code')

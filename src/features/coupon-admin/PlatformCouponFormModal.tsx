@@ -140,6 +140,7 @@ export function PlatformCouponFormModal({ onClose }: { onClose: () => void }) {
     <Modal
       title="플랫폼 쿠폰 만들기"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>

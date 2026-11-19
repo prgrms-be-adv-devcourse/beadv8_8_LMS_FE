@@ -59,7 +59,7 @@ function useReview<T>(
         isRejectionReasonError(error)
       )
         return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: adminExchangeKeys.all }),

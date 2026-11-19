@@ -56,6 +56,7 @@ export function ChargeModal({
     <Modal
       title="HP 충전"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>

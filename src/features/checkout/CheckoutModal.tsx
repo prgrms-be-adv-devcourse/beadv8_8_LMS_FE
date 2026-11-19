@@ -58,7 +58,8 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
     },
     // 쿠폰 오류(금액 바뀜·쿠폰 거절·플랫폼 쿠폰·쿠폰 확인 불가)는 쿠폰 영역에 보이고 다시 계산한다. 그 밖은 기존대로 알린다
     onError: (error) => {
-      if (!coupons.handleOrderError(error)) toast(error.message)
+      if (!coupons.handleOrderError(error))
+        toast(error.message, { tone: 'error' })
     },
     onSettled: () =>
       Promise.all([

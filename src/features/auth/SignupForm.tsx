@@ -147,7 +147,10 @@ function SignupDetailsForm({
     })
   }
 
-  const nicknameProps = fields.inputProps('nickname')
+  const nicknameProps = fields.inputProps('nickname', {
+    hint: true,
+    required: true,
+  })
 
   return (
     <form
@@ -163,6 +166,7 @@ function SignupDetailsForm({
           className="input"
           type="email"
           autoComplete="username"
+          aria-describedby="signup-email-hint"
           value={verified.email}
           readOnly
         />
@@ -176,7 +180,7 @@ function SignupDetailsForm({
           ref={firstRef}
           autoComplete="new-password"
           value={values.password}
-          {...fields.inputProps('password')}
+          {...fields.inputProps('password', { required: true })}
           onChange={(e) => set('password')(e.target.value)}
         />
         <PasswordRules value={values.password} />
@@ -191,7 +195,9 @@ function SignupDetailsForm({
           type="password"
           autoComplete="new-password"
           value={values.passwordConfirm}
-          {...fields.inputProps('passwordConfirm')}
+          {...fields.inputProps('passwordConfirm', {
+            required: true,
+          })}
           onChange={(e) => set('passwordConfirm')(e.target.value)}
         />
       </Field>

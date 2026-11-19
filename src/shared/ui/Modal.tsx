@@ -13,6 +13,11 @@ type ModalProps = {
   children: ReactNode
   footer?: ReactNode
   wide?: boolean
+  /**
+   * 바깥(덮개)을 눌러 닫을지. 기본은 닫는다. 입력 폼 모달은 false로 두어 실수로 눌러 쓴 값을 잃지 않게 한다
+   * (닫기 버튼·Esc로는 닫힌다).
+   */
+  dismissOnScrim?: boolean
 }
 
 /**
@@ -53,14 +58,25 @@ function sameRadioGroup(a: Element, b: Element | null) {
 }
 
 /**
- * 모달. Esc·바깥 클릭으로 닫는다.
+ * 모달. Esc·바깥 클릭으로 닫는다. 바깥 클릭은 누르기 시작한 곳도 바깥일 때만 닫는다(안에서 글자를 고르며 끌다
+ * 바깥에서 놓아도 닫히지 않게).
  * 포커스: 열면 모달 자체(제목이 이름)로 옮긴다. 이미 안에 있으면(autoFocus 칸 등) 그대로 둔다.
  * 입력 칸에 바로 주지 않는 것은 모바일에서 키보드가 저절로 올라오지 않게 하려는 것이다.
- * Tab·Shift+Tab은 모달 안에서 돈다. 닫으면 열 때 포커스가 있던 곳(연 버튼)으로 돌려준다.
+ * Tab·Shift+Tab은 모달 안에서 돈다. 닫으면 열 때 포커스가 있던 곳(연 버튼)으로 돌려주고, 연 버튼이 사라졌으면
+ * (지운 목록 줄 등) 본문(main)으로 돌려준다.
  */
-export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  wide,
+  dismissOnScrim = true,
+}: ModalProps) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
+  // 덮개에서 누르기 시작했는지. 안에서 누른 채 끌어 바깥에서 놓으면 click이 덮개에서 나므로 시작 위치로 가린다.
+  const pressedOnScrim = useRef(false)
   // 그리기 전에 읽어야 한다. 그린 뒤에는 autoFocus 칸이 이미 포커스를 가져간다.
   const [opener] = useState(() => document.activeElement)
 
@@ -88,8 +104,9 @@ export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
       // 닫는 사이 다른 곳으로 포커스가 옮겨 갔으면(다른 모달·입력 칸) 빼앗지 않는다.
       const lost =
         !active || active === document.body || dialog.contains(active)
-      if (lost && opener instanceof HTMLElement && opener.isConnected)
-        opener.focus()
+      if (!lost) return
+      if (opener instanceof HTMLElement && opener.isConnected) opener.focus()
+      else document.querySelector('main')?.focus({ preventScroll: true })
     }
   }, [opener])
 
@@ -117,7 +134,17 @@ export function Modal({ title, onClose, children, footer, wide }: ModalProps) {
   }
 
   return (
-    <div className="scrim" onClick={onClose}>
+    <div
+      className="scrim"
+      onPointerDown={(e) => {
+        pressedOnScrim.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        const outside = pressedOnScrim.current && e.target === e.currentTarget
+        pressedOnScrim.current = false
+        if (outside && dismissOnScrim) onClose()
+      }}
+    >
       <div
         ref={dialogRef}
         className={wide ? 'modal wide' : 'modal'}

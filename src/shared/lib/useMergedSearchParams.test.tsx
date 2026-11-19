@@ -127,4 +127,13 @@ describe('useMergedSearchParams', () => {
       Object.fromEntries(new URLSearchParams(router.state.location.search)),
     ).toEqual({ keyword: 'a', sort: 'rating' })
   })
+
+  it('검색어만 바꾸는 이동은 스크롤을 맨 위로 옮기지 않는다(preventScrollReset)', async () => {
+    const { router, set } = setup('/?keyword=a')
+    await act(async () => {})
+
+    await act(async () => set('sort', 'rating'))
+    expect(router.state.location.search).toBe('?keyword=a&sort=rating')
+    expect(router.state.preventScrollReset).toBe(true)
+  })
 })

@@ -38,7 +38,8 @@ function useInvalidateRecruits({ wallet = false } = {}) {
     ])
 }
 
-const onError = (error: Error) => toast(recruitErrorMessage(error))
+const onError = (error: Error) =>
+  toast(recruitErrorMessage(error), { tone: 'error' })
 
 export function useEditRecruit(recruitId: number) {
   const invalidate = useInvalidateRecruits()

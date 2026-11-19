@@ -152,6 +152,7 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
     <Modal
       title="HP 환불"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
