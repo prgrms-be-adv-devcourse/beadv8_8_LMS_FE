@@ -1,4 +1,5 @@
 /** HP 충전 규칙과 결제창 리다이렉트 주소. 금액 검사는 BE(CHARGE_AMOUNT_INVALID)와 같고, 최종 판단은 BE가 한다. */
+import { safeReturnPath } from '@/shared/lib/returnPath'
 
 export const CHARGE_UNIT = 1_000
 export const CHARGE_PRESETS = [10_000, 30_000, 50_000, 100_000] as const
@@ -24,9 +25,23 @@ export function chargeAmountForShort(short: number): number {
   return Math.max(CHARGE_UNIT, Math.ceil(short / CHARGE_UNIT) * CHARGE_UNIT)
 }
 
-/** 지갑에서 충전 모달을 그 금액으로 연다. 다른 화면의 "HP 충전하러 가기"가 쓴다. */
-export function chargeHref(short: number): string {
-  return `/wallet?charge=${chargeAmountForShort(short)}`
+/**
+ * 지갑에서 충전 모달을 그 금액으로 연다. returnTo는 충전한 뒤 돌아갈 화면이다(같은 출처 앱 경로만 싣는다).
+ * 결과 화면이 그곳으로 돌아가는 버튼을 보인다.
+ */
+export function walletChargeHref(
+  amount: number,
+  returnTo?: string | null,
+): string {
+  const params = new URLSearchParams({ charge: String(amount) })
+  const back = safeReturnPath(returnTo)
+  if (back) params.set('returnTo', back)
+  return `/wallet?${params}`
+}
+
+/** 모자란 HP만큼 충전하러 간다. 다른 화면의 "HP 충전하러 가기"가 쓴다(returnTo는 지금 화면). */
+export function chargeHref(short: number, returnTo?: string): string {
+  return walletChargeHref(chargeAmountForShort(short), returnTo)
 }
 
 /** /wallet?charge=N의 N. 올바른 충전 금액이 아니면 null */
@@ -38,11 +53,25 @@ export function parseChargeAmountParam(value: string | null): number | null {
 /**
  * 결제창이 돌아올 주소. 토스는 successUrl에 paymentKey·orderId·amount를,
  * failUrl에 code·message·orderId를 붙인다. 실패 화면에도 금액을 보여 주려고 failUrl에 amount를 넣어 둔다.
+ * returnTo(충전한 뒤 돌아갈 화면)가 있으면 두 주소에 함께 싣는다.
  */
-export function chargeReturnUrls(origin: string, amount: number) {
+export function chargeReturnUrls(
+  origin: string,
+  amount: number,
+  returnTo?: string | null,
+) {
+  const back = safeReturnPath(returnTo)
+  const success = new URLSearchParams()
+  const fail = new URLSearchParams({ amount: String(amount) })
+  if (back) {
+    success.set('returnTo', back)
+    fail.set('returnTo', back)
+  }
   return {
-    successUrl: `${origin}${CHARGE_RESULT_PATH}`,
-    failUrl: `${origin}${CHARGE_RESULT_PATH}?amount=${amount}`,
+    successUrl: back
+      ? `${origin}${CHARGE_RESULT_PATH}?${success}`
+      : `${origin}${CHARGE_RESULT_PATH}`,
+    failUrl: `${origin}${CHARGE_RESULT_PATH}?${fail}`,
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router'
 import {
   REFUND_INPUT_MAX_DIGITS,
@@ -10,10 +10,15 @@ import { RefundStatusPill } from '@/entities/wallet/ui/RefundStatusPill'
 import { isApiError } from '@/shared/api/ApiError'
 import { formatNumber } from '@/shared/lib/money'
 import { lookup } from '@/shared/lib/statusLabel'
+import { useFieldErrors } from '@/shared/lib/useFieldErrors'
 import { Field } from '@/shared/ui/Field'
 import { Modal } from '@/shared/ui/Modal'
 import styles from './RefundModal.module.css'
 import { useRefund } from './useRefund'
+
+const FORM_ID = 'refund-form'
+const FIELD_ID = { amount: 'refund-amount' }
+const FIELD_ORDER = ['amount'] as const
 
 type RefundModalProps = {
   /** 지갑 쿼리 값. 잔액이 다시 불러와지면 검사 기준도 바뀐다. */
@@ -23,7 +28,10 @@ type RefundModalProps = {
   onClose: () => void
 }
 
-/** 충전 HP 환불: 금액을 정해 신청하고, 이번 신청의 결과를 이 모달에서 보여 준다. */
+/**
+ * 충전 HP 환불: 금액을 정해 신청(또는 금액 칸에서 Enter)하고, 이번 신청의 결과를 이 모달에서 보여 준다.
+ * 금액은 천 단위로 끊어 보이고, 오류는 칸을 떠나거나 제출할 때 보인다.
+ */
 export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
   const {
     refund,
@@ -48,6 +56,19 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
   const error = unknown
     ? null
     : refundAmountError(amount, wallet.chargeBalanceHp)
+  const fields = useFieldErrors({
+    ids: FIELD_ID,
+    order: FIELD_ORDER,
+    errors: { amount: error ?? undefined },
+  })
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (fields.blockSubmit() || submitting) return
+    // 보낸 칸은 건드린 것으로 본다. 잔액 부족으로 거절되면 다시 불러온 잔액으로 검사한 오류가 바로 보인다.
+    fields.inputProps('amount').onBlur()
+    submit(amount)
+  }
 
   if (refund)
     return (
@@ -134,13 +155,14 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
-            취소
+            닫기
           </button>
           <button
-            type="button"
+            type="submit"
+            form={FORM_ID}
             className="btn primary"
-            disabled={error !== null || submitting}
-            onClick={() => submit(amount)}
+            disabled={submitting}
+            {...fields.submitProps}
           >
             {submitting && <span className="spinner sm" aria-hidden="true" />}
             {unknown ? '다시 시도' : `${formatNumber(amount)} HP 환불 신청`}
@@ -170,32 +192,41 @@ export function RefundModal({ wallet, earns, onClose }: RefundModalProps) {
           </div>
         )}
       </div>
-      <Field
-        id="refund-amount"
-        label="환불 금액 (HP)"
-        error={value === '' ? undefined : (error ?? undefined)}
-        hint="충전 HP 안에서 원하는 만큼 부분 환불할 수 있어요. 1 HP = 1원"
+      <form
+        {...fields.formProps}
+        id={FORM_ID}
+        className={styles.form}
+        noValidate
+        onSubmit={onSubmit}
       >
-        <div className={styles.amountBox}>
-          <input
-            id="refund-amount"
-            className={`input num ${styles.amountInput}`}
-            inputMode="numeric"
-            disabled={unknown || submitting}
-            value={value}
-            onChange={(e) =>
-              setValue(
-                e.target.value
-                  .replace(/\D/g, '')
-                  .slice(0, REFUND_INPUT_MAX_DIGITS),
-              )
-            }
-          />
-          <span className={styles.unit} aria-hidden="true">
-            HP
-          </span>
-        </div>
-      </Field>
+        <Field
+          id={FIELD_ID.amount}
+          label="환불 금액 (HP)"
+          error={fields.error('amount')}
+          hint="1,000 HP 단위로, 충전 HP 안에서 원하는 만큼 부분 환불할 수 있어요. 1 HP = 1원"
+        >
+          <div className={styles.amountBox}>
+            <input
+              {...fields.inputProps('amount')}
+              className={`input num ${styles.amountInput}`}
+              inputMode="numeric"
+              disabled={unknown || submitting}
+              value={value && formatNumber(Number(value))}
+              onChange={(e) => {
+                fields.changed('amount')
+                setValue(
+                  e.target.value
+                    .replace(/\D/g, '')
+                    .slice(0, REFUND_INPUT_MAX_DIGITS),
+                )
+              }}
+            />
+            <span className={styles.unit} aria-hidden="true">
+              HP
+            </span>
+          </div>
+        </Field>
+      </form>
       {rejection && !submitting && <RequestError error={rejection} />}
       {unknown && !submitting && (
         <div className="notice warn" role="status">
