@@ -17,6 +17,14 @@ describe('date', () => {
     expect(formatDateTime('2026-10-20T21:00:00')).toBe('10/20(화) 21:00')
   })
 
+  it('올해가 아니면 날짜에 연도를 붙인다', () => {
+    expect(formatDate('2025-12-31T21:00:00', now)).toBe('2025/12/31(수)')
+    expect(formatDate('2027-01-01T09:00:00', now)).toBe('2027/1/1(금)')
+    expect(formatDateTime('2025-12-31T23:59:00', now)).toBe(
+      '2025/12/31(수) 23:59',
+    )
+  })
+
   it('입력값을 BE LocalDateTime으로 바꾼다', () => {
     expect(toServerDateTime('2026-10-20T21:00')).toBe('2026-10-20T21:00:00')
   })
