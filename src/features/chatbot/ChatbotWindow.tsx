@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import { CHATBOT_WINDOW_ID } from './ChatbotLauncher'
 import { ChatbotIcon } from './ChatbotIcon'
@@ -29,10 +29,36 @@ export function ChatbotWindow() {
   const headerBottom = useHeaderBottom()
   const root = useRef<HTMLElement>(null)
   const scroller = useRef<HTMLDivElement>(null)
+  const resetButton = useRef<HTMLButtonElement>(null)
+  const keepButton = useRef<HTMLButtonElement>(null)
+  // 새 대화는 지금 대화를 되돌릴 수 없게 지우므로 한 번 더 묻는다.
+  const [confirmingReset, setConfirmingReset] = useState(false)
+  // 지운 뒤 입력칸으로 포커스한다. 답을 기다리던 중이면 지운 뒤에야 입력칸이 풀리므로 그린 뒤에 옮긴다.
+  const focusComposer = useRef(false)
 
   useEffect(() => {
     root.current?.focus()
   }, [])
+
+  useEffect(() => {
+    if (confirmingReset) keepButton.current?.focus()
+  }, [confirmingReset])
+
+  useEffect(() => {
+    if (!focusComposer.current) return
+    focusComposer.current = false
+    root.current?.querySelector('textarea')?.focus()
+  }, [items])
+
+  const cancelReset = () => {
+    setConfirmingReset(false)
+    resetButton.current?.focus()
+  }
+  const reset = () => {
+    focusComposer.current = true
+    clearConversation()
+    setConfirmingReset(false)
+  }
 
   // 새 말풍선이 생기거나 마지막 말풍선이 바뀌면(답 조각 등) 맨 아래로 내린다. 위쪽 말풍선이 바뀔 때는 그대로 둔다.
   const last = items.at(-1)
@@ -53,7 +79,9 @@ export function ChatbotWindow() {
       onKeyDown={(e) => {
         if (e.key !== 'Escape') return
         e.stopPropagation()
-        closeChatbot()
+        // 새 대화를 묻는 중이면 묻기만 접는다.
+        if (confirmingReset) cancelReset()
+        else closeChatbot()
       }}
     >
       <header className={styles.head}>
@@ -79,10 +107,12 @@ export function ChatbotWindow() {
           FAQ ↗
         </Link>
         <button
+          ref={resetButton}
           type="button"
           className={`btn ghost sm ${styles.reset}`}
           disabled={items.length === 0}
-          onClick={clearConversation}
+          aria-expanded={confirmingReset}
+          onClick={() => setConfirmingReset(true)}
         >
           새 대화
         </button>
@@ -106,6 +136,26 @@ export function ChatbotWindow() {
           </svg>
         </button>
       </header>
+      {confirmingReset && (
+        <div className={styles.confirm} role="group" aria-label="새 대화 확인">
+          <p>
+            지금 대화를 지우고 새로 시작할까요? 지운 대화는 되돌릴 수 없어요.
+          </p>
+          <div className={styles.confirmActions}>
+            <button
+              ref={keepButton}
+              type="button"
+              className="btn ghost sm"
+              onClick={cancelReset}
+            >
+              아니요
+            </button>
+            <button type="button" className="btn danger sm" onClick={reset}>
+              지우고 새로 시작
+            </button>
+          </div>
+        </div>
+      )}
       <div ref={scroller} className={styles.body}>
         <Greeting active={items.length === 0} />
         <MessageList items={items} />
