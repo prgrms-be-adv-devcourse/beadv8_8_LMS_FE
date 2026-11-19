@@ -177,12 +177,12 @@ describe('쿠폰 받기 화면', () => {
     // 이미 받은 쿠폰과 다 나간 쿠폰은 막는다.
     expect(
       within(await ticket('받은 전 강의 쿠폰')).getByRole('button', {
-        name: '받음',
+        name: / 받음$/,
       }),
     ).toBeDisabled()
     expect(
       within(await ticket('다 나간 강의 7 쿠폰')).getByRole('button', {
-        name: '소진',
+        name: / 소진$/,
       }),
     ).toBeDisabled()
     expect(
@@ -209,10 +209,10 @@ describe('쿠폰 받기 화면', () => {
     expect(screen.queryByRole('link', { name: '쿠폰함에서 보기' })).toBeNull()
 
     await userEvent.click(
-      within(card).getByRole('button', { name: '발급받기' }),
+      within(card).getByRole('button', { name: / 발급받기$/ }),
     )
     expect(await within(card).findByText(/^발급 완료/)).toBeInTheDocument()
-    expect(within(card).getByRole('button', { name: '받음' })).toBeDisabled()
+    expect(within(card).getByRole('button', { name: / 받음$/ })).toBeDisabled()
     expect(coupons.issueRequests.map((r) => r.couponId)).toEqual([3])
     expect(
       screen.getByRole('link', { name: '쿠폰함에서 보기' }),
@@ -239,7 +239,9 @@ describe('쿠폰 받기 화면', () => {
     ])
     for (const name of ['전 강의 쿠폰', '강의 7 쿠폰', '강의 9 쿠폰']) {
       const card = await ticket(name)
-      expect(within(card).getByRole('button', { name: '받음' })).toBeDisabled()
+      expect(
+        within(card).getByRole('button', { name: / 받음$/ }),
+      ).toBeDisabled()
     }
 
     // 받을 것이 남지 않으면 모두 받기 대신 쿠폰함으로 이어 준다.
@@ -264,7 +266,9 @@ describe('쿠폰 받기 화면', () => {
     ).toBeInTheDocument()
     const failed = await ticket('강의 7 쿠폰')
     expect(within(failed).getByText('모두 소진됐어요')).toBeInTheDocument()
-    expect(within(failed).getByRole('button', { name: '소진' })).toBeDisabled()
+    expect(
+      within(failed).getByRole('button', { name: / 소진$/ }),
+    ).toBeDisabled()
   })
 
   it(`강의 상세는 한 번에 ${LECTURE_LOOKUP_CONCURRENCY}개까지만 부르고, 하나가 끝나면 다음 강의를 부른다`, async () => {
