@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Link,
   NavLink,
+  ScrollRestoration,
   useLocation,
   useMatches,
   useNavigation,
@@ -21,6 +22,7 @@ import { LoginModal } from '@/features/auth/LoginModal'
 import { meQuery } from '@/shared/auth/me'
 import { MEMBER, type Viewer } from '@/shared/auth/role'
 import { useLogoutSync, useViewer } from '@/shared/auth/session'
+import { formatNumber } from '@/shared/lib/money'
 import { HpAmount } from '@/shared/ui/HpAmount'
 import { openLoginModal } from '@/shared/ui/loginModal'
 import { Toast } from '@/shared/ui/Toast'
@@ -30,6 +32,7 @@ import { Icon, NavIcon } from './icons'
 import { BottomTabBar, SectionTabs } from './SiteNav'
 import { ThemeCycleButton } from './ThemeSwitch'
 import { useNarrow } from './useNarrow'
+import { useRouteFocus } from './useRouteFocus'
 
 const NAV_ID = 'main-nav'
 const MAIN_ID = 'main'
@@ -122,6 +125,7 @@ export function AppShell() {
   const topLayout = useInnermostHandle('layout') === 'top'
   const narrow = useNarrow()
   useDocumentTitle()
+  useRouteFocus(MAIN_ID)
   const admin = viewer === 'ADMIN'
   const tabBar = !admin && narrow && !hidesTabBar(pathname)
 
@@ -138,6 +142,8 @@ export function AppShell() {
       {me && CHAT_VIEWERS.includes(me.role) && (
         <ChatConnection userId={me.id} />
       )}
+      {/* 화면을 옮기면 맨 위에서 시작하고, 뒤로 가기는 떠난 자리로 돌아간다. 검색어만 바꾸면 그대로 둔다(useMergedSearchParams) */}
+      <ScrollRestoration />
       {/* 알림센터 실시간 연결: 알림을 받는 회원만(관리자는 알림을 받지 않는다) */}
       {me && MEMBER.includes(me.role) && (
         <NotificationConnection userId={me.id} />
@@ -470,11 +476,22 @@ function BellIcon() {
   )
 }
 
+/** HP 칸의 읽는 이름. 보이는 잔액을 함께 읽고, 잔액을 모르면 지갑만 읽는다. */
+function hpLabel(available: number | undefined) {
+  return available === undefined
+    ? '지갑'
+    : `지갑, 사용 가능 ${formatNumber(available)} HP`
+}
+
 /** 사용 가능한 HP(충전 + 수익). 자세한 내역은 지갑에서 본다. */
 function HpPill() {
   const { data } = useQuery(walletQuery)
   return (
-    <Link to="/wallet" className={styles.hpPill} aria-label="지갑">
+    <Link
+      to="/wallet"
+      className={styles.hpPill}
+      aria-label={hpLabel(data?.availableTotalHp)}
+    >
       <span className={styles.coin} aria-hidden="true">
         HP
       </span>

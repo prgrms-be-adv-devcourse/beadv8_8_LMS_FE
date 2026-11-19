@@ -10,6 +10,7 @@ import { useStartChat } from '@/features/chat/useChatActions'
 import { meQuery } from '@/shared/auth/me'
 import { INFLUENCER, type Viewer } from '@/shared/auth/role'
 import { useViewer } from '@/shared/auth/session'
+import { formatNumber } from '@/shared/lib/money'
 import { LoadError, Loading } from '@/shared/ui/QueryState'
 
 const isInfluencer = (role: Viewer | undefined) =>
@@ -107,7 +108,7 @@ function ProfileActions({ profile }: { profile: MemberProfileDetail }) {
       </button>
       <p className="fine">
         요청을 보내면 출연료만큼 HP가 보류되고, 게스트가 수락하면 출연이
-        성립해요. 최저 출연료는 {MINIMUM_FEE.toLocaleString()} HP예요.
+        성립해요. 최저 출연료는 {formatNumber(MINIMUM_FEE)} HP예요.
       </p>
       {requesting && (
         <RequestFormModal

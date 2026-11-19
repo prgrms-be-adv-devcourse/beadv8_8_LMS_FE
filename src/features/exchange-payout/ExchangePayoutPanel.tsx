@@ -56,12 +56,14 @@ function AttemptTable({ attempts }: { attempts: AdminExchangePayout[] }) {
       <table className="tbl" aria-label="송금 시도 이력">
         <thead>
           <tr>
-            <th>시도</th>
-            <th>상태</th>
-            <th className="r">송금액(원)</th>
-            <th>요청</th>
-            <th>결과</th>
-            <th>결과 확인</th>
+            <th scope="col">시도</th>
+            <th scope="col">상태</th>
+            <th scope="col" className="r">
+              송금액(원)
+            </th>
+            <th scope="col">요청</th>
+            <th scope="col">결과</th>
+            <th scope="col">결과 확인</th>
           </tr>
         </thead>
         <tbody>

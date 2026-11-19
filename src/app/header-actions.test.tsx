@@ -218,7 +218,7 @@ describe('상단 헤더 알림', () => {
     expect(
       await within(bar).findByRole('link', { name: '알림' }),
     ).toHaveAttribute('aria-current', 'page')
-    await userEvent.click(within(bar).getByRole('link', { name: '지갑' }))
+    await userEvent.click(within(bar).getByRole('link', { name: /^지갑/ }))
     expect(within(bar).getByRole('link', { name: '알림' })).not.toHaveAttribute(
       'aria-current',
     )
@@ -279,7 +279,7 @@ describe('상단 헤더 채팅', () => {
     const bar = await header()
     await within(bar).findByRole('link', { name: '채팅' })
     const actions = [
-      within(bar).getByRole('link', { name: '지갑' }),
+      within(bar).getByRole('link', { name: /^지갑/ }),
       within(bar).getByRole('link', { name: '장바구니' }),
       within(bar).getByRole('link', { name: '채팅' }),
       within(bar).getByRole('link', { name: '알림' }),
@@ -364,12 +364,31 @@ describe('상단 헤더 HP', () => {
     mockCart(0)
     const router = renderApp('/lectures', 'USER')
     await userEvent.click(
-      await within(await header()).findByRole('link', { name: '지갑' }),
+      await within(await header()).findByRole('link', { name: /^지갑/ }),
     )
     expect(router.state.location.pathname).toBe('/wallet')
     expect(
       await screen.findByRole('heading', { level: 1, name: '지갑' }),
     ).toBeInTheDocument()
+  })
+
+  it('HP 칸의 읽는 이름에 보이는 잔액이 들어 있고, 잔액을 모르면 지갑만 읽는다', async () => {
+    mockCart(0)
+    renderApp('/lectures', 'USER')
+    const bar = await header()
+    expect(
+      await within(bar).findByRole('link', {
+        name: '지갑, 사용 가능 163,000 HP',
+      }),
+    ).toHaveTextContent('163,000 HP')
+  })
+
+  it('잔액을 불러오지 못하면 HP 칸은 지갑으로만 읽는다', async () => {
+    mockCart(0)
+    renderApp('/lectures', 'USER', () => HttpResponse.json({}, { status: 500 }))
+    expect(
+      await within(await header()).findByRole('link', { name: '지갑' }),
+    ).toHaveTextContent('—')
   })
 })
 

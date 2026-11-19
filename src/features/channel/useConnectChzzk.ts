@@ -7,6 +7,6 @@ export function useConnectChzzk() {
   return useMutation({
     mutationFn: authorizeChzzk,
     onSuccess: ({ authorizeUrl }) => location.assign(authorizeUrl),
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
   })
 }

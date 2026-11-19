@@ -549,7 +549,7 @@ export function unreadOf(queryClient: QueryClient, chatRoomId: number) {
  */
 export function applyChatError(queryClient: QueryClient, error: ChatError) {
   if (error.clientMessageId) failPending(error.clientMessageId, error.message)
-  toast(error.message)
+  toast(error.message, { tone: 'error' })
   if (
     error.code === 'CHAT_PARTNER_LEFT' ||
     error.code === 'NOT_CHAT_ROOM_MEMBER' ||

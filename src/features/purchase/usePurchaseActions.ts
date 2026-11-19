@@ -17,7 +17,7 @@ function useOrderItemMutation<T>(
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: orderKeys.all }),

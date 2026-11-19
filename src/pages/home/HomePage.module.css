@@ -510,7 +510,7 @@
   height: 84px;
   margin: -42px 0 0 -42px;
   border-radius: 50%;
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   display: grid;
   place-items: center;
@@ -727,7 +727,7 @@
   padding: 2px 9px;
   font: 600 12px var(--f-body);
   letter-spacing: 0;
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 .stepName {

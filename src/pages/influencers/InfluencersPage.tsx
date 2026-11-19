@@ -77,7 +77,7 @@ export function InfluencersPage() {
     <div className="page">
       <PageHead
         title="인플루언서"
-        lede={`채널 인증을 마친 인플루언서예요. 채팅으로 일정을 맞춘 뒤 출연 요청을 보내세요. 최저 출연료는 1인당 ${MINIMUM_FEE.toLocaleString()} HP예요.`}
+        lede={`채널 인증을 마친 인플루언서예요. 채팅으로 일정을 맞춘 뒤 출연 요청을 보내세요. 최저 출연료는 1인당 ${formatNumber(MINIMUM_FEE)} HP예요.`}
       />
       {viewer === 'USER' && (
         <div className="notice">

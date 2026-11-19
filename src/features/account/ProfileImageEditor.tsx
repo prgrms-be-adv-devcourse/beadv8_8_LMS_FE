@@ -29,7 +29,7 @@ export function ProfileImageEditor({
       await applyMe(next)
       toast('프로필 사진을 바꿨어요.')
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
   })
   const remove = useMutation({
     mutationFn: deleteProfileImage,
@@ -37,7 +37,7 @@ export function ProfileImageEditor({
       await applyMe(next)
       toast('프로필 사진을 지웠어요.')
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
   })
 
   const pick = (file: File | undefined) => {

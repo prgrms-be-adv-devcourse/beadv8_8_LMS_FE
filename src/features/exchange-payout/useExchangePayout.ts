@@ -88,7 +88,7 @@ function usePayoutMutation<T, R>(
         isFinalFailureReasonError(error)
       )
         return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       Promise.all([

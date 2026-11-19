@@ -5,17 +5,19 @@
   --sunken: #e8eaef;
   --line: #dadde5;
   --line-2: #c3c8d3;
+  /* 입력칸 테두리: 흰 면 위에서 칸 경계가 보이게 3:1 이상(WCAG 1.4.11) */
+  --line-field: #868fa6;
   --ink: #14161b;
   --ink-2: #454b5a;
-  --ink-3: #666d80;
+  --ink-3: #61687a;
   --signal: #ee5a24;
   --signal-ink: #ffffff;
   --signal-soft: #fce6dc;
   --charge: #2c5fd6;
   --charge-soft: #e1e9fb;
-  --earn: #0a8659;
+  --earn: #097950;
   --earn-soft: #dcf1e7;
-  --hold: #a0650c;
+  --hold: #935d0b;
   --hold-soft: #f6ead3;
   --bad: #c0283a;
   --bad-soft: #fadfe2;
@@ -35,10 +37,11 @@
   --hover: color-mix(in srgb, var(--ink) 5%, transparent);
   --press: color-mix(in srgb, var(--ink) 9%, transparent);
   --scrim: rgba(14, 16, 20, 0.52);
-  /* 신호색 짝: 그라데이션 끝, 눌림, 흰 면 위 작은 글자(AA) */
+  /* 신호색 짝: 그라데이션 끝, 글자를 얹는 면(버튼·배지, 흰 글자 AA), 그 면의 호버·눌림, 작은 글자(AA) */
   --signal-2: #ff8f3f;
-  --signal-strong: #d94a17;
-  --signal-text: #c8420f;
+  --signal-fill: #d14410;
+  --signal-strong: #b63e13;
+  --signal-text: #ba3d0e;
   --grad-signal: linear-gradient(
     135deg,
     var(--signal) 0%,
@@ -79,9 +82,10 @@
     --sunken: #1f232b;
     --line: #2a2f39;
     --line-2: #3a404c;
+    --line-field: #636e82;
     --ink: #eceef3;
     --ink-2: #b0b6c3;
-    --ink-3: #7f8698;
+    --ink-3: #848b9c;
     --signal: #ff6b3a;
     --signal-ink: #140a05;
     --signal-soft: #3a2119;
@@ -99,6 +103,7 @@
     --press: color-mix(in srgb, var(--ink) 12%, transparent);
     --scrim: rgba(4, 5, 8, 0.66);
     --signal-2: #ffa25c;
+    --signal-fill: #ff6b3a;
     --signal-strong: #ff8256;
     --signal-text: #ff8a5e;
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -115,9 +120,10 @@
   --sunken: #1f232b;
   --line: #2a2f39;
   --line-2: #3a404c;
+  --line-field: #636e82;
   --ink: #eceef3;
   --ink-2: #b0b6c3;
-  --ink-3: #7f8698;
+  --ink-3: #848b9c;
   --signal: #ff6b3a;
   --signal-ink: #140a05;
   --signal-soft: #3a2119;
@@ -135,6 +141,7 @@
   --press: color-mix(in srgb, var(--ink) 12%, transparent);
   --scrim: rgba(4, 5, 8, 0.66);
   --signal-2: #ffa25c;
+  --signal-fill: #ff6b3a;
   --signal-strong: #ff8256;
   --signal-text: #ff8a5e;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);

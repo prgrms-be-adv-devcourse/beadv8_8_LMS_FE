@@ -44,13 +44,18 @@ export function TransactionLedger() {
       ) : (
         <>
           <div className="tbl-wrap">
-            <table className={`tbl ledger ${styles.table}`}>
+            <table
+              className={`tbl ledger ${styles.table}`}
+              aria-label="거래 내역"
+            >
               <thead>
                 <tr>
-                  <th>일시</th>
-                  <th>내용</th>
-                  <th>HP 종류</th>
-                  <th className="r">증감</th>
+                  <th scope="col">일시</th>
+                  <th scope="col">내용</th>
+                  <th scope="col">HP 종류</th>
+                  <th className="r" scope="col">
+                    증감
+                  </th>
                 </tr>
               </thead>
               <tbody>

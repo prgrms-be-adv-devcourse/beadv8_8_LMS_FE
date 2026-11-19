@@ -216,16 +216,22 @@ function Sales() {
       ) : (
         <>
           <div className="tbl-wrap">
-            <table className="tbl">
+            <table className="tbl" aria-label="판매 내역">
               <thead>
                 <tr>
-                  <th>구매일</th>
-                  <th>강의</th>
-                  <th className="r">원가격</th>
-                  <th className="r">할인</th>
-                  <th className="r">지급액</th>
-                  <th>지급 예정일</th>
-                  <th>상태</th>
+                  <th scope="col">구매일</th>
+                  <th scope="col">강의</th>
+                  <th className="r" scope="col">
+                    원가격
+                  </th>
+                  <th className="r" scope="col">
+                    할인
+                  </th>
+                  <th className="r" scope="col">
+                    지급액
+                  </th>
+                  <th scope="col">지급 예정일</th>
+                  <th scope="col">상태</th>
                 </tr>
               </thead>
               <tbody>
