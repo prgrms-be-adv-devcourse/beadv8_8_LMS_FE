@@ -161,8 +161,11 @@ describe('출연 모집 검색', () => {
     await userEvent.selectOptions(sort, '마감 임박순')
     await expectTitles(['주말 공포게임 합방', '노래 릴레이', '먹방 콜라보'])
     await userEvent.selectOptions(sort, '방송 임박순')
+    // 마감 임박순과 순서가 같아 목록만으로는 새 결과인지 알 수 없으니 요청부터 기다린다
+    await waitFor(() =>
+      expect(lastQuery(requests)).toMatchObject({ sort: 'SCHEDULED_SOON' }),
+    )
     await expectTitles(['주말 공포게임 합방', '노래 릴레이', '먹방 콜라보'])
-    expect(lastQuery(requests)).toMatchObject({ sort: 'SCHEDULED_SOON' })
 
     await userEvent.selectOptions(sort, '최신순')
     await waitFor(() =>
