@@ -126,7 +126,7 @@ function usePayoutMutation<T, R>(
     onError: (error) => {
       if (isGlobalAuthError(error)) return
       if (inline && mounted.current && !isFinalPayoutError(error)) return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       Promise.all([

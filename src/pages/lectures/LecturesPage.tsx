@@ -233,7 +233,7 @@ function LectureList({
 
 type CardLecture = { lectureId: number; sellerUserId: number }
 
-/** 보유 중·장바구니·내 강의 표시. 해당하는 것이 없으면 null이다 */
+/** 보유 중·장바구니·내가 판매 표시. 해당하는 것이 없으면 null이다 */
 function buyerFlags(lecture: CardLecture, buyer: BuyerState) {
   const owned = buyer.owned.has(lecture.lectureId)
   const inCart = buyer.inCart.has(lecture.lectureId)
@@ -243,7 +243,7 @@ function buyerFlags(lecture: CardLecture, buyer: BuyerState) {
     <>
       {owned && <span className="pill ok">보유 중</span>}
       {inCart && <span className="pill info">장바구니</span>}
-      {mine && <span className="pill mute">내 강의</span>}
+      {mine && <span className="pill mute">내가 판매</span>}
     </>
   )
 }

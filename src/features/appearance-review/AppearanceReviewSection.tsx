@@ -48,7 +48,7 @@ function useWriteAppearanceReview(appearanceId: number) {
       await refresh()
     },
     onError: (error) => {
-      toast(error.message)
+      toast(error.message, { tone: 'error' })
       if (isApiError(error) && STALE_CODES.has(error.code)) void refresh()
     },
   })

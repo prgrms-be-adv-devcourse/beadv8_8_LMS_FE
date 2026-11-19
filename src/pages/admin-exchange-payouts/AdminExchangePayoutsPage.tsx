@@ -108,13 +108,15 @@ export function AdminExchangePayoutsPage() {
             <table className="tbl" aria-label="송금 시도 목록">
               <thead>
                 <tr>
-                  <th>송금 요청 일시</th>
-                  <th>환전</th>
-                  <th className="r">송금액(원)</th>
-                  <th>사유</th>
-                  <th>시도 상태</th>
-                  <th>환전 상태</th>
-                  <th aria-label="상세" />
+                  <th scope="col">송금 요청 일시</th>
+                  <th scope="col">환전</th>
+                  <th scope="col" className="r">
+                    송금액(원)
+                  </th>
+                  <th scope="col">사유</th>
+                  <th scope="col">시도 상태</th>
+                  <th scope="col">환전 상태</th>
+                  <th scope="col" aria-label="상세" />
                 </tr>
               </thead>
               <tbody>

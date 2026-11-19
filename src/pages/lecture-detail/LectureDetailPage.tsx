@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { lectureQuery, reviewsQuery } from '@/entities/lecture/api'
 import { editLabel } from '@/entities/lecture/edit'
@@ -199,6 +199,15 @@ function BuyPanel({
   const [checkout, setCheckout] = useState(false)
   const owned = buyer.owned.get(lecture.lectureId)
   const block = blockReason(lecture, buyer, viewer === 'ADMIN')
+  // 담으면 담기 버튼이 '장바구니 보기'로 바뀌어 포커스를 잃으므로, 바뀐 링크로 옮긴다.
+  const cartLink = useRef<HTMLAnchorElement>(null)
+  const focusCartLink = useRef(false)
+  const inCart = buyer.inCart.has(lecture.lectureId)
+  useEffect(() => {
+    if (!focusCartLink.current || !inCart) return
+    focusCartLink.current = false
+    cartLink.current?.focus()
+  }, [inCart])
 
   return (
     <aside className={`panel sticky ${styles.panel}`}>
@@ -223,15 +232,17 @@ function BuyPanel({
         <div className="notice">{block}</div>
       ) : (
         <>
+          {/* 구매 내역을 받기 전에는 이미 산 강의인지 몰라 바로 구매를 막는다. */}
           <button
             type="button"
             className="btn primary block"
+            disabled={buyer.loading}
             onClick={() => setCheckout(true)}
           >
             바로 구매
           </button>
-          {buyer.inCart.has(lecture.lectureId) ? (
-            <Link className="btn block" to="/cart">
+          {inCart ? (
+            <Link ref={cartLink} className="btn block" to="/cart">
               장바구니 보기
             </Link>
           ) : (
@@ -239,7 +250,14 @@ function BuyPanel({
               type="button"
               className="btn block"
               disabled={addToCart.isPending}
-              onClick={() => addToCart.mutate(lecture.lectureId)}
+              onClick={() => {
+                focusCartLink.current = true
+                addToCart.mutate(lecture.lectureId, {
+                  onError: () => {
+                    focusCartLink.current = false
+                  },
+                })
+              }}
             >
               장바구니 담기
             </button>

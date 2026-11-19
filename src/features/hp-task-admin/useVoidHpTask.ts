@@ -61,7 +61,7 @@ export function useVoidHpTask(taskId: number) {
     onError: (error) => {
       if (isGlobalAuthError(error)) return
       if (mounted.current && !isFinalVoidError(error)) return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: hpTaskKeys.all }),

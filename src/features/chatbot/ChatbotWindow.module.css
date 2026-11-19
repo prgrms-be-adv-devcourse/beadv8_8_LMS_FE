@@ -105,6 +105,26 @@
 .reset {
   flex: none;
 }
+/* 새 대화 확인: 머리 바로 아래에 붙는 띠 */
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.confirm p {
+  flex: 1 1 200px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.confirmActions {
+  display: flex;
+  gap: 8px;
+}
 .close {
   flex: none;
   width: 36px;

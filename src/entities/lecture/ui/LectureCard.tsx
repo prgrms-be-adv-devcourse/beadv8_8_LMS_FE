@@ -52,7 +52,7 @@ export function Price({ hp }: { hp: number }) {
   )
 }
 
-/** 강의 카드를 누르면 상세로 간다. 비회원은 상세를 볼 수 없어 로그인 모달을 연다 */
+/** 강의 카드를 누르면 상세로 간다. 비회원은 상세를 볼 수 없어 로그인 모달을 열고, 로그인하면 그 상세로 보낸다 */
 export function LectureCardFrame({
   lectureId,
   guest,
@@ -68,7 +68,10 @@ export function LectureCardFrame({
         type="button"
         className={styles.card}
         onClick={() =>
-          openLoginModal('강의 상세와 구매는 로그인 후 이용할 수 있어요.')
+          openLoginModal(
+            '강의 상세와 구매는 로그인 후 이용할 수 있어요.',
+            `/lectures/${lectureId}`,
+          )
         }
       >
         {children}

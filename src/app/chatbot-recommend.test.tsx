@@ -8,6 +8,7 @@ import {
   lectureRecommendation,
   mockChatbot,
   tooManyRequests,
+  startNewConversation,
 } from '@/test/chatbotMock'
 import { renderApp, rs } from '@/test/renderApp'
 
@@ -225,7 +226,7 @@ describe('챗봇 추천받기', () => {
     await waitFor(() => expect(state.signals).toHaveLength(1))
     expect(state.signals[0].aborted).toBe(false)
 
-    await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+    await startNewConversation(user, dialog)
     // 요청 자체를 끊는다.
     await waitFor(() => expect(state.signals[0].aborted).toBe(true))
     gate.resolve()

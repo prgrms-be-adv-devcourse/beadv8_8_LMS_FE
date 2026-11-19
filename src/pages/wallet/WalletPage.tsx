@@ -6,7 +6,7 @@ import {
   DEFAULT_CHARGE_AMOUNT,
   parseChargeAmountParam,
 } from '@/entities/wallet/charge'
-import { canExchange } from '@/entities/wallet/exchange'
+import { canExchange, EXCHANGE_UNIT } from '@/entities/wallet/exchange'
 import { canRefund } from '@/entities/wallet/refund'
 import type { Wallet } from '@/entities/wallet/types'
 import { ChargeModal } from '@/features/wallet-charge/ChargeModal'
@@ -16,6 +16,7 @@ import { RefundModal } from '@/features/wallet-refund/RefundModal'
 import { TransactionLedger } from '@/features/wallet-transactions/TransactionLedger'
 import { meQuery } from '@/shared/auth/me'
 import { formatNumber } from '@/shared/lib/money'
+import { safeReturnPath } from '@/shared/lib/returnPath'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { tossClientKey } from '@/shared/lib/tossPayments'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -26,6 +27,7 @@ import styles from './WalletPage.module.css'
  * 지갑: 보유 HP(충전·수익)와 보류 HP, HP 충전·충전 HP 환불, HP 거래 원장.
  * 인플루언서는 지급 예정 수익, 환전 신청 진입과 환전 내역도 본다.
  * /wallet?charge=N으로 오면(다른 화면의 "HP 충전하러 가기") 충전 모달을 그 금액으로 연다.
+ * returnTo(그 화면)가 함께 오면 충전 결과 화면이 그리로 돌아가는 버튼을 보인다.
  */
 export function WalletPage() {
   const { data: wallet, error, refetch } = useQuery(walletQuery)
@@ -35,7 +37,9 @@ export function WalletPage() {
   const [chargeAmount, setChargeAmount] = useState<number | null>(() =>
     clientKey ? parseChargeAmountParam(params.get('charge')) : null,
   )
-  const hasChargeParam = params.has('charge')
+  // 다른 화면에서 충전하러 왔으면 충전한 뒤 돌아갈 그 화면
+  const [returnTo] = useState(() => safeReturnPath(params.get('returnTo')))
+  const hasChargeParam = params.has('charge') || params.has('returnTo')
   const [refundOpen, setRefundOpen] = useState(false)
   const navigate = useNavigate()
 
@@ -45,6 +49,7 @@ export function WalletPage() {
     merge(
       (next) => {
         next.delete('charge')
+        next.delete('returnTo')
         return next
       },
       { replace: true },
@@ -86,6 +91,7 @@ export function WalletPage() {
         <ChargeModal
           clientKey={clientKey}
           initialAmount={chargeAmount}
+          returnTo={returnTo}
           onClose={() => setChargeAmount(null)}
         />
       )}
@@ -122,6 +128,7 @@ function WalletCards({
   const charge = wallet.chargeBalanceHp
   const revenue = earns ? wallet.revenueBalanceHp : 0
   const empty = charge <= 0 && revenue <= 0
+  const exchangeable = canExchange(wallet.revenueBalanceHp)
   return (
     <div className="wallet-grid">
       <section className={`bal ${styles.card}`} aria-label="보유 HP">
@@ -195,13 +202,20 @@ function WalletCards({
             <button
               type="button"
               className="btn"
-              disabled={!canExchange(wallet.revenueBalanceHp)}
+              disabled={!exchangeable}
+              aria-describedby={exchangeable ? undefined : 'exchange-blocked'}
               onClick={onExchange}
             >
               환전 신청
             </button>
           )}
         </div>
+        {earns && !exchangeable && (
+          <p className="fine" id="exchange-blocked">
+            수익 HP가 {formatNumber(EXCHANGE_UNIT)} HP 이상이어야 환전을 신청할
+            수 있어요.
+          </p>
+        )}
       </section>
       <section
         className={`bal ${styles.card} ${styles.held}`}

@@ -111,14 +111,20 @@ export function AdminExchangesPage() {
             <table className="tbl" aria-label="환전 신청 목록">
               <thead>
                 <tr>
-                  <th>신청 일시</th>
-                  <th>신청자</th>
-                  <th className="r">신청 HP</th>
-                  <th className="r">수수료</th>
-                  <th className="r">예상 수령액(원)</th>
-                  <th>정산 예정일</th>
-                  <th>상태</th>
-                  <th aria-label="상세" />
+                  <th scope="col">신청 일시</th>
+                  <th scope="col">신청자</th>
+                  <th scope="col" className="r">
+                    신청 HP
+                  </th>
+                  <th scope="col" className="r">
+                    수수료
+                  </th>
+                  <th scope="col" className="r">
+                    예상 수령액(원)
+                  </th>
+                  <th scope="col">정산 예정일</th>
+                  <th scope="col">상태</th>
+                  <th scope="col" aria-label="상세" />
                 </tr>
               </thead>
               <tbody>

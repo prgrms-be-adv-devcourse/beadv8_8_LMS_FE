@@ -8,6 +8,7 @@ import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toasts } from '@/test/toast'
 
 const me: Me = {
   id: ME_ID,
@@ -46,9 +47,6 @@ const restorable = () =>
     '탈퇴한 계정이에요. 복구하면 다시 이용할 수 있어요.',
     { restorableUntil: RESTORABLE_UNTIL },
   )
-
-const toasts = () =>
-  screen.queryAllByRole('status').filter((el) => el.classList.contains('toast'))
 
 /** 헤더의 로그인 버튼으로 모달을 연다 */
 async function openLogin() {

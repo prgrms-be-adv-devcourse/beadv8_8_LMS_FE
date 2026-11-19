@@ -9,6 +9,7 @@ import { getAccessToken } from '@/shared/auth/token'
 import { closeLoginModal } from '@/shared/ui/loginModal'
 import { ME_ID, renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
+import { toasts } from '@/test/toast'
 
 /** 버튼 이름과 BE 초기 계정(MemberSeedAccountUseCase) */
 const ACCOUNTS: [string, string, Role][] = [
@@ -67,9 +68,6 @@ async function openTestAccounts() {
   const dialog = await screen.findByRole('dialog', { name: '합방 시작하기' })
   return within(dialog).getByRole('group', { name: '개발용 테스트 계정' })
 }
-
-const toasts = () =>
-  screen.queryAllByRole('status').filter((el) => el.classList.contains('toast'))
 
 afterEach(() => {
   queryClient.clear()

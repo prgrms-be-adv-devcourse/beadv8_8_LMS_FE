@@ -4,7 +4,9 @@ import { myChannelsQuery } from '@/entities/member/api'
 import {
   AUTO_APPROVE_FOLLOWER_COUNT,
   canRequestApproval,
+  CHANNEL_CRITERIA,
   CHZZK_FAILURE_MESSAGE,
+  REVIEW_BROADCAST_HOURS,
 } from '@/entities/member/channel'
 import type { MyChannel } from '@/entities/member/types'
 import { ChannelCard } from '@/entities/member/ui/ChannelCard'
@@ -25,7 +27,10 @@ const STEPS = [
     '기준 확인',
     `팔로워 ${AUTO_APPROVE_FOLLOWER_COUNT}명 이상이면 바로 승인돼요.`,
   ],
-  ['관리자 심사', '기준에 못 미치면 승인 요청 후 관리자가 심사해요.'],
+  [
+    '관리자 심사',
+    `못 미치면 승인 요청 후 관리자가 한 달 누적 방송 ${REVIEW_BROADCAST_HOURS}시간을 확인해요.`,
+  ],
   ['인플루언서 전환', '출연 요청·지원, 채팅, 환전을 쓸 수 있어요.'],
 ] as const
 
@@ -63,14 +68,21 @@ export function VerifyPage() {
         >
           <p>
             채널 인증을 마쳤어요. 이제 출연 요청·지원, 채팅, 환전을 쓸 수
-            있어요.
+            있어요. 프로필을 채우면 상대가 출연을 요청하기 쉬워져요.
+            {viewer === 'INFLUENCER' &&
+              ' 강의를 팔려면 승급을 신청해 인증된 인플루언서가 돼야 해요.'}
           </p>
           <div className="row-actions">
-            <Link className="btn primary sm" to="/influencers">
-              인플루언서 둘러보기
+            <Link className="btn primary sm" to="/profile/edit">
+              프로필 채우기
             </Link>
-            <Link className="btn sm" to="/">
-              홈으로
+            {viewer === 'INFLUENCER' && (
+              <Link className="btn sm" to="/promote">
+                승급 신청
+              </Link>
+            )}
+            <Link className="btn ghost sm" to="/influencers">
+              인플루언서 둘러보기
             </Link>
           </div>
         </StatusCard>
@@ -111,6 +123,7 @@ export function VerifyPage() {
         </section>
         <aside className="panel">
           <h2>진행 순서</h2>
+          <p className="fine">{CHANNEL_CRITERIA}</p>
           <ol className={styles.steps}>
             {STEPS.map(([title, desc], i) => {
               const state = i < at ? 'done' : i === at ? 'now' : 'next'

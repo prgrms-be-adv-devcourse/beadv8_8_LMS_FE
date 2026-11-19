@@ -67,8 +67,8 @@
 /* 충전으로 가는 버튼은 이 상태에서 할 수 있는 유일한 행동이라 신호색으로 켠다 */
 /* 공용 .btn.primary보다 앞서도록 범위를 좁힌다 */
 :global(.btn.primary).charge {
-  background: var(--signal);
-  border-color: var(--signal);
+  background: var(--signal-fill);
+  border-color: var(--signal-fill);
   color: var(--signal-ink);
 }
 :global(.btn.primary).charge:hover {

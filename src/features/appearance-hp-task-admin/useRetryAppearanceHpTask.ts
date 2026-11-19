@@ -96,7 +96,7 @@ export function useRetryAppearanceHpTask(taskId: number) {
     onError: (error) => {
       if (isGlobalAuthError(error)) return
       if (mounted.current && !isFinalAppearanceRetryError(error)) return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: appearanceHpTaskKeys.all }),

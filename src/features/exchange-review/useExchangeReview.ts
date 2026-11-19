@@ -93,7 +93,7 @@ function useReview<T>(
     onError: (error) => {
       if (isGlobalAuthError(error)) return
       if (mounted.current && !isFinalReviewError(error)) return
-      toast(errorMessage(error))
+      toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: adminExchangeKeys.all }),

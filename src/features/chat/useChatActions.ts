@@ -59,7 +59,7 @@ export function useStartChat() {
       await queryClient.invalidateQueries({ queryKey: chatKeys.rooms() })
       navigate(`/chat/${room.chatRoomId}`)
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
   })
 }
 
@@ -114,6 +114,6 @@ export function useLeaveChat() {
       broadcastRoomChanged(chatRoomId, context.userId!)
       toast('채팅방에서 나갔어요.')
     },
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
   })
 }

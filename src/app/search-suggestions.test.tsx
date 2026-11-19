@@ -84,7 +84,8 @@ describe('강의 검색어 자동완성', () => {
 
     // 이어서 치면 그 검색어의 응답이 오기 전까지 이전 후보를 보이지 않는다
     await userEvent.type(lectureBox(), '자')
-    expect(options()).toHaveLength(0)
+    // 느린 CI에서는 입력 직후 한 번 더 그려진 뒤에 숨는다. 새 응답(300ms 뒤)이 오기 전에 숨는지를 기다려 본다
+    await waitFor(() => expect(options()).toHaveLength(0))
     expect(lectureBox()).toHaveAttribute('aria-expanded', 'false')
     await waitFor(() =>
       expect(suggestions.requests.at(-1)?.get('keyword')).toBe('프리미어 자'),

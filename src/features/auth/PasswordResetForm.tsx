@@ -152,6 +152,7 @@ function NewPasswordForm({
           className="input"
           type="email"
           autoComplete="username"
+          aria-describedby="reset-email-hint"
           value={verified.email}
           readOnly
         />
@@ -165,7 +166,7 @@ function NewPasswordForm({
           ref={firstRef}
           autoComplete="new-password"
           value={values.newPassword}
-          {...fields.inputProps('newPassword')}
+          {...fields.inputProps('newPassword', { required: true })}
           onChange={(e) => set('newPassword')(e.target.value)}
         />
         <PasswordRules value={values.newPassword} />
@@ -180,7 +181,9 @@ function NewPasswordForm({
           type="password"
           autoComplete="new-password"
           value={values.newPasswordConfirm}
-          {...fields.inputProps('newPasswordConfirm')}
+          {...fields.inputProps('newPasswordConfirm', {
+            required: true,
+          })}
           onChange={(e) => set('newPasswordConfirm')(e.target.value)}
         />
       </Field>
