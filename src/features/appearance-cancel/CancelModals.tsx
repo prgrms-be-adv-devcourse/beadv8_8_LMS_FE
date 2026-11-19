@@ -67,6 +67,7 @@ export function RequestCancelModal({ appearance, onClose }: AppearanceProps) {
     <Modal
       title="출연 취소를 요청할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
@@ -143,6 +144,7 @@ export function RejectCancelModal({ appearance, onClose }: AppearanceProps) {
     <Modal
       title="취소 요청을 거절할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
@@ -211,6 +213,7 @@ export function HostCancelModal({ appearance, onClose }: AppearanceProps) {
     <Modal
       title="출연을 취소할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
@@ -292,6 +295,7 @@ export function CancelRecruitModal({
     <Modal
       title="모집을 취소할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
