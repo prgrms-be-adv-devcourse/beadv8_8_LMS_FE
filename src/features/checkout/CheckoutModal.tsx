@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { cartKeys } from '@/entities/cart/api'
 import { couponKeys } from '@/entities/coupon/api'
 import { createOrder, orderKeys } from '@/entities/order/api'
@@ -11,6 +11,7 @@ import { useCheckoutCoupons } from '@/features/checkout-coupon/useCheckoutCoupon
 import { useHpSpend } from '@/entities/wallet/useHpSpend'
 import { HpSpendBreakdown } from '@/entities/wallet/ui/HpSpendBreakdown'
 import { formatNumber } from '@/shared/lib/money'
+import { currentPath } from '@/shared/lib/returnPath'
 import { Modal } from '@/shared/ui/Modal'
 import { toast } from '@/shared/ui/toastStore'
 import styles from './CheckoutModal.module.css'
@@ -36,6 +37,7 @@ type OrderCoupons = {
 export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const location = useLocation()
   const coupons = useCheckoutCoupons(items)
 
   const order = useMutation({
@@ -70,14 +72,23 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
   // 잔액과 HP 차감 구성을 보여 준 뒤에만 결제할 수 있다. 불러오는 중이거나 실패하면 결제를 막는다.
   const spend = useHpSpend(total)
   const applied = coupons.orderCoupons !== null
+  // 결제를 보낸 뒤 결과가 오기 전에 닫으면 결제가 됐는지 모르게 되므로 닫기·Esc·바깥 클릭을 받지 않는다.
+  const close = () => {
+    if (!order.isPending) onClose()
+  }
 
   return (
     <Modal
       title="주문 확인"
-      onClose={onClose}
+      onClose={close}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={onClose}>
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={order.isPending}
+            onClick={close}
+          >
             닫기
           </button>
           {!spend.ready ? (
@@ -92,7 +103,7 @@ export function CheckoutModal({ items, onClose }: CheckoutModalProps) {
           ) : spend.short > 0 ? (
             <Link
               className={`btn primary ${styles.charge}`}
-              to={chargeHref(spend.short)}
+              to={chargeHref(spend.short, currentPath(location))}
             >
               HP 충전하러 가기
             </Link>

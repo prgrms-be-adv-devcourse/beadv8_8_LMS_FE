@@ -136,6 +136,45 @@ describe('상단 헤더 장바구니', () => {
       await within(bar).findByRole('link', { name: '장바구니 1개' }),
     ).toBeInTheDocument()
   })
+
+  it('장바구니에서 빼는 동안 그 행만 막고, 뺀 뒤에는 다음 행(없으면 둘러보기)으로 포커스를 옮긴다', async () => {
+    mockCart(2)
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    // 첫 삭제만 붙잡아 둔 뒤 mockCart의 처리로 넘긴다.
+    server.use(
+      http.delete(
+        '*/api/v1/lectures/cart/items/:lectureId',
+        async () => {
+          await gate
+        },
+        { once: true },
+      ),
+    )
+    renderApp('/cart', 'USER')
+
+    const first = await screen.findByRole('button', {
+      name: '강의 1 장바구니에서 빼기',
+    })
+    await userEvent.click(first)
+    await waitFor(() => expect(first).toBeDisabled())
+    expect(
+      screen.getByRole('button', { name: '강의 2 장바구니에서 빼기' }),
+    ).toBeEnabled()
+
+    release()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: '강의 2 장바구니에서 빼기' }),
+      ).toHaveFocus(),
+    )
+    await userEvent.click(
+      screen.getByRole('button', { name: '강의 2 장바구니에서 빼기' }),
+    )
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: '강의 둘러보기' })).toHaveFocus(),
+    )
+  })
 })
 
 describe('상단 헤더 알림', () => {
