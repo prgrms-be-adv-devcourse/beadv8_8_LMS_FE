@@ -1,0 +1,190 @@
+/* 구역: 제목 · 장수 · 안내, 그 아래 티켓 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.sectionHead h2 {
+  font-size: 18px;
+  font-weight: 700;
+}
+.count {
+  padding: 1px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.count :global(.num) {
+  margin-right: 1px;
+}
+.hint {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* 쿠폰 티켓. 넓은 화면에서는 두 줄로 놓는다 */
+.tickets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+}
+
+/* 강의별 묶음: 강의 머리(제목 · 강의 보기) 아래 그 강의의 쿠폰 */
+.lectures {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.lecture {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+.lectureHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.lectureIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink-2);
+}
+.lectureIcon svg {
+  width: 18px;
+  height: 18px;
+}
+.lectureTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.iconSkeleton:global(.skeleton) {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+}
+.titleSkeleton {
+  flex: 0 1 220px;
+}
+.lectureLink {
+  flex: none;
+  margin-left: auto;
+  min-height: 36px;
+  gap: 4px;
+}
+.lectureLink svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 목록 아래에 붙는 행동 줄. 길게 내려도 모두 받기가 손 닿는 곳에 있다 */
+.bar {
+  position: sticky;
+  bottom: calc(var(--app-bottom, 0px) + 12px);
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 10px;
+  padding: 12px 14px 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+}
+.bar :global(.btn) {
+  min-height: 40px;
+}
+.barHint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.barHint b {
+  margin-right: 1px;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+/* 불러오는 중 뼈대: 티켓 모양 */
+.skeletonHead {
+  width: min(200px, 60%);
+}
+.skeletonHead :global(.skeleton.title) {
+  width: 100%;
+}
+.skeletonTicket {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 92px;
+  padding-right: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: hidden;
+}
+.skeletonStub {
+  align-self: stretch;
+  background: color-mix(in srgb, var(--signal-soft) 40%, var(--surface));
+  border-right: 2px dashed var(--line-2);
+}
+
+/* 768px 이상에서는 챗봇 버튼이 화면 오른쪽 아래(24px)에 있어, 본문이 그 자리까지 닿는 폭에서는 행동 줄을 그만큼 비운다 */
+@media (min-width: 768px) and (max-width: 1295px) {
+  .bar {
+    margin-right: 64px;
+  }
+}
+@media (max-width: 560px) {
+  .lecture {
+    padding: 12px;
+  }
+  .bar {
+    bottom: calc(var(--app-bottom, 0px) + 8px);
+    padding: 10px 12px;
+  }
+  /* 좁은 화면은 버튼만 한 줄로 두어 줄 위로 올라간 챗봇 버튼에 닿지 않게 한다 */
+  .barHint {
+    display: none;
+  }
+  .bar :global(.btn) {
+    flex: 1 1 auto;
+  }
+  .skeletonTicket {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .skeletonTicket > :global(.skeleton.action) {
+    display: none;
+  }
+}

@@ -26,7 +26,7 @@ const appShellDefaults = [
   http.get('*/api/v1/chats', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),
   ),
-  // 강의 상세의 받을 수 있는 쿠폰(기본은 없음). 쿠폰 화면 테스트는 src/test/couponMock.ts로 덮어쓴다.
+  // 강의 상세·쿠폰 받기 화면의 받을 수 있는 쿠폰(기본은 없음). 쿠폰 화면 테스트는 src/test/couponMock.ts로 덮어쓴다.
   http.get('*/api/v1/coupons', () =>
     HttpResponse.json({ statusCode: 200, message: '', data: [] }),
   ),

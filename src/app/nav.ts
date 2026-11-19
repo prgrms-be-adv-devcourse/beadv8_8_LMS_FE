@@ -66,6 +66,7 @@ export const NAV: NavGroup[] = [
       { path: '/appearances', label: '내 출연', roles: INFLUENCER },
       { path: '/library', label: '내 강의', roles: MEMBER },
       { path: '/library/coupons', label: '쿠폰함', roles: MEMBER },
+      { path: '/coupons', label: '쿠폰 받기', roles: MEMBER },
       { path: '/profile/edit', label: '내 프로필', roles: INFLUENCER },
     ],
   },

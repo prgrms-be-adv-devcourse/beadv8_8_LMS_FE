@@ -1,0 +1,14 @@
+/* 모두 받기 진행·결과. 버튼 앞 남는 자리를 채운다 */
+.status {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: center;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+@media (max-width: 560px) {
+  .status:not(:empty) {
+    flex-basis: 100%;
+  }
+}
