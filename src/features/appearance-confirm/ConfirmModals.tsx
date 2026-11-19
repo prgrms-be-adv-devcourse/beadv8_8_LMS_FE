@@ -75,6 +75,7 @@ export function AbsentModal({ appearance, onClose }: Props) {
     <Modal
       title="불참으로 처리할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
