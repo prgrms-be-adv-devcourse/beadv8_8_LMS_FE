@@ -6,7 +6,7 @@ import {
   DEFAULT_CHARGE_AMOUNT,
   parseChargeAmountParam,
 } from '@/entities/wallet/charge'
-import { canExchange } from '@/entities/wallet/exchange'
+import { canExchange, EXCHANGE_UNIT } from '@/entities/wallet/exchange'
 import { canRefund } from '@/entities/wallet/refund'
 import type { Wallet } from '@/entities/wallet/types'
 import { ChargeModal } from '@/features/wallet-charge/ChargeModal'
@@ -122,6 +122,7 @@ function WalletCards({
   const charge = wallet.chargeBalanceHp
   const revenue = earns ? wallet.revenueBalanceHp : 0
   const empty = charge <= 0 && revenue <= 0
+  const exchangeable = canExchange(wallet.revenueBalanceHp)
   return (
     <div className="wallet-grid">
       <section className={`bal ${styles.card}`} aria-label="보유 HP">
@@ -195,13 +196,20 @@ function WalletCards({
             <button
               type="button"
               className="btn"
-              disabled={!canExchange(wallet.revenueBalanceHp)}
+              disabled={!exchangeable}
+              aria-describedby={exchangeable ? undefined : 'exchange-blocked'}
               onClick={onExchange}
             >
               환전 신청
             </button>
           )}
         </div>
+        {earns && !exchangeable && (
+          <p className="fine" id="exchange-blocked">
+            수익 HP가 {formatNumber(EXCHANGE_UNIT)} HP 이상이어야 환전을 신청할
+            수 있어요.
+          </p>
+        )}
       </section>
       <section
         className={`bal ${styles.card} ${styles.held}`}

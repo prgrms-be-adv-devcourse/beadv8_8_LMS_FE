@@ -64,7 +64,7 @@ async function openForm(
 }
 
 async function fillAccount(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('은행 코드'), '004')
+  await user.selectOptions(screen.getByLabelText('은행'), 'KB국민은행')
   await user.type(screen.getByLabelText('계좌번호'), '1234-5678-9012')
   await user.type(screen.getByLabelText('예금주'), '  홍길동 ')
 }
@@ -100,12 +100,16 @@ describe('환전 진입점', () => {
     ).toBeInTheDocument()
   })
 
-  it('수익 HP가 1,000 HP 미만이면 환전 신청 버튼을 끈다', async () => {
+  it('수익 HP가 1,000 HP 미만이면 환전 신청 버튼을 끄고 이유를 보여 준다', async () => {
     mockExchanges()
     renderApp('/wallet', 'VERIFIED_INFLUENCER', { revenueBalanceHp: 999 })
-    expect(
-      within(await ownCard()).getByRole('button', { name: '환전 신청' }),
-    ).toBeDisabled()
+    const button = within(await ownCard()).getByRole('button', {
+      name: '환전 신청',
+    })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAccessibleDescription(
+      '수익 HP가 1,000 HP 이상이어야 환전을 신청할 수 있어요.',
+    )
   })
 
   it('유저는 환전 신청 버튼과 환전 내역을 보지 않고 환전 API를 부르지 않는다', async () => {
@@ -178,11 +182,9 @@ describe('환전 신청 화면', () => {
 
     await user.clear(amount)
     await user.type(amount, '1000')
-    await user.clear(screen.getByLabelText('은행 코드'))
-    await user.type(screen.getByLabelText('은행 코드'), '04')
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      '은행 코드는 숫자 3자리로 입력해 주세요.',
-    )
+    // 은행을 고르지 않으면 신청할 수 없다(고르기 전이라 오류 문구는 띄우지 않는다).
+    await user.selectOptions(screen.getByLabelText('은행'), '은행 선택')
+    expect(screen.getByLabelText('은행')).toHaveValue('')
     expect(submitButton()).toBeDisabled()
   })
 
