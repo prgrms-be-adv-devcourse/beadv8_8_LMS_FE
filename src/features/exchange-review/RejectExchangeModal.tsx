@@ -1,13 +1,12 @@
-import { useState } from 'react'
-import {
-  REJECTION_REASON_MAX,
-  rejectionReasonError,
-} from '@/entities/wallet/exchangeReview'
+import { REJECTION_REASON_MAX } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
-import { Field } from '@/shared/ui/Field'
+import { ReasonField } from '@/features/admin-flow/ReasonField'
+import { useReasonInput } from '@/features/admin-flow/useReasonInput'
 import { Modal } from '@/shared/ui/Modal'
 import {
+  isFinalReviewError,
   isRejectionReasonError,
+  reviewFailureMessage,
   useRejectExchange,
   useReviewingExchange,
 } from './useExchangeReview'
@@ -20,16 +19,14 @@ export function RejectExchangeModal({
   exchange: AdminExchange
   onClose: () => void
 }) {
-  const [reason, setReason] = useState('')
+  const reason = useReasonInput({
+    id: 'exchange-reject-reason',
+    max: REJECTION_REASON_MAX,
+    emptyMessage: '거절 사유를 입력해 주세요.',
+  })
   const reject = useRejectExchange()
   const busy = useReviewingExchange()
-  const trimmed = reason.trim()
-  const localError = rejectionReasonError(reason)
-  const error =
-    (reason !== '' ? localError : null) ??
-    (isRejectionReasonError(reject.error)
-      ? '거절 사유는 앞뒤 공백을 빼고 1~500자여야 해요.'
-      : null)
+  const failure = reviewFailureMessage(reject.error, { reasonField: true })
 
   return (
     <Modal
@@ -43,39 +40,41 @@ export function RejectExchangeModal({
           <button
             type="button"
             className="btn danger"
-            disabled={localError !== null || busy}
-            onClick={() =>
-              reject.mutate({
-                exchangeId: exchange.exchangeId,
-                reason: trimmed,
-              })
-            }
+            disabled={busy}
+            {...reason.submitProps}
+            onClick={() => {
+              if (!reason.check()) return
+              reject.mutate(
+                { exchangeId: exchange.exchangeId, reason: reason.trimmed },
+                {
+                  onError: (e) => {
+                    if (isFinalReviewError(e)) onClose()
+                    else if (isRejectionReasonError(e))
+                      reason.showServerError(
+                        `거절 사유는 앞뒤 공백을 빼고 1~${REJECTION_REASON_MAX}자여야 해요.`,
+                      )
+                  },
+                },
+              )
+            }}
           >
-            거절
+            {failure ? '다시 시도' : '거절'}
           </button>
         </>
       }
     >
       <p>거절하면 보류한 수익 HP를 신청자에게 모두 돌려줘요.</p>
-      <Field
-        id="exchange-reject-reason"
+      <ReasonField
         label="거절 사유"
-        error={error ?? undefined}
-        hint={`${trimmed.length}/${REJECTION_REASON_MAX} · 신청자에게 보여요`}
-      >
-        <textarea
-          id="exchange-reject-reason"
-          className="textarea"
-          value={reason}
-          aria-invalid={error !== null}
-          aria-describedby={error ? 'exchange-reject-reason-error' : undefined}
-          onChange={(e) => {
-            if (reject.error) reject.reset()
-            setReason(e.target.value)
-          }}
-          placeholder="예: 예금주가 신청자와 달라요"
-        />
-      </Field>
+        hint="신청자에게 보여요"
+        placeholder="예: 예금주가 신청자와 달라요"
+        {...reason.field}
+      />
+      {failure && (
+        <div className="notice bad" role="alert">
+          거절하지 못했어요. {failure}
+        </div>
+      )}
     </Modal>
   )
 }

@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TITLE_MAX } from '@/entities/lecture/rules'
 import type { ContentType, LectureContent } from '@/entities/lecture/types'
 import { lookup, UNKNOWN_NAME } from '@/shared/lib/statusLabel'
+import { Modal } from '@/shared/ui/Modal'
 import styles from './LectureEditor.module.css'
 import { useFileDrop } from './useFileDrop'
 import type { Upload, Uploads } from './useUploads'
@@ -26,7 +27,10 @@ type LessonListProps = {
   onRemove: (key: string) => void
 }
 
-/** 강 목록. 강마다 제목과 파일(영상 mp4 또는 자료 pdf)을 넣는다. */
+/**
+ * 강 목록. 강마다 제목과 파일(영상 mp4 또는 자료 pdf)을 넣는다.
+ * 파일이 있는 강은 지우기 전에 묻고, 순서를 바꾸면 화면 낭독기에 바뀐 자리를 알린다.
+ */
 export function LessonList({
   lessons,
   uploads,
@@ -38,8 +42,26 @@ export function LessonList({
   onMove,
   onRemove,
 }: LessonListProps) {
+  const [moved, setMoved] = useState('')
+  const [removing, setRemoving] = useState<{ key: string; no: number } | null>(
+    null,
+  )
+  const move = (index: number, by: -1 | 1) => {
+    onMove(index, by)
+    const title = lessons[index].title.trim()
+    const what = title ? `'${title}' 강을` : `${index + 1}강을`
+    setMoved(`${what} ${index + 1 + by}강으로 옮겼어요.`)
+  }
+  const remove = (lesson: Lesson, no: number) => {
+    if (uploads.get(lesson.key).upload || lesson.current)
+      setRemoving({ key: lesson.key, no })
+    else onRemove(lesson.key)
+  }
   return (
     <div className={`lessons ${styles.lessons}`}>
+      <p className="sr-only" aria-live="polite">
+        {moved}
+      </p>
       {lessons.map((lesson, i) => (
         <LessonRow
           key={lesson.key}
@@ -53,10 +75,41 @@ export function LessonList({
           saved={savedContentOf?.(lesson)}
           onPreview={onPreview}
           onTitle={(title) => onTitle(lesson.key, title)}
-          onMove={(by) => onMove(i, by)}
-          onRemove={lessons.length > 1 ? () => onRemove(lesson.key) : undefined}
+          onMove={(by) => move(i, by)}
+          onRemove={
+            lessons.length > 1 ? () => remove(lesson, i + 1) : undefined
+          }
         />
       ))}
+      {removing && (
+        <Modal
+          title={`${removing.no}강을 삭제할까요?`}
+          onClose={() => setRemoving(null)}
+          footer={
+            <>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={() => setRemoving(null)}
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  onRemove(removing.key)
+                  setRemoving(null)
+                }}
+              >
+                삭제
+              </button>
+            </>
+          }
+        >
+          <p>올린 파일도 함께 빠져요. 올리는 중이면 업로드를 멈춰요.</p>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -92,6 +145,22 @@ function LessonRow({
   onRemove,
 }: LessonRowProps) {
   const input = useRef<HTMLInputElement>(null)
+  const up = useRef<HTMLButtonElement>(null)
+  const down = useRef<HTMLButtonElement>(null)
+  /** 순서를 바꾼 뒤 포커스를 둘 버튼. 맨 끝에 닿아 그 버튼이 막히면 반대 버튼으로 옮긴다 */
+  const focusAfterMove = useRef<'up' | 'down' | null>(null)
+  useEffect(() => {
+    const want = focusAfterMove.current
+    if (!want) return
+    focusAfterMove.current = null
+    const [prefer, other] =
+      want === 'up' ? [up.current, down.current] : [down.current, up.current]
+    ;(prefer && !prefer.disabled ? prefer : other)?.focus()
+  })
+  const moveBy = (by: -1 | 1) => {
+    focusAfterMove.current = by < 0 ? 'up' : 'down'
+    onMove(by)
+  }
   const { upload, rejection } = uploads.get(lesson.key)
   const busy = upload?.status === 'uploading'
   const error = rejection ?? (upload?.status === 'error' ? upload.error : null)
@@ -215,20 +284,22 @@ function LessonRow({
       <div className={`row-actions ${styles.lessonTools}`}>
         <span className={styles.order}>
           <button
+            ref={up}
             type="button"
             className="btn ghost sm"
             aria-label="위로"
             disabled={first}
-            onClick={() => onMove(-1)}
+            onClick={() => moveBy(-1)}
           >
             ↑
           </button>
           <button
+            ref={down}
             type="button"
             className="btn ghost sm"
             aria-label="아래로"
             disabled={last}
-            onClick={() => onMove(1)}
+            onClick={() => moveBy(1)}
           >
             ↓
           </button>

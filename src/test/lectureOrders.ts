@@ -1,4 +1,7 @@
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { expect } from 'vitest'
 import type {
   Order,
   OrderItem,
@@ -170,4 +173,14 @@ export function mockCreateOrder(...replies: OrderCreateReply[]) {
     /** 마지막으로 만든 주문의 상세·목록 흉내. 주문을 만든 뒤에만 있다 */
     orders: () => orders,
   }
+}
+
+/** 강의 상세의 바로 구매를 누른다. 구매 내역을 받기 전에는 막혀 있어 풀린 뒤에 누른다 */
+export async function clickBuyNow() {
+  const button = await waitFor(() => {
+    const found = screen.getByRole('button', { name: '바로 구매' })
+    expect(found).toBeEnabled()
+    return found
+  })
+  await userEvent.click(button)
 }

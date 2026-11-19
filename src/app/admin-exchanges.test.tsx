@@ -10,6 +10,11 @@ import {
   adminExchangeHandlers,
   resetAdminExchangeDb,
 } from '@/test/adminExchangeMock'
+import {
+  expectFieldError,
+  expectNoFieldError,
+  expectSubmitBlocked,
+} from '@/test/fieldError'
 import { renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -98,9 +103,11 @@ describe('관리자 환전 목록', () => {
     const user = userEvent.setup()
     await row(120)
     const group = screen.getByRole('group', { name: '환전 상태' })
+    // 필터 버튼의 건수는 아는 값(지금 목록·머리글 대기 건수)만 보인다
     expect(
-      within(group).getByRole('button', { name: '승인 대기' }),
+      within(group).getByRole('button', { name: '승인 대기 21건' }),
     ).toHaveAttribute('aria-pressed', 'true')
+    expect(within(group).getByRole('button', { name: '거절' })).toBeVisible()
 
     await user.click(within(group).getByRole('button', { name: '승인' }))
 
@@ -108,9 +115,12 @@ describe('관리자 환전 목록', () => {
     // URL이 바뀐 뒤 화면이 다시 그려지기를 기다린다
     await waitFor(() =>
       expect(
-        within(group).getByRole('button', { name: '승인' }),
+        within(group).getByRole('button', { name: '승인 1건' }),
       ).toHaveAttribute('aria-pressed', 'true'),
     )
+    expect(
+      within(group).getByRole('button', { name: '승인 대기 21건' }),
+    ).toHaveAttribute('aria-pressed', 'false')
     const approved = await row(13)
     expect(within(approved).getByText('승인 · 송금 대기')).toBeInTheDocument()
     expect(adminExchangeDb.listCalls).toContainEqual({
@@ -409,14 +419,20 @@ describe('관리자 환전 승인·거절', () => {
       name: '환전 신청을 거절할까요?',
     })
     const submit = within(dialog).getByRole('button', { name: '거절' })
-    expect(submit).toBeDisabled()
-    expect(dialog).toHaveTextContent('0/500 · 신청자에게 보여요')
-
+    expectSubmitBlocked(submit)
     const input = within(dialog).getByLabelText('거절 사유')
+    // 안내와 글자 수를 칸 설명으로 읽는다
+    expect(input).toHaveAccessibleDescription('신청자에게 보여요 0/500자')
+    expect(input).toHaveAttribute('aria-required', 'true')
+
+    // 공백만 적고 보내려 하면 보내지 않고 빈 값 안내를 보인다
     await user.type(input, '   ')
-    expect(submit).toBeDisabled()
+    await user.click(submit)
+    expectFieldError(input, '거절 사유를 입력해 주세요.')
+    expect(adminExchangeDb.rejectCalls).toEqual([])
     await user.type(input, '예금주가 달라요  ')
-    expect(dialog).toHaveTextContent('8/500')
+    expectNoFieldError(input)
+    expect(input).toHaveAccessibleDescription('신청자에게 보여요 13/500자')
     await user.click(submit)
 
     expect(
@@ -434,19 +450,121 @@ describe('관리자 환전 승인·거절', () => {
     ])
   })
 
-  it('거절 사유가 500자를 넘으면 보낼 수 없다', async () => {
+  it('거절 사유는 500자를 넘겨 적을 수 없다', async () => {
     renderApp('/admin/exchanges/11', 'ADMIN')
     const user = userEvent.setup()
     await user.click(
       within(await actions()).getByRole('button', { name: '거절' }),
     )
     const dialog = screen.getByRole('dialog')
-    await user.click(within(dialog).getByLabelText('거절 사유'))
+    const input = within(dialog).getByLabelText('거절 사유')
+    await user.click(input)
     await user.paste('가'.repeat(501))
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(
-      '거절 사유는 500자까지 입력할 수 있어요.',
+    expect(input).toHaveValue('가'.repeat(500))
+    expect(input).toHaveAccessibleDescription('신청자에게 보여요 500/500자')
+  })
+
+  it('승인이 일시 오류(503)로 실패하면 사유를 창 안에 남기고 같은 창에서 다시 시도한다', async () => {
+    let fail = true
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/11/approve', () =>
+        fail
+          ? HttpResponse.json(
+              {
+                status: 503,
+                code: 'INTERNAL_ERROR',
+                detail: '정산 서비스가 잠시 응답하지 않아요.',
+              },
+              { status: 503 },
+            )
+          : undefined,
+      ),
     )
-    expect(within(dialog).getByRole('button', { name: '거절' })).toBeDisabled()
+    renderApp('/admin/exchanges/11', 'ADMIN')
+    const user = userEvent.setup()
+    await user.click(
+      within(await actions()).getByRole('button', { name: '승인' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: '환전 신청을 승인할까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '승인' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '승인하지 못했어요. 정산 서비스가 잠시 응답하지 않아요.',
+    )
+    // 토스트로 한 번 더 띄우지 않는다
+    expect(
+      screen.getAllByText(/정산 서비스가 잠시 응답하지 않아요/),
+    ).toHaveLength(1)
+    await settle()
+
+    fail = false
+    await user.click(within(dialog).getByRole('button', { name: '다시 시도' }))
+    expect(
+      await screen.findByText(
+        '환전 신청을 승인했어요. 송금은 정산 처리에서 해요.',
+      ),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(adminExchangeDb.approveCalls).toEqual([11])
+  })
+
+  it('승인이 400(INVALID_REQUEST)으로 실패해도 사유 칸이 없는 승인 창 안에 안내를 남긴다', async () => {
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/11/approve', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않아요.',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/admin/exchanges/11', 'ADMIN')
+    const user = userEvent.setup()
+    await user.click(
+      within(await actions()).getByRole('button', { name: '승인' }),
+    )
+    const dialog = screen.getByRole('dialog', {
+      name: '환전 신청을 승인할까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '승인' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '승인하지 못했어요. 요청 값이 올바르지 않아요.',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/요청 값이 올바르지 않아요/)).toHaveLength(1)
+  })
+
+  it('목록의 필터·쪽에서 들어간 상세는 돌아가기 링크가 그 필터·쪽으로 간다', async () => {
+    resetAdminExchangeDb(
+      Array.from({ length: 21 }, (_, i) =>
+        adminExchange({
+          exchangeId: 100 + i,
+          status: 'REJECTED',
+          rejectedAt: '2026-10-16T05:00:00Z',
+          rejectedBy: 9,
+          rejectionReason: '사유',
+        }),
+      ),
+    )
+    const router = renderApp('/admin/exchanges?status=REJECTED&page=2', 'ADMIN')
+    const user = userEvent.setup()
+    await user.click(within(await row(120)).getByRole('link', { name: '상세' }))
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '환전 신청 #120' }),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: '← 환전 승인' }))
+    expect(router.state.location.pathname).toBe('/admin/exchanges')
+    expect(router.state.location.search).toBe('?status=REJECTED&page=2')
+    expect(await row(120)).toBeInTheDocument()
   })
 
   it('BE가 사유 형식을 거절하면(400) 모달에 오류를 보여 준다', async () => {

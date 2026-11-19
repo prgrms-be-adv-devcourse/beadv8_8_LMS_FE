@@ -153,7 +153,7 @@ describe('출연 요청 보내기', () => {
     )
     expect(router.state.location.search).toBe('?tab=host')
     await expectSuccessToast('편집하는 고래 님에게 출연 요청을 보냈어요.')
-    expect(screen.queryByText(/포인트를 확인하고 있어요/)).toBeNull()
+    expect(screen.queryByText(/보류를 확인하고 있어요/)).toBeNull()
     expect(body).toMatchObject({
       guestId: GUEST_ID,
       title: '주말 게임 합방',
@@ -209,7 +209,11 @@ describe('출연 요청 보내기', () => {
       within(dialog).getByRole('link', { name: 'HP 충전하러 가기' }),
     ).toHaveAttribute(
       'href',
-      expect.stringMatching(/^\/wallet\?charge=\d+000$/),
+      expect.stringMatching(
+        new RegExp(
+          `^/wallet\\?charge=\\d+000&returnTo=%2Finfluencers%2F${GUEST_ID}$`,
+        ),
+      ),
     )
   })
 
@@ -384,6 +388,63 @@ describe('받은 출연 요청', () => {
     expect(
       await screen.findByRole('heading', { name: '바뀐 제목' }),
     ).toBeInTheDocument()
+  })
+
+  it('수락이 실패하면 확인창을 닫지 않고 창 안에 알리며, 취소·지급 규칙을 미리 보여 준다', async () => {
+    const current = { value: request() }
+    mockRequestDetail(current)
+    server.use(
+      http.post('*/api/v1/appearances/requests/30/accept', () =>
+        HttpResponse.json(
+          { status: 500, code: 'INTERNAL_ERROR', detail: '서버 오류' },
+          { status: 500 },
+        ),
+      ),
+    )
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+
+    await userEvent.click(await screen.findByRole('button', { name: '수락' }))
+    const dialog = await screen.findByRole('dialog', {
+      name: '이 조건으로 수락할까요?',
+    })
+    expect(
+      within(dialog).getByText(
+        /호스트에게 취소를 요청해 동의를 받아야 취소돼요\(출연 1건당 2번까지\)/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(/7일이 지나 자동 확인되면 지급돼요/),
+    ).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: '수락' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '서버 오류',
+    )
+    expect(
+      screen.getByRole('dialog', { name: '이 조건으로 수락할까요?' }),
+    ).toBeInTheDocument()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('요청서 상세에서 상대(호스트)와 채팅하기·프로필 보기로 이어진다', async () => {
+    mockRequestDetail({ value: request() })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+    expect(
+      await screen.findByRole('link', { name: '프로필 보기' }),
+    ).toHaveAttribute('href', `/influencers/${HOST_ID}`)
+    expect(screen.getByRole('button', { name: '채팅하기' })).toBeEnabled()
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
+  })
+
+  it('성립한 요청서는 출연 상세 보기로 이어진다', async () => {
+    mockRequestDetail({
+      value: request({ status: 'ACCEPTED', appearanceId: 40 }),
+    })
+    renderApp('/appearances/requests/30', 'INFLUENCER')
+    expect(
+      await screen.findByRole('link', { name: '출연 상세 보기' }),
+    ).toHaveAttribute('href', '/appearances/40')
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0))
   })
 
   it('거절 사유를 함께 보낸다', async () => {
@@ -563,9 +624,9 @@ describe('리뷰 반영', () => {
       await within(dialog).findByRole('button', { name: /HP 보류하고 요청/ }),
     )
 
-    await expectSuccessToast('접수됐어요. 포인트를 확인하고 있어요.')
+    await expectSuccessToast('접수됐어요. 보류를 확인하고 있어요.')
     expect(router.state.location.pathname).toBe('/appearances')
-    // 주소값 없이 보낸 요청으로 간다. 그 요청서는 목록에 '포인트 확인 중'으로 보인다.
+    // 주소값 없이 보낸 요청으로 간다. 그 요청서는 목록에 'HP 보류 확인 중'으로 보인다.
     expect(router.state.location.search).toBe('?tab=host')
     expect(
       await screen.findByText('아직 보낸 출연 요청이 없어요'),
@@ -596,7 +657,7 @@ describe('리뷰 반영', () => {
       }),
     )
     renderApp('/appearances?tab=host', 'INFLUENCER')
-    expect(await screen.findByText('포인트 확인 중')).toHaveClass(
+    expect(await screen.findByText('HP 보류 확인 중')).toHaveClass(
       'pill',
       'warn',
     )
@@ -610,7 +671,9 @@ describe('리뷰 반영', () => {
 
     status = 'REQUESTED'
     await act(() => vi.advanceTimersByTimeAsync(5_000))
-    await waitFor(() => expect(screen.queryByText('포인트 확인 중')).toBeNull())
+    await waitFor(() =>
+      expect(screen.queryByText('HP 보류 확인 중')).toBeNull(),
+    )
     await waitFor(() => expect(queryClient.isFetching()).toBe(0))
     const stopped = state.calls
     await act(() => vi.advanceTimersByTimeAsync(20_000))

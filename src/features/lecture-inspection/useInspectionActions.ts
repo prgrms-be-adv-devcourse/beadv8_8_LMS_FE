@@ -37,7 +37,7 @@ export function useApproveLecture(lectureId: number, { onDone }: Options = {}) {
       toast('승인하고 공개했어요')
       onDone?.()
     },
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }
@@ -50,7 +50,7 @@ export function useRejectLecture(lectureId: number, { onDone }: Options = {}) {
       toast('반려했어요. 판매자에게 사유를 전달했어요.')
       onDone?.()
     },
-    onError: (error) => toast(errorMessage(error)),
+    onError: (error) => toast(errorMessage(error), { tone: 'error' }),
     onSettled: invalidate,
   })
 }

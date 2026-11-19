@@ -52,7 +52,7 @@
 }
 /* 오늘 방송: 탤리 램프처럼 머리만 신호색 */
 .today .month {
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 .today {

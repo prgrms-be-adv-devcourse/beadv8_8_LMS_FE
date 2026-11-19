@@ -14,6 +14,9 @@ import {
 } from '@/entities/wallet/exchangeReview'
 import type { AdminExchange } from '@/entities/wallet/types'
 import { ExchangeStatusPill } from '@/entities/wallet/ui/ExchangeStatusPill'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { useListLinkState } from '@/features/admin-flow/listOrigin'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
@@ -51,6 +54,14 @@ export function AdminExchangesPage() {
   const filter =
     ADMIN_EXCHANGE_FILTERS.find((f) => f.status === status) ??
     ADMIN_EXCHANGE_FILTERS[0]
+  const counts = knownCounts(
+    {
+      filter: status,
+      total: data?.page.totalElements,
+      isPlaceholderData: query.isPlaceholderData,
+    },
+    { REQUESTED: pendingCount },
+  )
 
   return (
     <div className="page">
@@ -83,6 +94,7 @@ export function AdminExchangesPage() {
               onClick={() => setStatus(f.status)}
             >
               {f.label}
+              <FilterCount count={counts[f.status]} />
             </button>
           ))}
         </div>
@@ -99,14 +111,20 @@ export function AdminExchangesPage() {
             <table className="tbl" aria-label="환전 신청 목록">
               <thead>
                 <tr>
-                  <th>신청 일시</th>
-                  <th>신청자</th>
-                  <th className="r">신청 HP</th>
-                  <th className="r">수수료</th>
-                  <th className="r">예상 수령액(원)</th>
-                  <th>정산 예정일</th>
-                  <th>상태</th>
-                  <th aria-label="상세" />
+                  <th scope="col">신청 일시</th>
+                  <th scope="col">신청자</th>
+                  <th scope="col" className="r">
+                    신청 HP
+                  </th>
+                  <th scope="col" className="r">
+                    수수료
+                  </th>
+                  <th scope="col" className="r">
+                    예상 수령액(원)
+                  </th>
+                  <th scope="col">정산 예정일</th>
+                  <th scope="col">상태</th>
+                  <th scope="col" aria-label="상세" />
                 </tr>
               </thead>
               <tbody>
@@ -129,6 +147,7 @@ export function AdminExchangesPage() {
 }
 
 function ExchangeRow({ exchange }: { exchange: AdminExchange }) {
+  const linkState = useListLinkState()
   const blocked =
     isExchangeReviewable(exchange.status) &&
     approveBlockReason(exchange) !== null
@@ -151,7 +170,11 @@ function ExchangeRow({ exchange }: { exchange: AdminExchange }) {
         <ExchangeStatusPill status={exchange.status} />
       </td>
       <td className="r">
-        <Link className="btn sm" to={`/admin/exchanges/${exchange.exchangeId}`}>
+        <Link
+          className="btn sm"
+          to={`/admin/exchanges/${exchange.exchangeId}`}
+          state={linkState}
+        >
           상세
         </Link>
       </td>

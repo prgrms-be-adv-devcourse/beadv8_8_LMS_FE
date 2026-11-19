@@ -12,7 +12,7 @@ import {
   quoteCoupon,
   type QuoteRequest,
 } from '@/test/couponMock'
-import { mockCreateOrder } from '@/test/lectureOrders'
+import { clickBuyNow, mockCreateOrder } from '@/test/lectureOrders'
 import { renderApp, rs } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -116,9 +116,7 @@ const platformCoupon = memberCoupon({
 
 async function openCheckout() {
   renderApp('/lectures/7', 'USER', { availableTotalHp: 130000 })
-  await userEvent.click(
-    await screen.findByRole('button', { name: '바로 구매' }),
-  )
+  await clickBuyNow()
   return screen.findByRole('dialog', { name: '주문 확인' })
 }
 
@@ -1236,9 +1234,7 @@ describe('잔액과 쿠폰 할인', () => {
     })
     const release = holdQuotes()
     renderApp('/lectures/7', 'USER', { availableTotalHp: 27000 })
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     expect(
       await within(dialog).findByRole('button', { name: '할인 계산 중…' }),
@@ -1271,9 +1267,7 @@ describe('잔액과 쿠폰 할인', () => {
       availableTotalHp: 0,
       revenueBalanceHp: 0,
     })
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     expect(
       await within(dialog).findByText('결제할 HP가 없어 바로 주문이 끝나요.'),
@@ -1310,9 +1304,7 @@ describe('잔액과 쿠폰 할인', () => {
       ],
     })
     renderApp('/lectures/7', 'USER', { availableTotalHp: 27000 })
-    await userEvent.click(
-      await screen.findByRole('button', { name: '바로 구매' }),
-    )
+    await clickBuyNow()
     const dialog = await screen.findByRole('dialog', { name: '주문 확인' })
     await within(dialog).findByRole('button', { name: '27,000 HP 결제' })
     await userEvent.click(

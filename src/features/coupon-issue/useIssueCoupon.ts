@@ -15,10 +15,10 @@ export const ISSUE_POLL_MAX = 10
 
 /** 처리 중이 너무 길 때 */
 export const ISSUE_DELAYED_MESSAGE =
-  '처리 중입니다. 잠시 후 쿠폰함에서 확인해 주세요'
+  '처리 중이에요. 잠시 후 쿠폰함에서 확인해 주세요'
 /** 서버가 발급 결과를 확인하지 못했을 때(UNKNOWN) */
 export const ISSUE_UNKNOWN_MESSAGE =
-  '확인할 수 없습니다. 잠시 후 다시 시도해 주세요'
+  '확인하지 못했어요. 잠시 후 다시 시도해 주세요'
 /** 서버가 발급 요청 기록을 찾지 못했을 때 */
 export const ISSUE_NOT_FOUND_MESSAGE =
   '발급 요청을 찾지 못했어요. 다시 시도해 주세요'
@@ -118,10 +118,10 @@ const statusKeyOf = (couponId: number, id: string, round: number) => [
  *   결과를 확인하지 못해 다시 누르면 같은 ID로 보낸다(BE가 ALREADY_ACCEPTED로 답하고 성공으로 본다).
  * - ISSUE_REQUEST_ID_CONFLICT(같은 ID가 다른 요청에 쓰였다)면 새 ID를 만들어 한 번만 자동으로 다시 보낸다.
  * - 같은 ID로 다시 보낸 요청이 소진(409)이면 상태를 한 번 보고 정한다(needsSoldOutLookup).
- * - 접수(202) 뒤에는 처리 상태를 1초 간격으로 최대 10번(실패 포함) 본다. 발급되면 쿠폰함과 이 강의의 쿠폰 목록을
- *   다시 불러온다.
+ * - 접수(202) 뒤에는 처리 상태를 1초 간격으로 최대 10번(실패 포함) 본다. 발급되면 쿠폰함과 받을 수 있는 쿠폰 목록
+ *   (강의별·전체)을 다시 불러온다.
  */
-export function useIssueCoupon(couponId: number, lectureId: number) {
+export function useIssueCoupon(couponId: number) {
   const queryClient = useQueryClient()
   const requestId = useRef<string | null>(null)
   /** 마지막으로 서버에 보낸 요청 ID(응답을 못 받았어도 보낸 것으로 본다) */
@@ -129,14 +129,13 @@ export function useIssueCoupon(couponId: number, lectureId: number) {
   const round = useRef(0)
   const [accepted, setAccepted] = useState<Accepted | null>(null)
 
-  // 발급 상태 조회와 겹치지 않는 키만 무효화한다(발급 상태 키는 'issue' 아래다).
+  // 발급 상태 조회와 겹치지 않는 키만 무효화한다(발급 상태 키는 'issue' 아래다). 모든 강의 쿠폰은 여러 강의의 목록과
+  // 쿠폰 받기 화면에 함께 있어 강의별 목록을 모두 무효화한다(지금 보는 목록만 다시 불러온다).
   const refreshIssued = () => {
-    void queryClient.invalidateQueries({
-      queryKey: [...couponKeys.all, 'mine'],
-    })
-    void queryClient.invalidateQueries({
-      queryKey: couponKeys.forLecture(lectureId),
-    })
+    for (const scope of ['mine', 'lecture', 'issuable'] as const)
+      void queryClient.invalidateQueries({
+        queryKey: [...couponKeys.all, scope],
+      })
   }
 
   const request = useMutation({

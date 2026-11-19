@@ -15,7 +15,7 @@ function handleAuthError(error: unknown) {
     queryClient.setQueryData(meQuery.queryKey, null)
     openLoginModal('로그인이 필요해요.')
   } else if (isApiError(error, 'FORBIDDEN')) {
-    toast(error.message)
+    toast(error.message, { tone: 'error' })
   }
 }
 

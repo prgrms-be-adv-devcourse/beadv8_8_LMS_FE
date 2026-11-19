@@ -9,6 +9,8 @@ type EmptyStateProps = {
   action?: ReactNode
   /** 제목 위 그림. 기본은 empty, 그림 없이 쓰려면 none */
   art?: EmptyArt
+  /** 나타날 때 바로 읽어야 하면(첫 조회 실패) alert */
+  role?: 'alert'
 }
 
 export function EmptyState({
@@ -16,9 +18,10 @@ export function EmptyState({
   children,
   action,
   art = 'empty',
+  role,
 }: EmptyStateProps) {
   return (
-    <div className="panel empty-state">
+    <div className="panel empty-state" role={role}>
       {art !== 'none' && <EmptyIllustration art={art} />}
       <b>{title}</b>
       {children && <p>{children}</p>}

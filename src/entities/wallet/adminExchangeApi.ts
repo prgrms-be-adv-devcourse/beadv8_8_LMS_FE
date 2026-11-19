@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/react-query'
+import { keepPreviousData, queryOptions } from '@tanstack/react-query'
 import { api } from '@/shared/api/client'
 import type { PagedModel } from '@/shared/api/types'
 import type { AdminExchangeFilter } from './exchangeReview'
@@ -26,6 +26,9 @@ export const adminExchangeKeys = {
   /** 환전마다 고정한 송금 처리(재확인·재송금·최종 실패) mutation 키. 셋 중 하나가 진행 중이면 다른 것도 보내지 못한다 */
   payout: (exchangeId: number) =>
     [...adminExchangeKeys.all, 'payout', exchangeId] as const,
+  /** 재송금 mutation. 송금 처리 키 아래에 둬서 진행 중 여부는 함께 보고, 결과는 송금 패널이 따로 읽는다 */
+  payoutRetry: (exchangeId: number) =>
+    [...adminExchangeKeys.payout(exchangeId), 'retry'] as const,
 }
 
 export const ADMIN_EXCHANGE_PAGE_SIZE = 20
@@ -41,6 +44,7 @@ export const adminExchangesQuery = (
       api<PagedModel<AdminExchange>>('/settlements/admin/exchanges', {
         query: { status, page, size: ADMIN_EXCHANGE_PAGE_SIZE },
       }),
+    placeholderData: keepPreviousData,
   })
 
 /** 환전 신청 하나. 없으면 404 EXCHANGE_NOT_FOUND */
@@ -84,6 +88,7 @@ export const adminExchangePayoutsQuery = (
         '/settlements/admin/exchanges/payouts',
         { query: { status, page, size: ADMIN_PAYOUT_PAGE_SIZE } },
       ),
+    placeholderData: keepPreviousData,
   })
 
 /** 환전 하나의 송금 시도 전부(시도 번호 순). 없으면 404 EXCHANGE_NOT_FOUND */

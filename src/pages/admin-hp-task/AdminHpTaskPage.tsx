@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { lectureHpTaskQuery } from '@/entities/hp-task/api'
 import { hpTaskErrorLabel } from '@/entities/hp-task/errorCode'
 import {
@@ -15,14 +15,18 @@ import type {
   LectureHpTaskDetail,
 } from '@/entities/hp-task/types'
 import { HpTaskStatusPill } from '@/entities/hp-task/ui/HpTaskStatusPill'
+import { BackLink } from '@/features/admin-flow/BackLink'
+import { useListOrigin } from '@/features/admin-flow/listOrigin'
 import { useHpTaskActionBusy } from '@/features/hp-task-admin/useHpTaskActionBusy'
 import {
   isFinalRetryError,
+  retryFailureMessage,
   useRetryHpTask,
 } from '@/features/hp-task-admin/useRetryHpTask'
 import {
   isFinalVoidError,
   useVoidHpTask,
+  voidFailureMessage,
 } from '@/features/hp-task-admin/useVoidHpTask'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -37,11 +41,11 @@ import { LoadError, Loading } from '@/shared/ui/QueryState'
 import styles from './AdminHpTaskPage.module.css'
 import admin from '@/pages/admin-shared.module.css'
 
-const back = (
-  <Link className="back" to="/admin/hp-tasks">
-    ← 강의 HP 작업
-  </Link>
-)
+/** 들어온 목록의 필터·쪽으로 돌아간다 */
+function Back() {
+  const { to } = useListOrigin('/admin/hp-tasks')
+  return <BackLink to={to} label="강의 HP 작업" />
+}
 
 export function AdminHpTaskPage() {
   const taskId = Number(useParams().taskId)
@@ -52,14 +56,14 @@ export function AdminHpTaskPage() {
   if (isPending)
     return (
       <div className="page">
-        {back}
+        <Back />
         <Loading />
       </div>
     )
   if (error)
     return (
       <div className="page">
-        {back}
+        <Back />
         <LoadError error={error} retry={refetch} />
       </div>
     )
@@ -73,7 +77,7 @@ function Detail({
 }) {
   return (
     <div className="page">
-      {back}
+      <Back />
       <PageHead
         title={`HP 작업 #${task.id}`}
         actions={
@@ -217,12 +221,12 @@ function Attempts({
           <table className="tbl" aria-label="시도 이력">
             <thead>
               <tr>
-                <th>회차</th>
-                <th>결과</th>
-                <th>오류</th>
-                <th>진단 정보</th>
-                <th>시작</th>
-                <th>끝</th>
+                <th scope="col">회차</th>
+                <th scope="col">결과</th>
+                <th scope="col">오류</th>
+                <th scope="col">진단 정보</th>
+                <th scope="col">시작</th>
+                <th scope="col">끝</th>
               </tr>
             </thead>
             <tbody>
@@ -268,11 +272,10 @@ function AttemptRow({ attempt }: { attempt: LectureHpTaskAttempt }) {
 
 /**
  * 멈춘 작업 재시도. 성공하면 작업이 대기로 바뀌어(상세를 다시 불러와) 이 영역과 모달이 사라진다.
- * 이미 재시도됐거나(409) 작업이 없으면(404) 모달을 닫는다.
+ * 이미 재시도됐거나(409) 작업이 없으면(404) 모달을 닫는다. 그 밖의 실패는 모달 안에 남기고 다시 시도하게 한다.
  */
 function Retry({ task }: { task: LectureHpTask }) {
   const [open, setOpen] = useState(false)
-  const retry = useRetryHpTask(task.id)
   // 모달을 닫았다 열거나 화면을 다시 열어도, 진행 중인 재시도·무효화 요청이 있으면 다시 보내지 못한다.
   const busy = useHpTaskActionBusy(task.id)
 
@@ -296,53 +299,67 @@ function Retry({ task }: { task: LectureHpTask }) {
           재시도
         </button>
       </div>
-      {open && (
-        <Modal
-          title="HP 작업을 재시도할까요?"
-          onClose={() => setOpen(false)}
-          footer={
-            <>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setOpen(false)}
-              >
-                닫기
-              </button>
-              <button
-                type="button"
-                className="btn primary"
-                disabled={busy}
-                onClick={() =>
-                  retry.mutate(undefined, {
-                    onSuccess: () => setOpen(false),
-                    onError: (e) => {
-                      if (isFinalRetryError(e)) setOpen(false)
-                    },
-                  })
-                }
-              >
-                재시도
-              </button>
-            </>
-          }
-        >
-          <p>{summary(task)}</p>
-          <p>
-            바로 보내지 않고 대기로 바꿔요.{' '}
-            {task.taskType === 'VOID'
-              ? '다음 재시도 배치(1분마다)가 다시 보내요. 지갑이 주문 항목으로 중복을 막아 HP가 두 번 움직이지 않아요.'
-              : '다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내서 HP가 두 번 움직이지 않아요.'}{' '}
-            원인이 그대로면 다시 멈춰요.
-          </p>
-          {task.lastErrorCode && (
-            <p className={`fine ${styles.code}`}>
-              마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}
-            </p>
-          )}
-        </Modal>
-      )}
+      {open && <RetryModal task={task} onClose={() => setOpen(false)} />}
     </section>
+  )
+}
+
+function RetryModal({
+  task,
+  onClose,
+}: {
+  task: LectureHpTask
+  onClose: () => void
+}) {
+  const retry = useRetryHpTask(task.id)
+  const busy = useHpTaskActionBusy(task.id)
+  const failure = retryFailureMessage(retry.error)
+  return (
+    <Modal
+      title="HP 작업을 재시도할까요?"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            닫기
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={busy}
+            onClick={() =>
+              retry.mutate(undefined, {
+                onSuccess: onClose,
+                onError: (e) => {
+                  if (isFinalRetryError(e)) onClose()
+                },
+              })
+            }
+          >
+            {failure ? '다시 시도' : '재시도'}
+          </button>
+        </>
+      }
+    >
+      <p>{summary(task)}</p>
+      <p>
+        바로 보내지 않고 대기로 바꿔요.{' '}
+        {task.taskType === 'VOID'
+          ? '다음 재시도 배치(1분마다)가 다시 보내요. 지갑이 주문 항목으로 중복을 막아 HP가 두 번 움직이지 않아요.'
+          : '다음 재시도 배치(1분마다)가 같은 요청 ID로 다시 보내서 HP가 두 번 움직이지 않아요.'}{' '}
+        원인이 그대로면 다시 멈춰요.
+      </p>
+      {task.lastErrorCode && (
+        <p className={`fine ${styles.code}`}>
+          마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}
+        </p>
+      )}
+      {failure && (
+        <div className="notice bad" role="alert">
+          재시도를 요청하지 못했어요. {failure}
+        </div>
+      )}
+    </Modal>
   )
 }
 
@@ -353,21 +370,26 @@ function summary(task: LectureHpTask) {
   return `${type} · ${purpose} · 주문 #${task.orderId} · 항목 #${task.orderItemId} (${formatNumber(task.amountHp)} HP)`
 }
 
-/**
- * 멈춘 주문 보류의 보류 무효화(되돌릴 수 없음, BE D73). 성공하면 훅이 새 무효화 작업 상세로 옮긴다.
- * 이미 처리됐거나(409 HP_TASK_NOT_DEAD) 주문 보류가 아니거나(409 HP_TASK_NOT_VOIDABLE) 작업이 없으면(404) 모달을 닫는다.
- * 보류한 회원이 달라 멈춘 보류는 지갑이 무효화에서도 같은 코드로 거절한다. BE가 막지 않으므로 막지 않고 경고만 한다.
- */
-function VoidHold({ task }: { task: LectureHpTask }) {
-  const [open, setOpen] = useState(false)
-  const voidHold = useVoidHpTask(task.id)
-  const busy = useHpTaskActionBusy(task.id)
-  const ownerWarning = task.lastErrorCode === 'HOLD_OWNER_MISMATCH' && (
+/** 보류한 회원이 구매자와 달라 멈춘 보류의 경고. 지갑이 무효화할 때도 같은 오류로 실패한다 */
+function OwnerWarning({ task }: { task: LectureHpTask }) {
+  if (task.lastErrorCode !== 'HOLD_OWNER_MISMATCH') return null
+  return (
     <div className="notice bad">
       보류한 회원이 구매자와 달라 멈춘 보류예요. 지갑이 무효화할 때도 소유를
       확인해 같은 오류로 실패해요. 지갑의 보류 데이터를 먼저 확인하세요.
     </div>
   )
+}
+
+/**
+ * 멈춘 주문 보류의 보류 무효화(되돌릴 수 없음, BE D73). 성공하면 훅이 새 무효화 작업 상세로 옮긴다.
+ * 이미 처리됐거나(409 HP_TASK_NOT_DEAD) 주문 보류가 아니거나(409 HP_TASK_NOT_VOIDABLE) 작업이 없으면(404) 모달을 닫는다.
+ * 그 밖의 실패는 모달 안에 남기고 다시 시도하게 한다.
+ * 보류한 회원이 달라 멈춘 보류는 지갑이 무효화에서도 같은 코드로 거절한다. BE가 막지 않으므로 막지 않고 경고만 한다.
+ */
+function VoidHold({ task }: { task: LectureHpTask }) {
+  const [open, setOpen] = useState(false)
+  const busy = useHpTaskActionBusy(task.id)
 
   return (
     <section
@@ -379,7 +401,7 @@ function VoidHold({ task }: { task: LectureHpTask }) {
         재시도해도 결과가 바뀌지 않는 보류만 무효화하세요. 되돌릴 수 없고 주문
         전체가 결제 실패가 돼요. 지갑 응답 지연 같은 일시 장애면 재시도하세요.
       </div>
-      {ownerWarning}
+      <OwnerWarning task={task} />
       <div className={admin.actionRow}>
         <button
           type="button"
@@ -390,55 +412,69 @@ function VoidHold({ task }: { task: LectureHpTask }) {
           보류 무효화
         </button>
       </div>
-      {open && (
-        <Modal
-          title="보류를 무효화할까요?"
-          onClose={() => setOpen(false)}
-          footer={
-            <>
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setOpen(false)}
-              >
-                닫기
-              </button>
-              <button
-                type="button"
-                className="btn danger"
-                disabled={busy}
-                onClick={() =>
-                  voidHold.mutate(undefined, {
-                    onError: (e) => {
-                      if (isFinalVoidError(e)) setOpen(false)
-                    },
-                  })
-                }
-              >
-                보류 무효화
-              </button>
-            </>
-          }
-        >
-          <p>{summary(task)}</p>
-          <p>
-            <b>되돌릴 수 없어요.</b> 이 보류를 무효화로 끝내고 무효화 작업을
-            새로 만들어요. 다음 재시도 배치(1분마다)가 지갑에 보내 남은 보류
-            HP가 있으면 구매자에게 돌려줘요.
-          </p>
-          <p>
-            주문 #{task.orderId} 전체가 결제 실패가 돼요. 이미 보류된 다른
-            항목의 HP도 돌려주고, 구매자는 같은 강의를 다시 살 수 있어요.
-          </p>
-          <p>지갑 응답 지연 같은 일시 장애면 무효화하지 말고 재시도하세요.</p>
-          {ownerWarning}
-          {task.lastErrorCode && (
-            <p className={`fine ${styles.code}`}>
-              마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}
-            </p>
-          )}
-        </Modal>
-      )}
+      {open && <VoidModal task={task} onClose={() => setOpen(false)} />}
     </section>
+  )
+}
+
+function VoidModal({
+  task,
+  onClose,
+}: {
+  task: LectureHpTask
+  onClose: () => void
+}) {
+  const voidHold = useVoidHpTask(task.id)
+  const busy = useHpTaskActionBusy(task.id)
+  const failure = voidFailureMessage(voidHold.error)
+  return (
+    <Modal
+      title="보류를 무효화할까요?"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            닫기
+          </button>
+          <button
+            type="button"
+            className="btn danger"
+            disabled={busy}
+            onClick={() =>
+              voidHold.mutate(undefined, {
+                onError: (e) => {
+                  if (isFinalVoidError(e)) onClose()
+                },
+              })
+            }
+          >
+            {failure ? '다시 시도' : '보류 무효화'}
+          </button>
+        </>
+      }
+    >
+      <p>{summary(task)}</p>
+      <p>
+        <b>되돌릴 수 없어요.</b> 이 보류를 무효화로 끝내고 무효화 작업을 새로
+        만들어요. 다음 재시도 배치(1분마다)가 지갑에 보내 남은 보류 HP가 있으면
+        구매자에게 돌려줘요.
+      </p>
+      <p>
+        주문 #{task.orderId} 전체가 결제 실패가 돼요. 이미 보류된 다른 항목의
+        HP도 돌려주고, 구매자는 같은 강의를 다시 살 수 있어요.
+      </p>
+      <p>지갑 응답 지연 같은 일시 장애면 무효화하지 말고 재시도하세요.</p>
+      <OwnerWarning task={task} />
+      {task.lastErrorCode && (
+        <p className={`fine ${styles.code}`}>
+          마지막 실패: {hpTaskErrorLabel(task.lastErrorCode)}
+        </p>
+      )}
+      {failure && (
+        <div className="notice bad" role="alert">
+          보류를 무효화하지 못했어요. {failure}
+        </div>
+      )}
+    </Modal>
   )
 }

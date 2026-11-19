@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page } from '@/app/fallbacks/chunkLoad'
@@ -85,6 +85,35 @@ describe('브라우저 탭 제목', () => {
     await waitFor(() => expect(document.title).toBe('쿠폰함 · 합방'))
   })
 
+  it('화면을 옮기면 새 화면 제목(h1)으로 포커스를 옮기고 맨 위로 스크롤한다. 첫 화면과 검색어만 바뀐 이동은 그대로 둔다', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo')
+    const router = renderApp('/wallet', 'USER')
+    await screen.findByRole('heading', { level: 1, name: '지갑' })
+    // 첫 화면은 포커스를 옮기지 않는다
+    expect(document.body).toHaveFocus()
+
+    await act(() => router.navigate('/library/coupons'))
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: '쿠폰함',
+    })
+    await waitFor(() => expect(heading).toHaveFocus())
+    expect(scrollTo).toHaveBeenLastCalledWith(0, 0)
+
+    // 검색어만 바뀌면(같은 화면 안 정렬·필터) 포커스·스크롤을 그대로 둔다
+    const button = screen.getByRole('button', { name: /^하늘 메뉴/ })
+    button.focus()
+    scrollTo.mockClear()
+    await act(() =>
+      router.navigate('/library/coupons?tab=used', {
+        preventScrollReset: true,
+      }),
+    )
+    expect(router.state.location.search).toBe('?tab=used')
+    expect(button).toHaveFocus()
+    expect(scrollTo).not.toHaveBeenCalled()
+  })
+
   it('제목이 없는 화면(없는 주소)은 "합방"이다', async () => {
     renderApp('/no-such-page', 'USER')
     expect(
@@ -133,7 +162,7 @@ describe('계정 메뉴', () => {
     [
       'USER',
       {
-        '내 활동': ['내 강의', '쿠폰함'],
+        '내 활동': ['내 강의', '쿠폰함', '쿠폰 받기'],
         '판매·인증': ['채널 인증'],
         지원: ['자주 묻는 질문', '고객센터'],
       },
@@ -141,7 +170,7 @@ describe('계정 메뉴', () => {
     [
       'INFLUENCER',
       {
-        '내 활동': ['내 출연', '내 강의', '쿠폰함', '내 프로필'],
+        '내 활동': ['내 출연', '내 강의', '쿠폰함', '쿠폰 받기', '내 프로필'],
         '판매·인증': ['승급 신청'],
         지원: ['자주 묻는 질문', '고객센터'],
       },
@@ -149,7 +178,7 @@ describe('계정 메뉴', () => {
     [
       'VERIFIED_INFLUENCER',
       {
-        '내 활동': ['내 출연', '내 강의', '쿠폰함', '내 프로필'],
+        '내 활동': ['내 출연', '내 강의', '쿠폰함', '쿠폰 받기', '내 프로필'],
         '판매·인증': ['강의 판매', '쿠폰 신청'],
         지원: ['자주 묻는 질문', '고객센터'],
       },

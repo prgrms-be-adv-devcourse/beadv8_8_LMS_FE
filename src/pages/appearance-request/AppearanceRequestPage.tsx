@@ -21,6 +21,7 @@ import {
   EditRequestModal,
   RejectRequestModal,
 } from '@/features/appearance-request/RespondModals'
+import { PartnerActions } from '@/features/chat/PartnerActions'
 import { meQuery } from '@/shared/auth/me'
 import { formatDateTime, formatDday, isPast } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
@@ -116,6 +117,7 @@ function Detail({
                 <HostChannel url={request.hostChannelUrl} />
               </dd>
             </dl>
+            <PartnerActions memberId={partnerId} />
           </section>
           <section className="panel">
             <h2>요청 내용</h2>
@@ -217,9 +219,8 @@ function StatusNote({
     case 'HOLD_PENDING':
       return (
         <p className="notice warn">
-          포인트(HP) 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면
-          게스트에게 요청이 전달돼요. 확인되는 동안에는 고치거나 취소할 수
-          없어요.
+          HP 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면 게스트에게
+          요청이 전달돼요. 확인되는 동안에는 고치거나 취소할 수 없어요.
         </p>
       )
     case 'HOLD_FAILED':
@@ -256,7 +257,7 @@ function StatusNote({
           </p>
           {request.appearanceId !== null && (
             <Link className="link" to={`/appearances/${request.appearanceId}`}>
-              출연 상세에서 취소하기
+              출연 상세 보기
             </Link>
           )}
         </>

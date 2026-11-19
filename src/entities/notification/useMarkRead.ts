@@ -24,7 +24,7 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markAllNotificationsRead,
-    onError: (error) => toast(error.message),
+    onError: (error) => toast(error.message, { tone: 'error' }),
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
   })

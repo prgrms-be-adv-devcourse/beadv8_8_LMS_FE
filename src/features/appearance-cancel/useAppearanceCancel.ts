@@ -55,7 +55,8 @@ function useInvalidateCancel() {
 
 /** 확인이 필요하다는 응답은 화면이 확인 모달로 처리하므로 안내를 띄우지 않는다 */
 const onError = (error: Error) => {
-  if (!isConfirmRequired(error)) toast(cancelErrorMessage(error))
+  if (!isConfirmRequired(error))
+    toast(cancelErrorMessage(error), { tone: 'error' })
 }
 
 export function useRequestAppearanceCancel(appearanceId: number) {

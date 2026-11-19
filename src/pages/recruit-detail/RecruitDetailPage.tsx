@@ -268,7 +268,7 @@ function StatusNote({ recruit, host }: { recruit: Recruit; host: boolean }) {
     case 'HOLD_PENDING':
       return (
         <p className="notice warn">
-          포인트(HP) 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면 모집이
+          HP 보류를 확인하고 있어요. 보통 1~2분 걸리고, 확인되면 모집이
           시작돼요. 확인되는 동안에는 고치거나 취소할 수 없어요.
         </p>
       )

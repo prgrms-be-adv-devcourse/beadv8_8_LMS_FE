@@ -5,7 +5,7 @@ type FieldProps = {
   label: string
   /**
    * 있으면 hint 대신 빨간 글씨로 보여 주고 칸을 빨갛게 표시한다(.field.invalid).
-   * 오류 문구 id는 `${id}-error`라 입력칸의 aria-describedby로 이을 수 있다.
+   * 오류 문구 id는 `${id}-error`, 안내문 id는 `${id}-hint`라 입력칸의 aria-describedby로 이을 수 있다.
    */
   error?: string
   hint?: ReactNode
@@ -23,7 +23,11 @@ export function Field({ id, label, error, hint, children }: FieldProps) {
           {error}
         </span>
       ) : (
-        hint && <span className="fine">{hint}</span>
+        hint && (
+          <span id={`${id}-hint`} className="fine">
+            {hint}
+          </span>
+        )
       )}
     </div>
   )

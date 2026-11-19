@@ -2,6 +2,7 @@ import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { endSession, useChatbotStore } from '@/features/chatbot/store'
+import { startNewConversation } from '@/test/chatbotMock'
 import { renderApp } from '@/test/renderApp'
 
 afterEach(() => endSession())
@@ -40,7 +41,7 @@ describe('챗봇 대화 안 버튼', () => {
       within(dialog).getByRole('button', { name: '자유 질문' }),
     ).toBeDisabled()
 
-    await user.click(within(dialog).getByRole('button', { name: '새 대화' }))
+    await startNewConversation(user, dialog)
     expect(
       within(dialog).getByRole('button', { name: '자유 질문' }),
     ).toBeEnabled()

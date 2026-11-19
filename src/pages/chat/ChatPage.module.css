@@ -168,7 +168,7 @@
   min-width: 20px;
   height: 20px;
   border-radius: var(--r-pill);
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   text-align: center;
   padding: 0 6px;
@@ -418,6 +418,14 @@
   animation: pulse 1.2s var(--ease-in-out) infinite;
 }
 
+/* 대화 목록 + 그 위에 뜨는 '새 메시지' 버튼 */
+.msgsWrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .msgs {
   flex: 1;
   overflow-y: auto;
@@ -427,6 +435,39 @@
   flex-direction: column;
   gap: 10px;
   background: var(--bg);
+}
+/* '새 메시지' 버튼을 누르면 목록으로 포커스가 온다. 키보드로 왔을 때만 테두리를 보인다 */
+.msgs:focus {
+  outline: none;
+}
+.msgs:focus-visible {
+  box-shadow: inset var(--ring);
+}
+/* 위쪽 옛 대화를 읽는 중에 온 새 메시지: 목록 아래 가운데에 뜬다 */
+.newMsgs {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  box-shadow: var(--shadow-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  animation: fade var(--t) var(--ease-out);
+}
+.newMsgs:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-2), var(--ring);
 }
 .older {
   align-self: center;
@@ -591,17 +632,22 @@
   flex-direction: column;
   gap: 4px;
 }
+/* 여러 줄 입력: 한 줄일 때는 알약 모양, 줄이 늘면 둥근 사각형으로 자란다(높이는 글에 맞춰 스크립트가 정한다) */
 .field {
+  display: block;
   width: 100%;
   min-width: 0;
   min-height: 42px;
+  max-height: 140px;
   padding: 10px 18px;
   border: 1px solid var(--line-2);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-xl);
   background: var(--surface-2);
   color: var(--ink);
   font: inherit;
   font-size: 14px;
+  line-height: 1.5;
+  resize: none;
   transition:
     border-color var(--t-fast) var(--ease-out),
     background-color var(--t-fast) var(--ease-out),
@@ -624,7 +670,7 @@
   padding-right: 12px;
   font-family: var(--f-mono);
 }
-/* 보내기: 입력이 있고 연결돼 있을 때만 신호색으로 켜진다 */
+/* 보내기: 입력이 있으면 신호색으로 켜진다(연결이 끊겨도 보내면 실패로 남아 다시 보낼 수 있다) */
 .send {
   flex: none;
   display: inline-flex;
@@ -636,7 +682,7 @@
   padding: 0 16px 0 14px;
   border: 0;
   border-radius: var(--r-pill);
-  background: var(--signal);
+  background: var(--signal-fill);
   color: var(--signal-ink);
   font: inherit;
   font-size: 14px;
@@ -849,6 +895,7 @@
   .connDot,
   .msg,
   .system,
+  .newMsgs,
   .field,
   .send,
   .sending time,

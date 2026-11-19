@@ -131,8 +131,8 @@
   color: var(--ink-3);
 }
 .mark.now {
-  border-color: var(--signal);
-  background: var(--signal);
+  border-color: var(--signal-fill);
+  background: var(--signal-fill);
   color: var(--signal-ink);
 }
 .lesson {

@@ -39,16 +39,22 @@ export function ExchangeHistory() {
       ) : (
         <>
           <div className="tbl-wrap">
-            <table className="tbl exch">
+            <table className="tbl exch" aria-label="환전 신청 내역">
               <thead>
                 <tr>
-                  <th>신청일</th>
-                  <th className="r">신청 HP</th>
-                  <th className="r">수수료</th>
-                  <th className="r">예상 수령액(원)</th>
-                  <th>정산 예정일</th>
-                  <th>상태</th>
-                  <th aria-label="상세" />
+                  <th scope="col">신청일</th>
+                  <th className="r" scope="col">
+                    신청 HP
+                  </th>
+                  <th className="r" scope="col">
+                    수수료
+                  </th>
+                  <th className="r" scope="col">
+                    예상 수령액(원)
+                  </th>
+                  <th scope="col">정산 예정일</th>
+                  <th scope="col">상태</th>
+                  <th aria-label="상세" scope="col" />
                 </tr>
               </thead>
               <tbody>

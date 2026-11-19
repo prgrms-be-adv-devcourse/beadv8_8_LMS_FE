@@ -15,7 +15,7 @@ import { SignupForm } from './SignupForm'
 import { TestAccountLogin } from './TestAccountLogin'
 
 export function LoginModal() {
-  const { open, reason, restore } = useLoginModalStore()
+  const { open, reason, restore, returnTo } = useLoginModalStore()
   // 탈퇴 회원에게 복구할지 묻는 중인지(복구 티켓이 남아 있다)
   const askingRestore = useRef(false)
   const setAskingRestore = useCallback((asking: boolean) => {
@@ -33,6 +33,7 @@ export function LoginModal() {
       <LoginOptions
         key={restore ? 'restore' : 'login'}
         reason={reason}
+        returnTo={returnTo}
         googleRestore={restore}
         onRestoreAskingChange={setAskingRestore}
       />
@@ -54,10 +55,13 @@ type Restore =
  */
 function LoginOptions({
   reason,
+  returnTo,
   googleRestore,
   onRestoreAskingChange,
 }: {
   reason?: string
+  /** 로그인한 뒤 갈 곳. 없으면 지금 화면으로 돌아온다 */
+  returnTo?: string
   googleRestore?: GoogleRestore
   onRestoreAskingChange: (asking: boolean) => void
 }) {
@@ -158,7 +162,7 @@ function LoginOptions({
       <button
         type="button"
         className={`btn block google-btn ${styles.google}`}
-        onClick={() => startGoogleLogin()}
+        onClick={() => startGoogleLogin(returnTo)}
       >
         <GoogleIcon />
         Google로 계속하기

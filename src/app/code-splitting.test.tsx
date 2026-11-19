@@ -23,6 +23,10 @@ describe('화면별로 나눠 불러오기', () => {
     expect(
       await screen.findByRole('heading', { name: '쿠폰함' }),
     ).toBeInTheDocument()
+    await router.navigate('/coupons')
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '쿠폰 받기' }),
+    ).toBeInTheDocument()
   })
 })
 

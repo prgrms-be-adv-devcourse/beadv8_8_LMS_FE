@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
+import { closeWhenDone } from '@/entities/appearance/errors'
 import {
   CONTENT_MAX,
+  GUEST_RULE,
   hostChannelUrlError,
   REJECT_REASON_MAX,
   TITLE_MAX,
@@ -9,6 +11,7 @@ import type {
   AppearanceRequest,
   AppearanceRequestEdit,
 } from '@/entities/appearance/types'
+import { ActionError } from '@/entities/appearance/ui/ActionError'
 import { formatDateTime } from '@/shared/lib/date'
 import { formatNumber } from '@/shared/lib/money'
 import { useFieldErrors } from '@/shared/lib/useFieldErrors'
@@ -55,7 +58,7 @@ export function AcceptRequestModal({
             type="button"
             className="btn primary"
             disabled={accept.isPending}
-            onClick={() => accept.mutate(undefined, { onSettled: onClose })}
+            onClick={() => accept.mutate(undefined, closeWhenDone(onClose))}
           >
             수락
           </button>
@@ -73,10 +76,11 @@ export function AcceptRequestModal({
         <dd>{request.expectedMinutes}분</dd>
       </dl>
       <p className="fine">
-        수락하면 출연이 성립해요. 출연료는 방송 뒤 호스트가 출연을 확인하면
-        지급돼요. 호스트가 그사이 요청서를 고치면 수락이 막히고 바뀐 내용을 다시
-        보여 드려요.
+        수락하면 출연이 성립해요. 호스트가 그사이 요청서를 고치면 수락이 막히고
+        바뀐 내용을 다시 보여 드려요.
       </p>
+      <p className="fine">{GUEST_RULE}</p>
+      <ActionError error={accept.error} />
     </Modal>
   )
 }

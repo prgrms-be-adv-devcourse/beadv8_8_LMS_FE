@@ -3,11 +3,18 @@ import { useBlocker } from 'react-router'
 import { Modal } from '@/shared/ui/Modal'
 
 /**
- * 올리는 중인 파일이 있으면 화면을 떠나기 전에 묻는다.
+ * 올리는 중인 파일이나 저장하지 않은 입력이 있으면 화면을 떠나기 전에 묻는다.
  * 앱 안 이동은 확인 창으로, 새로고침·탭 닫기는 브라우저 경고(beforeunload)로 막는다.
- * 나가면 폼이 사라지면서 업로드가 취소된다(useUploads).
+ * 나가면 폼이 사라지면서 업로드가 취소된다(useUploads). 저장 중에는 부르는 쪽이 막지 않게 넘긴다(저장 성공 이동).
  */
-export function UploadLeaveGuard({ active }: { active: boolean }) {
+export function UploadLeaveGuard({
+  uploading,
+  dirty,
+}: {
+  uploading: boolean
+  dirty: boolean
+}) {
+  const active = uploading || dirty
   const blocker = useBlocker(active)
 
   useEffect(() => {
@@ -41,7 +48,11 @@ export function UploadLeaveGuard({ active }: { active: boolean }) {
         </>
       }
     >
-      <p>올리는 중인 파일이 있어요. 나가면 업로드가 취소돼요.</p>
+      <p>
+        {uploading
+          ? '올리는 중인 파일이 있어요. 나가면 업로드가 취소돼요.'
+          : '저장하지 않은 입력이 있어요. 나가면 입력한 내용이 사라져요.'}
+      </p>
     </Modal>
   )
 }

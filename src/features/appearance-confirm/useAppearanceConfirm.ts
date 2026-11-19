@@ -43,7 +43,8 @@ function useInvalidateConfirm() {
     ])
 }
 
-const onError = (error: Error) => toast(confirmErrorMessage(error))
+const onError = (error: Error) =>
+  toast(confirmErrorMessage(error), { tone: 'error' })
 
 export function useConfirmAppearance(appearanceId: number) {
   const invalidate = useInvalidateConfirm()

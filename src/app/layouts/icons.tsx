@@ -68,6 +68,8 @@ const NAV_PATHS: Record<string, string> = {
   '/library':
     'M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3M9 7h6',
   '/library/coupons': TICKET,
+  // 쿠폰 받기: 티켓 + 받는 화살표
+  '/coupons': `${TICKET}M9 9v6M6.8 12.8 9 15l2.2-2.2`,
   '/profile/edit':
     'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0',
   '/cart': 'M3 4h2.2l2.3 11h10.3L20 8H6.3M9.5 20h.01M16.5 20h.01',
