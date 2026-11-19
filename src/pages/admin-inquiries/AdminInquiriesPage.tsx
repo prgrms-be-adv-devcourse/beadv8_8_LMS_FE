@@ -3,6 +3,9 @@ import { adminInquiriesQuery } from '@/entities/inquiry/api'
 import { STATUS_LABEL } from '@/entities/inquiry/category'
 import type { InquirySort, InquiryStatus } from '@/entities/inquiry/types'
 import { InquiryList } from '@/entities/inquiry/ui/InquiryList'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { useListLinkState } from '@/features/admin-flow/listOrigin'
 import { useMergedSearchParams } from '@/shared/lib/useMergedSearchParams'
 import { useClampPage, usePageParam } from '@/shared/lib/usePageParam'
 import { EmptyState } from '@/shared/ui/EmptyState'
@@ -58,6 +61,12 @@ export function AdminInquiriesPage() {
   const query = useQuery(adminInquiriesQuery({ status, sort, page }))
   const moving = useClampPage(page, query, setPage)
   const { data, error, isPending, refetch } = query
+  const counts = knownCounts({
+    filter: status ?? 'ALL',
+    total: data?.page.totalElements,
+    isPlaceholderData: query.isPlaceholderData,
+  })
+  const linkState = useListLinkState()
 
   return (
     <div className="page">
@@ -76,6 +85,7 @@ export function AdminInquiriesPage() {
               onClick={() => update({ status: s })}
             >
               {s ? STATUS_LABEL[s] : '전체'}
+              <FilterCount count={counts[s ?? 'ALL']} />
             </button>
           ))}
         </div>
@@ -105,6 +115,7 @@ export function AdminInquiriesPage() {
             inquiries={data.content}
             to={(id) => `/admin/inquiries/${id}`}
             showUser
+            linkState={linkState}
           />
           <Pager
             page={data.page.number}

@@ -131,7 +131,7 @@ describe('강의 검수 목록', () => {
     expect(screen.getByText('대기 1건')).toBeInTheDocument()
     expect(seen[0]).toBe('?status=PENDING_INSPECTION&page=0&size=20')
     expect(
-      screen.getByRole('button', { name: '검수 대기', pressed: true }),
+      screen.getByRole('button', { name: '검수 대기 1건', pressed: true }),
     ).toBeInTheDocument()
   })
 
@@ -276,6 +276,34 @@ describe('강의 검수 상세', () => {
     expect(token).toBe(`Bearer ${TEST_ACCESS_TOKEN}`)
   })
 
+  it('목록의 탭·쪽에서 들어와 처리하면 그 탭·쪽으로 돌아간다', async () => {
+    serveDetail(detail(), detail({ status: 'ON_SALE' }))
+    serveInspections({ PENDING_INSPECTION: [inspection()] }, 3)
+    server.use(
+      http.post(
+        '*/api/v1/lectures/admin/1/inspection/approve',
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+    )
+    const router = renderApp('/admin/lectures?page=2', 'ADMIN')
+
+    await userEvent.click(await screen.findByRole('link', { name: '검수하기' }))
+    await screen.findByRole('button', { name: '승인하고 공개' })
+    expect(screen.getByRole('link', { name: '← 강의 검수' })).toHaveAttribute(
+      'href',
+      '/admin/lectures?page=2',
+    )
+    for (const box of screen.getAllByRole('checkbox')) {
+      await userEvent.click(box)
+    }
+    await userEvent.click(screen.getByRole('button', { name: '승인하고 공개' }))
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/admin/lectures'),
+    )
+    expect(router.state.location.search).toBe('?page=2')
+  })
+
   it('반려 사유가 비어 있으면 반려할 수 없고 칩으로 사유를 채울 수 있다', async () => {
     serveDetail(
       detail(),
@@ -299,18 +327,25 @@ describe('강의 검수 상세', () => {
 
     const reject = await screen.findByRole('button', { name: '반려' })
     expectSubmitBlocked(reject)
-    expect(screen.getByText('판매자에게 그대로 전달돼요.')).toBeInTheDocument()
-    // 비운 채 떠나면 칸에 오류를 보여 준다.
+    // 안내와 글자 수를 칸 설명으로 읽는다.
     const why = screen.getByLabelText('반려 사유')
+    expect(why).toHaveAccessibleDescription(
+      '판매자에게 그대로 전달돼요. 0/500자',
+    )
+    expect(why).toHaveAttribute('maxLength', '500')
+    // 비운 채 떠나면 칸에 오류를 보여 준다.
     expectNoFieldError(why)
     await userEvent.click(why)
     await userEvent.tab()
     expectFieldError(why, '반려 사유를 입력해 주세요.')
     expectSubmitBlocked(reject)
 
-    await userEvent.click(
-      screen.getByRole('button', { name: '소개와 실제 내용이 달라요' }),
-    )
+    const chip = screen.getByRole('button', {
+      name: '소개와 실제 내용이 달라요',
+    })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: '반려 사유' })).toHaveValue(
       '소개와 실제 내용이 달라요',
     )

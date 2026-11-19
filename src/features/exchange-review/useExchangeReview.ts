@@ -9,6 +9,11 @@ import {
   rejectExchange,
 } from '@/entities/wallet/adminExchangeApi'
 import type { AdminExchange } from '@/entities/wallet/types'
+import {
+  fallbackActionMessage,
+  isGlobalAuthError,
+  useMountedRef,
+} from '@/features/admin-flow/actionError'
 import { isApiError } from '@/shared/api/ApiError'
 import { toast } from '@/shared/ui/toastStore'
 
@@ -20,6 +25,37 @@ export function isRejectionReasonError(error: Error | null) {
   )
 }
 
+/**
+ * 다시 보내도 같은 결과인 오류(이미 처리·취소됨, 신청자 자격, 없음). 상세를 다시 불러오면 처리 영역이 바뀌므로
+ * 확인 창을 닫고 토스트로 알린다.
+ */
+export function isFinalReviewError(error: Error) {
+  return (
+    isApiError(error, 'EXCHANGE_ALREADY_REVIEWED') ||
+    isApiError(error, 'EXCHANGE_APPLICANT_NOT_SYNCED') ||
+    isApiError(error, 'EXCHANGE_APPLICANT_NOT_ELIGIBLE') ||
+    isApiError(error, 'EXCHANGE_NOT_FOUND')
+  )
+}
+
+/**
+ * 확인 창 안에 남길 실패 문구. 전역 안내·창을 닫는 오류면 null.
+ * 사유 칸이 있는 창(거절)만 사유 형식 오류(400)를 칸 아래에 보이므로 뺀다. 사유 칸이 없는 창(승인)은 400도 창 안에 남긴다.
+ */
+export function reviewFailureMessage(
+  error: Error | null,
+  { reasonField = false }: { reasonField?: boolean } = {},
+) {
+  if (
+    !error ||
+    isGlobalAuthError(error) ||
+    (reasonField && isRejectionReasonError(error)) ||
+    isFinalReviewError(error)
+  )
+    return null
+  return errorMessage(error)
+}
+
 function errorMessage(error: Error) {
   if (isApiError(error, 'EXCHANGE_ALREADY_REVIEWED'))
     return '이미 처리됐거나 회원이 취소한 신청이에요. 최신 상태를 불러왔어요.'
@@ -29,12 +65,13 @@ function errorMessage(error: Error) {
     return '신청자가 정상 상태의 인플루언서가 아니라 승인할 수 없어요. 최신 상태를 불러왔어요.'
   if (isApiError(error, 'EXCHANGE_NOT_FOUND'))
     return '환전 신청을 찾을 수 없어요.'
-  return error.message
+  return fallbackActionMessage(error)
 }
 
 /**
  * 승인·거절 공통: 응답으로 상세를 바로 바꾸고, 처리하면(실패해도) 관리자 환전 조회 전체를 다시 불러온다.
  * 다른 관리자 처리·회원 취소와 겹쳤을 수 있다. 목록·상세·대시보드 대기 건수가 같은 키 아래에 있다.
+ * 실패는 확인 창 안에 남기고(reviewFailureMessage), 창을 닫는 오류이거나 응답 전에 창을 닫았으면 토스트로 알린다.
  * 401·403 안내는 queryClient의 MutationCache가 맡는다.
  */
 function useReview<T>(
@@ -42,6 +79,7 @@ function useReview<T>(
   success: string,
 ) {
   const queryClient = useQueryClient()
+  const mounted = useMountedRef()
   return useMutation({
     mutationKey: adminExchangeKeys.review(),
     mutationFn,
@@ -53,12 +91,8 @@ function useReview<T>(
       toast(success)
     },
     onError: (error) => {
-      if (
-        (isApiError(error) && error.sessionEnded) ||
-        isApiError(error, 'FORBIDDEN') ||
-        isRejectionReasonError(error)
-      )
-        return
+      if (isGlobalAuthError(error)) return
+      if (mounted.current && !isFinalReviewError(error)) return
       toast(errorMessage(error), { tone: 'error' })
     },
     onSettled: () =>

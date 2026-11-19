@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
+import { FilterCount } from '@/features/admin-flow/FilterCount'
+import { knownCounts } from '@/features/admin-flow/knownCounts'
+import { BackLink } from '@/features/admin-flow/BackLink'
+import {
+  useListLinkState,
+  useListOrigin,
+} from '@/features/admin-flow/listOrigin'
 import { adminCouponQuery, adminCouponsQuery } from '@/entities/coupon/api'
 import {
   discountLabel,
@@ -67,10 +74,16 @@ export function AdminCouponsPage() {
 function CouponList() {
   const [status, setStatus] = useStatusParam()
   const [creating, setCreating] = useState(false)
-  const { data, error, isPending, refetch } = useQuery(
+  const { data, error, isPending, isPlaceholderData, refetch } = useQuery(
     adminCouponsQuery(status),
   )
   const filter = FILTERS.find((f) => f.status === status) ?? FILTERS[0]
+  // 쪽 없이 한 번에 받으므로 받은 개수가 그 상태의 건수다.
+  const counts = knownCounts({
+    filter: status,
+    total: data?.length,
+    isPlaceholderData,
+  })
 
   return (
     <div className="page">
@@ -102,6 +115,7 @@ function CouponList() {
               onClick={() => setStatus(f.status)}
             >
               {f.label}
+              <FilterCount count={counts[f.status]} />
             </button>
           ))}
         </div>
@@ -130,11 +144,12 @@ function CouponList() {
 }
 
 function CouponItem({ coupon }: { coupon: Coupon }) {
+  const linkState = useListLinkState()
   return (
     <li className="q-item" aria-label={`${coupon.name} 쿠폰`}>
       <div className="row-main">
         <div className={styles.head}>
-          <Link to={`/admin/coupons/${coupon.couponId}`}>
+          <Link to={`/admin/coupons/${coupon.couponId}`} state={linkState}>
             <b>{coupon.name}</b>
           </Link>
           <StatusPill coupon={coupon} />
@@ -154,11 +169,11 @@ function CouponItem({ coupon }: { coupon: Coupon }) {
   )
 }
 
-const back = (
-  <Link className="back" to="/admin/coupons">
-    ← 쿠폰 운영
-  </Link>
-)
+/** 들어온 목록의 필터로 돌아간다 */
+function Back() {
+  const { to } = useListOrigin('/admin/coupons')
+  return <BackLink to={to} label="쿠폰 운영" />
+}
 
 function CouponDetail({ couponId }: { couponId: number }) {
   const valid = Number.isInteger(couponId) && couponId > 0
@@ -169,28 +184,28 @@ function CouponDetail({ couponId }: { couponId: number }) {
   if (!valid)
     return (
       <div className="page">
-        {back}
+        <Back />
         <EmptyState title="쿠폰을 찾을 수 없어요" />
       </div>
     )
   if (isPending)
     return (
       <div className="page">
-        {back}
+        <Back />
         <Loading />
       </div>
     )
   if (error)
     return (
       <div className="page">
-        {back}
+        <Back />
         <LoadError error={error} retry={refetch} />
       </div>
     )
 
   return (
     <div className="page">
-      {back}
+      <Back />
       <PageHead
         title={data.name}
         actions={<StatusPill coupon={data} />}

@@ -16,6 +16,7 @@ import {
   payoutAttempt,
   resetAdminExchangeDb,
 } from '@/test/adminExchangeMock'
+import { expectFieldError, expectSubmitBlocked } from '@/test/fieldError'
 import { renderApp } from '@/test/renderApp'
 import { server } from '@/test/server'
 
@@ -125,9 +126,9 @@ describe('송금 확인 목록', () => {
       await screen.findByRole('heading', { level: 1, name: '송금 확인' }),
     ).toBeInTheDocument()
     expect(
-      within(screen.getByRole('group', { name: '송금 상태' })).getByRole(
+      await within(screen.getByRole('group', { name: '송금 상태' })).findByRole(
         'button',
-        { name: '운영자 확인' },
+        { name: '운영자 확인 2건' },
       ),
     ).toHaveAttribute('aria-pressed', 'true')
 
@@ -164,6 +165,28 @@ describe('송금 확인 목록', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: '환전 신청 #61' }),
     ).toBeInTheDocument()
+    // 송금 확인에서 들어온 상세는 송금 확인으로 돌아간다
+    await userEvent.click(screen.getByRole('link', { name: '← 송금 확인' }))
+    expect(router.state.location.pathname).toBe('/admin/exchange-payouts')
+  })
+
+  it('필터·쪽을 고른 목록에서 상세로 들어갔다 돌아가면 그 필터·쪽으로 돌아간다', async () => {
+    resetAdminExchangeDb(
+      [approved({ exchangeId: 64, status: 'UNKNOWN' })],
+      [payoutAttempt({ exchangeId: 64, payoutId: 10, status: 'UNKNOWN' })],
+    )
+    const router = renderApp('/admin/exchange-payouts?status=UNKNOWN', 'ADMIN')
+    const user = userEvent.setup()
+
+    await user.click(
+      within(await listRow(64)).getByRole('link', { name: '상세' }),
+    )
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '환전 신청 #64' }),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('link', { name: '← 송금 확인' }))
+    expect(router.state.location.pathname).toBe('/admin/exchange-payouts')
+    expect(router.state.location.search).toBe('?status=UNKNOWN')
   })
 
   it('상태를 바꾸면 URL ?status=로 두고 그 상태의 첫 페이지를 요청한다', async () => {
@@ -460,16 +483,18 @@ describe('환전 상세의 송금 시도 패널', () => {
     expect(dialog).toHaveTextContent('별빛 · 회원 #21 · 인플루언서')
     expect(dialog).toHaveTextContent('9,000원')
     expect(dialog).toHaveTextContent('되돌릴 수 없어요')
-    // 계좌번호는 보이지 않는다
-    expect(dialog).not.toHaveTextContent('1234')
+    // 받을 계좌(마스킹)와 직전 실패 사유를 함께 보여 준다
+    expect(dialog).toHaveTextContent('받을 계좌004 **********1234 · 홍길동')
+    expect(dialog).toHaveTextContent('직전 실패 사유MOCK_TRANSFER_REJECTED')
     expect(adminExchangeDb.retryCalls).toEqual([])
 
     await user.click(within(dialog).getByRole('button', { name: '재송금' }))
 
-    expect(
-      await screen.findByText('다시 송금했고 성공했어요. 환전을 마쳤어요.'),
-    ).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    // 결과는 토스트가 아니라 송금 패널에 남는다
+    expect(await within(await panel()).findByRole('status')).toHaveTextContent(
+      '재송금 결과(시도 #2): 다시 송금했고 성공했어요. 환전을 마쳤어요.',
+    )
     expect(adminExchangeDb.retryCalls).toEqual([62])
     const second = await attemptRow(2)
     expect(second).toHaveTextContent('관리자 #1 재송금')
@@ -498,6 +523,84 @@ describe('환전 상세의 송금 시도 패널', () => {
     expect(adminExchangeDb.retryCalls).toEqual([])
   })
 
+  it('재송금이 실패하면(503) 사유를 창 안에 남기고 같은 창에서 다시 시도한다', async () => {
+    bankFailed()
+    let fail = true
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/62/payouts/retry', () =>
+        fail
+          ? HttpResponse.json(
+              {
+                status: 503,
+                code: 'EXCHANGE_PAYOUT_UNAVAILABLE',
+                detail: '',
+              },
+              { status: 503 },
+            )
+          : undefined,
+      ),
+    )
+    renderApp('/admin/exchanges/62', 'ADMIN')
+    const user = userEvent.setup()
+    await attemptRow(1)
+
+    await user.click(button('재송금')!)
+    const dialog = screen.getByRole('dialog', {
+      name: '송금을 다시 보낼까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '재송금' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '재송금하지 못했어요. 지금은 송금을 처리할 수 없어요. 잠시 뒤 다시 시도해 주세요.',
+    )
+    // 실패 문구는 토스트로 한 번 더 띄우지 않는다
+    expect(screen.getAllByText(/지금은 송금을 처리할 수 없어요/)).toHaveLength(
+      1,
+    )
+    await settle()
+
+    fail = false
+    await user.click(within(dialog).getByRole('button', { name: '다시 시도' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await within(await panel()).findByRole('status')).toHaveTextContent(
+      '다시 송금했고 성공했어요.',
+    )
+    expect(adminExchangeDb.retryCalls).toEqual([62])
+  })
+
+  it('재송금이 400(INVALID_REQUEST)으로 실패해도 사유 칸이 없는 재송금 창 안에 안내를 남긴다', async () => {
+    bankFailed()
+    server.use(
+      http.post('*/api/v1/settlements/admin/exchanges/62/payouts/retry', () =>
+        HttpResponse.json(
+          {
+            status: 400,
+            code: 'INVALID_REQUEST',
+            detail: '요청 값이 올바르지 않아요.',
+          },
+          { status: 400 },
+        ),
+      ),
+    )
+    renderApp('/admin/exchanges/62', 'ADMIN')
+    const user = userEvent.setup()
+    await attemptRow(1)
+
+    await user.click(button('재송금')!)
+    const dialog = screen.getByRole('dialog', {
+      name: '송금을 다시 보낼까요?',
+    })
+    await user.click(within(dialog).getByRole('button', { name: '재송금' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      '재송금하지 못했어요. 요청 값이 올바르지 않아요.',
+    )
+    expect(
+      within(dialog).getByRole('button', { name: '다시 시도' }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(/요청 값이 올바르지 않아요/)).toHaveLength(1)
+  })
+
   it('최종 실패 확정은 사유를 검사하고, 확정하면 처리 기록에 남고 버튼이 사라진다', async () => {
     bankFailed()
     queryClient.setQueryData(
@@ -513,29 +616,28 @@ describe('환전 상세의 송금 시도 패널', () => {
       name: '최종 실패로 끝낼까요?',
     })
     expect(dialog).toHaveTextContent('10,000 HP')
-    expect(dialog).toHaveTextContent('0/500')
+    const input = within(dialog).getByLabelText('최종 실패 사유')
+    expect(input).toHaveAccessibleDescription('0/500자')
     const submit = within(dialog).getByRole('button', {
       name: '최종 실패 확정',
     })
-    expect(submit).toBeDisabled()
+    // 비어 있으면 막힌 모양이지만 눌러서 빈 값 안내를 볼 수 있다
+    expectSubmitBlocked(submit)
 
-    const input = within(dialog).getByLabelText('최종 실패 사유')
     await user.type(input, '   ')
-    expect(submit).toBeDisabled()
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(
-      '최종 실패 사유를 입력해 주세요.',
-    )
+    await user.click(submit)
+    expectFieldError(input, '최종 실패 사유를 입력해 주세요.')
+    await waitFor(() => expect(input).toHaveFocus())
+    expect(adminExchangeDb.finalFailureCalls).toEqual([])
+    // 최대 글자 수를 넘겨 적을 수 없다
     await user.clear(input)
     await user.click(input)
     await user.paste('가'.repeat(501))
-    expect(within(dialog).getByRole('alert')).toHaveTextContent(
-      '최종 실패 사유는 500자까지 입력할 수 있어요.',
-    )
-    expect(submit).toBeDisabled()
+    expect(input).toHaveValue('가'.repeat(500))
 
     await user.clear(input)
     await user.type(input, '  계좌가 해지됐어요 ')
-    expect(dialog).toHaveTextContent('9/500')
+    expect(input).toHaveAccessibleDescription('12/500자')
     await user.click(submit)
 
     expect(
