@@ -52,18 +52,15 @@ export function Loading({
 export function LoadError({
   error,
   retry,
-  headingLevel,
 }: {
   error: Error
   retry?: () => void
-  headingLevel?: 1 | 2 | 'b'
 }) {
   return (
     <EmptyState
       role="alert"
       title="불러오지 못했어요"
       art="error"
-      headingLevel={headingLevel}
       action={
         retry && (
           <button type="button" className="btn" onClick={retry}>

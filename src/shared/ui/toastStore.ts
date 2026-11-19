@@ -21,7 +21,7 @@ type ToastState = {
   tone: ToastTone
   /** 이번 안내를 띄워 둘 시간. Toast가 같은 값으로 사라지는 움직임을 맞춘다 */
   duration: number
-  /** 포인터·포커스가 올라가 있어 멈춘 동안 true */
+  /** 포인터가 올라가 있어 멈춘 동안 true */
   paused: boolean
 }
 
@@ -77,7 +77,7 @@ export function toast(message: string, { tone = 'info' }: ToastOptions = {}) {
   startTimer(duration)
 }
 
-/** 포인터·포커스가 안내 위에 있으면 사라지지 않게 멈춘다 */
+/** 포인터가 안내 위에 있으면 사라지지 않게 멈춘다 */
 export function pauseToast() {
   const { message, paused } = useToastStore.getState()
   if (!message || paused || timer === undefined) return

@@ -9,11 +9,6 @@ type EmptyStateProps = {
   action?: ReactNode
   /** 제목 위 그림. 기본은 empty, 그림 없이 쓰려면 none */
   art?: EmptyArt
-  /**
-   * 제목 단계. 기본은 굵은 글자(b)로 화면 머리(h1) 아래 한 구역으로 둔다.
-   * 화면 머리 없이 빈 상태·오류만 그리는 화면(찾지 못한 상세 등)은 1로 올려 화면 제목이 되게 한다.
-   */
-  headingLevel?: 1 | 2 | 'b'
   /** 나타날 때 바로 읽어야 하면(첫 조회 실패) alert */
   role?: 'alert'
 }
@@ -23,19 +18,12 @@ export function EmptyState({
   children,
   action,
   art = 'empty',
-  headingLevel = 'b',
   role,
 }: EmptyStateProps) {
   return (
     <div className="panel empty-state" role={role}>
       {art !== 'none' && <EmptyIllustration art={art} />}
-      {headingLevel === 1 ? (
-        <h1>{title}</h1>
-      ) : headingLevel === 2 ? (
-        <h2>{title}</h2>
-      ) : (
-        <b>{title}</b>
-      )}
+      <b>{title}</b>
       {children && <p>{children}</p>}
       {action}
     </div>

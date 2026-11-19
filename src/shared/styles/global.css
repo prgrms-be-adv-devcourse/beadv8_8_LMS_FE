@@ -441,12 +441,8 @@ a.panel {
   padding: 44px 24px;
   gap: 10px;
 }
-.empty-state b,
-.empty-state :is(h1, h2) {
-  margin: 0;
-  font: inherit;
+.empty-state b {
   font-size: 16px;
-  font-weight: 700;
 }
 .empty-state p {
   color: var(--ink-2);
@@ -755,7 +751,7 @@ a.panel {
     toast-out 180ms var(--ease-in-out) calc(var(--toast-life, 2600ms) - 180ms)
       forwards;
 }
-/* 포인터·포커스가 올라가 있으면 사라지는 움직임도 멈춘다(toastStore가 시간을 멈춘다) */
+/* 포인터가 올라가 있으면 사라지는 움직임도 멈춘다(toastStore가 시간을 멈춘다) */
 .toast[data-paused] {
   animation-play-state: paused;
 }
