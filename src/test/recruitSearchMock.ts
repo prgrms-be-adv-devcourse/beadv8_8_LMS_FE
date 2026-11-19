@@ -1,4 +1,5 @@
 import { http } from 'msw'
+import { isCalendarDate } from '@/entities/appearance/recruitSearch'
 import type { RecruitSummary } from '@/entities/appearance/types'
 import type { PagedModel } from '@/shared/api/types'
 import { problem } from './emailCodeMock'
@@ -14,6 +15,11 @@ import { server } from './server'
 export type SearchRecruit = RecruitSummary & { content: string }
 
 export const SEARCH_HOST_IDS = [9, 10] as const
+/** 호스트 닉네임. 검색어는 호스트 닉네임에서도 찾는다 */
+const HOST_NICKNAMES: Record<number, string> = {
+  9: '밤새는곰',
+  10: '편집하는 고래',
+}
 
 const recruit = (
   id: number,
@@ -94,12 +100,6 @@ export const SEARCH_RECRUITS: SearchRecruit[] = [
 ]
 
 const SORTS = ['LATEST', 'SCHEDULED_SOON', 'DEADLINE_SOON', 'FEE_HIGH']
-const DATE = /^\d{4}-\d{2}-\d{2}$/
-
-const isDate = (value: string) =>
-  DATE.test(value) &&
-  !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
-  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
 
 const invalid = (detail: string) => problem(400, 'INVALID_REQUEST', detail)
 
@@ -117,7 +117,7 @@ const ORDER: Record<string, (a: SearchRecruit, b: SearchRecruit) => number> = {
 }
 
 /**
- * 공개 모집 목록 흉내. recruits를 검색어(제목·본문, 대소문자 무시)·방송 날짜(KST 날짜, 양 끝 포함)·1인 출연료·남은 자리로
+ * 공개 모집 목록 흉내. recruits를 검색어(제목·본문·호스트 닉네임, 대소문자 무시)·방송 날짜(KST 날짜, 양 끝 포함)·1인 출연료·남은 자리로
  * 거르고 정렬해 페이지로 준다. 잘못된 값(범위 뒤집힘, 음수·정수 아님, 모르는 sort, 날짜 형식, 50자 초과)은 400 INVALID_REQUEST.
  * 받은 쿼리를 차례로 남긴다
  */
@@ -133,7 +133,10 @@ export function mockRecruitSearch(recruits: SearchRecruit[] = SEARCH_RECRUITS) {
         return invalid('검색어는 50자 이하로 입력해 주세요.')
       const from = q.get('scheduledFrom')
       const to = q.get('scheduledTo')
-      if ((from !== null && !isDate(from)) || (to !== null && !isDate(to)))
+      if (
+        (from !== null && !isCalendarDate(from)) ||
+        (to !== null && !isCalendarDate(to))
+      )
         return invalid('방송 날짜는 yyyy-MM-dd 형식이어야 합니다.')
       if (from !== null && to !== null && from > to)
         return invalid('방송 날짜 범위가 올바르지 않습니다.')
@@ -155,8 +158,9 @@ export function mockRecruitSearch(recruits: SearchRecruit[] = SEARCH_RECRUITS) {
           const day = r.scheduledAt.slice(0, 10)
           return (
             (!word ||
-              r.title.toLowerCase().includes(word) ||
-              r.content.toLowerCase().includes(word)) &&
+              [r.title, r.content, HOST_NICKNAMES[r.hostId] ?? ''].some(
+                (text) => text.toLowerCase().includes(word),
+              )) &&
             (from === null || day >= from) &&
             (to === null || day <= to) &&
             (minFee === null || r.feePerPerson >= minFee) &&
@@ -185,7 +189,7 @@ export function mockRecruitSearch(recruits: SearchRecruit[] = SEARCH_RECRUITS) {
       http.get(`*/api/v1/members/${id}`, () =>
         rs({
           id,
-          nickname: `호스트${id}`,
+          nickname: HOST_NICKNAMES[id],
           role: 'INFLUENCER',
           profileImageUrl: null,
           channels: [],

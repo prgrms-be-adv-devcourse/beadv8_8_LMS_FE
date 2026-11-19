@@ -22,7 +22,7 @@ export const RECRUIT_SORTS: readonly [RecruitSort, string][] = [
 
 /** 공개 모집 목록의 검색 조건. 값이 없으면 그 조건을 걸지 않는다 */
 export type RecruitSearch = {
-  /** 제목·본문 부분 일치. 빈 문자열이면 검색어 없음 */
+  /** 제목·본문·호스트 닉네임 부분 일치. 빈 문자열이면 검색어 없음 */
   keyword: string
   /** 방송 날짜 범위(yyyy-MM-dd, KST, 양 끝 포함) */
   scheduledFrom?: string
@@ -47,13 +47,24 @@ export const normalizeRecruitKeyword = (value: string) =>
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/
 
-/** 있는 날짜(yyyy-MM-dd)인지. 2026-02-30 같은 값은 버린다 */
-const isDate = (value: string) =>
-  DATE.test(value) &&
-  new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value
+/**
+ * 달력에 있는 날짜(yyyy-MM-dd)인지. 2026-13-01·2026-02-30 같은 값은 false다.
+ * 문자열을 Date로 읽으면 브라우저마다 넘치는 날을 다르게 받고 Invalid Date면 toISOString이 예외를 던져,
+ * 연·월·일을 숫자로 만든 날짜가 그대로인지 본다
+ */
+export function isCalendarDate(value: string) {
+  if (!DATE.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  )
+}
 
 const dateOf = (raw: string | null) =>
-  raw !== null && isDate(raw) ? raw : undefined
+  raw !== null && isCalendarDate(raw) ? raw : undefined
 
 const feeOf = (raw: string | null) =>
   raw !== null && new RegExp(`^\\d{1,${RECRUIT_FEE_MAX_DIGITS}}$`).test(raw)

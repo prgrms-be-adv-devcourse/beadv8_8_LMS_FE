@@ -89,6 +89,17 @@ describe('출연 모집 검색', () => {
     ).toBeInTheDocument()
   })
 
+  it('검색어는 호스트 닉네임에서도 찾는다', async () => {
+    const requests = mockRecruitSearch()
+    renderApp('/recruits', 'USER')
+    await loaded()
+
+    await userEvent.type(keywordBox(), '고래{Enter}')
+
+    await expectTitles(['토크 게스트', '노래 릴레이', '주말 공포게임 합방'])
+    expect(lastQuery(requests)).toMatchObject({ keyword: '고래' })
+  })
+
   it('방송 날짜·출연료 범위는 조건 적용으로 함께 보내고 칩으로 보인다', async () => {
     const requests = mockRecruitSearch()
     const router = renderApp('/recruits', 'USER')
@@ -261,6 +272,19 @@ describe('출연 모집 검색', () => {
 
     await loaded()
     expect(lastQuery(requests)).toEqual({ page: '0', size: '10' })
+  })
+
+  it('주소의 날짜가 달력에 없으면(달·일 범위 밖) 화면이 깨지지 않고 그 조건만 버린다', async () => {
+    const requests = mockRecruitSearch()
+    renderApp(
+      '/recruits?scheduledFrom=2026-13-01&scheduledTo=2026-01-32',
+      'USER',
+    )
+
+    await loaded()
+    expect(lastQuery(requests)).toEqual({ page: '0', size: '10' })
+    expect(screen.getByLabelText('방송 날짜 시작')).toHaveValue('')
+    expect(screen.queryByRole('list', { name: '적용한 조건' })).toBeNull()
   })
 
   it('결과가 없으면 조건을 바꾸라고 안내하고, 조건 지우기는 정렬을 남긴다', async () => {

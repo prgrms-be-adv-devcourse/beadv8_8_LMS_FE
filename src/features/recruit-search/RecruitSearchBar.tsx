@@ -118,7 +118,7 @@ export function RecruitSearchBar({
               type="search"
               className="input"
               aria-label="검색어"
-              placeholder="제목·내용으로 찾기"
+              placeholder="제목·내용·호스트 닉네임으로 찾기"
               maxLength={RECRUIT_KEYWORD_MAX}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
