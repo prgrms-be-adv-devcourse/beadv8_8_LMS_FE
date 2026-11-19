@@ -298,6 +298,7 @@ function RejectDialog({
     <Modal
       title="이 채널을 반려할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>

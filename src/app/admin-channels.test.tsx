@@ -196,6 +196,24 @@ describe('관리자 채널 인증 심사', () => {
     )
   })
 
+  it('반려 사유를 쓰다 바깥을 눌러도 모달과 입력한 사유가 그대로 남는다', async () => {
+    renderApp('/admin/channels', 'ADMIN')
+    const row = await item('새벽기타')
+    await userEvent.click(within(row).getByRole('button', { name: '반려' }))
+    const dialog = screen.getByRole('dialog', { name: '이 채널을 반려할까요?' })
+    await userEvent.type(
+      within(dialog).getByLabelText('반려 사유'),
+      '직접 쓴 사유',
+    )
+    // 모달 바깥의 덮개(scrim)를 누른다.
+    await userEvent.click(dialog.parentElement as HTMLElement)
+
+    const still = screen.getByRole('dialog', { name: '이 채널을 반려할까요?' })
+    expect(within(still).getByLabelText('반려 사유')).toHaveValue(
+      '직접 쓴 사유',
+    )
+  })
+
   it('처리 중에는 모달을 닫고 다시 열어도 같은 채널을 또 보내지 못한다', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))

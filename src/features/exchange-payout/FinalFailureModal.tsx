@@ -34,6 +34,7 @@ export function FinalFailureModal({
     <Modal
       title="최종 실패로 끝낼까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>

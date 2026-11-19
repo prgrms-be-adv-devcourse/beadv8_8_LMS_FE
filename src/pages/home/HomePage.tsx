@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
+import { CHANNEL_CRITERIA } from '@/entities/member/channel'
 import type { Viewer } from '@/shared/auth/role'
 import { startGoogleLogin, useViewer } from '@/shared/auth/session'
 import { scrollBehavior } from '@/shared/lib/motion'
@@ -14,11 +15,11 @@ import { useReveal } from './useReveal'
 const HERO_FINE: Record<Viewer, string> = {
   GUEST:
     '가입하면 유저로 시작해요. 방송 채널을 인증하면 합방을 섭외하고 출연할 수 있어요.',
-  USER: '팔로워 10명 이상이거나 한 달에 10시간 넘게 방송했다면 채널을 인증할 수 있어요.',
+  USER: CHANNEL_CRITERIA,
   INFLUENCER:
-    '출연 요청은 게스트가 수락하면 성립하고, 모집 글은 내가 게스트를 선정하면 성립해요.',
+    '출연 요청은 게스트가 수락하면 성립하고, 모집글은 내가 게스트를 선정하면 성립해요.',
   VERIFIED_INFLUENCER:
-    '출연 요청은 게스트가 수락하면 성립하고, 모집 글은 내가 게스트를 선정하면 성립해요.',
+    '출연 요청은 게스트가 수락하면 성립하고, 모집글은 내가 게스트를 선정하면 성립해요.',
   ADMIN: '관리자 계정은 출연 거래나 강의 구매를 할 수 없어요.',
 }
 
@@ -48,7 +49,7 @@ const STEPS: { role: Viewer; no: string; name: string; can: string }[] = [
 const FLOW = [
   {
     title: '출연 요청 · 모집',
-    desc: '게스트 한 명에게 요청하거나, 모집 글로 여러 명을 모아요.',
+    desc: '게스트 한 명에게 요청하거나, 모집글로 여러 명을 모아요.',
     tone: 'sunken',
     rail: null,
   },
@@ -74,7 +75,7 @@ const FLOW = [
 
 const CHAPTERS = [
   '채널 인증하고 프로필 꾸미기',
-  '출연 요청 보내기, 모집 글 올리기',
+  '출연 요청 보내기, 모집글 올리기',
   '방송하고 출연료 받기',
 ]
 
@@ -241,7 +242,7 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
             <span className={styles.h1Accent}>같이 방송해요</span>
           </h1>
           <p className={styles.heroLede}>
-            채널을 인증한 인플루언서에게 출연을 요청하거나, 모집 글을 올려
+            채널을 인증한 인플루언서에게 출연을 요청하거나, 모집글을 올려
             게스트를 모아요. 출연료는 HP로 보류됐다가 출연이 확인되면 지급돼요.
           </p>
           <div className={styles.actions}>
@@ -278,7 +279,7 @@ function Hero({ viewer, onVideo }: { viewer: Viewer; onVideo: () => void }) {
                   게스트 찾기
                 </Link>
                 <Link className="btn" to="/recruits">
-                  모집 글 올리기
+                  모집글 올리기
                 </Link>
               </>
             )}
@@ -357,8 +358,8 @@ function Camp({ viewer }: { viewer: Viewer }) {
               <br />될 수 있어
             </h2>
             <p>
-              팔로워 10명이거나, 한 달에 10시간 방송했다면 충분해요. 채널을
-              인증하면 바로 합방을 섭외하고 출연료를 받을 수 있어요.
+              {CHANNEL_CRITERIA} 채널을 인증하면 합방을 섭외하고 출연료를 받을
+              수 있어요.
             </p>
           </div>
           <CampAction viewer={viewer} />

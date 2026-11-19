@@ -75,22 +75,32 @@ describe('홈', () => {
     const here = document.querySelector('[aria-current="step"]') as HTMLElement
     expect(within(here).getByText('유저')).toBeInTheDocument()
     expect(within(here).getByText('지금 여기')).toBeInTheDocument()
+    // 채널 인증 기준은 채널 인증 화면과 같은 문장으로 안내한다(히어로 아래 한 줄과 등급 소개 두 곳).
+    const criteria =
+      '팔로워 10명 이상이면 바로 승인되고, 못 미치면 승인을 요청해 관리자가 한 달 누적 방송 10시간 이상인지 심사해요.'
+    expect(screen.getByText(criteria)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${criteria} 채널을 인증하면 합방을 섭외하고 출연료를 받을 수 있어요.`,
+      ),
+    ).toBeInTheDocument()
     expect(screen.queryByText('구글 계정으로 바로 시작해요')).toBeNull()
     expect(
       await screen.findByText('아직 판매 중인 강의가 없어요.'),
     ).toBeInTheDocument()
   })
 
-  it('인플루언서에게는 게스트 찾기·모집 글 올리기·승급 신청을 보여 준다', async () => {
+  it('인플루언서에게는 게스트 찾기·모집글 올리기·승급 신청을 보여 준다', async () => {
     mockLectures(0)
     renderApp('/', 'INFLUENCER')
 
     expect(
       await screen.findByRole('link', { name: '게스트 찾기' }),
     ).toHaveAttribute('href', '/influencers')
-    expect(
-      screen.getByRole('link', { name: '모집 글 올리기' }),
-    ).toHaveAttribute('href', '/recruits')
+    expect(screen.getByRole('link', { name: '모집글 올리기' })).toHaveAttribute(
+      'href',
+      '/recruits',
+    )
     expect(screen.getByRole('link', { name: '승급 신청하기' })).toHaveAttribute(
       'href',
       '/promote',

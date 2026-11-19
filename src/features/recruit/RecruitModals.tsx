@@ -245,6 +245,7 @@ export function EditRecruitModal({ recruit, onClose }: RecruitProps) {
     <Modal
       title="기본 정보 수정"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>

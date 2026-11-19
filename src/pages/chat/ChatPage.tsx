@@ -66,6 +66,7 @@ import { useLeaveChat } from '@/features/chat/useChatActions'
 import { useMarkRoomRead } from '@/features/chat/useChatUnread'
 import { meQuery } from '@/shared/auth/me'
 import { daysUntil, formatDate, parseServerDate } from '@/shared/lib/date'
+import { enterSends } from '@/shared/lib/enterToSend'
 import { formatNumber } from '@/shared/lib/money'
 import { Avatar } from '@/shared/ui/Avatar'
 import { PageHead } from '@/shared/ui/PageHead'
@@ -618,16 +619,7 @@ function Thread({ room, myUserId }: { room: ChatRoom; myUserId: number }) {
               onChange={(e) => setText(e.target.value)}
               onPaste={pasteWithinLimit}
               onKeyDown={(e) => {
-                // Enter는 보내기, Shift+Enter는 줄바꿈. 한글 조합을 확정하는 Enter는 보내지 않는다. Safari는 조합이
-                // 끝난 뒤에 keydown이 와서 isComposing이 false이므로 keyCode 229로도 가린다.
-                if (
-                  e.key !== 'Enter' ||
-                  e.shiftKey ||
-                  e.nativeEvent.isComposing ||
-                  e.keyCode === 229 ||
-                  !enterSends()
-                )
-                  return
+                if (!enterSends(e)) return
                 e.preventDefault()
                 send()
               }}
@@ -1055,16 +1047,6 @@ const NEAR_BOTTOM_PX = 80
 const ANNOUNCE_KEEP = 5
 /** 입력창이 이 높이까지 자라고 그 뒤로는 칸 안에서 스크롤한다 */
 const FIELD_MAX_HEIGHT_PX = 140
-
-/**
- * Enter로 보내는지. 터치 기기의 화면 키보드에는 Shift가 없어 줄을 바꿀 길이 없으므로, Enter는 줄바꿈으로 두고
- * 보내기 버튼으로만 보낸다
- */
-function enterSends() {
-  return !(
-    typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
-  )
-}
 
 /** 1:1 방 말풍선의 보낸 사람. 화면에는 좌우 위치로 보이므로 보조 기술에만 읽힌다 */
 function DirectSender({ mine }: { mine: boolean }) {

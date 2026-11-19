@@ -93,6 +93,7 @@ export function RejectRequestModal({ request, onClose }: Props) {
     <Modal
       title="출연 요청을 거절할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
@@ -194,6 +195,7 @@ export function EditRequestModal({ request, onClose }: Props) {
     <Modal
       title="요청서 고치기"
       onClose={onClose}
+      dismissOnScrim={false}
       wide
       footer={
         <>

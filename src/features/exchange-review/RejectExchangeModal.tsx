@@ -32,6 +32,7 @@ export function RejectExchangeModal({
     <Modal
       title="환전 신청을 거절할까요?"
       onClose={onClose}
+      dismissOnScrim={false}
       footer={
         <>
           <button type="button" className="btn ghost" onClick={onClose}>
