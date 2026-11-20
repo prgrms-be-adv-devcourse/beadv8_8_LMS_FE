@@ -188,8 +188,8 @@ function LoginOptions({
         }}
       />
       {
-        // 테스트 계정 로그인은 pnpm dev와 VITE_LOCAL_LOGIN=true로 직접 빌드한 이미지(로컬 k3d 확인용)에서만 보인다.
-        // 조건을 여기에 그대로 써야 빌드가 값을 상수로 바꿔 운영 번들에서 TestAccountLogin(초기 계정 비밀번호)을 뺀다.
+        // 테스트 계정 로그인은 pnpm dev와 VITE_LOCAL_LOGIN=true로 빌드한 이미지(지금은 서버 발행 이미지 포함)에서만 보인다.
+        // 조건을 여기에 그대로 써야 값이 없는 빌드에서 번들이 TestAccountLogin(초기 계정 비밀번호)을 뺀다.
         (import.meta.env.DEV ||
           import.meta.env.VITE_LOCAL_LOGIN === 'true') && <TestAccountLogin />
       }

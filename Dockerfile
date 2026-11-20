@@ -12,8 +12,7 @@ COPY . .
 # 토스페이먼츠 테스트 클라이언트 키(공개 값). 비어 있으면 HP 충전이 꺼진 채로 빌드된다(docs/deploy.md).
 ARG VITE_TOSS_PAYMENTS_CLIENT_KEY=
 ENV VITE_TOSS_PAYMENTS_CLIENT_KEY=$VITE_TOSS_PAYMENTS_CLIENT_KEY
-# 'true'면 로그인 모달에 테스트 계정 로그인을 넣는다. 로컬 k3d에서 로컬 BE와 함께 볼 때만 직접 넘긴다.
-# 발행 workflow(publish.yml)는 넘기지 않는다(운영에는 local-login API가 없다).
+# 'true'면 로그인 모달에 테스트 계정 로그인을 넣는다. 지금 서버가 시연·테스트용이라 발행 workflow(publish.yml)도 넘긴다.
 ARG VITE_LOCAL_LOGIN=
 ENV VITE_LOCAL_LOGIN=$VITE_LOCAL_LOGIN
 RUN pnpm build
