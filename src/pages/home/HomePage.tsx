@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
@@ -8,6 +9,7 @@ import { startGoogleLogin, useViewer } from '@/shared/auth/session'
 import { scrollBehavior } from '@/shared/lib/motion'
 import { Avatar } from '@/shared/ui/Avatar'
 import { LoadError } from '@/shared/ui/QueryState'
+import introVideo from './hapbang-intro.mp4'
 import styles from './HomePage.module.css'
 import { useReveal } from './useReveal'
 
@@ -79,6 +81,78 @@ const CHAPTERS = [
   '방송하고 출연료 받기',
 ]
 
+/**
+ * 소개 영상(30초). 처음에는 모니터 표지를 보이고, 재생 버튼을 누른 뒤에야 영상을 불러와 그 자리에서 재생한다.
+ * 영상은 번들 자산(해시 파일 이름, 오래 캐시)이다. 원본은 1080p H.264로 다시 줄여 넣었다.
+ * 배포 직후 옛 탭에서는 옛 해시 파일이 404라 불러오지 못한다. 그때는 표지로 돌아가 새로고침을 안내한다.
+ * 버튼과 영상이 서로 바뀌므로 바뀐 쪽으로 포커스를 옮겨 키보드 사용자가 처음부터 다시 찾지 않게 한다.
+ */
+function IntroPlayer() {
+  const [state, setState] = useState<'cover' | 'playing' | 'failed'>('cover')
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const errorId = useId()
+
+  // 처음 표지일 때는 옮기지 않는다. 상태가 바뀔 때만 옮겨 다른 이유로 다시 그려도 포커스를 빼앗지 않는다.
+  useEffect(() => {
+    if (state === 'playing') videoRef.current?.focus()
+    if (state === 'failed') buttonRef.current?.focus()
+  }, [state])
+
+  if (state === 'playing') {
+    return (
+      <video
+        ref={videoRef}
+        // 브라우저는 controls가 있는 video를 포커스할 수 있지만 명시해 둔다(Space로 재생·멈춤).
+        tabIndex={0}
+        className={styles.playerVideo}
+        src={introVideo}
+        aria-label="합방 소개 영상"
+        controls
+        autoPlay
+        playsInline
+        onError={() => setState('failed')}
+      />
+    )
+  }
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={styles.player}
+      aria-label="합방 소개 영상 재생 (30초)"
+      aria-describedby={state === 'failed' ? errorId : undefined}
+      onClick={() => setState('playing')}
+    >
+      <span className={styles.ticks} aria-hidden="true" />
+      <span className={styles.playerTop}>
+        <span className="onair">합방 소개</span>
+        <span className={styles.rec}>
+          <span className={styles.recDot} aria-hidden="true" />
+          REC
+        </span>
+      </span>
+      <span className={styles.play} aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </span>
+      <span className={styles.playerBottom}>
+        <span className={styles.playerTitle}>
+          처음 합방하는 날까지,
+          <br />
+          3단계면 돼요
+        </span>
+        <span id={errorId} className={`num ${styles.timecode}`}>
+          {state === 'failed'
+            ? '영상을 불러오지 못했어요. 새로고침해 주세요.'
+            : '0:30'}
+        </span>
+      </span>
+    </button>
+  )
+}
+
 /** 홈: 모든 역할 공통 첫 화면. 서비스 소개와 역할별 다음 행동, 최근 강의를 보여 준다. */
 export function HomePage() {
   const viewer = useViewer() ?? 'GUEST'
@@ -100,38 +174,7 @@ export function HomePage() {
         className={`${styles.wrap} ${styles.video} ${styles.reveal}`}
       >
         <div className={styles.monitor}>
-          <div
-            className={styles.player}
-            role="img"
-            aria-label="합방 소개 영상 자리"
-          >
-            <span className={styles.ticks} aria-hidden="true" />
-            <span className={styles.playerTop}>
-              <span className="onair">합방 소개</span>
-              <span className={styles.rec}>
-                <span className={styles.recDot} aria-hidden="true" />
-                REC
-              </span>
-            </span>
-            <span className={styles.play} aria-hidden="true">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </span>
-            <span className={styles.playerBottom}>
-              <span className={styles.playerTitle}>
-                처음 합방하는 날까지,
-                <br />
-                3단계면 돼요
-              </span>
-              <span className={`num ${styles.timecode}`}>영상 준비 중</span>
-            </span>
-          </div>
+          <IntroPlayer />
         </div>
         <div className={styles.videoText}>
           <span className={styles.eyebrow}>VIDEO</span>

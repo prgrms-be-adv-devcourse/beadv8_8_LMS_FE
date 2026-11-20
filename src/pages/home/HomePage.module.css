@@ -453,6 +453,26 @@
   flex-direction: column;
   justify-content: space-between;
   padding: 30px 34px;
+  /* 재생 버튼: 기본 버튼 모양을 지운다 */
+  width: 100%;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.player:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 3px;
+}
+.player:hover .play {
+  transform: scale(1.06);
+}
+.playerVideo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r);
+  background: var(--st-bg);
 }
 .player::before {
   content: '';
@@ -514,6 +534,7 @@
   color: var(--signal-ink);
   display: grid;
   place-items: center;
+  transition: transform var(--t-fast) var(--ease-out);
   box-shadow:
     0 0 0 10px color-mix(in srgb, var(--signal) 18%, transparent),
     0 12px 32px color-mix(in srgb, var(--signal) 30%, transparent);
@@ -1225,6 +1246,9 @@
     padding: 20px 22px;
     border-radius: var(--r-sm);
   }
+  .playerVideo {
+    border-radius: var(--r-sm);
+  }
   .ticks {
     inset: 9px;
   }
@@ -1365,7 +1389,8 @@
   .reveal .lectures > *,
   .actions :global(.btn),
   .camp .campBtn,
-  .band .bandBtn {
+  .band .bandBtn,
+  .play {
     transition: none;
   }
   .reveal[data-reveal='pending'],

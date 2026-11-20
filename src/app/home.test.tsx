@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
@@ -216,5 +216,46 @@ describe('홈', () => {
     expect(
       within(footer).getByRole('link', { name: '고객센터' }),
     ).toHaveAttribute('href', '/support')
+  })
+
+  it('소개 영상은 재생 버튼을 누르면 그 자리에서 재생한다', async () => {
+    mockLectures(4)
+    renderApp('/', 'GUEST')
+
+    const play = await screen.findByRole('button', {
+      name: '합방 소개 영상 재생 (30초)',
+    })
+    // 누르기 전에는 영상을 불러오지 않는다.
+    expect(document.querySelector('video')).toBeNull()
+
+    await userEvent.click(play)
+
+    const video = screen.getByLabelText('합방 소개 영상')
+    expect(video.tagName).toBe('VIDEO')
+    expect(video).toHaveAttribute('src', expect.stringContaining('.mp4'))
+    expect(video).toHaveAttribute('controls')
+    // 버튼이 사라져도 키보드 포커스는 방금 켠 영상에 있다.
+    expect(video).toHaveFocus()
+    expect(screen.queryByRole('button', { name: /소개 영상 재생/ })).toBeNull()
+  })
+
+  it('소개 영상을 불러오지 못하면(배포 직후 옛 탭 등) 표지로 돌아가 새로고침을 안내한다', async () => {
+    mockLectures(4)
+    renderApp('/', 'GUEST')
+    await userEvent.click(
+      await screen.findByRole('button', { name: '합방 소개 영상 재생 (30초)' }),
+    )
+
+    fireEvent.error(screen.getByLabelText('합방 소개 영상'))
+
+    const play = screen.getByRole('button', {
+      name: '합방 소개 영상 재생 (30초)',
+    })
+    // 포커스가 돌아온 버튼이 이름과 함께 실패 안내를 읽어 준다.
+    expect(play).toHaveFocus()
+    expect(play).toHaveAccessibleDescription(
+      '영상을 불러오지 못했어요. 새로고침해 주세요.',
+    )
+    expect(document.querySelector('video')).toBeNull()
   })
 })
