@@ -5,8 +5,8 @@ import styles from './LoginModal.module.css'
 
 /**
  * BE 초기 계정(MemberSeedAccountUseCase): 역할마다 하나. 유저는 초기 계정이 없다(가입하면 된다).
- * 이 모듈은 LoginModal이 빌드 시점 조건(개발 서버·VITE_LOCAL_LOGIN 빌드)으로만 그려서, 운영 빌드에서는 번들에서 빠진다.
- * 계정·비밀번호를 다른 모듈로 옮기면 운영 번들에 남을 수 있다.
+ * 이 모듈은 LoginModal이 빌드 시점 조건(개발 서버·VITE_LOCAL_LOGIN 빌드)으로만 그려서, 값이 없는 빌드에서는 번들에서 빠진다.
+ * 계정·비밀번호를 다른 모듈로 옮기면 값이 없는 빌드에도 남을 수 있다.
  */
 const TEST_ACCOUNTS: { role: Role; email: string }[] = [
   { role: 'INFLUENCER', email: 'influencer@hapbang.local' },

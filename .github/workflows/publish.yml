@@ -1,6 +1,6 @@
 # dev push 때 테스트를 통과한 커밋으로 이미지를 만들어 GHCR에 올린다. 성공하면 deploy.yml이 이어서 운영에 배포한다(#156).
 # 태그는 :sha-<커밋> 하나다. :latest 같은 움직이는 태그는 만들지 않는다. main은 서버 없는 안정화 표시라 발행하지 않는다.
-# GHCR 패키지는 조직 정책으로 private이다. k3s는 hapbang-prod의 공유 Secret ghcr-pull(BE 레포 k8s/registry)로 받는다. 번들에는 공개 값만 넣는다.
+# GHCR 패키지는 조직 정책으로 private이다. k3s는 hapbang-prod의 공유 Secret ghcr-pull(BE 레포 k8s/registry)로 받는다. 번들에는 공개 값만 넣는다(예외: 시연용 초기 계정 비밀번호, 아래 VITE_LOCAL_LOGIN).
 # 필요한 Variables: TOSS_PAYMENTS_CLIENT_KEY(토스페이먼츠 테스트 클라이언트 키, 공개 값. 없으면 HP 충전이 꺼진다)
 name: Publish image
 
@@ -36,13 +36,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # VITE_LOCAL_LOGIN은 넘기지 않는다(운영에는 local-login API가 없다). docs/deploy.md 환경변수 절 참고
+      # 지금 서버는 시연·테스트용이라 로그인 모달에 테스트 계정 버튼(BE 초기 계정)을 켠다. 실제 운영으로 바꿀 때 VITE_LOCAL_LOGIN 줄을 지운다.
+      # docs/deploy.md 환경변수 절 참고
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
           build-args: |
             VITE_TOSS_PAYMENTS_CLIENT_KEY=${{ vars.TOSS_PAYMENTS_CLIENT_KEY }}
+            VITE_LOCAL_LOGIN=true
           tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

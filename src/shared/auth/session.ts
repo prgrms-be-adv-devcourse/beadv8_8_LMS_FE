@@ -178,7 +178,7 @@ export function usePasswordLogin(successMessage = '로그인했어요.') {
  * 테스트 계정 로그인: BE 초기 계정으로 이메일·비밀번호 로그인을 한다(이메일 로그인과 같은 줄을 탄다).
  * 성공하면 모달을 닫고 지금 화면(돌아갈 곳이 있으면 그곳)으로 간다. 권한이 없는 화면이면 RoleGate가 그 자리에서 막힌 이유를 안내한다
  * (관리자는 운영 첫 화면으로 보낸다).
- * 계정·비밀번호는 부르는 쪽(features/auth/TestAccountLogin)이 넘긴다. 운영 번들에 들어가지 않게 그 모듈에만 둔다.
+ * 계정·비밀번호는 부르는 쪽(features/auth/TestAccountLogin)이 넘긴다. VITE_LOCAL_LOGIN이 없는 빌드에서 번들에 들어가지 않게 그 모듈에만 둔다.
  */
 export function useTestAccountLogin() {
   const finish = useFinishLogin()

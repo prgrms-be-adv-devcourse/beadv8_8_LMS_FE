@@ -130,13 +130,14 @@ fetch('https://hapbang.duckdns.org/api/...')     // ❌ 같은 출처가 아니�
 Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.**
 
 - 비밀값(API 키, 토큰 등)을 넣지 않는다. 비밀이 필요한 기능은 BE를 통한다.
+    - 예외: 지금 서버는 시연·테스트용이라 `VITE_LOCAL_LOGIN=true`로 BE 초기 계정 비밀번호(공개 레포에 이미 있는 값, BE #520)가 번들에 들어간다. 실제 운영으로 바꿀 때 `publish.yml`에서 뺀다.
 - `.env`, `.env.*`는 커밋하지 않는다.
 - 새 빌드 인자가 필요하면 `publish.yml` build-args를 바꿔야 하므로 팀과 먼저 상의한다.
 
 | 변수 | 값 | 넣는 곳 |
 | --- | --- | --- |
 | `VITE_TOSS_PAYMENTS_CLIENT_KEY` | 토스페이먼츠 테스트 클라이언트 키(`test_ck_…`, 공개 값). 비어 있으면 HP 충전 버튼이 꺼진다 | 로컬은 `.env.local`, 배포는 GitHub Variable `TOSS_PAYMENTS_CLIENT_KEY` → `publish.yml` build-args → `Dockerfile` `ARG` |
-| `VITE_LOCAL_LOGIN` | `true`면 로그인 모달에 테스트 계정 로그인 버튼(BE 초기 계정으로 `POST /members/login`)을 보여 준다. `pnpm dev`에서는 값 없이도 보인다 | 로컬 k3d 이미지를 직접 빌드할 때만 `--build-arg`로 넘긴다. 발행 이미지에는 넣지 않는다 |
+| `VITE_LOCAL_LOGIN` | `true`면 로그인 모달에 테스트 계정 로그인 버튼(BE 초기 계정으로 `POST /members/login`)을 보여 준다. `pnpm dev`에서는 값 없이도 보인다 | 지금 서버는 시연·테스트용이라 `publish.yml` build-args에 `true`로 넣는다. 로컬 k3d 이미지는 `--build-arg`로 넘긴다. 실제 운영으로 바꿀 때 `publish.yml`에서 지운다 |
 
 ## 파일
 
