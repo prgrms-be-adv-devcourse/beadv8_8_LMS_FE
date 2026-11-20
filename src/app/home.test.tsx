@@ -251,8 +251,9 @@ describe('홈', () => {
     const play = screen.getByRole('button', {
       name: '합방 소개 영상 재생 (30초)',
     })
+    // 포커스가 돌아온 버튼이 이름과 함께 실패 안내를 읽어 준다.
     expect(play).toHaveFocus()
-    expect(within(play).getByRole('status')).toHaveTextContent(
+    expect(play).toHaveAccessibleDescription(
       '영상을 불러오지 못했어요. 새로고침해 주세요.',
     )
     expect(document.querySelector('video')).toBeNull()

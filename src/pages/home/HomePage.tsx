@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
@@ -89,11 +89,20 @@ const CHAPTERS = [
  */
 function IntroPlayer() {
   const [state, setState] = useState<'cover' | 'playing' | 'failed'>('cover')
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const errorId = useId()
+
+  // 처음 표지일 때는 옮기지 않는다. 상태가 바뀔 때만 옮겨 다른 이유로 다시 그려도 포커스를 빼앗지 않는다.
+  useEffect(() => {
+    if (state === 'playing') videoRef.current?.focus()
+    if (state === 'failed') buttonRef.current?.focus()
+  }, [state])
 
   if (state === 'playing') {
     return (
       <video
-        ref={(el) => el?.focus()}
+        ref={videoRef}
         // 브라우저는 controls가 있는 video를 포커스할 수 있지만 명시해 둔다(Space로 재생·멈춤).
         tabIndex={0}
         className={styles.playerVideo}
@@ -108,12 +117,11 @@ function IntroPlayer() {
   }
   return (
     <button
-      ref={(el) => {
-        if (state === 'failed') el?.focus()
-      }}
+      ref={buttonRef}
       type="button"
       className={styles.player}
       aria-label="합방 소개 영상 재생 (30초)"
+      aria-describedby={state === 'failed' ? errorId : undefined}
       onClick={() => setState('playing')}
     >
       <span className={styles.ticks} aria-hidden="true" />
@@ -135,7 +143,7 @@ function IntroPlayer() {
           <br />
           3단계면 돼요
         </span>
-        <span className={`num ${styles.timecode}`} role="status">
+        <span id={errorId} className={`num ${styles.timecode}`}>
           {state === 'failed'
             ? '영상을 불러오지 못했어요. 새로고침해 주세요.'
             : '0:30'}
