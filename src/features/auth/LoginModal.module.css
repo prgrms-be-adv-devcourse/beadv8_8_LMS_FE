@@ -245,7 +245,7 @@
   min-width: 0;
 }
 
-/* ── 개발용 테스트 계정 (로컬·직접 빌드에서만 보인다) ── */
+/* ── 개발용 테스트 계정 (VITE_LOCAL_LOGIN 빌드에서만 보인다) ── */
 .testAccounts {
   display: flex;
   flex-direction: column;

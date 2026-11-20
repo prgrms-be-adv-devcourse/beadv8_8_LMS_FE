@@ -130,6 +130,7 @@ fetch('https://hapbang.duckdns.org/api/...')     // ❌ 같은 출처가 아니�
 Vite의 `VITE_*` 변수는 **빌드할 때 JS 번들에 그대로 박혀 누구나 볼 수 있다.**
 
 - 비밀값(API 키, 토큰 등)을 넣지 않는다. 비밀이 필요한 기능은 BE를 통한다.
+    - 예외: 지금 서버는 시연·테스트용이라 `VITE_LOCAL_LOGIN=true`로 BE 초기 계정 비밀번호(공개 레포에 이미 있는 값, BE #520)가 번들에 들어간다. 실제 운영으로 바꿀 때 `publish.yml`에서 뺀다.
 - `.env`, `.env.*`는 커밋하지 않는다.
 - 새 빌드 인자가 필요하면 `publish.yml` build-args를 바꿔야 하므로 팀과 먼저 상의한다.
 

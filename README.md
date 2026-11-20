@@ -22,7 +22,7 @@ import는 `@/`가 `src/`를 가리킨다(`import { api } from '@/shared/api/clie
 
 ### 개발 서버 도구
 
-- **테스트 계정 로그인**: 개발 서버에서 로그인 모달의 테스트 계정 버튼(인플루언서·인증된 인플루언서·관리자)으로 BE 초기 계정에 로그인한다(`POST /api/v1/members/login`). 운영 번들에는 버튼이 보이지 않는다.
+- **테스트 계정 로그인**: 개발 서버와 `VITE_LOCAL_LOGIN=true` 빌드에서 로그인 모달의 테스트 계정 버튼(인플루언서·인증된 인플루언서·관리자)으로 BE 초기 계정에 로그인한다(`POST /api/v1/members/login`). 지금 서버는 시연·테스트용이라 발행 이미지에도 버튼이 보이고, 실제 운영으로 바꿀 때 `publish.yml`에서 끈다.
 - **HP 충전(토스페이먼츠 테스트 결제)**: `.env.local`에 `VITE_TOSS_PAYMENTS_CLIENT_KEY=test_ck_…`를 넣는다. 비워 두면 충전 버튼이 꺼진다. 배포 값은 [배포](docs/deploy.md#환경변수) 참고.
 
 ### 폴더
