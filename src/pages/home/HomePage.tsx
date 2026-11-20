@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { lecturesQuery } from '@/entities/lecture/api'
 import { LectureCard } from '@/entities/lecture/ui/LectureCard'
@@ -8,6 +9,7 @@ import { startGoogleLogin, useViewer } from '@/shared/auth/session'
 import { scrollBehavior } from '@/shared/lib/motion'
 import { Avatar } from '@/shared/ui/Avatar'
 import { LoadError } from '@/shared/ui/QueryState'
+import introVideo from './hapbang-intro.mp4'
 import styles from './HomePage.module.css'
 import { useReveal } from './useReveal'
 
@@ -79,6 +81,57 @@ const CHAPTERS = [
   '방송하고 출연료 받기',
 ]
 
+/**
+ * 소개 영상(30초). 처음에는 모니터 표지를 보이고, 재생 버튼을 누른 뒤에야 영상을 불러와 그 자리에서 재생한다.
+ * 영상은 번들 자산(해시 파일 이름, 오래 캐시)이다. 원본은 1080p H.264로 다시 줄여 넣었다.
+ */
+function IntroPlayer() {
+  const [playing, setPlaying] = useState(false)
+
+  if (playing) {
+    return (
+      <video
+        className={styles.playerVideo}
+        src={introVideo}
+        aria-label="합방 소개 영상"
+        controls
+        autoPlay
+        playsInline
+      />
+    )
+  }
+  return (
+    <button
+      type="button"
+      className={styles.player}
+      aria-label="합방 소개 영상 재생 (30초)"
+      onClick={() => setPlaying(true)}
+    >
+      <span className={styles.ticks} aria-hidden="true" />
+      <span className={styles.playerTop}>
+        <span className="onair">합방 소개</span>
+        <span className={styles.rec}>
+          <span className={styles.recDot} aria-hidden="true" />
+          REC
+        </span>
+      </span>
+      <span className={styles.play} aria-hidden="true">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </span>
+      <span className={styles.playerBottom}>
+        <span className={styles.playerTitle}>
+          처음 합방하는 날까지,
+          <br />
+          3단계면 돼요
+        </span>
+        <span className={`num ${styles.timecode}`}>0:30</span>
+      </span>
+    </button>
+  )
+}
+
 /** 홈: 모든 역할 공통 첫 화면. 서비스 소개와 역할별 다음 행동, 최근 강의를 보여 준다. */
 export function HomePage() {
   const viewer = useViewer() ?? 'GUEST'
@@ -100,38 +153,7 @@ export function HomePage() {
         className={`${styles.wrap} ${styles.video} ${styles.reveal}`}
       >
         <div className={styles.monitor}>
-          <div
-            className={styles.player}
-            role="img"
-            aria-label="합방 소개 영상 자리"
-          >
-            <span className={styles.ticks} aria-hidden="true" />
-            <span className={styles.playerTop}>
-              <span className="onair">합방 소개</span>
-              <span className={styles.rec}>
-                <span className={styles.recDot} aria-hidden="true" />
-                REC
-              </span>
-            </span>
-            <span className={styles.play} aria-hidden="true">
-              <svg
-                width="30"
-                height="30"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </span>
-            <span className={styles.playerBottom}>
-              <span className={styles.playerTitle}>
-                처음 합방하는 날까지,
-                <br />
-                3단계면 돼요
-              </span>
-              <span className={`num ${styles.timecode}`}>영상 준비 중</span>
-            </span>
-          </div>
+          <IntroPlayer />
         </div>
         <div className={styles.videoText}>
           <span className={styles.eyebrow}>VIDEO</span>

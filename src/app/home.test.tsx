@@ -217,4 +217,23 @@ describe('홈', () => {
       within(footer).getByRole('link', { name: '고객센터' }),
     ).toHaveAttribute('href', '/support')
   })
+
+  it('소개 영상은 재생 버튼을 누르면 그 자리에서 재생한다', async () => {
+    mockLectures(4)
+    renderApp('/', 'GUEST')
+
+    const play = await screen.findByRole('button', {
+      name: '합방 소개 영상 재생 (30초)',
+    })
+    // 누르기 전에는 영상을 불러오지 않는다.
+    expect(document.querySelector('video')).toBeNull()
+
+    await userEvent.click(play)
+
+    const video = screen.getByLabelText('합방 소개 영상')
+    expect(video.tagName).toBe('VIDEO')
+    expect(video).toHaveAttribute('src', expect.stringContaining('.mp4'))
+    expect(video).toHaveAttribute('controls')
+    expect(screen.queryByRole('button', { name: /소개 영상 재생/ })).toBeNull()
+  })
 })
