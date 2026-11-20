@@ -472,7 +472,7 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   border-radius: var(--r);
-  background: #000;
+  background: var(--st-bg);
 }
 .player::before {
   content: '';
@@ -1244,6 +1244,9 @@
   }
   .player {
     padding: 20px 22px;
+    border-radius: var(--r-sm);
+  }
+  .playerVideo {
     border-radius: var(--r-sm);
   }
   .ticks {

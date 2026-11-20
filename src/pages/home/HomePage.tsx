@@ -84,28 +84,37 @@ const CHAPTERS = [
 /**
  * 소개 영상(30초). 처음에는 모니터 표지를 보이고, 재생 버튼을 누른 뒤에야 영상을 불러와 그 자리에서 재생한다.
  * 영상은 번들 자산(해시 파일 이름, 오래 캐시)이다. 원본은 1080p H.264로 다시 줄여 넣었다.
+ * 배포 직후 옛 탭에서는 옛 해시 파일이 404라 불러오지 못한다. 그때는 표지로 돌아가 새로고침을 안내한다.
+ * 버튼과 영상이 서로 바뀌므로 바뀐 쪽으로 포커스를 옮겨 키보드 사용자가 처음부터 다시 찾지 않게 한다.
  */
 function IntroPlayer() {
-  const [playing, setPlaying] = useState(false)
+  const [state, setState] = useState<'cover' | 'playing' | 'failed'>('cover')
 
-  if (playing) {
+  if (state === 'playing') {
     return (
       <video
+        ref={(el) => el?.focus()}
+        // 브라우저는 controls가 있는 video를 포커스할 수 있지만 명시해 둔다(Space로 재생·멈춤).
+        tabIndex={0}
         className={styles.playerVideo}
         src={introVideo}
         aria-label="합방 소개 영상"
         controls
         autoPlay
         playsInline
+        onError={() => setState('failed')}
       />
     )
   }
   return (
     <button
+      ref={(el) => {
+        if (state === 'failed') el?.focus()
+      }}
       type="button"
       className={styles.player}
       aria-label="합방 소개 영상 재생 (30초)"
-      onClick={() => setPlaying(true)}
+      onClick={() => setState('playing')}
     >
       <span className={styles.ticks} aria-hidden="true" />
       <span className={styles.playerTop}>
@@ -126,7 +135,11 @@ function IntroPlayer() {
           <br />
           3단계면 돼요
         </span>
-        <span className={`num ${styles.timecode}`}>0:30</span>
+        <span className={`num ${styles.timecode}`} role="status">
+          {state === 'failed'
+            ? '영상을 불러오지 못했어요. 새로고침해 주세요.'
+            : '0:30'}
+        </span>
       </span>
     </button>
   )

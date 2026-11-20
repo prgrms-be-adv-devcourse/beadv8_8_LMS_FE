@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 import { http } from 'msw'
 import { afterEach, describe, expect, it } from 'vitest'
 import { queryClient } from '@/app/queryClient'
@@ -234,6 +234,27 @@ describe('홈', () => {
     expect(video.tagName).toBe('VIDEO')
     expect(video).toHaveAttribute('src', expect.stringContaining('.mp4'))
     expect(video).toHaveAttribute('controls')
+    // 버튼이 사라져도 키보드 포커스는 방금 켠 영상에 있다.
+    expect(video).toHaveFocus()
     expect(screen.queryByRole('button', { name: /소개 영상 재생/ })).toBeNull()
+  })
+
+  it('소개 영상을 불러오지 못하면(배포 직후 옛 탭 등) 표지로 돌아가 새로고침을 안내한다', async () => {
+    mockLectures(4)
+    renderApp('/', 'GUEST')
+    await userEvent.click(
+      await screen.findByRole('button', { name: '합방 소개 영상 재생 (30초)' }),
+    )
+
+    fireEvent.error(screen.getByLabelText('합방 소개 영상'))
+
+    const play = screen.getByRole('button', {
+      name: '합방 소개 영상 재생 (30초)',
+    })
+    expect(play).toHaveFocus()
+    expect(within(play).getByRole('status')).toHaveTextContent(
+      '영상을 불러오지 못했어요. 새로고침해 주세요.',
+    )
+    expect(document.querySelector('video')).toBeNull()
   })
 })
