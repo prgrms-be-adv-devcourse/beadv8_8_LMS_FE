@@ -239,6 +239,28 @@ describe('홈', () => {
     expect(screen.queryByRole('button', { name: /소개 영상 재생/ })).toBeNull()
   })
 
+  it('소개 영상 표지는 영상 썸네일을 보이고, 재생하면 같은 썸네일을 포스터로 쓴다', async () => {
+    mockLectures(4)
+    renderApp('/', 'GUEST')
+
+    const play = await screen.findByRole('button', {
+      name: '합방 소개 영상 재생 (30초)',
+    })
+    // 썸네일은 꾸밈 그림이라 버튼 이름에 섞이지 않는다(alt="").
+    const poster = play.querySelector('img')
+    expect(poster).toHaveAttribute('alt', '')
+    const src = poster?.getAttribute('src')
+    expect(src).toEqual(expect.stringContaining('hapbang-intro-poster'))
+
+    await userEvent.click(play)
+
+    // 영상이 첫 장면을 그리기 전에도 같은 썸네일이 보여 검은 화면이 깜빡이지 않는다.
+    expect(screen.getByLabelText('합방 소개 영상')).toHaveAttribute(
+      'poster',
+      src,
+    )
+  })
+
   it('소개 영상을 불러오지 못하면(배포 직후 옛 탭 등) 표지로 돌아가 새로고침을 안내한다', async () => {
     mockLectures(4)
     renderApp('/', 'GUEST')

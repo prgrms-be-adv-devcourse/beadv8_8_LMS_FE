@@ -451,7 +451,7 @@
   color: var(--st-fg);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 30px 34px;
   /* 재생 버튼: 기본 버튼 모양을 지운다 */
   width: 100%;
@@ -485,6 +485,15 @@
     transparent 1px 4px
   );
 }
+/* 영상 썸네일: 주사선(::before) 위, 눈금·재생 단추 아래. 불러오지 못하면 아래 어두운 면이 보인다 */
+.poster {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 /* 모서리 눈금(뷰파인더) */
 .ticks {
   position: absolute;
@@ -500,20 +509,6 @@
     linear-gradient(var(--tick), var(--tick)) left bottom / 2px 18px no-repeat,
     linear-gradient(var(--tick), var(--tick)) right bottom / 18px 2px no-repeat,
     linear-gradient(var(--tick), var(--tick)) right bottom / 2px 18px no-repeat;
-}
-.playerTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-.rec {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: 600 11px var(--f-mono);
-  letter-spacing: 0.12em;
-  color: var(--st-fg-2);
 }
 .recDot {
   width: 8px;
@@ -539,21 +534,25 @@
     0 0 0 10px color-mix(in srgb, var(--signal) 18%, transparent),
     0 12px 32px color-mix(in srgb, var(--signal) 30%, transparent);
 }
+/* 썸네일 위 글자(길이·실패 안내)는 스튜디오 면 알약에 얹어 장면 색(흰 카드 포함)과 관계없이 읽히게 한다 */
 .playerBottom {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
+  justify-content: flex-end;
 }
-.playerTitle {
-  font-family: var(--f-display);
-  font-size: clamp(20px, 2.6vw, 30px);
-  line-height: 1.15;
+.timecode,
+.coverError {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--st-bg) 82%, transparent);
+  color: var(--st-fg);
 }
 .timecode {
-  flex: none;
   font-size: 12px;
-  color: var(--st-fg-2);
+}
+.coverError {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
 }
 .videoText {
   flex: 2 1 300px;
@@ -1249,8 +1248,9 @@
   .playerVideo {
     border-radius: var(--r-sm);
   }
+  /* 좁은 화면에서는 눈금이 썸네일 왼쪽 위 자막에 닿아 숨긴다 */
   .ticks {
-    inset: 9px;
+    display: none;
   }
   .play {
     width: 56px;
